@@ -96,7 +96,7 @@ MixturePrediction::MixturePrediction(const InputReader &inputreader) : displayNa
 
 MixturePrediction::MixturePrediction(
     std::string _displayName,
-    const std::vector<Component> &components,
+    std::vector<Component> _components,
     double _temperature,
     double _pressureStart,
     double _pressureEnd,
@@ -104,7 +104,7 @@ MixturePrediction::MixturePrediction(
     size_t _pressureScale,
     size_t _predictionMethod,
     size_t _iastMethod) : displayName(_displayName),
-                            components(components),
+                            components(_components),
                             sortedComponents(components),
                             Ncomp(components.size()),
                             Nsorted(components.size() - 1),

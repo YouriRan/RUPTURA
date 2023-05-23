@@ -5,7 +5,7 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 ext_modules = [
     Pybind11Extension(
     "ruptura",
-    ["src/bindings.cpp"],
+    sources=glob("src/*.cpp"),
     extra_compile_args=["-std=c++17"]
     )
 ]
