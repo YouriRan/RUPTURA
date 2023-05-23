@@ -15,6 +15,7 @@
 #endif
 
 #include "breakthrough.h"
+#include "mixture_prediction.h"
 
 const double R=8.31446261815324;
 
@@ -87,6 +88,70 @@ Breakthrough::Breakthrough(const InputReader &inputReader):
     Dqdtnew((Ngrid + 1) * Ncomp),
     cachedP0((Ngrid + 1) * Ncomp * maxIsothermTerms),
     cachedPsi((Ngrid + 1) * maxIsothermTerms)
+{
+}
+
+Breakthrough::Breakthrough(
+        std::string _displayName,
+        std::vector<Component> _components,
+        size_t _numberOfGridPoints,
+        size_t _printEvery,
+        size_t _writeEvery,
+        double _temperature,
+        double _p_total,
+        double _columnVoidFraction,
+        double _pressureGradient,
+        double _particleDensity,
+        double _columnEntranceVelocity,
+        double _columnLength,
+        double _timeStep,
+        size_t _numberOfTimeSteps,
+        size_t _autoNumberOfTimeSteps,
+        double _pulseBreakthrough,
+        double _pulseTime,
+        const MixturePrediction _mixture
+        ): 
+    displayName(_displayName),
+    components(_components),
+    carrierGasComponent(0),
+    Ncomp(_components.size()),
+    Ngrid(_numberOfGridPoints),
+    printEvery(_printEvery),
+    writeEvery(_writeEvery),
+    T(_temperature),
+    p_total(_p_total),
+    dptdx(_pressureGradient),
+    epsilon(_columnVoidFraction),
+    rho_p(_particleDensity),
+    v_in(_columnEntranceVelocity),
+    L(_columnLength),
+    dx(L / static_cast<double>(Ngrid)),
+    dt(_timeStep),
+    Nsteps(_numberOfTimeSteps),
+    autoSteps(_autoNumberOfTimeSteps),
+    pulse(_pulseBreakthrough),
+    tpulse(_pulseTime),
+    mixture(_mixture),
+    maxIsothermTerms(mixture.getMaxIsothermTerms()),
+    prefactor(Ncomp),
+    Yi(Ncomp),
+    Xi(Ncomp),
+    Ni(Ncomp),
+    V(Ngrid+1),
+    Vnew(Ngrid+1),
+    Pt(Ngrid+1),
+    P((Ngrid+1) * Ncomp),
+    Pnew((Ngrid+1) * Ncomp),
+    Q((Ngrid+1) * Ncomp),
+    Qnew((Ngrid+1) * Ncomp),
+    Qeq((Ngrid+1) * Ncomp),
+    Qeqnew((Ngrid+1) * Ncomp),
+    Dpdt((Ngrid+1) * Ncomp),
+    Dpdtnew((Ngrid+1) * Ncomp),
+    Dqdt((Ngrid+1) * Ncomp),
+    Dqdtnew((Ngrid+1) * Ncomp),
+    cachedP0((Ngrid+1) * Ncomp * maxIsothermTerms),
+    cachedPsi((Ngrid+1) * maxIsothermTerms)
 {
 }
 

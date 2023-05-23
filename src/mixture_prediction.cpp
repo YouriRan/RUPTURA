@@ -96,7 +96,7 @@ MixturePrediction::MixturePrediction(const InputReader &inputreader) : displayNa
 
 MixturePrediction::MixturePrediction(
     std::string _displayName,
-    std::vector<Component> _components,
+    const std::vector<Component> &components,
     double _temperature,
     double _pressureStart,
     double _pressureEnd,
@@ -104,7 +104,7 @@ MixturePrediction::MixturePrediction(
     size_t _pressureScale,
     size_t _predictionMethod,
     size_t _iastMethod) : displayName(_displayName),
-                            components(_components),
+                            components(components),
                             sortedComponents(components),
                             Ncomp(components.size()),
                             Nsorted(components.size() - 1),
@@ -131,7 +131,7 @@ MixturePrediction::MixturePrediction(
   maxIsothermTerms = 0;
   if(!components.empty())
   {
-    std::vector<const Component>::iterator maxIsothermTermsIterator = std::max_element(_components.begin(), _components.end(),
+    std::vector<Component>::iterator maxIsothermTermsIterator = std::max_element(_components.begin(), _components.end(),
               [] (Component& lhs, Component& rhs) {
                   return lhs.isotherm.numberOfSites < rhs.isotherm.numberOfSites;
               });

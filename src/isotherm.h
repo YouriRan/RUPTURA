@@ -47,6 +47,7 @@ struct Isotherm
   };
 
   Isotherm(Isotherm::Type type, const std::vector<double> &values, size_t numberOfValues);
+  Isotherm(size_t t, const std::vector<double> &values, size_t numberOfValues);
 
   Isotherm::Type type;
   std::vector<double> parameters;
