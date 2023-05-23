@@ -26,7 +26,7 @@ class MixturePrediction
     MixturePrediction(const InputReader &inputreader);
     MixturePrediction(
       std::string _displayName,
-      const std::vector <Component> &components,
+      std::vector <Component> _components,
       double _temperature,
       double _pressureStart,
       double _pressureEnd,
