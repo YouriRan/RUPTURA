@@ -8,6 +8,12 @@ Isotherm::Isotherm(Isotherm::Type t, const std::vector<double> &values, size_t n
     numberOfParameters(numberOfValues)
 {
 }
+Isotherm::Isotherm(size_t t, const std::vector<double> &values, size_t numberOfValues):
+    type(Isotherm::Type(t)),
+    parameters(values),
+    numberOfParameters(numberOfValues)
+{
+}
 
 void Isotherm::print() const
 {

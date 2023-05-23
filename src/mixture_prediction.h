@@ -6,11 +6,6 @@
 #include "inputreader.h"
 #include "component.h"
 
-// #include <pybind11/pybind11.h>
-// #include <pybind11/stl.h>
-
-// namespace py = pybind11;
-
 class MixturePrediction
 {
   public:
@@ -31,7 +26,7 @@ class MixturePrediction
     MixturePrediction(const InputReader &inputreader);
     MixturePrediction(
       std::string _displayName,
-      std::vector <Component> _components,
+      const std::vector <Component> &components,
       double _temperature,
       double _pressureStart,
       double _pressureEnd,
@@ -48,6 +43,10 @@ class MixturePrediction
     void createMixtureAdsorbedMolFractionPlotScript();
     void createPlotScript();
     std::vector<std::vector<std::vector<double>>> compute();
+
+    size_t getMaxIsothermTerms() const {
+        return maxIsothermTerms;
+    }
 
     // Yi  = gas phase mol-fraction
     // P   = total pressure
@@ -149,11 +148,3 @@ class MixturePrediction
 
     void printErrorStatus(double psi, double sum, double P, const std::vector<double> Yi, double cachedP0[]);
 };
-
-/* 
-PYBIND11_MODULE(ruptura, m) {
-  py::class_<MixturePrediction>(m, "MixturePrediction")
-    .def(py::init<std::string, std::vector<Component>, double, double, double, size_t, size_t, size_t, size_t>())
-    .def("compute", &MixturePrediction::compute)
-}
-*/
