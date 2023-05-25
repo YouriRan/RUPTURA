@@ -6,6 +6,12 @@
 #include "inputreader.h"
 #include "mixture_prediction.h"
 
+#ifdef PYBUILD
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+namespace py = pybind11;
+#endif // PYBUILD
+
 struct Breakthrough
 {
 public:
@@ -25,18 +31,22 @@ public:
         double _columnLength,
         double _timeStep,
         size_t _numberOfTimeSteps,
-        size_t _autoNumberOfTimeSteps,
-        double _pulseBreakthrough,
+        bool _autoSteps,
+        bool _pulse,
         double _pulseTime,
-        const MixturePrediction _mixture
-    );
+        const MixturePrediction _mixture);
 
     void print() const;
+    std::string repr() const;
     void initialize();
     void run();
 
     void createPlotScript();
     void createMovieScripts();
+
+#ifdef PYBUILD
+    py::array_t<double> compute();
+#endif // PYBUILD
 
 private:
     const std::string displayName;
@@ -104,6 +114,7 @@ private:
                                  const std::vector<double> &v,
                                  const std::vector<double> &p);
 
+    void computeStep(size_t step);
     void computeEquilibriumLoadings();
 
     void computeVelocity();

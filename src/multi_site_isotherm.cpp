@@ -6,11 +6,18 @@
 
 void MultiSiteIsotherm::print() const
 {
-  std::cout << "    number of isotherm sites:  " << numberOfSites << "\n";
-  for(size_t i = 0; i < numberOfSites; ++i)
-  {
-    sites[i].print();
-  }
+    std::cout << repr();
+}
+
+std::string MultiSiteIsotherm::repr() const
+{
+    std::string s;
+    s += "    number of isotherm sites:  " + std::to_string(numberOfSites) + "\n";
+    for (size_t i = 0; i < numberOfSites; ++i)
+    {
+        s += sites[i].repr();
+    }
+    return s;
 }
 
 void MultiSiteIsotherm::add(const Isotherm &isotherm)

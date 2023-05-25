@@ -33,6 +33,7 @@ struct MultiSiteIsotherm
   void add(const Isotherm &isotherm);
 
   void print() const;
+  std::string repr() const;
 
   MultiSiteIsotherm randomized(double maximumLoading)
   {
