@@ -3,6 +3,12 @@
 #include <vector>
 #include <tuple>
 
+#ifdef PYBUILD
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+namespace py = pybind11;
+#endif // PYBUILD
+
 #include "inputreader.h"
 #include "component.h"
 
@@ -25,24 +31,29 @@ class MixturePrediction
 
     MixturePrediction(const InputReader &inputreader);
     MixturePrediction(
-      std::string _displayName,
-      std::vector <Component> _components,
-      double _temperature,
-      double _pressureStart,
-      double _pressureEnd,
-      size_t _numberOfPressurePoints,
-      size_t _pressureScale,
-      size_t _predictionMethod = 0,
-      size_t _iastMethod = 0
-    );
+        std::string _displayName,
+        std::vector<Component> _components,
+        size_t _numberOfCarrierGases,
+        size_t _carrierGasComponent,
+        double _temperature,
+        double _pressureStart,
+        double _pressureEnd,
+        size_t _numberOfPressurePoints,
+        size_t _pressureScale,
+        size_t _predictionMethod,
+        size_t _iastMethod);
 
     void print() const;
+    std::string repr() const;
     void run();
     void createPureComponentsPlotScript();
     void createMixturePlotScript();
     void createMixtureAdsorbedMolFractionPlotScript();
     void createPlotScript();
-    std::vector<std::vector<std::vector<double>>> compute();
+
+#ifdef PYBUILD
+    py::array_t<double> compute();
+#endif // PYBUILD
 
     size_t getMaxIsothermTerms() const {
         return maxIsothermTerms;
@@ -93,6 +104,8 @@ class MixturePrediction
     double pressureEnd{ 1e8 };
     size_t numberOfPressurePoints{ 100 };
     PressureScale pressureScale{ PressureScale::Log };
+
+    std::vector<double> initPressures();
 
     std::pair<size_t, size_t> computeFastIAST(const std::vector<double> &Yi,
                                       const double &P,

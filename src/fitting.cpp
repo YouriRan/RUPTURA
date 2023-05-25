@@ -22,6 +22,11 @@
   #include <sys/stat.h>
 #endif
 
+#ifdef PYBUILD
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+namespace py = pybind11;
+#endif // PYBUILD
 
 Fitting::Fitting(const InputReader &inputreader):
   Ncomp(inputreader.components.size()),
@@ -50,6 +55,51 @@ Fitting::Fitting(const InputReader &inputreader):
     componentName[i] = inputreader.components[i].name;
     filename[i] = inputreader.components[i].filename;
     isotherms[i] = inputreader.components[i].isotherm;
+  }
+}
+
+Fitting::Fitting(
+    std::string _displayName,
+    std::vector<Component> _components,
+    std::vector<std::pair<double, double>> _rawData,
+    size_t _pressureScale) : Ncomp(_components.size()),
+                             displayName(_displayName),
+                             componentName(Ncomp),
+                             isotherms(Ncomp),
+                             pressureScale(PressureScale(_pressureScale)),
+                             GA_Size(static_cast<size_t>(std::pow(2.0, 12.0))),
+                             GA_MutationRate(1.0 / 3.0),
+                             GA_EliteRate(0.15),
+                             GA_MotleyCrowdRate(0.25),
+                             GA_DisasterRate(0.001),
+                             GA_Elitists(static_cast<size_t>(static_cast<double>(GA_Size) * GA_EliteRate)),
+                             GA_Motleists(static_cast<size_t>(static_cast<double>(GA_Size) * (1.0 - GA_MotleyCrowdRate))),
+                             popAlpha(static_cast<size_t>(std::pow(2.0, 12.0))),
+                             popBeta(static_cast<size_t>(std::pow(2.0, 12.0))),
+                             parents(popAlpha),
+                             children(popBeta)
+{
+
+  // also skips readData functionality
+
+  for (size_t i = 0; i < Ncomp; ++i)
+  {
+    componentName[i] = _components[i].name;
+    isotherms[i] = _components[i].isotherm;
+  }
+
+  // get pressure range
+  std::sort(rawData.begin(), rawData.end());
+  pressureRange = std::make_pair(rawData.front().first, rawData.back().first);
+  logPressureRange = std::make_pair(std::log(pressureRange.first), std::log(pressureRange.second));
+
+  maximumLoading = 0.0;
+  for (const auto &pair : rawData)
+  {
+    if (pair.second > maximumLoading)
+    {
+        maximumLoading = pair.second;
+    }
   }
 }
 
@@ -138,8 +188,22 @@ void Fitting::run()
   createPlotScript();
 }
 
+#ifdef PYBUILD
+py::array_t compute()
+{
+  std::cout << "STARTING FITTING\n";
+  for (size_t i = 0; i < Ncomp; ++i)
+  {
+    const DNA bestCitizen = fit(i);
+    const DNA optimizedBestCitizen = simplex(bestCitizen, 1.0);
+    optimizedBestCitizen.phenotype.print();
+  }
+}
+#endif // PYBUILD
+
 // create a new citizen in the Ensemble
-Fitting::DNA Fitting::newCitizen(size_t ID)
+Fitting::DNA
+Fitting::newCitizen(size_t ID)
 {
   DNA citizen;
 
@@ -147,8 +211,8 @@ Fitting::DNA Fitting::newCitizen(size_t ID)
 
   citizen.genotype.clear();
   citizen.genotype.reserve((sizeof(double) * CHAR_BIT) *
-                  citizen.phenotype.numberOfParameters);
-  for(size_t i = 0; i < citizen.phenotype.numberOfParameters; ++i)
+                           citizen.phenotype.numberOfParameters);
+  for (size_t i = 0; i < citizen.phenotype.numberOfParameters; ++i)
   {
     // convert from double to bitset
     uint64_t p;
@@ -170,158 +234,163 @@ void Fitting::updateCitizen(DNA &citizen)
   citizen.fitness = fitness(citizen.phenotype);
 }
 
-inline bool my_isnan(double val) 
-{
-  union { double f; uint64_t x; } u = { val };
-  return (u.x << 1) > (0x7ff0000000000000u << 1);
-}
-
-
-double Fitting::fitness(const MultiSiteIsotherm &phenotype)
-// For evaluating isotherm goodness-of-fit:
-// Residual Root Mean Square Error (RMSE)
-{
-  double fitnessValue = phenotype.fitness();
-  size_t m = rawData.size();              // number of observations
-  size_t p = phenotype.numberOfParameters; // number of adjustable parameters
-  for(std::pair<double, double> dataPoint: rawData)
+  inline bool my_isnan(double val)
   {
-    double pressure = dataPoint.first;
-    double loading = dataPoint.second;
-    double difference = loading - phenotype.value(pressure);
-    // double weight = 1.0/(1.0+loading);
-    double weight = 1.0;
-    fitnessValue += weight * difference * difference;
-  }
-  fitnessValue = sqrt(fitnessValue / static_cast<double>(m - p));
-
-  if(my_isnan(fitnessValue)) fitnessValue = 99999999.999999;
-  if(fitnessValue==0.0000000000) fitnessValue = 99999999.999999;
-
-  return fitnessValue;
-}
-
-double Fitting::RCorrelation(const MultiSiteIsotherm &phenotype)
-{
-  double RCorrelationValue = phenotype.fitness();
-  size_t m = rawData.size();
-  double loading_avg_o = 0.0;
-  double loading_avg_e = 0.0;
-  double tmp1 = 0.0;
-  double tmp2 = 0.0;
-  double tmp3 = 0.0;
-
-  for(std::pair<double, double> dataPoint: rawData)
-  {
-    double pressure = dataPoint.first;
-    double loading = dataPoint.second;
-    loading_avg_o += loading / static_cast<double>(m);
-    loading_avg_e += phenotype.value(pressure) / static_cast<double>(m);
-  }
-
-  for(std::pair<double, double> dataPoint: rawData)
-  {
-    double pressure = dataPoint.first;
-    double loading = dataPoint.second; 
-    tmp1 += (loading-loading_avg_o)*(phenotype.value(pressure)-loading_avg_e);
-    tmp2 += (loading-loading_avg_o)*(loading-loading_avg_o);
-    tmp3 += (phenotype.value(pressure)-loading_avg_e)*(phenotype.value(pressure)-loading_avg_e);
-  }
-  RCorrelationValue = tmp1/sqrt(tmp2*tmp3);
-  
-  return RCorrelationValue;
-}
-
-size_t Fitting::biodiversity(const std::vector<DNA> &citizens)
-{
-  std::map<size_t, size_t> counts;
-  for(const DNA &dna: citizens) 
-  {
-    if(counts.find(dna.hash) != counts.end())
+    union
     {
+    double f;
+    uint64_t x;
+    } u = {val};
+    return (u.x << 1) > (0x7ff0000000000000u << 1);
+  }
+
+  double Fitting::fitness(const MultiSiteIsotherm &phenotype)
+  // For evaluating isotherm goodness-of-fit:
+  // Residual Root Mean Square Error (RMSE)
+  {
+    double fitnessValue = phenotype.fitness();
+    size_t m = rawData.size();               // number of observations
+    size_t p = phenotype.numberOfParameters; // number of adjustable parameters
+    for (std::pair<double, double> dataPoint : rawData)
+    {
+      double pressure = dataPoint.first;
+      double loading = dataPoint.second;
+      double difference = loading - phenotype.value(pressure);
+      // double weight = 1.0/(1.0+loading);
+      double weight = 1.0;
+      fitnessValue += weight * difference * difference;
+    }
+    fitnessValue = sqrt(fitnessValue / static_cast<double>(m - p));
+
+    if (my_isnan(fitnessValue))
+      fitnessValue = 99999999.999999;
+    if (fitnessValue == 0.0000000000)
+      fitnessValue = 99999999.999999;
+
+    return fitnessValue;
+  }
+
+  double Fitting::RCorrelation(const MultiSiteIsotherm &phenotype)
+  {
+    double RCorrelationValue = phenotype.fitness();
+    size_t m = rawData.size();
+    double loading_avg_o = 0.0;
+    double loading_avg_e = 0.0;
+    double tmp1 = 0.0;
+    double tmp2 = 0.0;
+    double tmp3 = 0.0;
+
+    for (std::pair<double, double> dataPoint : rawData)
+    {
+      double pressure = dataPoint.first;
+      double loading = dataPoint.second;
+      loading_avg_o += loading / static_cast<double>(m);
+      loading_avg_e += phenotype.value(pressure) / static_cast<double>(m);
+    }
+
+    for (std::pair<double, double> dataPoint : rawData)
+    {
+      double pressure = dataPoint.first;
+      double loading = dataPoint.second;
+      tmp1 += (loading - loading_avg_o) * (phenotype.value(pressure) - loading_avg_e);
+      tmp2 += (loading - loading_avg_o) * (loading - loading_avg_o);
+      tmp3 += (phenotype.value(pressure) - loading_avg_e) * (phenotype.value(pressure) - loading_avg_e);
+    }
+    RCorrelationValue = tmp1 / sqrt(tmp2 * tmp3);
+
+    return RCorrelationValue;
+  }
+
+  size_t Fitting::biodiversity(const std::vector<DNA> &citizens)
+  {
+    std::map<size_t, size_t> counts;
+    for (const DNA &dna : citizens)
+    {
+      if (counts.find(dna.hash) != counts.end())
+      {
       ++counts[dna.hash];
-    }
-    else 
-    {
+      }
+      else
+      {
       counts[dna.hash] = 1;
+      }
     }
-  }
-  size_t biodiversity = 0;
-  for(const std::pair<size_t, size_t> value: counts)
-  {
-    if(value.second > 1)
+    size_t biodiversity = 0;
+    for (const std::pair<size_t, size_t> value : counts)
     {
+      if (value.second > 1)
+      {
       biodiversity += value.second;
+      }
+    }
+
+    return biodiversity;
+  }
+
+  void Fitting::nuclearDisaster(size_t ID)
+  {
+    for (size_t i = 1; i < children.size(); ++i)
+    {
+      children[i] = newCitizen(ID);
     }
   }
 
-  return biodiversity;
-}
-
-void Fitting::nuclearDisaster(size_t ID)
-{
-  for(size_t i = 1; i < children.size(); ++i)
+  void Fitting::elitism()
   {
-    children[i] = newCitizen(ID);
-  }
-}
-
-void Fitting::elitism()
-{
-  std::copy(parents.begin(), parents.begin() + static_cast<std::vector<DNA>::difference_type>(GA_Elitists), children.begin());
-}
-
-void Fitting::mutate(DNA &mutant)
-{
-  mutant.genotype.clear();
-  mutant.genotype.reserve((sizeof(double) * CHAR_BIT) * mutant.phenotype.numberOfParameters);
-  for(size_t i = 0; i < mutant.phenotype.numberOfParameters; ++i)
-  {
-    // convert from double to bitset
-    uint64_t p;
-    std::memcpy(&p, &mutant.phenotype.parameters(i), sizeof(double));
-    std::bitset<sizeof(double) * CHAR_BIT> bitset(p);
-
-    // mutation: randomly flip bit
-    bitset.flip(std::size_t((sizeof(double) * CHAR_BIT) * RandomNumber::Uniform()));
-
-    // convert from bitset to double
-    p = bitset.to_ullong();
-    std::memcpy(&mutant.phenotype.parameters(i), &p, sizeof(double));
-
-    // add the bit-string to the genotype representation
-    mutant.genotype += bitset.to_string();
+    std::copy(parents.begin(), parents.begin() + static_cast<std::vector<DNA>::difference_type>(GA_Elitists), children.begin());
   }
 
-  // calculate the hah-value from the entire bit-string
-  mutant.hash = std::hash<MultiSiteIsotherm>{}(mutant.phenotype);
-}
-
-// [s1:s2] range of children
-// [i1:i2] range of parent1
-// [j1:j2] range of parent2
-// One-point crossover
-//----------------------------------------------
-//  parent1    parent2                children
-//    *          *                      *
-//  00|000000  11|111111        ->    00|111111
-//----------------------------------------------
-// Two-point
-//----------------------------------------------
-//  parent1     parent2               children
-//    *    *      *    *                *    *
-//  00|0000|00  11|1111|11       ->   00|1111|00
-//----------------------------------------------
-void Fitting::crossover(size_t ID, size_t s1,size_t s2, size_t i1, size_t i2, size_t j1, size_t j2)
-{
-  size_t k1,k2;
-  double  tmp1;
-  for(size_t i = s1; i < s2; ++i)
+  void Fitting::mutate(DNA &mutant)
   {
-    chooseRandomly(i1, i2, j1, j2, k1, k2);
-    tmp1 = RandomNumber::Uniform();
-    // choose between single cross-over using bit-strings or random parameter-swap
-    if(tmp1 < 0.490)
+    mutant.genotype.clear();
+    mutant.genotype.reserve((sizeof(double) * CHAR_BIT) * mutant.phenotype.numberOfParameters);
+    for (size_t i = 0; i < mutant.phenotype.numberOfParameters; ++i)
+    {
+      // convert from double to bitset
+      uint64_t p;
+      std::memcpy(&p, &mutant.phenotype.parameters(i), sizeof(double));
+      std::bitset<sizeof(double) * CHAR_BIT> bitset(p);
+
+      // mutation: randomly flip bit
+      bitset.flip(std::size_t((sizeof(double) * CHAR_BIT) * RandomNumber::Uniform()));
+
+      // convert from bitset to double
+      p = bitset.to_ullong();
+      std::memcpy(&mutant.phenotype.parameters(i), &p, sizeof(double));
+
+      // add the bit-string to the genotype representation
+      mutant.genotype += bitset.to_string();
+    }
+
+    // calculate the hah-value from the entire bit-string
+    mutant.hash = std::hash<MultiSiteIsotherm>{}(mutant.phenotype);
+  }
+
+  // [s1:s2] range of children
+  // [i1:i2] range of parent1
+  // [j1:j2] range of parent2
+  // One-point crossover
+  //----------------------------------------------
+  //  parent1    parent2                children
+  //    *          *                      *
+  //  00|000000  11|111111        ->    00|111111
+  //----------------------------------------------
+  // Two-point
+  //----------------------------------------------
+  //  parent1     parent2               children
+  //    *    *      *    *                *    *
+  //  00|0000|00  11|1111|11       ->   00|1111|00
+  //----------------------------------------------
+  void Fitting::crossover(size_t ID, size_t s1, size_t s2, size_t i1, size_t i2, size_t j1, size_t j2)
+  {
+    size_t k1, k2;
+    double tmp1;
+    for (size_t i = s1; i < s2; ++i)
+    {
+      chooseRandomly(i1, i2, j1, j2, k1, k2);
+      tmp1 = RandomNumber::Uniform();
+      // choose between single cross-over using bit-strings or random parameter-swap
+      if (tmp1 < 0.490)
       // One-point crossover:
       // --------------------
     {
@@ -416,8 +485,8 @@ void Fitting::crossover(size_t ID, size_t s1,size_t s2, size_t i1, size_t i2, si
     }
 
     children[i].hash = std::hash<MultiSiteIsotherm>{}(children[i].phenotype);
+    }
   }
-}
 
 void Fitting::chooseRandomly(size_t kk1,size_t kk2,size_t jj1,size_t jj2, size_t &ii1, size_t &ii2)
 {
