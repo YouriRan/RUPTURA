@@ -16,12 +16,11 @@ isothermTypes = {
     "OBrien-Myers": 10,
     "Quadratic": 11,
     "Temkin": 12,
-    "BingelWalton": 13
+    "BingelWalton": 13,
 }
 
 
 class Components:
-
     def __init__(self, components: list[dict] = []):
         self.components = []
         self.numberOfCarrierGases = 1
@@ -30,64 +29,75 @@ class Components:
         for comp in components:
             self.addComponent(**comp)
 
-    def addComponent(self,
-                     name: str,
-                     gasPhaseMolFraction: float,
-                     isotherms: list = [],
-                     massTransferCoefficient: float = 0.0,
-                     axialDispersionCoefficient: float = 0.0,
-                     isCarrierGas: bool = False):
+    def addComponent(
+        self,
+        name: str,
+        gasPhaseMolFraction: float,
+        isotherms: list = [],
+        massTransferCoefficient: float = 0.0,
+        axialDispersionCoefficient: float = 0.0,
+        isCarrierGas: bool = False,
+    ):
         # get idx from existing components
         idx = len(self.components)
 
         # add isotherm information
         cpp_isotherms = [
-            _ruptura.Isotherm(isothermTypes[isotherm[0]], isotherm[1:],
-                              len(isotherm) - 1) for isotherm in isotherms
+            _ruptura.Isotherm(isothermTypes[isotherm[0]], isotherm[1:], len(isotherm) - 1)
+            for isotherm in isotherms
         ]
-        comp = _ruptura.Component(idx, name, cpp_isotherms,
-                                  gasPhaseMolFraction, massTransferCoefficient,
-                                  axialDispersionCoefficient, isCarrierGas)
+        comp = _ruptura.Component(
+            idx,
+            name,
+            cpp_isotherms,
+            gasPhaseMolFraction,
+            massTransferCoefficient,
+            axialDispersionCoefficient,
+            isCarrierGas,
+        )
 
         self.components.append(comp)
 
 
 class MixturePrediction:
-
-    def __init__(self,
-                 displayName: str,
-                 temperature: float,
-                 components: Components,
-                 pressureStart: float,
-                 pressureEnd: float,
-                 numberOfPressurePoints: int,
-                 pressureScale: str,
-                 predictionMethod: str = "IAST",
-                 iastMethod: str = "FastIAST"):
-
+    def __init__(
+        self,
+        displayName: str,
+        temperature: float,
+        components: Components,
+        pressureStart: float,
+        pressureEnd: float,
+        numberOfPressurePoints: int,
+        pressureScale: str,
+        predictionMethod: str = "IAST",
+        iastMethod: str = "FastIAST",
+    ):
         self.shape = (numberOfPressurePoints, len(components.components), 6)
         pressureScale = {"log": 0, "linear": 1}[pressureScale]
-        predictionMethod = {
-            "IAST": 0,
-            "SIAST": 1,
-            "EI": 2,
-            "SEI": 3
-        }[predictionMethod]
+        predictionMethod = {"IAST": 0, "SIAST": 1, "EI": 2, "SEI": 3}[predictionMethod]
         iastMethod = {"FastIAST": 0, "NestedLoopBisection": 1}[iastMethod]
 
         self.MixturePrediction = _ruptura.MixturePrediction(
-            displayName, components.components,
-            components.numberOfCarrierGases, components.carrierGasComponent,
-            temperature, pressureStart, pressureEnd, numberOfPressurePoints,
-            pressureScale, predictionMethod, iastMethod)
+            displayName,
+            components.components,
+            components.numberOfCarrierGases,
+            components.carrierGasComponent,
+            temperature,
+            pressureStart,
+            pressureEnd,
+            numberOfPressurePoints,
+            pressureScale,
+            predictionMethod,
+            iastMethod,
+        )
         print(self.MixturePrediction)
 
     def compute(self):
-        return self.MixturePrediction.compute()
+        self.data = self.MixturePrediction.compute()
+        return self.data
 
 
 class Breakthrough:
-
     def __init__(
         self,
         displayName: str,
@@ -107,21 +117,40 @@ class Breakthrough:
         timeStep: float = 5e-3,
         pulseTime: float = 0,
     ):
-        
         # take 1e6 as max number of timesteps if autosteps is used
         autoSteps = numberOfTimeSteps == "auto"
         numberOfTimeSteps = int(1e6) if numberOfTimeSteps == "auto" else numberOfTimeSteps
         pulse = pulseTime is not None
-        
-        self.shape = (numberOfTimeSteps // writeEvery, numberOfGridPoints, len(components.components)+1, 6)
+
+        self.shape = (
+            numberOfTimeSteps // writeEvery,
+            numberOfGridPoints,
+            len(components.components) + 1,
+            6,
+        )
 
         self.Breakthrough = _ruptura.Breakthrough(
-            displayName, components.components, numberOfGridPoints, printEvery,
-            writeEvery, temperature, totalPressure, columnVoidFraction, pressureGradient,
-            particleDensity, columnEntranceVelocity, columnLength, timeStep,
-            numberOfTimeSteps, autoSteps, pulse,
-            pulseTime, mixturePrediction.MixturePrediction)
+            displayName,
+            components.components,
+            numberOfGridPoints,
+            printEvery,
+            writeEvery,
+            temperature,
+            totalPressure,
+            columnVoidFraction,
+            pressureGradient,
+            particleDensity,
+            columnEntranceVelocity,
+            columnLength,
+            timeStep,
+            numberOfTimeSteps,
+            autoSteps,
+            pulse,
+            pulseTime,
+            mixturePrediction.MixturePrediction,
+        )
         print(self.Breakthrough)
 
     def compute(self):
-        return self.Breakthrough.compute()
+        self.data = self.Breakthrough.compute()
+        return self.data

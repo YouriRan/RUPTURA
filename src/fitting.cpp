@@ -67,6 +67,7 @@ Fitting::Fitting(
                              componentName(Ncomp),
                              isotherms(Ncomp),
                              pressureScale(PressureScale(_pressureScale)),
+                             rawData(_rawData),
                              GA_Size(static_cast<size_t>(std::pow(2.0, 12.0))),
                              GA_MutationRate(1.0 / 3.0),
                              GA_EliteRate(0.15),
