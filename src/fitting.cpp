@@ -189,6 +189,7 @@ void Fitting::run()
   createPlotScript();
 }
 
+/*
 #ifdef PYBUILD
 py::array_t compute()
 {
@@ -201,6 +202,7 @@ py::array_t compute()
   }
 }
 #endif // PYBUILD
+*/
 
 // create a new citizen in the Ensemble
 Fitting::DNA

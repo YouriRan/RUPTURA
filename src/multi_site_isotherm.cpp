@@ -32,6 +32,26 @@ void MultiSiteIsotherm::add(const Isotherm &isotherm)
   }
 }
 
+void MultiSiteIsotherm::setParameters(std::vector<double> params)
+{
+  for (size_t i = 0; i < params.size(); ++i)
+  {
+    std::pair<size_t, size_t> index = parameterIndices[i];
+    sites[index.first].parameters[index.second] = params[i];
+  }
+}
+
+std::vector<double> MultiSiteIsotherm::getParameters()
+{
+  std::vector<double> params;
+  for (size_t i = 0; i < numberOfParameters; ++i)
+  {
+    std::pair<size_t, size_t> index = parameterIndices[i];
+    params.push_back(sites[index.first].parameters[index.second]);
+  }
+  return params;
+}
+
 // returns the inverse-pressure (1/P) that corresponds to the given reduced_grand_potential psi
 // advantage: for isotherms with zero equilibrium constant the result would be infinite, but the inverse is zero
 double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, double &cachedP0) const
