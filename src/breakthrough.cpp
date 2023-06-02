@@ -322,74 +322,11 @@ void Breakthrough::run()
 }
 
 #ifdef PYBUILD
-py::array_t<double> Breakthrough::compute_pyarray()
+
+py::array_t<double> Breakthrough::compute()
 {
-  // steps are only saved once every writeEvery
-  size_t NWriteSteps = Nsteps / writeEvery;
 
-  // initialize array
-  // comp[0] are global settings
-  size_t colsize = 6 * Ncomp + 5;
-  std::array<size_t, 3> shape{{NWriteSteps, Ngrid + 1, colsize}};
-  py::array_t<double> breakthrough(shape);
-  double *data = breakthrough.mutable_data();
-
-  // loop can quit early if autoSteps
-  for (size_t step = 0; (step < Nsteps || autoSteps); ++step)
-  {
-    computeStep(step);
-    double t = static_cast<double>(step) * dt;
-
-    if (step % writeEvery == 0)
-    {
-      size_t stepIdx = step / writeEvery;
-      for (size_t i = 0; i < Ngrid + 1; ++i)
-      {
-        // get index for this time step and grid position
-        size_t idx = stepIdx * (Ngrid + 1) * colsize + i * colsize;
-
-        // write global variables (dimensionless time, time (m), grid position, velocity, total pressure)
-        data[idx] = t * v_in / L;
-        data[idx + 1] = t / 60.0;
-        data[idx + 2] = static_cast<double>(i) * dx;
-        data[idx + 3] = V[i];
-        data[idx + 4] = Pt[i];
-        for (size_t j = 0; j < Ncomp; ++j)
-        {
-          // get component index
-          size_t cidx = idx + 6 * j + 5;
-
-          // write component variables
-          // (loading, equilibrium loading, partial pressure, norm partial pressure, dPdt, dQdt)
-          data[cidx] = Q[i * Ncomp + j];
-          data[cidx + 1] = Qeq[i * Ncomp + j];
-          data[cidx + 2] = P[i * Ncomp + j];
-          data[cidx + 3] = P[i * Ncomp + j] / (Pt[i] * components[j].Yi0);
-          data[cidx + 4] = Dpdt[i * Ncomp + j];
-          data[cidx + 5] = Dqdt[i * Ncomp + j];
-        }
-      }
-    }
-    if (step % printEvery == 0)
-    {
-      std::cout << "Timestep " + std::to_string(step) + ", time: " + std::to_string(t) + " [s]" << std::endl;
-      std::cout << "    Average number of mixture-prediction steps: " +
-                       std::to_string(static_cast<double>(iastPerformance.first) /
-                                      static_cast<double>(iastPerformance.second))
-                << std::endl;
-    }
-  }
-  return breakthrough;
-}
-
-py::array_t<double> Breakthrough::compute_3vector()
-{
-  // steps are only saved once every writeEvery
-  size_t NWriteSteps = Nsteps / writeEvery;
-
-  // initialize array
-  // comp[0] are global settings
-  size_t colsize = 6 * Ncomp + 5;
+  size_t colsize = 6 * Ncomp + 3;
   std::vector<std::vector<std::vector<double>>> brk;
 
   std::cout << "autosteps " << autoSteps << "\n";
@@ -397,6 +334,12 @@ py::array_t<double> Breakthrough::compute_3vector()
   // loop can quit early if autoSteps
   for (size_t step = 0; (step < Nsteps || autoSteps); ++step)
   {
+    // check for error from python side (keyboard interrupt)
+    if (PyErr_CheckSignals() != 0)
+    {
+      throw py::error_already_set();
+    }
+
     computeStep(step);
     double t = static_cast<double>(step) * dt;
     if (step % writeEvery == 0)
@@ -404,20 +347,20 @@ py::array_t<double> Breakthrough::compute_3vector()
       std::vector<std::vector<double>> t_brk(Ngrid + 1, std::vector<double>(colsize));
       for (size_t i = 0; i < Ngrid + 1; ++i)
       {
-        t_brk[i][0] = t * v_in / L;
-        t_brk[i][1] = t / 60.0;
-        t_brk[i][2] = static_cast<double>(i) * dx;
-        t_brk[i][3] = V[i];
-        t_brk[i][4] = Pt[i];
+        // t_brk[i][0] = t * v_in / L;
+        // t_brk[i][1] = t / 60.0;
+        t_brk[i][0] = static_cast<double>(i) * dx;
+        t_brk[i][1] = V[i];
+        t_brk[i][2] = Pt[i];
 
         for (size_t j = 0; j < Ncomp; ++j)
         {
-          t_brk[i][5 + 6 * j] = Q[i * Ncomp + j];
-          t_brk[i][6 + 6 * j] = Qeq[i * Ncomp + j];
-          t_brk[i][7 + 6 * j] = P[i * Ncomp + j];
-          t_brk[i][8 + 6 * j] = P[i * Ncomp * j] / (Pt[i] * components[j].Yi0);
-          t_brk[i][9 + 6 * j] = Dpdt[i * Ncomp + j];
-          t_brk[i][10 + 6 * j] = Dqdt[i * Ncomp + j];
+          t_brk[i][3 + 6 * j] = Q[i * Ncomp + j];
+          t_brk[i][4 + 6 * j] = Qeq[i * Ncomp + j];
+          t_brk[i][5 + 6 * j] = P[i * Ncomp + j];
+          t_brk[i][6 + 6 * j] = P[i * Ncomp + j] / (Pt[i] * components[j].Yi0);
+          t_brk[i][7 + 6 * j] = Dpdt[i * Ncomp + j];
+          t_brk[i][8 + 6 * j] = Dqdt[i * Ncomp + j];
         }
       }
       brk.push_back(t_brk);
@@ -467,10 +410,10 @@ void Breakthrough::computeStep(size_t step)
 
     if (step % 10000 == 0)
     {
-      std::cout << " tol " << tolerance << " p_t " << p_total << " dptdx " << dptdx << "\n";
+      std::cout << " tol " << tolerance << " p_t " << p_total << " dptdx " << dptdx << " NComp " << Ncomp << "\n";
       for (size_t j = 0; j < Ncomp; ++j)
       {
-        std::cout << P[Ngrid * Ncomp + j] << " ";
+        std::cout << P[Ngrid * Ncomp + j] << " " << components[j].Yi0 << " ";
       }
       std::cout << " \n";
     }
