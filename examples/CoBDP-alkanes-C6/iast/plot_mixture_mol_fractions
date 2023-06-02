@@ -1,0 +1,29 @@
+set encoding utf8
+set xlabel 'Total bulk fluid phase fugacity, {/Helvetica-Italic f} / Pa' font "Helvetica,18"
+set ylabel 'Adsorbed mol-fraction, {/Helvetica-Italic Y}_i / [-]' offset 0.0,0 font "Helvetica,18"
+set bmargin 4
+set key outside right samplen 2.5 height 0.5 spacing 1.5 font "Helvetica, 10" maxcolumns 2
+set log x
+set format x "10^{%T}"
+set xrange[100:]
+set key title 'CoBDP {/:Italic T}=443 K'
+set output 'mixture_prediction_mol_fractions.pdf'
+set term pdf color solid
+set linetype 1 pt 5 ps 0.5 lw 2 lc rgb '0xee0000'
+set linetype 2 pt 7 ps 0.5 lw 2 lc rgb '0x008b00'
+set linetype 3 pt 9 ps 0.5 lw 2 lc rgb '0x0000cd'
+set linetype 4 pt 11 ps 0.5 lw 2 lc rgb '0xff3fb3'
+set linetype 5 pt 13 ps 0.5 lw 2 lc rgb '0x00cdcd'
+set linetype 6 pt 15 ps 0.5 lw 2 lc rgb '0xcd9b1d'
+set linetype 7 pt  4 ps 0.5 lw 2 lc rgb '0x8968ed'
+set linetype 8 pt  6 ps 0.5 lw 2 lc rgb '0x8b8b83'
+set linetype 9 pt  8 ps 0.5 lw 2 lc rgb '0x00bb00'
+set linetype 10 pt 10 ps 0.5 lw 2 lc rgb '0x1e90ff'
+set linetype 11 pt 12 ps 0.5 lw 2 lc rgb '0x8b2500'
+set linetype 12 pt 14 ps 0.5 lw 2 lc rgb '0x000000'
+plot \
+    "component_0_nC6.data" us ($1):($5) title "nC6 (y_i=0.2)" with po,\
+    "component_1_2MP.data" us ($1):($5) title "2MP (y_i=0.2)" with po,\
+    "component_2_3MP.data" us ($1):($5) title "3MP (y_i=0.2)" with po,\
+    "component_3_23DMB.data" us ($1):($5) title "23DMB (y_i=0.2)" with po,\
+    "component_4_22DMB.data" us ($1):($5) title "22DMB (y_i=0.2)" with po

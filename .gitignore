@@ -161,4 +161,3 @@ build
 **/__pycache__
 **/*.pyc
 **/*cpython*
-examples/*/
