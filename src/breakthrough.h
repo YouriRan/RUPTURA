@@ -46,9 +46,7 @@ public:
     void createMovieScripts();
 
 #ifdef PYBUILD
-    // py::array_t<double> compute();
-    py::array_t<double> compute_pyarray();
-    py::array_t<double> compute_3vector();
+    py::array_t<double> compute();
 #endif // PYBUILD
 
 private:

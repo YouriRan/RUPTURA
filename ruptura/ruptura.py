@@ -216,10 +216,6 @@ class Breakthrough:
         )
         print(self.Breakthrough)
 
-    def compute_pyarray(self):
-        self.data = self.Breakthrough.compute_pyarray()
-        return self.data
-    
-    def compute_3vector(self):
-        self.data = self.Breakthrough.compute_3vector()
+    def compute(self):
+        self.data = self.Breakthrough.compute()
         return self.data

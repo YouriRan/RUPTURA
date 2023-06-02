@@ -1171,6 +1171,12 @@ py::array_t<double> MixturePrediction::compute()
 
   for (size_t i = 0; i < numberOfPressurePoints; ++i)
   {
+    // check for error from python side (keyboard interrupt)
+    if (PyErr_CheckSignals() != 0)
+    {
+      throw py::error_already_set();
+    }
+
     predictMixture(Yi, pressures[i], Xi, Ni, &cachedP0[0], &cachedPsi[0]);
     for (size_t j = 0; j < Ncomp; j++)
     {

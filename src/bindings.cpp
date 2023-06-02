@@ -29,8 +29,6 @@ PYBIND11_MODULE(_ruptura, m)
         .def("__repr__", &MixturePrediction::repr);
     py::class_<Breakthrough>(m, "Breakthrough")
         .def(py::init<std::string, std::vector<Component>, size_t, size_t, size_t, size_t, double, double, double, double, double, double, double, double, size_t, bool, bool, double, const MixturePrediction>())
-        // .def("compute", &Breakthrough::compute)
-        .def("compute_pyarray", &Breakthrough::compute_pyarray)
-        .def("compute_3vector", &Breakthrough::compute_3vector)
+        .def("compute", &Breakthrough::compute)
         .def("__repr__", &Breakthrough::repr);
 }
