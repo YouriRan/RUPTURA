@@ -71,33 +71,7 @@ MixturePrediction::MixturePrediction(const InputReader &inputreader) : displayNa
                                                                        numberOfPressurePoints(inputreader.numberOfPressurePoints),
                                                                        pressureScale(PressureScale(inputreader.pressureScale))
 {
-  if (predictionMethod == PredictionMethod::EI)
-  {
-    std::sort(sortedComponents.begin(), sortedComponents.end(), &LangmuirLoadingSorter);
-  }
-  else if (predictionMethod == PredictionMethod::SEI)
-  {
-    for (size_t i = 0; i < maxIsothermTerms; ++i)
-    {
-      for (size_t j = 0; j < Ncomp; ++j)
-      {
-        if (j != carrierGasComponent)
-        {
-          segregatedSortedComponents[i][j].isotherm.sites[0] = components[j].isotherm.sites[i];
-          segregatedSortedComponents[i][j].isotherm.numberOfSites = 1;
-        }
-      }
-    }
-    for (size_t i = 0; i < maxIsothermTerms; ++i)
-    {
-      std::sort(segregatedSortedComponents[i].begin(), segregatedSortedComponents[i].end(), &LangmuirLoadingSorter);
-    }
-  }
-  else
-  {
-    auto it = sortedComponents.begin() + static_cast<std::ptrdiff_t>(carrierGasComponent);
-    std::rotate(it, it + 1, sortedComponents.end());
-  }
+  sortComponents();
 }
 
 MixturePrediction::MixturePrediction(
@@ -147,37 +121,8 @@ MixturePrediction::MixturePrediction(
   }
   segregatedSortedComponents = std::vector<std::vector<Component>>(maxIsothermTerms, std::vector<Component>(components));
 
-  // maxIsothermTerms()
-  // segregatedSortedComponents
-  if (predictionMethod == PredictionMethod::EI)
-  {
-    std::sort(sortedComponents.begin(), sortedComponents.end(), &LangmuirLoadingSorter);
-  }
-  else if (predictionMethod == PredictionMethod::SEI)
-  {
-    for (size_t i = 0; i < maxIsothermTerms; ++i)
-    {
-      for (size_t j = 0; j < Ncomp; ++j)
-      {
-        if (j != carrierGasComponent)
-        {
-          segregatedSortedComponents[i][j].isotherm.sites[0] = components[j].isotherm.sites[i];
-          segregatedSortedComponents[i][j].isotherm.numberOfSites = 1;
-        }
-      }
-    }
-    for (size_t i = 0; i < maxIsothermTerms; ++i)
-    {
-      std::sort(segregatedSortedComponents[i].begin(), segregatedSortedComponents[i].end(), &LangmuirLoadingSorter);
-    }
-  }
-  else
-  {
-    auto it = sortedComponents.begin() + static_cast<std::ptrdiff_t>(carrierGasComponent);
-    std::rotate(it, it + 1, sortedComponents.end());
-  }
+  sortComponents();
 }
-
 
 std::pair<size_t, size_t> MixturePrediction::predictMixture(const std::vector<double> &Yi,
                                                             const double &P,
@@ -1203,7 +1148,7 @@ void MixturePrediction::run()
 }
 
 #ifdef PYBUILD
-pybind11::array_t<double> MixturePrediction::compute()
+py::array_t<double> MixturePrediction::compute()
 {
 
   // based on the run() method, but returns array.
@@ -1241,6 +1186,33 @@ pybind11::array_t<double> MixturePrediction::compute()
   }
   return mixPred;
 }
+
+void MixturePrediction::setComponentsParameters(std::vector<double> params)
+{
+  size_t index = 0;
+  for (size_t i = 0; i < Ncomp; ++i)
+  {
+    size_t n_params = components[i].isotherm.numberOfParameters;
+    std::vector<double> slicedVec(params.begin() + index, params.begin() + index + n_params);
+    index = index + n_params;
+    components[i].isotherm.setParameters(slicedVec);
+  }
+  sortedComponents = components;
+  std::vector<std::vector<Component>> segregatedSortedComponents(maxIsothermTerms, std::vector<Component>(components));
+  sortComponents();
+}
+
+std::vector<double> MixturePrediction::getComponentsParameters()
+{
+  std::vector<double> params;
+  for (size_t i = 0; i < Ncomp; ++i)
+  {
+    std::vector<double> compParams = components[i].isotherm.getParameters();
+    params.insert(params.end(), compParams.begin(), compParams.end());
+  }
+  return params;
+}
+
 #endif // PYBUILD
 
 std::vector<double> MixturePrediction::initPressures()
@@ -1468,5 +1440,36 @@ void MixturePrediction::printErrorStatus(double psi_value, double sum, double P,
   for (size_t i = 0; i < Ncomp; ++i)
   {
     std::cout << "Yi[i] " << i << " " << Yi[i] << std::endl;
+  }
+}
+
+void MixturePrediction::sortComponents()
+{
+  if (predictionMethod == PredictionMethod::EI)
+  {
+    std::sort(sortedComponents.begin(), sortedComponents.end(), &LangmuirLoadingSorter);
+  }
+  else if (predictionMethod == PredictionMethod::SEI)
+  {
+    for (size_t i = 0; i < maxIsothermTerms; ++i)
+    {
+      for (size_t j = 0; j < Ncomp; ++j)
+      {
+        if (j != carrierGasComponent)
+        {
+          segregatedSortedComponents[i][j].isotherm.sites[0] = components[j].isotherm.sites[i];
+          segregatedSortedComponents[i][j].isotherm.numberOfSites = 1;
+        }
+      }
+    }
+    for (size_t i = 0; i < maxIsothermTerms; ++i)
+    {
+      std::sort(segregatedSortedComponents[i].begin(), segregatedSortedComponents[i].end(), &LangmuirLoadingSorter);
+    }
+  }
+  else
+  {
+    auto it = sortedComponents.begin() + static_cast<std::ptrdiff_t>(carrierGasComponent);
+    std::rotate(it, it + 1, sortedComponents.end());
   }
 }

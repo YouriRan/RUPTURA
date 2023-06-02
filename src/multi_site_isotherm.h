@@ -45,6 +45,9 @@ struct MultiSiteIsotherm
     return copy;
   }
 
+  void setParameters(std::vector<double> params);
+  std::vector<double> getParameters();
+
   inline double value(double pressure) const
   {
     double sum = 0.0;

@@ -1,6 +1,7 @@
 import _ruptura
 import numpy as np
-from typing import Union
+from typing import Union, Literal
+import matplotlib.pyplot as plt
 
 isothermTypes = {
     "Langmuir": 0,
@@ -19,12 +20,30 @@ isothermTypes = {
     "BingelWalton": 13,
 }
 
+isothermLabels = {
+    "Langmuir": ["q_sat", "b"],
+    "Anti-Langmuir": ["a", "b"],
+    "BET": ["q_sat", "b", "c"],
+    "Henry": ["a"],
+    "Freundlich": ["a", "nu"],
+    "Sips": ["q_sat", "b", "nu"],
+    "Langmuir-Freundlich": ["q_sat", "b", "nu"],
+    "Redlich-Peterson": ["a", "b", "nu"],
+    "Toth": ["q_sat", "b", "nu"],
+    "Unilan": ["q_sat", "b", "eta"],
+    "OBrien-Myers": ["q_sat", "b", "sigma"],
+    "Quadratic": ["q_sat", "b", "c"],
+    "Temkin": ["q_sat", "b", "c"],
+    "BingelWalton": ["q_sat", "a", "b"]
+}
+
+
 
 class Components:
     def __init__(self, components: list[dict] = []):
         self.components = []
-        self.numberOfCarrierGases = 1
-        self.carrierGasComponent = 0
+        self.labels = []
+        self.carrierGas = None
 
         for comp in components:
             self.addComponent(**comp)
@@ -41,6 +60,9 @@ class Components:
         # get idx from existing components
         idx = len(self.components)
 
+        for site, isotherm in enumerate(isotherms):
+            self.labels += [f"c{idx}_s{site}_t{isothermTypes[isotherm[0]]}_{label}" for label in isothermLabels[isotherm[0]]]
+
         # add isotherm information
         cpp_isotherms = [
             _ruptura.Isotherm(isothermTypes[isotherm[0]], isotherm[1:], len(isotherm) - 1)
@@ -56,7 +78,14 @@ class Components:
             isCarrierGas,
         )
 
+        if isCarrierGas:
+            self.carrierGas = idx
+
         self.components.append(comp)
+
+    def getLabels(self) -> list[str]:
+        return [f"{comp.name} (y_i={comp.gasPhaseMolFraction})" for comp in self.components]
+
 
 
 class MixturePrediction:
@@ -76,12 +105,17 @@ class MixturePrediction:
         pressureScale = {"log": 0, "linear": 1}[pressureScale]
         predictionMethod = {"IAST": 0, "SIAST": 1, "EI": 2, "SEI": 3}[predictionMethod]
         iastMethod = {"FastIAST": 0, "NestedLoopBisection": 1}[iastMethod]
+        self.components = components
+
+        # on carriergas: ruptura first checks if the numberOfCarrierGases is 0 or more. more is
+        # always 1, as carrierGasComponent is size_t. if the carriergas is notpresent, set
+        # component to 0 (default), it is not checked.
 
         self.MixturePrediction = _ruptura.MixturePrediction(
             displayName,
             components.components,
-            components.numberOfCarrierGases,
-            components.carrierGasComponent,
+            1 if components.carrierGas is not None else 0,
+            components.carrierGas or 0,
             temperature,
             pressureStart,
             pressureEnd,
@@ -91,10 +125,40 @@ class MixturePrediction:
             iastMethod,
         )
         print(self.MixturePrediction)
+        self.data = None
 
     def compute(self):
         self.data = self.MixturePrediction.compute()
         return self.data
+    
+    def setComponentsParameters(self, params: np.ndarray):
+        self.data = None
+        self.MixturePrediction.setComponentsParameters(params)
+
+    def getComponentsParameters(self):
+        return self.MixturePrediction.getComponentsParameters()
+    
+    def plot(self, ax, plot_type: Literal["pure", "mixture", "mixture_molfrac"]):
+        select = {"pure": 1, "mixture": 2, "mixture_molfrac": 4}[plot_type]
+
+        if self.data is None:
+            raise ValueError("Data not computed yet")
+
+        # set axes
+        ax.set_xlabel("Total bulk fluid phase fugacity, f/Pa")
+        ylabel = {"pure":"Absolute loading q_i", "mixture": "Absolute loading q_i", "mixture_molfrac": "Adsorbed mol-fraction Y_i"}
+        ax.set_ylabel(ylabel[plot_type])
+        ax.set_xscale("log")
+
+        # set values for loop
+        ncomp = self.data.shape[1]
+        labels = self.components.getLabels()
+        markers = ["o", "+", "^", "D", "x", "*", "p", "s", "v"]
+
+        # plot all components
+        for comp in range(ncomp):
+            ax.scatter(self.data[:, comp, 0], self.data[:, comp, select], label=labels[comp], marker=markers[comp], s=8.0)
+        ax.legend()
 
 
 class Breakthrough:
@@ -119,7 +183,7 @@ class Breakthrough:
     ):
         # take 1e6 as max number of timesteps if autosteps is used
         autoSteps = numberOfTimeSteps == "auto"
-        numberOfTimeSteps = int(1e6) if numberOfTimeSteps == "auto" else numberOfTimeSteps
+        numberOfTimeSteps = 0 if numberOfTimeSteps == "auto" else int(numberOfTimeSteps)
         pulse = pulseTime is not None
 
         self.shape = (
@@ -132,6 +196,7 @@ class Breakthrough:
         self.Breakthrough = _ruptura.Breakthrough(
             displayName,
             components.components,
+            components.carrierGas if components.carrierGas else 0,
             numberOfGridPoints,
             printEvery,
             writeEvery,
@@ -151,6 +216,10 @@ class Breakthrough:
         )
         print(self.Breakthrough)
 
-    def compute(self):
-        self.data = self.Breakthrough.compute()
+    def compute_pyarray(self):
+        self.data = self.Breakthrough.compute_pyarray()
+        return self.data
+    
+    def compute_3vector(self):
+        self.data = self.Breakthrough.compute_3vector()
         return self.data

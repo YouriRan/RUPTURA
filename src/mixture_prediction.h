@@ -51,6 +51,9 @@ class MixturePrediction
     void createMixtureAdsorbedMolFractionPlotScript();
     void createPlotScript();
 
+    void setComponentsParameters(std::vector<double> params);
+    std::vector<double> getComponentsParameters();
+
 #ifdef PYBUILD
     py::array_t<double> compute();
 #endif // PYBUILD
@@ -72,7 +75,7 @@ class MixturePrediction
 
   private:
     std::string displayName;
-    const std::vector<Component> components;
+    std::vector<Component> components;
     std::vector<Component> sortedComponents;
     const size_t Ncomp;
     const size_t Nsorted;
@@ -106,6 +109,7 @@ class MixturePrediction
     PressureScale pressureScale{ PressureScale::Log };
 
     std::vector<double> initPressures();
+    void sortComponents();
 
     std::pair<size_t, size_t> computeFastIAST(const std::vector<double> &Yi,
                                       const double &P,

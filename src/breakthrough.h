@@ -19,6 +19,7 @@ public:
     Breakthrough(
         std::string _displayName,
         std::vector<Component> _components,
+        size_t _carrierGasComponent,
         size_t _numberOfGridPoints,
         size_t _printEvery,
         size_t _writeEvery,
@@ -45,7 +46,9 @@ public:
     void createMovieScripts();
 
 #ifdef PYBUILD
-    py::array_t<double> compute();
+    // py::array_t<double> compute();
+    py::array_t<double> compute_pyarray();
+    py::array_t<double> compute_3vector();
 #endif // PYBUILD
 
 private:
