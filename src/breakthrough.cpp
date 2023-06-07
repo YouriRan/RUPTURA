@@ -164,161 +164,153 @@ Breakthrough::Breakthrough(
 void Breakthrough::initialize()
 {
   // precomputed factor for mass transfer
-  for(size_t j = 0; j < Ncomp; ++j)
-  {
+    for (size_t j = 0; j < Ncomp; ++j)
+    {
     prefactor[j] = R * T * ((1.0 - epsilon) / epsilon) * rho_p * components[j].Kl;
-  }
+    }
 
-  // set P and Q to zero
-  std::fill(P.begin(), P.end(), 0.0);
-  std::fill(Q.begin(), Q.end(), 0.0);
+    // set P and Q to zero
+    std::fill(P.begin(), P.end(), 0.0);
+    std::fill(Q.begin(), Q.end(), 0.0);
 
-  // initial pressure along the column
-  std::vector<double> pt_init(Ngrid + 1);
+    // initial pressure along the column
+    std::vector<double> pt_init(Ngrid + 1);
 
-  // set the initial total pressure along the column assuming the pressure gradient is constant
-  for(size_t i = 0; i < Ngrid + 1; ++i)
-  {
+    // set the initial total pressure along the column assuming the pressure gradient is constant
+    for (size_t i = 0; i < Ngrid + 1; ++i)
+    {
     pt_init[i] = p_total + dptdx * static_cast<double>(i) * dx;
-  }
+    }
 
-  // initialize the interstitial gas velocity in the column
-  for(size_t i = 0; i < Ngrid + 1; ++i)
-  {
+    // initialize the interstitial gas velocity in the column
+    for (size_t i = 0; i < Ngrid + 1; ++i)
+    {
     V[i] = v_in * p_total / pt_init[i];
-  }
+    }
 
-  // set the partial pressure of the carrier gas to the total initial pressure
-  // for the column except for the entrance (i=0)
-  for(size_t i = 1; i < Ngrid + 1; ++i)
-  {
+    // set the partial pressure of the carrier gas to the total initial pressure
+    // for the column except for the entrance (i=0)
+    for (size_t i = 1; i < Ngrid + 1; ++i)
+    {
     P[i * Ncomp + carrierGasComponent] = pt_init[i];
-  }
+    }
 
-  // at the column entrance, the mol-fractions of the components in the gas phase are fixed
-  // the partial pressures of the components at the entrance are the mol-fractions times the 
-  // total pressure
-  for(size_t j = 0; j < Ncomp; ++j)
-  {
+    // at the column entrance, the mol-fractions of the components in the gas phase are fixed
+    // the partial pressures of the components at the entrance are the mol-fractions times the
+    // total pressure
+    for (size_t j = 0; j < Ncomp; ++j)
+    {
     P[0 * Ncomp + j] = p_total * components[j].Yi0;
-  }
+    }
 
-  // at the entrance: mol-fractions Yi are the gas-phase mol-fractions
-  // for the column: the initial mol-fraction of the carrier-gas is 1, and 0 for the other components
-  //
-  // the K of the carrier gas is chosen as zero 
-  // so Qeq is zero for all components in the column after the entrance
-  // only the values for Yi at the entrance are effected by adsorption
-  for(size_t i = 0; i < Ngrid + 1; ++i)
-  {
+    // at the entrance: mol-fractions Yi are the gas-phase mol-fractions
+    // for the column: the initial mol-fraction of the carrier-gas is 1, and 0 for the other components
+    //
+    // the K of the carrier gas is chosen as zero
+    // so Qeq is zero for all components in the column after the entrance
+    // only the values for Yi at the entrance are effected by adsorption
+    for (size_t i = 0; i < Ngrid + 1; ++i)
+    {
     double sum = 0.0;
-    for(size_t j = 0; j < Ncomp; ++j)
+    for (size_t j = 0; j < Ncomp; ++j)
     {
       Yi[j] = std::max(P[i * Ncomp + j] / pt_init[i], 0.0);
       sum += Yi[j];
     }
-    for(size_t j = 0; j < Ncomp; ++j)
+    for (size_t j = 0; j < Ncomp; ++j)
     {
       Yi[j] /= sum;
     }
 
-    iastPerformance += mixture.predictMixture(Yi, pt_init[i], Xi, Ni, 
-        &cachedP0[i * Ncomp * maxIsothermTerms], &cachedPsi[i * maxIsothermTerms]);
+    iastPerformance += mixture.predictMixture(Yi, pt_init[i], Xi, Ni,
+                                              &cachedP0[i * Ncomp * maxIsothermTerms], &cachedPsi[i * maxIsothermTerms]);
 
-    for(size_t j = 0; j < Ncomp; ++j)
+    for (size_t j = 0; j < Ncomp; ++j)
     {
       Qeq[i * Ncomp + j] = Ni[j];
     }
-  }
+    }
 
-  for(size_t i = 0; i < Ngrid + 1; ++i)
-  {
+    for (size_t i = 0; i < Ngrid + 1; ++i)
+    {
     Pt[i] = 0.0;
-    for(size_t j = 0; j < Ncomp; ++j)
+    for (size_t j = 0; j < Ncomp; ++j)
     {
       Pt[i] += std::max(0.0, P[i * Ncomp + j]);
     }
-  }
+    }
 }
 
 void Breakthrough::run()
 {
-  // create the output files
-  std::vector<std::ofstream> streams;
-  for (size_t i = 0; i < Ncomp; i++)
-  {
+    // create the output files
+    std::vector<std::ofstream> streams;
+    for (size_t i = 0; i < Ncomp; i++)
+    {
     std::string fileName = "component_" + std::to_string(i) + "_" + components[i].name + ".data";
-    streams.emplace_back(std::ofstream{ fileName });
-  }
+    streams.emplace_back(std::ofstream{fileName});
+    }
 
-  std::ofstream movieStream("column.data");
+    std::ofstream movieStream("column.data");
 
     size_t column_nr = 1;
-  movieStream << "# column " << column_nr++ << ": z  (column position)" << std::endl;
-  movieStream << "# column " << column_nr++ << ": V  (velocity)" << std::endl;
-  movieStream << "# column " << column_nr++ << ": Pt (total pressure)" << std::endl;
-  for(size_t j = 0; j < Ncomp; ++j)
-  {
+    movieStream << "# column " << column_nr++ << ": z  (column position)" << std::endl;
+    movieStream << "# column " << column_nr++ << ": V  (velocity)" << std::endl;
+    movieStream << "# column " << column_nr++ << ": Pt (total pressure)" << std::endl;
+    for (size_t j = 0; j < Ncomp; ++j)
+    {
     movieStream << "# column " << column_nr++ << ": component " << j << " Q     (loading) " << std::endl;
     movieStream << "# column " << column_nr++ << ": component " << j << " Qeq   (equilibrium loading)" << std::endl;
     movieStream << "# column " << column_nr++ << ": component " << j << " P     (partial pressure)" << std::endl;
     movieStream << "# column " << column_nr++ << ": component " << j << " Pnorm (normalized partial pressure)" << std::endl;
     movieStream << "# column " << column_nr++ << ": component " << j << " Dpdt  (derivative P with t)" << std::endl;
     movieStream << "# column " << column_nr++ << ": component " << j << " Dqdt  (derivative Q with t)" << std::endl;
-  }
+    }
 
-
-  for(size_t step = 0; (step < Nsteps || autoSteps); ++step)
-  {
+    for (size_t step = 0; (step < Nsteps || autoSteps); ++step)
+    {
 
     // compute new step
     computeStep(step);
 
     double t = static_cast<double>(step) * dt;
 
-    if(step % writeEvery == 0)
+    if (step % writeEvery == 0)
     {
       // write breakthrough output to files
       // column 1: dimensionless time
       // column 2: time [minutes]
       // column 3: normalized partial pressure
-      for(size_t j = 0; j < Ncomp; ++j)
+      for (size_t j = 0; j < Ncomp; ++j)
       {
-        streams[j] << t * v_in / L << " " <<
-                      t/60.0 << " " <<
-                      P[Ngrid * Ncomp + j] / ((p_total + dptdx * L) * components[j].Yi0) << std::endl;
+        streams[j] << t * v_in / L << " " << t / 60.0 << " " << P[Ngrid * Ncomp + j] / ((p_total + dptdx * L) * components[j].Yi0) << std::endl;
       }
 
-      for(size_t i = 0; i < Ngrid + 1; ++i)
+      for (size_t i = 0; i < Ngrid + 1; ++i)
       {
         movieStream << static_cast<double>(i) * dx << " ";
         movieStream << V[i] << " ";
         movieStream << Pt[i] << " ";
-        for(size_t j = 0; j < Ncomp; ++j)
+        for (size_t j = 0; j < Ncomp; ++j)
         {
-          movieStream << Q[i * Ncomp + j] << " " <<
-                         Qeq[i * Ncomp + j] << " " <<
-                         P[i * Ncomp + j] << " " <<
-                         P[i * Ncomp + j] / (Pt[i] * components[j].Yi0) << " " <<
-                         Dpdt[i * Ncomp + j] << " " <<
-                         Dqdt[i * Ncomp + j] << " ";
+          movieStream << Q[i * Ncomp + j] << " " << Qeq[i * Ncomp + j] << " " << P[i * Ncomp + j] << " " << P[i * Ncomp + j] / (Pt[i] * components[j].Yi0) << " " << Dpdt[i * Ncomp + j] << " " << Dqdt[i * Ncomp + j] << " ";
         }
         movieStream << "\n";
       }
       movieStream << "\n\n";
     }
 
-
-    if(step % printEvery == 0)
+    if (step % printEvery == 0)
     {
       std::cout << "Timestep " + std::to_string(step) + ", time: " + std::to_string(t) + " [s]" << std::endl;
-      std::cout << "    Average number of mixture-prediction steps: " + 
-                   std::to_string(static_cast<double>(iastPerformance.first)/
-                   static_cast<double>(iastPerformance.second)) << std::endl;
+      std::cout << "    Average number of mixture-prediction steps: " +
+                       std::to_string(static_cast<double>(iastPerformance.first) /
+                                      static_cast<double>(iastPerformance.second))
+                << std::endl;
     }
-  }
+    }
 
-  std::cout << "Final timestep " + std::to_string(Nsteps) + ", time: " + std::to_string(dt * static_cast<double>(Nsteps)) + " [s]" << std::endl;
+    std::cout << "Final timestep " + std::to_string(Nsteps) + ", time: " + std::to_string(dt * static_cast<double>(Nsteps)) + " [s]" << std::endl;
 }
 
 #ifdef PYBUILD
@@ -326,14 +318,12 @@ void Breakthrough::run()
 py::array_t<double> Breakthrough::compute()
 {
 
-  size_t colsize = 6 * Ncomp + 3;
-  std::vector<std::vector<std::vector<double>>> brk;
+    size_t colsize = 6 * Ncomp + 5;
+    std::vector<std::vector<std::vector<double>>> brk;
 
-  std::cout << "autosteps " << autoSteps << "\n";
-
-  // loop can quit early if autoSteps
-  for (size_t step = 0; (step < Nsteps || autoSteps); ++step)
-  {
+    // loop can quit early if autoSteps
+    for (size_t step = 0; (step < Nsteps || autoSteps); ++step)
+    {
     // check for error from python side (keyboard interrupt)
     if (PyErr_CheckSignals() != 0)
     {
@@ -347,20 +337,20 @@ py::array_t<double> Breakthrough::compute()
       std::vector<std::vector<double>> t_brk(Ngrid + 1, std::vector<double>(colsize));
       for (size_t i = 0; i < Ngrid + 1; ++i)
       {
-        // t_brk[i][0] = t * v_in / L;
-        // t_brk[i][1] = t / 60.0;
-        t_brk[i][0] = static_cast<double>(i) * dx;
-        t_brk[i][1] = V[i];
-        t_brk[i][2] = Pt[i];
+        t_brk[i][0] = t * v_in / L;
+        t_brk[i][1] = t / 60.0;
+        t_brk[i][2] = static_cast<double>(i) * dx;
+        t_brk[i][3] = V[i];
+        t_brk[i][4] = Pt[i];
 
         for (size_t j = 0; j < Ncomp; ++j)
         {
-          t_brk[i][3 + 6 * j] = Q[i * Ncomp + j];
-          t_brk[i][4 + 6 * j] = Qeq[i * Ncomp + j];
-          t_brk[i][5 + 6 * j] = P[i * Ncomp + j];
-          t_brk[i][6 + 6 * j] = P[i * Ncomp + j] / (Pt[i] * components[j].Yi0);
-          t_brk[i][7 + 6 * j] = Dpdt[i * Ncomp + j];
-          t_brk[i][8 + 6 * j] = Dqdt[i * Ncomp + j];
+          t_brk[i][5 + 6 * j] = Q[i * Ncomp + j];
+          t_brk[i][6 + 6 * j] = Qeq[i * Ncomp + j];
+          t_brk[i][7 + 6 * j] = P[i * Ncomp + j];
+          t_brk[i][8 + 6 * j] = P[i * Ncomp + j] / (Pt[i] * components[j].Yi0);
+          t_brk[i][9 + 6 * j] = Dpdt[i * Ncomp + j];
+          t_brk[i][10 + 6 * j] = Dqdt[i * Ncomp + j];
         }
       }
       brk.push_back(t_brk);
@@ -373,33 +363,34 @@ py::array_t<double> Breakthrough::compute()
                                       static_cast<double>(iastPerformance.second))
                 << std::endl;
     }
-  }
+    }
+    std::cout << "Final timestep " + std::to_string(Nsteps) + ", time: " + std::to_string(dt * static_cast<double>(Nsteps)) + " [s]" << std::endl;
 
-  std::vector<double> buffer;
-  buffer.reserve(brk.size() * (Ngrid + 1) * colsize);
-  for (const auto &vec1 : brk)
-  {
+    std::vector<double> buffer;
+    buffer.reserve(brk.size() * (Ngrid + 1) * colsize);
+    for (const auto &vec1 : brk)
+    {
     for (const auto &vec2 : vec1)
     {
       buffer.insert(buffer.end(), vec2.begin(), vec2.end());
     }
-  }
-  std::array<size_t, 3> shape{{brk.size(), Ngrid + 1, colsize}};
-  py::array_t<double> py_breakthrough(shape, buffer.data());
-  py_breakthrough.resize(shape);
+    }
+    std::array<size_t, 3> shape{{brk.size(), Ngrid + 1, colsize}};
+    py::array_t<double> py_breakthrough(shape, buffer.data());
+    py_breakthrough.resize(shape);
 
-  return py_breakthrough;
+    return py_breakthrough;
 }
 #endif // PYBUILD
 
 void Breakthrough::computeStep(size_t step)
 {
-  double t = static_cast<double>(step) * dt;
+    double t = static_cast<double>(step) * dt;
 
-  // check if we can set the expected end-time based on 10% longer time than when all
-  // adorbed mol-fractions are smaller than 1% of unity
-  if (autoSteps)
-  {
+    // check if we can set the expected end-time based on 10% longer time than when all
+    // adorbed mol-fractions are smaller than 1% of unity
+    if (autoSteps)
+    {
     double tolerance = 0.0;
     for (size_t j = 0; j < Ncomp; ++j)
     {
@@ -408,15 +399,6 @@ void Breakthrough::computeStep(size_t step)
                                                1.0));
     }
 
-    if (step % 10000 == 0)
-    {
-      std::cout << " tol " << tolerance << " p_t " << p_total << " dptdx " << dptdx << " NComp " << Ncomp << "\n";
-      for (size_t j = 0; j < Ncomp; ++j)
-      {
-        std::cout << P[Ngrid * Ncomp + j] << " " << components[j].Yi0 << " ";
-      }
-      std::cout << " \n";
-    }
     // consider 1% as being visibily indistinguishable from 'converged'
     // use a 10% longer time for display purposes
     if (tolerance < 0.01)
@@ -426,39 +408,39 @@ void Breakthrough::computeStep(size_t step)
       Nsteps = static_cast<size_t>(1.1 * static_cast<double>(step));
       autoSteps = false;
     }
-  }
+    }
 
-  // SSP-RK Step 1
-  // ======================================================================
+    // SSP-RK Step 1
+    // ======================================================================
 
-  // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P
-  computeFirstDerivatives(Dqdt, Dpdt, Qeq, Q, V, P);
+    // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P
+    computeFirstDerivatives(Dqdt, Dpdt, Qeq, Q, V, P);
 
-  // Dqdt and Dpdt are calculated at old time step
-  // make estimate for the new loadings and new gas phase partial pressures
-  // first iteration is made using the Explicit Euler scheme
-  for (size_t i = 0; i < Ngrid + 1; ++i)
-  {
+    // Dqdt and Dpdt are calculated at old time step
+    // make estimate for the new loadings and new gas phase partial pressures
+    // first iteration is made using the Explicit Euler scheme
+    for (size_t i = 0; i < Ngrid + 1; ++i)
+    {
     for (size_t j = 0; j < Ncomp; ++j)
     {
       Qnew[i * Ncomp + j] = Q[i * Ncomp + j] + dt * Dqdt[i * Ncomp + j];
       Pnew[i * Ncomp + j] = P[i * Ncomp + j] + dt * Dpdt[i * Ncomp + j];
     }
-  }
+    }
 
-  computeEquilibriumLoadings();
+    computeEquilibriumLoadings();
 
-  computeVelocity();
+    computeVelocity();
 
-  // SSP-RK Step 2
-  // ======================================================================
+    // SSP-RK Step 2
+    // ======================================================================
 
-  // calculate new derivatives at new (current) timestep
-  // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
-  computeFirstDerivatives(Dqdtnew, Dpdtnew, Qeqnew, Qnew, Vnew, Pnew);
+    // calculate new derivatives at new (current) timestep
+    // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
+    computeFirstDerivatives(Dqdtnew, Dpdtnew, Qeqnew, Qnew, Vnew, Pnew);
 
-  for (size_t i = 0; i < Ngrid + 1; ++i)
-  {
+    for (size_t i = 0; i < Ngrid + 1; ++i)
+    {
     for (size_t j = 0; j < Ncomp; ++j)
     {
       Qnew[i * Ncomp + j] = 0.75 * Q[i * Ncomp + j] + 0.25 * Qnew[i * Ncomp + j] +
@@ -466,21 +448,21 @@ void Breakthrough::computeStep(size_t step)
       Pnew[i * Ncomp + j] = 0.75 * P[i * Ncomp + j] + 0.25 * Pnew[i * Ncomp + j] +
                             0.25 * dt * Dpdtnew[i * Ncomp + j];
     }
-  }
+    }
 
-  computeEquilibriumLoadings();
+    computeEquilibriumLoadings();
 
-  computeVelocity();
+    computeVelocity();
 
-  // SSP-RK Step 3
-  // ======================================================================
+    // SSP-RK Step 3
+    // ======================================================================
 
-  // calculate new derivatives at new (current) timestep
-  // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
-  computeFirstDerivatives(Dqdtnew, Dpdtnew, Qeqnew, Qnew, Vnew, Pnew);
+    // calculate new derivatives at new (current) timestep
+    // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
+    computeFirstDerivatives(Dqdtnew, Dpdtnew, Qeqnew, Qnew, Vnew, Pnew);
 
-  for (size_t i = 0; i < Ngrid + 1; ++i)
-  {
+    for (size_t i = 0; i < Ngrid + 1; ++i)
+    {
     for (size_t j = 0; j < Ncomp; ++j)
     {
       Qnew[i * Ncomp + j] = (1.0 / 3.0) * Q[i * Ncomp + j] + (2.0 / 3.0) * Qnew[i * Ncomp + j] +
@@ -488,21 +470,21 @@ void Breakthrough::computeStep(size_t step)
       Pnew[i * Ncomp + j] = (1.0 / 3.0) * P[i * Ncomp + j] + (2.0 / 3.0) * Pnew[i * Ncomp + j] +
                             (2.0 / 3.0) * dt * Dpdtnew[i * Ncomp + j];
     }
-  }
+    }
 
-  computeEquilibriumLoadings();
+    computeEquilibriumLoadings();
 
-  computeVelocity();
+    computeVelocity();
 
-  // update to the new time step
-  std::copy(Qnew.begin(), Qnew.end(), Q.begin());
-  std::copy(Pnew.begin(), Pnew.end(), P.begin());
-  std::copy(Qeqnew.begin(), Qeqnew.end(), Qeq.begin());
-  std::copy(Vnew.begin(), Vnew.end(), V.begin());
+    // update to the new time step
+    std::copy(Qnew.begin(), Qnew.end(), Q.begin());
+    std::copy(Pnew.begin(), Pnew.end(), P.begin());
+    std::copy(Qeqnew.begin(), Qeqnew.end(), Qeq.begin());
+    std::copy(Vnew.begin(), Vnew.end(), V.begin());
 
-  // pulse boundary condition
-  if (pulse == true)
-  {
+    // pulse boundary condition
+    if (pulse == true)
+    {
     if (t > tpulse)
     {
       for (size_t j = 0; j < Ncomp; ++j)
@@ -517,7 +499,7 @@ void Breakthrough::computeStep(size_t step)
         }
       }
     }
-  }
+    }
 }
 
 void Breakthrough::computeEquilibriumLoadings()
