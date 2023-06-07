@@ -91,13 +91,13 @@ class Components:
 class MixturePrediction:
     def __init__(
         self,
-        displayName: str,
-        temperature: float,
         components: Components,
-        pressureStart: float,
-        pressureEnd: float,
-        numberOfPressurePoints: int,
-        pressureScale: str,
+        displayName: str = "Column",
+        temperature: float = 433.0,
+        pressureStart: float = -1.0,
+        pressureEnd: float = -1.0,
+        numberOfPressurePoints: int = 100,
+        pressureScale: str = "log",
         predictionMethod: str = "IAST",
         iastMethod: str = "FastIAST",
     ):
@@ -164,27 +164,30 @@ class MixturePrediction:
 class Breakthrough:
     def __init__(
         self,
-        displayName: str,
         components: Components,
-        mixturePrediction: MixturePrediction,
-        temperature: float,
-        numberOfTimeSteps: Union[int, str],
+        displayName: str = "Column",
+        temperature: float = 433.0,
+        numberOfTimeSteps: Union[int, str] = "auto",
         numberOfGridPoints: int = 100,
         printEvery: int = 10000,
         writeEvery: int = 10000,
-        totalPressure: float = 1e3,
+        totalPressure: float = 1e6,
         columnVoidFraction: float = 0.4,
         pressureGradient: float = 0.0,
         particleDensity: float = 1e3,
         columnEntranceVelocity: float = 0.1,
         columnLength: float = 0.3,
-        timeStep: float = 5e-3,
-        pulseTime: float = 0,
+        timeStep: float = 5e-4,
+        pulseTime: float = None,
     ):
         # take 1e6 as max number of timesteps if autosteps is used
         autoSteps = numberOfTimeSteps == "auto"
         numberOfTimeSteps = 0 if numberOfTimeSteps == "auto" else int(numberOfTimeSteps)
         pulse = pulseTime is not None
+        pulseTime = 0 if pulseTime is None else pulseTime
+        carrierGas = components.carrierGas if components.carrierGas else 0
+        self.components = components
+        mix = MixturePrediction(displayName=displayName, temperature=temperature, components=components)
 
         self.shape = (
             numberOfTimeSteps // writeEvery,
@@ -196,7 +199,7 @@ class Breakthrough:
         self.Breakthrough = _ruptura.Breakthrough(
             displayName,
             components.components,
-            components.carrierGas if components.carrierGas else 0,
+            carrierGas,
             numberOfGridPoints,
             printEvery,
             writeEvery,
@@ -212,10 +215,41 @@ class Breakthrough:
             autoSteps,
             pulse,
             pulseTime,
-            mixturePrediction.MixturePrediction,
+            mix.MixturePrediction,
         )
+
+        self.data = None
         print(self.Breakthrough)
 
     def compute(self):
         self.data = self.Breakthrough.compute()
         return self.data
+
+    def plot(self, ax, plot_type: Literal["breakthrough", "Dpdt", "Dqdt", "P", "Pnorm", "Pt", "Q", "Qeq", "V"]):
+        if self.data is None:
+            raise ValueError("Data not computed yet")
+        
+        # set values for loop
+        ncomp = (self.data.shape[-1] - 5) // 6
+        labels = self.components.getLabels()
+        markers = ["o", "+", "^", "D", "x", "*", "p", "s", "v"]
+
+        if plot_type == "breakthrough":
+            # plot all components
+            
+            x = self.data[:, -1, 0]
+            ax.set_xlim(x.min(), x.max())
+            ax.set_xticks(np.linspace(x.min(), x.max(), 7))
+            ax.set_xlabel("Dimensionless time")
+            ax.set_ylabel("Concentration exit gas")
+
+            x2 = self.data[:, -1, 1]
+            ax2 = ax.twiny()
+            ax2.set_xticks(np.linspace(x2.min(), x2.max(), 7))
+            ax2.set_xlabel("Time (min)")
+
+            for comp in range(ncomp):
+                ax.scatter(x, self.data[:, -1, 8+comp*6], label=labels[comp], marker=markers[comp%len(markers)], s=8.0 )
+
+
+        ax.legend()
