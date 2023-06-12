@@ -51,11 +51,10 @@ class MixturePrediction
     void createMixtureAdsorbedMolFractionPlotScript();
     void createPlotScript();
 
-    void setComponentsParameters(std::vector<double> params);
-    std::vector<double> getComponentsParameters();
-
 #ifdef PYBUILD
     py::array_t<double> compute();
+    void setComponentsParameters(std::vector<double> params);
+    std::vector<double> getComponentsParameters();
 #endif // PYBUILD
 
     size_t getMaxIsothermTerms() const {

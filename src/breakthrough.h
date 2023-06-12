@@ -47,11 +47,13 @@ public:
 
 #ifdef PYBUILD
     py::array_t<double> compute();
+    void setComponentsParameters(std::vector<double> params);
+    std::vector<double> getComponentsParameters();
 #endif // PYBUILD
 
 private:
     const std::string displayName;
-    const std::vector<Component> components;
+    std::vector<Component> components;
     size_t carrierGasComponent{0};
     size_t Ncomp; // number of components
     size_t Ngrid; // number of grid points
