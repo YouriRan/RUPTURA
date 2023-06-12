@@ -1218,7 +1218,6 @@ std::vector<double> MixturePrediction::getComponentsParameters()
   }
   return params;
 }
-
 #endif // PYBUILD
 
 std::vector<double> MixturePrediction::initPressures()

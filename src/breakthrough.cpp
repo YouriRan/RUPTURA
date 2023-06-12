@@ -381,6 +381,32 @@ py::array_t<double> Breakthrough::compute()
 
     return py_breakthrough;
 }
+
+void Breakthrough::setComponentsParameters(std::vector<double> params)
+{
+  size_t index = 0;
+  for (size_t i = 0; i < Ncomp; ++i)
+  {
+    size_t n_params = components[i].isotherm.numberOfParameters;
+    std::vector<double> slicedVec(params.begin() + index, params.begin() + index + n_params);
+    index = index + n_params;
+    components[i].isotherm.setParameters(slicedVec);
+  }
+
+  // also set for mixture
+  mixture.setComponentsParameters(params);
+}
+
+std::vector<double> Breakthrough::getComponentsParameters()
+{
+  std::vector<double> params;
+  for (size_t i = 0; i < Ncomp; ++i)
+  {
+    std::vector<double> compParams = components[i].isotherm.getParameters();
+    params.insert(params.end(), compParams.begin(), compParams.end());
+  }
+  return params;
+}
 #endif // PYBUILD
 
 void Breakthrough::computeStep(size_t step)
