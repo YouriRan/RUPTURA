@@ -41,7 +41,6 @@ struct Fitting
     };
 
     Fitting(const InputReader &inputreader);
-    Fitting(std::string _displayName, std::vector<Component> _components, std::vector<std::pair<double, double>> _rawData, size_t _pressureScale);
 
     void readData(size_t ID);
     void printSolution(size_t ID);
@@ -50,7 +49,12 @@ struct Fitting
     void createPlotScript();
 
 #ifdef PYBUILD
-    py::array_t<double> compute();
+    Fitting(std::string _displayName, std::vector<Component> _components, std::vector<std::vector<double>> _fullData, size_t _pressureScale);
+    void sliceData(size_t ID);
+    std::vector<std::vector<double>> fullData;
+    std::vector<double> compute();
+    py::array_t<double> evaluate();
+    std::vector<Component> components;
 #endif // PYBUILD
 
     DNA newCitizen(size_t ID);
