@@ -10,6 +10,7 @@ namespace py = pybind11;
 #include "component.h"
 #include "breakthrough.h"
 #include "multi_site_isotherm.h"
+#include "fitting.h"
 
 PYBIND11_MODULE(_ruptura, m)
 {
@@ -33,4 +34,8 @@ PYBIND11_MODULE(_ruptura, m)
         .def("setComponentsParameters", &Breakthrough::setComponentsParameters)
         .def("compute", &Breakthrough::compute)
         .def("__repr__", &Breakthrough::repr);
+    py::class_<Fitting>(m, "Fitting")
+        .def(py::init<std::string, std::vector<Component>, std::vector<std::vector<double>>, size_t>())
+        .def("evaluate", &Fitting::evaluate)
+        .def("compute", &Fitting::compute);
 }
