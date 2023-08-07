@@ -382,11 +382,12 @@ py::array_t<double> Breakthrough::compute()
     return py_breakthrough;
 }
 
-void Breakthrough::setComponentsParameters(std::vector<double> params)
+void Breakthrough::setComponentsParameters(std::vector<double> molfracs, std::vector<double> params)
 {
   size_t index = 0;
   for (size_t i = 0; i < Ncomp; ++i)
   {
+    components[i].Yi0 = molfracs[i];
     size_t n_params = components[i].isotherm.numberOfParameters;
     std::vector<double> slicedVec(params.begin() + index, params.begin() + index + n_params);
     index = index + n_params;
@@ -394,7 +395,7 @@ void Breakthrough::setComponentsParameters(std::vector<double> params)
   }
 
   // also set for mixture
-  mixture.setComponentsParameters(params);
+  mixture.setComponentsParameters(molfracs, params);
 }
 
 std::vector<double> Breakthrough::getComponentsParameters()

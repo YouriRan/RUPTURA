@@ -53,7 +53,8 @@ class MixturePrediction
 
 #ifdef PYBUILD
     py::array_t<double> compute();
-    void setComponentsParameters(std::vector<double> params);
+    void setPressure(double _pressureStart, double _pressureEnd);
+    void setComponentsParameters(std::vector<double> molfracs, std::vector<double> params);
     std::vector<double> getComponentsParameters();
 #endif // PYBUILD
 

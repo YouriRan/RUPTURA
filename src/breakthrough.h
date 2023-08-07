@@ -47,7 +47,7 @@ public:
 
 #ifdef PYBUILD
     py::array_t<double> compute();
-    void setComponentsParameters(std::vector<double> params);
+    void setComponentsParameters(std::vector<double> molfracs, std::vector<double> params);
     std::vector<double> getComponentsParameters();
 #endif // PYBUILD
 
