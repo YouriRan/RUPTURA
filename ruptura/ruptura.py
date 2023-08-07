@@ -88,8 +88,8 @@ class Components:
         # create labels for each isotherm in the component
         for site, isotherm in enumerate(isotherms):
             self.labels += [
-                f"c{idx}_s{site}_t{isothermMeta[isotherm[0]]['typeid']}_{label}"
-                for label in isothermMeta[isotherm[0]]
+                f"c{idx}_s{site}_{label}"
+                for label in isothermMeta[isotherm[0]]['labels']
             ]
 
         # add isotherm information
@@ -327,12 +327,18 @@ class MixturePrediction:
         Returns:
         --------
         np.ndarray
-            The computed data of the mixture prediction.
+            The computed data of the mixture prediction. Returns array of size (Npress, Ncomp, 6). Last dim has info:
+            0: p_i
+            1: pure loading
+            2: mix loading
+            3: mol-frac
+            4: adsorbed phase mol-frac 
+            5: hypothetical pressure
         """
         self.data = self.MixturePrediction.compute()
         return self.data
 
-    def setComponentsParameters(self, params: np.ndarray):
+    def setComponentsParameters(self, molfracs: np.ndarray, params: np.ndarray):
         """
         Set the parameters of the components involved in the mixture.
 
@@ -344,7 +350,7 @@ class MixturePrediction:
 
         # clear data
         self.data = None
-        self.MixturePrediction.setComponentsParameters(list(params))
+        self.MixturePrediction.setComponentsParameters(list(molfracs), list(params))
 
     def getComponentsParameters(self):
         """
@@ -356,6 +362,9 @@ class MixturePrediction:
             The parameters of the components.
         """
         return np.array(self.MixturePrediction.getComponentsParameters())
+    
+    def setPressure(self, pressureStart, pressureEnd):
+        self.MixturePrediction.setPressure(pressureStart, pressureEnd)
 
     def plot(self, ax, plot_type: Literal["pure", "mixture",
                                           "mixture_molfrac"]):
@@ -509,7 +518,7 @@ class Breakthrough:
         self.data = self.Breakthrough.compute()
         return self.data
 
-    def setComponentsParameters(self, params: np.ndarray):
+    def setComponentsParameters(self, molfracs: np.ndarray, params: np.ndarray):
         """
         Sets the component parameters for the breakthrough model and resets the computed data to None.
         
@@ -517,7 +526,7 @@ class Breakthrough:
             params (np.ndarray): An array of parameters for the components.
         """
         self.data = None
-        self.Breakthrough.setComponentsParameters(list(params))
+        self.Breakthrough.setComponentsParameters(list(molfracs), list(params))
 
     def getComponentsParameters(self) -> np.ndarray:
         """

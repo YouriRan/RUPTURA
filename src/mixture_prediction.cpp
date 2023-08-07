@@ -1193,11 +1193,18 @@ py::array_t<double> MixturePrediction::compute()
   return mixPred;
 }
 
-void MixturePrediction::setComponentsParameters(std::vector<double> params)
+void MixturePrediction::setPressure(double _pressureStart, double _pressureEnd)
+{
+  pressureStart = _pressureStart;
+  pressureEnd = _pressureEnd;
+}
+
+void MixturePrediction::setComponentsParameters(std::vector<double> molfracs, std::vector<double> params)
 {
   size_t index = 0;
   for (size_t i = 0; i < Ncomp; ++i)
   {
+    components[i].Yi0 = molfracs[i];
     size_t n_params = components[i].isotherm.numberOfParameters;
     std::vector<double> slicedVec(params.begin() + index, params.begin() + index + n_params);
     index = index + n_params;
