@@ -53,7 +53,7 @@ isothermMeta = {
     },
     'BingelWalton': {
         'typeid': 13,
-        'labels': ['q_sat', 'a', 'b']
+        'labels': ['q_sat', 'a', 'c']
     }
 }
 
