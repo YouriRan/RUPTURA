@@ -12,7 +12,7 @@ ext_modules = [
 
 setup(
     name="ruptura",
-    version="1.0.4",
+    version="1.0.5",
     author=[
         "Shrinjay Sharma, Delft University of Technology, The Netherlands",
         "Salvador R.G. Balestra, Pablo de Olavide University, Spain",
