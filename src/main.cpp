@@ -1,19 +1,18 @@
 #include <exception>
 
-#include "special_functions.h"
-
-#include "inputreader.h"
 #include "breakthrough.h"
-#include "mixture_prediction.h"
 #include "fitting.h"
+#include "inputreader.h"
+#include "mixture_prediction.h"
+#include "special_functions.h"
 
 int main(void)
 {
-  try 
+  try
   {
     InputReader reader("simulation.input");
 
-    switch(reader.simulationType)
+    switch (reader.simulationType)
     {
       case InputReader::SimulationType::Breakthrough:
       default:
@@ -21,7 +20,6 @@ int main(void)
         Breakthrough breakthrough(reader);
 
         breakthrough.print();
-        breakthrough.initialize();
         breakthrough.createPlotScript();
         breakthrough.createMovieScripts();
         breakthrough.run();

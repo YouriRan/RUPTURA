@@ -43,11 +43,13 @@ If you use this software for scientific publications, please cite:<br>
 Theory Computations, and Fitting of Isotherm Models"<br>
 S. Sharma, S. Balestra, R. Baur, U. Agarwal, E. Zuidema, M. Rigutto,
 S. Calero, T.J.H. Vlugt, and D. Dubbeldam, 
-Molecular Simulation Journal, 2023
+Molecular Simulation Journal, 49(9), 2023
+https://www.tandfonline.com/doi/full/10.1080/08927022.2023.2202757
 
 Authors
 =======
 Shrinjay Sharma,        Delft University of Technology, The Netherlands<br>
+Youri Ran,              University of Amsterdam, The Netherlands<br>
 Salvador R.G. Balestra, Pablo de Olavide University, Spain<br>
 Richard Baur,           Shell Global Solutions International B.V., The Netherlands<br>
 Umang Agarwal,          Shell Global Solutions International B.V., The Netherlands<br>
@@ -59,17 +61,44 @@ David Dubbeldam,        University of Amsterdam, The Netherlands<br>
 
 Compilation
 ===========
-cd src<br>
-make 
+```
+cmake . -B build
+cmake --build build
+```
 
 to clean:<br>
-make clean
+```
+rm -rf build
+```
+
+to build and host the documentation
+```
+cmake --build build -- documentation
+cd build/html
+python -m http.server 8000
+```
 
 Running
 =======
+```
 cd examples/Silicalite-CO2-N2/breakthrough/Langmuir<br>
 ./run
+```
 
 Input
 =====
 See the cited article.
+
+Python Installation
+======
+Ruptura can be used of python through `src/ruptura.py`, examples can be found in the examples directory.
+The python package can be installed with:
+
+```
+pip install ruptura
+```
+or
+```
+conda install ruptura
+```
+

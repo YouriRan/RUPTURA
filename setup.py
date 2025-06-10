@@ -12,7 +12,7 @@ ext_modules = [
 
 setup(
     name="ruptura",
-    version="0.0.1",
+    version="1.0.5",
     author=[
         "Shrinjay Sharma, Delft University of Technology, The Netherlands",
         "Salvador R.G. Balestra, Pablo de Olavide University, Spain",
@@ -22,10 +22,10 @@ setup(
         "Marcello Rigutto, Shell Global Solutions International B.V., The Netherlands",
         "Sofia Calero, Eindhoven University of Technology, The Netherlands",
         "Thijs J.H. Vlugt, Delft University of Technology, The Netherlands",
-        "David Dubbeldam, University of Amsterdam, The Netherlands"
+        "David Dubbeldam, University of Amsterdam, The Netherlands",
     ],
     ext_modules=ext_modules,
     zip_safe=False,
     packages=["ruptura"],
-    package_dir={"ruptura":"ruptura"}
+    package_dir={"ruptura": "ruptura"},
 )

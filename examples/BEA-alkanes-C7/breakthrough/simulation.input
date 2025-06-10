@@ -7,7 +7,7 @@ ColumnVoidFraction       0.4             // [-]
 ParticleDensity          1508.52         // [kg/m^3]
 TotalPressure            1.2e5           // [Pa]
 PressureGradient        -1000.0          // [Pa/m] 
-ColumnEntranceVelocity   0.019           // [m/s]
+ColumnEntranceVelocity   0.2           // [m/s]
 ColumnLength             0.1             // [m]
 
 // Run settings
