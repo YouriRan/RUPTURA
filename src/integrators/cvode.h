@@ -1,0 +1,58 @@
+#pragma once
+
+#include <cvode/cvode.h>             /* main integrator header file                 */
+#include <nvector/nvector_serial.h>  /* serial N_Vector types, fct. and macros      */
+#include <sundials/sundials_dense.h> /* use generic DENSE solver in preconditioning */
+#include <sundials/sundials_logger.h>
+#include <sundials/sundials_types.h> /* definition of sunrealtype                      */
+#include <sunlinsol/sunlinsol_dense.h>
+#include <sunlinsol/sunlinsol_spbcgs.h>  /* access to SPBCGS SUNLinearSolver            */
+#include <sunlinsol/sunlinsol_spfgmr.h>  /* access to SPFGMR SUNLinearSolver            */
+#include <sunlinsol/sunlinsol_spgmr.h>   /* access to SPGMR SUNLinearSolver             */
+#include <sunlinsol/sunlinsol_sptfqmr.h> /* access to SPTFQMR SUNLinearSolver           */
+#include <sunmatrix/sunmatrix_dense.h>
+#include <sunnonlinsol/sunnonlinsol_newton.h> /* access to Newton SUNNonlinearSolver         */
+
+#include "breakthrough_state.h"
+#include "compute.h"
+
+struct SolverData
+{
+  SolverData(BreakthroughState* state, std::vector<Component>* components, MixturePrediction* mixture)
+      : state(state), components(components), mixture(mixture) {};
+
+  BreakthroughState* state;
+  std::vector<Component>* components;
+  MixturePrediction* mixture;
+};
+
+struct CVODE
+{
+  CVODE(double timeStep, bool autoSteps, size_t numberOfSteps)
+      : timeStep(timeStep), autoSteps(autoSteps), numberOfSteps(numberOfSteps) {};
+
+  double timeStep;
+  bool autoSteps;
+  size_t numberOfSteps;
+
+  SUNContext sunContext;
+  SUNLogger sunLogger;
+  N_Vector u;
+  N_Vector uDot;
+  SUNMatrix A;
+  void* cvodeMem;
+  SUNNonlinearSolver solver;
+  SUNLinearSolver linSolver;
+
+  const sunrealtype relativeTolerance = 1.0e-3;
+  const sunrealtype absoluteTolerance = 1.0e-6;
+
+  bool propagate(BreakthroughState& state, std::vector<Component>& components, MixturePrediction& mixture, size_t step);
+  void initialize(BreakthroughState& state, std::vector<Component>& components, MixturePrediction& mixture);
+};
+
+void packState(BreakthroughState& state, N_Vector& u);
+void packStateDot(BreakthroughState& state, N_Vector& uDot);
+void unpackState(BreakthroughState& state, N_Vector& u);
+void unpackStateDot(BreakthroughState& state, N_Vector& uDot);
+static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data);

@@ -1,19 +1,20 @@
 #include "fitting.h"
-#include "special_functions.h"
-#include "random_numbers.h"
 
-#include <fstream>
-#include <sstream>
-#include <iterator>
-#include <map>
 #include <algorithm>
-#include <exception>
+#include <bitset>
+#include <climits>
 #include <cmath>
 #include <cstdlib>
-#include <bitset>
 #include <cstring>
-#include <climits>
+#include <exception>
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <sstream>
 #include <unordered_set>
+
+#include "random_numbers.h"
+#include "special_functions.h"
 #if __cplusplus >= 201703L && __has_include(<filesystem>)
 #include <filesystem>
 #elif __cplusplus >= 201703L && __has_include(<experimental/filesystem>)
@@ -23,32 +24,33 @@
 #endif
 
 #ifdef PYBUILD
-#include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
+#include <pybind11/pybind11.h>
 namespace py = pybind11;
-#endif // PYBUILD
+#endif  // PYBUILD
 
-Fitting::Fitting(const InputReader &inputreader) : Ncomp(inputreader.components.size()),
-                                                   components(inputreader.components),
-                                                   displayName(inputreader.displayName),
-                                                   componentName(Ncomp),
-                                                   filename(Ncomp),
-                                                   isotherms(Ncomp),
-                                                   columnPressure(inputreader.columnPressure - 1),
-                                                   columnLoading(inputreader.columnLoading - 1),
-                                                   columnError(inputreader.columnError - 1),
-                                                   pressureScale(PressureScale(inputreader.pressureScale)),
-                                                   GA_Size(static_cast<size_t>(std::pow(2.0, 12.0))),
-                                                   GA_MutationRate(1.0 / 3.0),
-                                                   GA_EliteRate(0.15),
-                                                   GA_MotleyCrowdRate(0.25),
-                                                   GA_DisasterRate(0.001),
-                                                   GA_Elitists(static_cast<size_t>(static_cast<double>(GA_Size) * GA_EliteRate)),
-                                                   GA_Motleists(static_cast<size_t>(static_cast<double>(GA_Size) * (1.0 - GA_MotleyCrowdRate))),
-                                                   popAlpha(static_cast<size_t>(std::pow(2.0, 12.0))),
-                                                   popBeta(static_cast<size_t>(std::pow(2.0, 12.0))),
-                                                   parents(popAlpha),
-                                                   children(popBeta)
+Fitting::Fitting(const InputReader &inputreader)
+    : Ncomp(inputreader.components.size()),
+      components(inputreader.components),
+      displayName(inputreader.displayName),
+      componentName(Ncomp),
+      filename(Ncomp),
+      isotherms(Ncomp),
+      columnPressure(inputreader.columnPressure - 1),
+      columnLoading(inputreader.columnLoading - 1),
+      columnError(inputreader.columnError - 1),
+      pressureScale(PressureScale(inputreader.pressureScale)),
+      GA_Size(static_cast<size_t>(std::pow(2.0, 12.0))),
+      GA_MutationRate(1.0 / 3.0),
+      GA_EliteRate(0.15),
+      GA_MotleyCrowdRate(0.25),
+      GA_DisasterRate(0.001),
+      GA_Elitists(static_cast<size_t>(static_cast<double>(GA_Size) * GA_EliteRate)),
+      GA_Motleists(static_cast<size_t>(static_cast<double>(GA_Size) * (1.0 - GA_MotleyCrowdRate))),
+      popAlpha(static_cast<size_t>(std::pow(2.0, 12.0))),
+      popBeta(static_cast<size_t>(std::pow(2.0, 12.0))),
+      parents(popAlpha),
+      children(popBeta)
 {
   for (size_t i = 0; i < Ncomp; ++i)
   {
@@ -62,8 +64,7 @@ void Fitting::readData(size_t ID)
 {
   std::ifstream fileInput{filename[ID]};
   std::string errorOpeningFile = "File '" + filename[ID] + "' exists, but error opening file";
-  if (!fileInput)
-    throw std::runtime_error(errorOpeningFile);
+  if (!fileInput) throw std::runtime_error(errorOpeningFile);
 
   std::cout << "Reading: " << filename[ID] << "\n";
 
@@ -82,8 +83,7 @@ void Fitting::readData(size_t ID)
 
         std::vector<std::string> results((std::istream_iterator<std::string>(iss)),
                                          std::istream_iterator<std::string>());
-        if (columnPressure < results.size() &&
-            columnLoading < results.size())
+        if (columnPressure < results.size() && columnLoading < results.size())
         {
           double pressure;
           double loading;
@@ -145,28 +145,26 @@ void Fitting::run()
 }
 
 #ifdef PYBUILD
-Fitting::Fitting(
-    std::string _displayName,
-    std::vector<Component> _components,
-    std::vector<std::vector<double>> _fullData,
-    size_t _pressureScale) : Ncomp(_components.size()),
-                             components(_components),
-                             displayName(_displayName),
-                             componentName(Ncomp),
-                             isotherms(Ncomp),
-                             pressureScale(PressureScale(_pressureScale)),
-                             fullData(_fullData),
-                             GA_Size(static_cast<size_t>(std::pow(2.0, 12.0))),
-                             GA_MutationRate(1.0 / 3.0),
-                             GA_EliteRate(0.15),
-                             GA_MotleyCrowdRate(0.25),
-                             GA_DisasterRate(0.001),
-                             GA_Elitists(static_cast<size_t>(static_cast<double>(GA_Size) * GA_EliteRate)),
-                             GA_Motleists(static_cast<size_t>(static_cast<double>(GA_Size) * (1.0 - GA_MotleyCrowdRate))),
-                             popAlpha(static_cast<size_t>(std::pow(2.0, 12.0))),
-                             popBeta(static_cast<size_t>(std::pow(2.0, 12.0))),
-                             parents(popAlpha),
-                             children(popBeta)
+Fitting::Fitting(std::string _displayName, std::vector<Component> _components,
+                 std::vector<std::vector<double>> _fullData, size_t _pressureScale)
+    : Ncomp(_components.size()),
+      components(_components),
+      displayName(_displayName),
+      componentName(Ncomp),
+      isotherms(Ncomp),
+      pressureScale(PressureScale(_pressureScale)),
+      fullData(_fullData),
+      GA_Size(static_cast<size_t>(std::pow(2.0, 12.0))),
+      GA_MutationRate(1.0 / 3.0),
+      GA_EliteRate(0.15),
+      GA_MotleyCrowdRate(0.25),
+      GA_DisasterRate(0.001),
+      GA_Elitists(static_cast<size_t>(static_cast<double>(GA_Size) * GA_EliteRate)),
+      GA_Motleists(static_cast<size_t>(static_cast<double>(GA_Size) * (1.0 - GA_MotleyCrowdRate))),
+      popAlpha(static_cast<size_t>(std::pow(2.0, 12.0))),
+      popBeta(static_cast<size_t>(std::pow(2.0, 12.0))),
+      parents(popAlpha),
+      children(popBeta)
 {
   for (size_t i = 0; i < Ncomp; ++i)
   {
@@ -250,19 +248,17 @@ py::array_t<double> Fitting::evaluate()
   return output;
 }
 
-#endif // PYBUILD
+#endif  // PYBUILD
 
 // create a new citizen in the Ensemble
-Fitting::DNA
-Fitting::newCitizen(size_t ID)
+Fitting::DNA Fitting::newCitizen(size_t ID)
 {
   DNA citizen;
 
   citizen.phenotype = isotherms[ID].randomized(maximumLoading);
 
   citizen.genotype.clear();
-  citizen.genotype.reserve((sizeof(double) * CHAR_BIT) *
-                           citizen.phenotype.numberOfParameters);
+  citizen.genotype.reserve((sizeof(double) * CHAR_BIT) * citizen.phenotype.numberOfParameters);
   for (size_t i = 0; i < citizen.phenotype.numberOfParameters; ++i)
   {
     // convert from double to bitset
@@ -280,10 +276,7 @@ Fitting::newCitizen(size_t ID)
   return citizen;
 }
 
-void Fitting::updateCitizen(DNA &citizen)
-{
-  citizen.fitness = fitness(citizen.phenotype);
-}
+void Fitting::updateCitizen(DNA &citizen) { citizen.fitness = fitness(citizen.phenotype); }
 
 inline bool my_isnan(double val)
 {
@@ -300,8 +293,8 @@ double Fitting::fitness(const MultiSiteIsotherm &phenotype)
 // Residual Root Mean Square Error (RMSE)
 {
   double fitnessValue = phenotype.fitness();
-  size_t m = rawData.size();               // number of observations
-  size_t p = phenotype.numberOfParameters; // number of adjustable parameters
+  size_t m = rawData.size();                // number of observations
+  size_t p = phenotype.numberOfParameters;  // number of adjustable parameters
   for (std::pair<double, double> dataPoint : rawData)
   {
     double pressure = dataPoint.first;
@@ -313,10 +306,8 @@ double Fitting::fitness(const MultiSiteIsotherm &phenotype)
   }
   fitnessValue = sqrt(fitnessValue / static_cast<double>(m - p));
 
-  if (my_isnan(fitnessValue))
-    fitnessValue = 99999999.999999;
-  if (fitnessValue == 0.0000000000)
-    fitnessValue = 99999999.999999;
+  if (my_isnan(fitnessValue)) fitnessValue = 99999999.999999;
+  if (fitnessValue == 0.0000000000) fitnessValue = 99999999.999999;
 
   return fitnessValue;
 }
@@ -388,7 +379,8 @@ void Fitting::nuclearDisaster(size_t ID)
 
 void Fitting::elitism()
 {
-  std::copy(parents.begin(), parents.begin() + static_cast<std::vector<DNA>::difference_type>(GA_Elitists), children.begin());
+  std::copy(parents.begin(), parents.begin() + static_cast<std::vector<DNA>::difference_type>(GA_Elitists),
+            children.begin());
 }
 
 void Fitting::mutate(DNA &mutant)
@@ -448,8 +440,8 @@ void Fitting::crossover(size_t ID, size_t s1, size_t s2, size_t i1, size_t i2, s
       // remove the extreme values 0 and 32*Npar - 1 (they are not valid for crossover)
       size_t bitStringSize = (sizeof(double) * CHAR_BIT) * isotherms[ID].numberOfParameters;
       size_t spos = RandomNumber::Integer(1, bitStringSize - 2);
-      children[i].genotype = parents[k1].genotype.substr(0, spos) +
-                             parents[k2].genotype.substr(spos, bitStringSize - spos);
+      children[i].genotype =
+          parents[k1].genotype.substr(0, spos) + parents[k2].genotype.substr(spos, bitStringSize - spos);
 
       // convert the bit-strings to doubles
       for (size_t j = 0; j < children[i].phenotype.numberOfParameters; ++j)
@@ -468,8 +460,7 @@ void Fitting::crossover(size_t ID, size_t s1, size_t s2, size_t i1, size_t i2, s
       size_t bitStringSize = (sizeof(double) * CHAR_BIT) * isotherms[ID].numberOfParameters;
       size_t spos1 = RandomNumber::Integer(1, bitStringSize - 3);
       size_t spos2 = RandomNumber::Integer(spos1, bitStringSize - 2);
-      children[i].genotype = parents[k1].genotype.substr(0, spos1) +
-                             parents[k2].genotype.substr(spos1, spos2 - spos1) +
+      children[i].genotype = parents[k1].genotype.substr(0, spos1) + parents[k2].genotype.substr(spos1, spos2 - spos1) +
                              parents[k1].genotype.substr(spos2, bitStringSize - spos2);
       // convert the bit-strings to doubles
       for (size_t j = 0; j < children[i].phenotype.numberOfParameters; ++j)
@@ -555,8 +546,10 @@ void Fitting::mate(size_t ID)
   elitism();
 
   // mates from GA_Elitists to (GA_Size - GA_Elitists)
-  crossover(ID, GA_Elitists, GA_Elitists + static_cast<size_t>(static_cast<double>(GA_Motleists) * 0.5), 0, GA_Elitists, 0, GA_Elitists);
-  crossover(ID, GA_Elitists + static_cast<size_t>(static_cast<double>(GA_Motleists) * 0.5) + 1, GA_Size - GA_Elitists, 0, GA_Elitists, GA_Elitists, GA_Size - 1);
+  crossover(ID, GA_Elitists, GA_Elitists + static_cast<size_t>(static_cast<double>(GA_Motleists) * 0.5), 0, GA_Elitists,
+            0, GA_Elitists);
+  crossover(ID, GA_Elitists + static_cast<size_t>(static_cast<double>(GA_Motleists) * 0.5) + 1, GA_Size - GA_Elitists,
+            0, GA_Elitists, GA_Elitists, GA_Size - 1);
 
   // mutation from GA_Elitists to (GA_Size - GA_Elitists) with "GA_MutationRate" probability
   for (size_t i = GA_Elitists; i < GA_Size - GA_Elitists; ++i)
@@ -581,34 +574,31 @@ void Fitting::mate(size_t ID)
   }
 }
 
-bool DNA_Fitness_Sorter(Fitting::DNA const &lhs, Fitting::DNA const &rhs)
-{
-  return lhs.fitness < rhs.fitness;
-}
+bool DNA_Fitness_Sorter(Fitting::DNA const &lhs, Fitting::DNA const &rhs) { return lhs.fitness < rhs.fitness; }
 
-void Fitting::sortByFitness()
-{
-  std::sort(parents.begin(), parents.end(), &DNA_Fitness_Sorter);
-}
+void Fitting::sortByFitness() { std::sort(parents.begin(), parents.end(), &DNA_Fitness_Sorter); }
 
 void Fitting::writeCitizen(size_t citizen, size_t id, size_t step, size_t variety, size_t fullfilledCondition)
 {
   char info[256];
   if (fullfilledCondition > 0)
   {
-    snprintf(info, 256, "mol: %2ld  step: %5ld  Fitness: %10.6lf R^2: %10.6lf Similarity: %5ld/%-5ld Finishing: %3ld/%-3d\n",
-             id, step, parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety, GA_Size, fullfilledCondition, 100);
+    snprintf(info, 256,
+             "mol: %2ld  step: %5ld  Fitness: %10.6lf R^2: %10.6lf Similarity: %5ld/%-5ld Finishing: %3ld/%-3d\n", id,
+             step, parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety, GA_Size,
+             fullfilledCondition, 100);
   }
   else
   {
-    snprintf(info, 256, "mol: %2ld  step: %5ld  Fitness: %10.6lf R^2: %10.6lf Similarity: %5ld/%-5ld\n",
-             id, step, parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety, GA_Size);
+    snprintf(info, 256, "mol: %2ld  step: %5ld  Fitness: %10.6lf R^2: %10.6lf Similarity: %5ld/%-5ld\n", id, step,
+             parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety, GA_Size);
   }
   std::cout << info;
   std::cout << "number of parameters: " << parents[citizen].phenotype.numberOfParameters << std::endl;
   for (size_t i = 0; i < parents[citizen].phenotype.numberOfParameters; ++i)
   {
-    std::cout << "      genotype: " << parents[citizen].genotype.substr(64 * i, 64) << " parameter: " << parents[citizen].phenotype.parameters(i) << "\n";
+    std::cout << "      genotype: " << parents[citizen].genotype.substr(64 * i, 64)
+              << " parameter: " << parents[citizen].phenotype.parameters(i) << "\n";
   }
   std::cout << std::endl;
 }
@@ -648,8 +638,7 @@ Fitting::DNA Fitting::fit(size_t ID)
     for (size_t citizen = 0; citizen < 2; ++citizen)
     {
       parents[citizen].genotype.clear();
-      parents[citizen].genotype.reserve((sizeof(double) * CHAR_BIT) *
-                                        parents[citizen].phenotype.numberOfParameters);
+      parents[citizen].genotype.reserve((sizeof(double) * CHAR_BIT) * parents[citizen].phenotype.numberOfParameters);
       for (size_t i = 0; i < parents[citizen].phenotype.numberOfParameters; ++i)
       {
         // convert from double to bitset
@@ -685,8 +674,7 @@ Fitting::DNA Fitting::fit(size_t ID)
 
     writeCitizen(0, ID, optimisationStep, tempVarietyValue, fullFilledConditionStep);
 
-    if (optimisationStep >= minstep &&
-        parents[0].fitness <= minimumFitness &&
+    if (optimisationStep >= minstep && parents[0].fitness <= minimumFitness &&
         std::abs(parents[0].fitness - tempFitnessValue) <= toleranceEqualFitness)
     {
       fullFilledConditionStep += 1;
@@ -696,8 +684,7 @@ Fitting::DNA Fitting::fit(size_t ID)
       fullFilledConditionStep = 0;
     }
 
-    if (optimisationStep >= maxOptimisationStep ||
-        fullFilledConditionStep >= maxFullfilledConditionStep)
+    if (optimisationStep >= maxOptimisationStep || fullFilledConditionStep >= maxFullfilledConditionStep)
     {
       continueCondition = false;
     }
@@ -732,19 +719,19 @@ Fitting::DNA Fitting::fit(size_t ID)
 const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
 {
   size_t n = citizen.phenotype.numberOfParameters;
-  std::vector<std::vector<double>> v(n + 1, std::vector<double>(n)); // holds vertices of simplex
-  std::vector<double> f(n + 1);                                      // value of function at each vertex
-  std::vector<double> vr(n);                                         // reflection - coordinates
-  std::vector<double> ve(n);                                         // expansion - coordinates
-  std::vector<double> vc(n);                                         // contraction - coordinates
-  std::vector<double> vm(n);                                         // centroid - coordinates
-  std::vector<double> vtmp(n);                                       // temporary array passed to FUNC
-  size_t vs;                                                         // vertex with the smallest value
-  size_t vh;                                                         // vertex with next smallest value
-  size_t vg;                                                         // vertex with largest value
-  double fr;                                                         // value of function at reflection point
-  double fe;                                                         // value of function at expansion point
-  double fc;                                                         // value of function at contraction point
+  std::vector<std::vector<double>> v(n + 1, std::vector<double>(n));  // holds vertices of simplex
+  std::vector<double> f(n + 1);                                       // value of function at each vertex
+  std::vector<double> vr(n);                                          // reflection - coordinates
+  std::vector<double> ve(n);                                          // expansion - coordinates
+  std::vector<double> vc(n);                                          // contraction - coordinates
+  std::vector<double> vm(n);                                          // centroid - coordinates
+  std::vector<double> vtmp(n);                                        // temporary array passed to FUNC
+  size_t vs;                                                          // vertex with the smallest value
+  size_t vh;                                                          // vertex with next smallest value
+  size_t vg;                                                          // vertex with largest value
+  double fr;                                                          // value of function at reflection point
+  double fe;                                                          // value of function at expansion point
+  double fc;                                                          // value of function at contraction point
   size_t iprint{0};
   size_t MAX_IT = 1000000;
   double EPSILON = 1.0e-4;
@@ -815,9 +802,9 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
     // Step 1: Sort
     // ====================================================================
     std::vector<size_t> sortIndexes = sort_indexes(f);
-    vs = sortIndexes[0];     // index of smallest
-    vg = sortIndexes[n];     // index of largest
-    vh = sortIndexes[n - 1]; // index of second largest
+    vs = sortIndexes[0];      // index of smallest
+    vg = sortIndexes[n];      // index of largest
+    vh = sortIndexes[n - 1];  // index of second largest
 
     // calculate the center point of every point except for the worst one
     for (size_t j = 0; j < n; ++j)
@@ -958,7 +945,7 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
 
       // find the index of the smallest value
       sortIndexes = sort_indexes(f);
-      vs = sortIndexes[0]; // index of smallest
+      vs = sortIndexes[0];  // index of smallest
       for (size_t m = 0; m < n; ++m)
       {
         citizen.phenotype.parameters(m) = v[vs][m];
@@ -1027,14 +1014,16 @@ void Fitting::createPlotScripts(const DNA &citizen, size_t ID)
   stream << "plot \\\n"
          << isotherms[ID].gnuplotFunctionString('s') << " title 'start f(x)' with li dt 2 lw 2,\\\n"
          << citizen.phenotype.gnuplotFunctionString('p') << " title 'fit f(x)' with li lw 2,\\\n";
-  stream << "'" << filename[ID] << "' us " << columnPressure + 1 << ":" << columnLoading + 1 << " title 'raw data' with po pt 5 ps 0.5\n";
+  stream << "'" << filename[ID] << "' us " << columnPressure + 1 << ":" << columnLoading + 1
+         << " title 'raw data' with po pt 5 ps 0.5\n";
 }
 
 void Fitting::createPlotScript()
 {
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
   std::ofstream stream_graphs("make_graphs.bat");
-  stream_graphs << "set PATH=%PATH%;C:\\Program Files\\gnuplot\\bin;C:\\Program Files\\ffmpeg-master-latest-win64-gpl\\bin;C:\\Program Files\\ffmpeg\\bin\n";
+  stream_graphs << "set PATH=%PATH%;C:\\Program Files\\gnuplot\\bin;C:\\Program "
+                   "Files\\ffmpeg-master-latest-win64-gpl\\bin;C:\\Program Files\\ffmpeg\\bin\n";
   for (size_t i = 0; i < Ncomp; ++i)
   {
     std::string plotFileName = "plot_fit_component_" + std::to_string(i) + "_" + componentName[i];
