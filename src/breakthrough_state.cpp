@@ -20,7 +20,7 @@
 namespace py = pybind11;
 #endif  // PYBUILD
 
-void BreakthroughState::initialize(std::vector<Component>& components, MixturePrediction& mixture)
+void BreakthroughState::initialize()
 {
   // precomputed factor for mass transfer
   for (size_t j = 0; j < Ncomp; ++j)
@@ -103,7 +103,7 @@ void BreakthroughState::initialize(std::vector<Component>& components, MixturePr
 }
 
 void BreakthroughState::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& movieStream,
-                                    std::vector<Component>& components, double time)
+                                    double time)
 {
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {

@@ -5,8 +5,7 @@
 #include <mdspan>
 #include <vector>
 
-bool RungeKutta3::propagate(BreakthroughState& state, std::vector<Component>& components, MixturePrediction& mixture,
-                            size_t step)
+bool RungeKutta3::propagate(BreakthroughState& state, size_t step)
 {
   double t = static_cast<double>(step) * timeStep;
   size_t Ngrid = state.Ngrid;
@@ -20,7 +19,7 @@ bool RungeKutta3::propagate(BreakthroughState& state, std::vector<Component>& co
     {
       tolerance = std::max(
           tolerance,
-          std::abs((state.partialPressure[Ngrid * Ncomp + j] / (state.exitPressure * components[j].Yi0)) - 1.0));
+          std::abs((state.partialPressure[Ngrid * Ncomp + j] / (state.exitPressure * state.components[j].Yi0)) - 1.0));
     }
 
     // consider 1% as being visibily indistinguishable from 'converged'
@@ -37,7 +36,7 @@ bool RungeKutta3::propagate(BreakthroughState& state, std::vector<Component>& co
   // ======================================================================
 
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P
-  computeFirstDerivatives(state, components);
+  computeFirstDerivatives(state);
 
   // Dqdt and Dpdt are calculated at old time step
   // make estimate for the new loadings and new gas phase partial pressures
@@ -48,16 +47,16 @@ bool RungeKutta3::propagate(BreakthroughState& state, std::vector<Component>& co
     newState.partialPressure[i] = state.partialPressure[i] + timeStep * state.pressureDot[i];
   }
 
-  computeEquilibriumLoadings(newState, mixture);
+  computeEquilibriumLoadings(newState);
 
-  computeVelocity(newState, components);
+  computeVelocity(newState);
 
   // SSP-RK Step 2
   // ======================================================================
 
   // calculate new derivatives at new (current) timestep
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
-  computeFirstDerivatives(newState, components);
+  computeFirstDerivatives(newState);
 
   for (size_t i = 0; i < state.adsorption.size(); ++i)
   {
@@ -67,16 +66,16 @@ bool RungeKutta3::propagate(BreakthroughState& state, std::vector<Component>& co
         0.75 * state.partialPressure[i] + 0.25 * (newState.partialPressure[i] + timeStep * newState.pressureDot[i]);
   }
 
-  computeEquilibriumLoadings(newState, mixture);
+  computeEquilibriumLoadings(newState);
 
-  computeVelocity(newState, components);
+  computeVelocity(newState);
 
   // SSP-RK Step 3
   // ======================================================================
 
   // calculate new derivatives at new (current) timestep
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
-  computeFirstDerivatives(newState, components);
+  computeFirstDerivatives(newState);
 
   for (size_t i = 0; i < state.adsorption.size(); ++i)
   {
@@ -86,9 +85,9 @@ bool RungeKutta3::propagate(BreakthroughState& state, std::vector<Component>& co
                                   (2.0 / 3.0) * (newState.partialPressure[i] + timeStep * newState.pressureDot[i]);
   }
 
-  computeEquilibriumLoadings(newState, mixture);
+  computeEquilibriumLoadings(newState);
 
-  computeVelocity(newState, components);
+  computeVelocity(newState);
 
   // update to the new time step
   state = newState;

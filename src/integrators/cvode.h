@@ -13,18 +13,12 @@
 #include <sunmatrix/sunmatrix_dense.h>
 #include <sunnonlinsol/sunnonlinsol_newton.h> /* access to Newton SUNNonlinearSolver         */
 
+#include <span>
+
 #include "breakthrough_state.h"
+#include "component.h"
 #include "compute.h"
-
-struct SolverData
-{
-  SolverData(BreakthroughState* state, std::vector<Component>* components, MixturePrediction* mixture)
-      : state(state), components(components), mixture(mixture) {};
-
-  BreakthroughState* state;
-  std::vector<Component>* components;
-  MixturePrediction* mixture;
-};
+#include "mixture_prediction.h"
 
 struct CVODE
 {
@@ -47,12 +41,20 @@ struct CVODE
   const sunrealtype relativeTolerance = 1.0e-3;
   const sunrealtype absoluteTolerance = 1.0e-6;
 
-  bool propagate(BreakthroughState& state, std::vector<Component>& components, MixturePrediction& mixture, size_t step);
-  void initialize(BreakthroughState& state, std::vector<Component>& components, MixturePrediction& mixture);
+  bool propagate(BreakthroughState& state, size_t step);
+  void initialize(BreakthroughState& state);
 };
 
-void packState(BreakthroughState& state, N_Vector& u);
-void packStateDot(BreakthroughState& state, N_Vector& uDot);
-void unpackState(BreakthroughState& state, N_Vector& u);
-void unpackStateDot(BreakthroughState& state, N_Vector& uDot);
+inline void packState(const BreakthroughState& state, N_Vector u);
+inline void packStateDot(const BreakthroughState& state, N_Vector uDot);
+inline void unpackState(BreakthroughState& state, N_Vector u);
+inline void unpackStateDot(BreakthroughState& state, N_Vector uDot);
+
+inline std::span<double> getTotalPressureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);
+inline std::span<double> getTemperatureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);
+inline std::span<double> getWallTemperatureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);
+inline std::span<double> getPartialPressureSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
+inline std::span<double> getAdsorptionSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
+inline std::span<double> getMoleFractionSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
+
 static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data);

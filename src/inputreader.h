@@ -43,6 +43,7 @@ struct InputReader
   SimulationType simulationType{SimulationType::Breakthrough};  ///< The type of simulation to perform.
   size_t mixturePredictionMethod{0};                            ///< The method used for mixture prediction.
   size_t IASTMethod{0};                                         ///< The method used for IAST calculations.
+  size_t breakthroughIntegrator{0};                             ///< The integrator used for breakthrough calculations.
   std::string displayName{"Column"};                            ///< The display name for the simulation.
   double temperature{433.0};                                    ///< The simulation temperature in Kelvin.
   double columnVoidFraction{0.4};                               ///< The void fraction of the column.

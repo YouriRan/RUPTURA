@@ -12,5 +12,5 @@ struct RungeKutta3
   bool autoSteps;
   size_t numberOfSteps;
 
-  bool propagate(BreakthroughState& state, std::vector<Component>& components, MixturePrediction& mixture, size_t step);
+  bool propagate(BreakthroughState& state, size_t step);
 };
