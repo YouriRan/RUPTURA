@@ -232,6 +232,26 @@ InputReader::InputReader(const std::string fileName) : components()
           }
         };
       }
+
+      if (caseInSensStringCompare(keyword, "BreakthroughIntegrator"))
+      {
+        std::string str;
+        std::istringstream ss(arguments);
+        if (ss >> str)
+        {
+          if (caseInSensStringCompare(str, "RungeKutta3"))
+          {
+            breakthroughIntegrator = 0;
+            continue;
+          }
+          if (caseInSensStringCompare(str, "CVODE"))
+          {
+            breakthroughIntegrator = 1;
+            continue;
+          }
+        };
+      }
+
       if (caseInSensStringCompare(keyword, "DisplayName"))
       {
         std::string str;

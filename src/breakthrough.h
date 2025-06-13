@@ -28,8 +28,8 @@ struct Breakthrough
   enum class IntegrationScheme
   {
     SSP_RK = 0,     ///< Strong Stability Preserving Runge-Kutta method.
-    Iterative = 1,  ///< Iterative integration scheme.
-    CVODE = 2,      ///< CVODE integration
+    CVODE = 1,      ///< CVODE integration
+    Iterative = 2,  ///< Iterative integration scheme.
   };
 
   /**
@@ -65,12 +65,14 @@ struct Breakthrough
    * \param _pulse Flag to indicate pulsed inlet condition.
    * \param _pulseTime Pulse time.
    * \param _mixture MixturePrediction object for mixture predictions.
+   * \param _breakthroughIntegrator Type of integrator used for solving PDE.
    */
   Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
                size_t _numberOfGridPoints, size_t _printEvery, size_t _writeEvery, double _temperature, double _p_total,
                double _columnVoidFraction, double _pressureGradient, double _particleDensity,
                double _columnEntranceVelocity, double _columnLength, double _timeStep, size_t _numberOfTimeSteps,
-               bool _autoSteps, bool _pulse, double _pulseTime, const MixturePrediction _mixture);
+               bool _autoSteps, bool _pulse, double _pulseTime, const MixturePrediction _mixture,
+               size_t _breakthroughIntegrator);
 
   /**
    * \brief Prints the representation of the Breakthrough object to the console.
@@ -135,22 +137,20 @@ struct Breakthrough
   std::vector<double> getComponentsParameters();
 #endif  // PYBUILD
 
-  const std::string displayName;      ///< Name of the simulation for display purposes.
-  std::vector<Component> components;  ///< Vector of components involved in the simulation.
-  size_t carrierGasComponent{0};      ///< Index of the carrier gas component.
-  size_t Ncomp;                       ///< Number of components.
-  size_t Ngrid;                       ///< Number of grid points.
+  const std::string displayName;  ///< Name of the simulation for display purposes.
+  size_t carrierGasComponent{0};  ///< Index of the carrier gas component.
+  size_t Ncomp;                   ///< Number of components.
+  size_t Ngrid;                   ///< Number of grid points.
 
   size_t printEvery;  ///< Frequency of printing time steps to the screen.
   size_t writeEvery;  ///< Frequency of writing data to files.
 
-  double dt;                  ///< Time step for integration.
-  size_t Nsteps;              ///< Total number of steps.
-  bool autoSteps;             ///< Flag to use automatic number of steps.
-  bool pulse;                 ///< Pulsed inlet condition for breakthrough.
-  double tpulse;              ///< Pulse time.
-  MixturePrediction mixture;  ///< MixturePrediction object for mixture predictions.
-  size_t maxIsothermTerms;    ///< Maximum number of isotherm terms.
+  double dt;                ///< Time step for integration.
+  size_t Nsteps;            ///< Total number of steps.
+  bool autoSteps;           ///< Flag to use automatic number of steps.
+  bool pulse;               ///< Pulsed inlet condition for breakthrough.
+  double tpulse;            ///< Pulse time.
+  size_t maxIsothermTerms;  ///< Maximum number of isotherm terms.
 
   BreakthroughState state;
   RungeKutta3 rk3;

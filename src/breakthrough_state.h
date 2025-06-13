@@ -21,11 +21,13 @@ namespace py = pybind11;
 
 struct BreakthroughState
 {
-  BreakthroughState(size_t Ngrid, size_t Ncomp, size_t maxIsothermTerms, double externalTemperature,
-                    double externalPressure, double pressureGradient, double voidFraction, double particleDensity,
-                    double columnEntranceVelocity, double columnLength, bool pulse, double pulseTime,
-                    size_t carrierGasComponent)
-      : Ngrid(Ngrid),
+  BreakthroughState(MixturePrediction mixture, std::vector<Component> components, size_t Ngrid, size_t Ncomp,
+                    size_t maxIsothermTerms, double externalTemperature, double externalPressure,
+                    double pressureGradient, double voidFraction, double particleDensity, double columnEntranceVelocity,
+                    double columnLength, bool pulse, double pulseTime, size_t carrierGasComponent)
+      : mixture(mixture),
+        components(components),
+        Ngrid(Ngrid),
         Ncomp(Ncomp),
         maxIsothermTerms(maxIsothermTerms),
         externalTemperature(externalTemperature),
@@ -53,14 +55,17 @@ struct BreakthroughState
         wallTemperature(Ngrid + 1),
         wallTemperatureDot(Ngrid + 1),
         partialPressure((Ngrid + 1) * Ncomp),
-        adsorption((Ngrid + 1) * Ncomp),
-        equilibriumAdsorption((Ngrid + 1) * Ncomp),
         pressureDot((Ngrid + 1) * Ncomp),
+        adsorption((Ngrid + 1) * Ncomp),
         adsorptionDot((Ngrid + 1) * Ncomp),
+        equilibriumAdsorption((Ngrid + 1) * Ncomp),
         moleFraction((Ngrid + 1) * Ncomp),
         moleFractionDot((Ngrid + 1) * Ncomp),
         cachedPressure((Ngrid + 1) * Ncomp * maxIsothermTerms),
         cachedGrandPotential((Ngrid + 1) * maxIsothermTerms) {};
+
+  MixturePrediction mixture;
+  std::vector<Component> components;
 
   size_t Ngrid;
   size_t Ncomp;
@@ -105,10 +110,10 @@ struct BreakthroughState
 
   // vector of size '(Ngrid + 1) * Ncomp', for each grid point, data per component (contiguous)
   std::vector<double> partialPressure;  ///< Partial pressure at every grid point for each component.
+  std::vector<double> pressureDot;      ///< Derivative of partial pressure wrt time.
   std::vector<double> adsorption;       ///< Volume-averaged adsorption amount at every grid point for each component.
+  std::vector<double> adsorptionDot;    ///< Derivative of adsorption wrt time.
   std::vector<double> equilibriumAdsorption;  ///< Equilibrium adsorption amount at every grid point for each component.
-  std::vector<double> pressureDot;            ///< Derivative of partial pressure wrt time.
-  std::vector<double> adsorptionDot;          ///< Derivative of adsorption wrt time.
   std::vector<double> moleFraction;           ///< Mole fraction of all components along column
   std::vector<double> moleFractionDot;        ///< Derivative mole fraction of all components along column wrt time.
 
@@ -117,8 +122,7 @@ struct BreakthroughState
   // vector of size '(Ngrid + 1) * maxIsothermTerms' for caching grand potential
   std::vector<double> cachedGrandPotential;  ///< Cached reduced grand potential over the column.
 
-  void initialize(std::vector<Component>& components, MixturePrediction& mixture);
-  void writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& movieStream,
-                   std::vector<Component>& components, double time);
+  void initialize();
+  void writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& movieStream, double time);
   std::string repr() const;
 };

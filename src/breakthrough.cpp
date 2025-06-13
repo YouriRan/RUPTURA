@@ -27,9 +27,8 @@ namespace py = pybind11;
 
 Breakthrough::Breakthrough(const InputReader &inputReader)
     : displayName(inputReader.displayName),
-      components(inputReader.components),
       carrierGasComponent(inputReader.carrierGasComponent),
-      Ncomp(components.size()),
+      Ncomp(inputReader.components.size()),
       Ngrid(inputReader.numberOfGridPoints),
       printEvery(inputReader.printEvery),
       writeEvery(inputReader.writeEvery),
@@ -38,17 +37,19 @@ Breakthrough::Breakthrough(const InputReader &inputReader)
       autoSteps(inputReader.autoNumberOfTimeSteps),
       pulse(inputReader.pulseBreakthrough),
       tpulse(inputReader.pulseTime),
-      mixture(inputReader),
       maxIsothermTerms(inputReader.maxIsothermTerms),
-      state(Ngrid, Ncomp, maxIsothermTerms, inputReader.temperature, inputReader.totalPressure,
-            inputReader.pressureGradient, inputReader.columnVoidFraction, inputReader.particleDensity,
-            inputReader.columnEntranceVelocity, inputReader.columnLength, inputReader.pulseBreakthrough,
-            inputReader.pulseTime, inputReader.carrierGasComponent),
+      state(MixturePrediction(inputReader), inputReader.components, Ngrid, Ncomp, maxIsothermTerms,
+            inputReader.temperature, inputReader.totalPressure, inputReader.pressureGradient,
+            inputReader.columnVoidFraction, inputReader.particleDensity, inputReader.columnEntranceVelocity,
+            inputReader.columnLength, inputReader.pulseBreakthrough, inputReader.pulseTime,
+            inputReader.carrierGasComponent),
       rk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
-      cvode(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps)
+      cvode(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
+      integrationScheme(IntegrationScheme(inputReader.breakthroughIntegrator))
 
 {
-  state.initialize(components, mixture);
+  state.initialize();
+  if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(state);
 }
 
 Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
@@ -56,9 +57,8 @@ Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _com
                            double _externalPressure, double _columnVoidFraction, double _pressureGradient,
                            double _particleDensity, double _columnEntranceVelocity, double _columnLength,
                            double _timeStep, size_t _numberOfTimeSteps, bool _autoSteps, bool _pulse, double _pulseTime,
-                           const MixturePrediction _mixture)
+                           const MixturePrediction _mixture, size_t _breakthroughIntegrator)
     : displayName(_displayName),
-      components(_components),
       carrierGasComponent(_carrierGasComponent),
       Ncomp(_components.size()),
       Ngrid(_numberOfGridPoints),
@@ -69,14 +69,16 @@ Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _com
       autoSteps(_autoSteps),
       pulse(_pulse),
       tpulse(_pulseTime),
-      mixture(_mixture),
-      maxIsothermTerms(mixture.getMaxIsothermTerms()),
-      state(Ngrid, Ncomp, maxIsothermTerms, _temperature, _externalPressure, _pressureGradient, _columnVoidFraction,
-            _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime, _carrierGasComponent),
+      maxIsothermTerms(_mixture.getMaxIsothermTerms()),
+      state(_mixture, _components, Ngrid, Ncomp, maxIsothermTerms, _temperature, _externalPressure, _pressureGradient,
+            _columnVoidFraction, _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime,
+            _carrierGasComponent),
       rk3(dt, _autoSteps, _numberOfTimeSteps),
-      cvode(dt, _autoSteps, _numberOfTimeSteps)
+      cvode(dt, _autoSteps, _numberOfTimeSteps),
+      integrationScheme(IntegrationScheme(_breakthroughIntegrator))
 {
-  state.initialize(components, mixture);
+  state.initialize();
+  if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(state);
 }
 
 void Breakthrough::run()
@@ -85,7 +87,7 @@ void Breakthrough::run()
   std::vector<std::ofstream> streams;
   for (size_t i = 0; i < Ncomp; i++)
   {
-    std::string fileName = "component_" + std::to_string(i) + "_" + components[i].name + ".data";
+    std::string fileName = "component_" + std::to_string(i) + "_" + state.components[i].name + ".data";
     streams.emplace_back(std::ofstream{fileName});
   }
 
@@ -115,12 +117,12 @@ void Breakthrough::run()
     {
       case IntegrationScheme::SSP_RK:
       {
-        finished = rk3.propagate(state, components, mixture, step);
+        finished = rk3.propagate(state, step);
         break;
       }
       case IntegrationScheme::CVODE:
       {
-        finished = cvode.propagate(state, components, mixture, step);
+        finished = cvode.propagate(state, step);
         break;
       }
       default:
@@ -130,7 +132,7 @@ void Breakthrough::run()
 
     if (step % writeEvery == 0)
     {
-      state.writeOutput(streams, movieStream, components, t);
+      state.writeOutput(streams, movieStream, t);
     }
 
     if (step % printEvery == 0)
@@ -180,7 +182,7 @@ py::array_t<double> Breakthrough::compute()
           t_brk[i][5 + 6 * j] = Q[i * Ncomp + j];
           t_brk[i][6 + 6 * j] = Qeq[i * Ncomp + j];
           t_brk[i][7 + 6 * j] = P[i * Ncomp + j];
-          t_brk[i][8 + 6 * j] = P[i * Ncomp + j] / (Pt[i] * components[j].Yi0);
+          t_brk[i][8 + 6 * j] = P[i * Ncomp + j] / (Pt[i] * state.components[j].Yi0);
           t_brk[i][9 + 6 * j] = Dpdt[i * Ncomp + j];
           t_brk[i][10 + 6 * j] = Dqdt[i * Ncomp + j];
         }
@@ -221,11 +223,11 @@ void Breakthrough::setComponentsParameters(std::vector<double> molfracs, std::ve
   size_t index = 0;
   for (size_t i = 0; i < Ncomp; ++i)
   {
-    components[i].Yi0 = molfracs[i];
-    size_t n_params = components[i].isotherm.numberOfParameters;
+    state.components[i].Yi0 = molfracs[i];
+    size_t n_params = state.components[i].isotherm.numberOfParameters;
     std::vector<double> slicedVec(params.begin() + index, params.begin() + index + n_params);
     index = index + n_params;
-    components[i].isotherm.setParameters(slicedVec);
+    state.components[i].isotherm.setParameters(slicedVec);
   }
 
   // also set for mixture
@@ -237,7 +239,7 @@ std::vector<double> Breakthrough::getComponentsParameters()
   std::vector<double> params;
   for (size_t i = 0; i < Ncomp; ++i)
   {
-    std::vector<double> compParams = components[i].isotherm.getParameters();
+    std::vector<double> compParams = state.components[i].isotherm.getParameters();
     params.insert(params.end(), compParams.begin(), compParams.end());
   }
   return params;
@@ -289,7 +291,7 @@ std::string Breakthrough::repr() const
   // Append each component’s repr()
   for (std::size_t i = 0; i < Ncomp; ++i)
   {
-    s += std::format("{}\n", components[i].repr());
+    s += std::format("{}\n", state.components[i].repr());
   }
 
   return s;
@@ -357,9 +359,9 @@ void Breakthrough::createPlotScript()
   stream << "plot \\\n";
   for (size_t i = 0; i < Ncomp; i++)
   {
-    std::string fileName = "component_" + std::to_string(i) + "_" + components[i].name + ".data";
-    stream << "    " << "\"" << fileName << "\"" << " us ($1):($3) every ev" << " title \"" << components[i].name
-           << " (y_i=" << components[i].Yi0 << ")\""
+    std::string fileName = "component_" + std::to_string(i) + "_" + state.components[i].name + ".data";
+    stream << "    " << "\"" << fileName << "\"" << " us ($1):($3) every ev" << " title \"" << state.components[i].name
+           << " (y_i=" << state.components[i].Yi0 << ")\""
            << " with li lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "set output 'breakthrough.pdf'\n";
@@ -371,9 +373,9 @@ void Breakthrough::createPlotScript()
   stream << "plot \\\n";
   for (size_t i = 0; i < Ncomp; i++)
   {
-    std::string fileName = "component_" + std::to_string(i) + "_" + components[i].name + ".data";
-    stream << "    " << "\"" << fileName << "\"" << " us ($2):($3) every ev" << " title \"" << components[i].name
-           << " (y_i=" << components[i].Yi0 << ")\""
+    std::string fileName = "component_" + std::to_string(i) + "_" + state.components[i].name + ".data";
+    stream << "    " << "\"" << fileName << "\"" << " us ($2):($3) every ev" << " title \"" << state.components[i].name
+           << " (y_i=" << state.components[i].Yi0 << ")\""
            << " with li lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
 }
@@ -669,7 +671,7 @@ void Breakthrough::createMovieScriptColumnQ()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(4 + i * 6) << " index ev*i title '"
-           << components[i].name << " (y_i=" << components[i].Yi0 << ")'"
+           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -747,7 +749,7 @@ void Breakthrough::createMovieScriptColumnQeq()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(5 + i * 6) << " index ev*i title '"
-           << components[i].name << " (y_i=" << components[i].Yi0 << ")'"
+           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -825,7 +827,7 @@ void Breakthrough::createMovieScriptColumnP()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(6 + i * 6) << " index ev*i title '"
-           << components[i].name << " (y_i=" << components[i].Yi0 << ")'"
+           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -903,7 +905,7 @@ void Breakthrough::createMovieScriptColumnPnormalized()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(7 + i * 6) << " index ev*i title '"
-           << components[i].name << " (y_i=" << components[i].Yi0 << ")'"
+           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -985,7 +987,7 @@ void Breakthrough::createMovieScriptColumnDpdt()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(8 + i * 6) << " index ev*i title '"
-           << components[i].name << " (y_i=" << components[i].Yi0 << ")'"
+           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -1069,7 +1071,7 @@ void Breakthrough::createMovieScriptColumnDqdt()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(9 + i * 6) << " index ev*i title '"
-           << components[i].name << " (y_i=" << components[i].Yi0 << ")'"
+           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
