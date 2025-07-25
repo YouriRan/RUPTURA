@@ -135,7 +135,7 @@ void BreakthroughState::writeOutput(std::vector<std::ofstream>& componentStreams
       std::print(movieStream, "{} {} {} {} {} {} ", adsorption[grid * Ncomp + comp],
                  equilibriumAdsorption[grid * Ncomp + comp], partialPressure[grid * Ncomp + comp],
                  partialPressure[grid * Ncomp + comp] / (totalPressure[grid] * components[comp].Yi0),
-                 pressureDot[grid * Ncomp + comp], adsorptionDot[grid * Ncomp + comp]);
+                 partialPressureDot[grid * Ncomp + comp], adsorptionDot[grid * Ncomp + comp]);
     }
     std::print(movieStream, "\n");
   }

@@ -49,13 +49,13 @@ struct BreakthroughState
         numberOfMolecules(Ncomp),
         interstitialGasVelocity(Ngrid + 1),
         totalPressure(Ngrid + 1),
-        totalPressureDot(Ngrid + 1),
+        totalpartialPressureDot(Ngrid + 1),
         temperature(Ngrid + 1),
         temperatureDot(Ngrid + 1),
         wallTemperature(Ngrid + 1),
         wallTemperatureDot(Ngrid + 1),
         partialPressure((Ngrid + 1) * Ncomp),
-        pressureDot((Ngrid + 1) * Ncomp),
+        partialPressureDot((Ngrid + 1) * Ncomp),
         adsorption((Ngrid + 1) * Ncomp),
         adsorptionDot((Ngrid + 1) * Ncomp),
         equilibriumAdsorption((Ngrid + 1) * Ncomp),
@@ -102,17 +102,17 @@ struct BreakthroughState
   // vector of size '(Ngrid + 1)'
   std::vector<double> interstitialGasVelocity;  ///< Interstitial gas velocity along the column.
   std::vector<double> totalPressure;            ///< Total pressure along the column.
-  std::vector<double> totalPressureDot;         ///< Derivative wall temperature along the column wrt time.
+  std::vector<double> totalpartialPressureDot;  ///< Derivative wall temperature along the column wrt time.
   std::vector<double> temperature;              ///< Total temperature along the column.
   std::vector<double> temperatureDot;           ///< Derivative total temperature along the column wrt time.
   std::vector<double> wallTemperature;          ///< Wall temperature along the column.
   std::vector<double> wallTemperatureDot;       ///< Derivative wall temperature along the column wrt time.
 
   // vector of size '(Ngrid + 1) * Ncomp', for each grid point, data per component (contiguous)
-  std::vector<double> partialPressure;  ///< Partial pressure at every grid point for each component.
-  std::vector<double> pressureDot;      ///< Derivative of partial pressure wrt time.
-  std::vector<double> adsorption;       ///< Volume-averaged adsorption amount at every grid point for each component.
-  std::vector<double> adsorptionDot;    ///< Derivative of adsorption wrt time.
+  std::vector<double> partialPressure;     ///< Partial pressure at every grid point for each component.
+  std::vector<double> partialPressureDot;  ///< Derivative of partial pressure wrt time.
+  std::vector<double> adsorption;     ///< Volume-averaged adsorption amount at every grid point for each component.
+  std::vector<double> adsorptionDot;  ///< Derivative of adsorption wrt time.
   std::vector<double> equilibriumAdsorption;  ///< Equilibrium adsorption amount at every grid point for each component.
   std::vector<double> moleFraction;           ///< Mole fraction of all components along column
   std::vector<double> moleFractionDot;        ///< Derivative mole fraction of all components along column wrt time.

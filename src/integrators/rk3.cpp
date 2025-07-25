@@ -44,7 +44,7 @@ bool RungeKutta3::propagate(BreakthroughState& state, size_t step)
   for (size_t i = 0; i < state.adsorption.size(); ++i)
   {
     newState.adsorption[i] = state.adsorption[i] + timeStep * state.adsorptionDot[i];
-    newState.partialPressure[i] = state.partialPressure[i] + timeStep * state.pressureDot[i];
+    newState.partialPressure[i] = state.partialPressure[i] + timeStep * state.partialPressureDot[i];
   }
 
   computeEquilibriumLoadings(newState);
@@ -62,8 +62,8 @@ bool RungeKutta3::propagate(BreakthroughState& state, size_t step)
   {
     newState.adsorption[i] =
         0.75 * state.adsorption[i] + 0.25 * (newState.adsorption[i] + timeStep * newState.adsorptionDot[i]);
-    newState.partialPressure[i] =
-        0.75 * state.partialPressure[i] + 0.25 * (newState.partialPressure[i] + timeStep * newState.pressureDot[i]);
+    newState.partialPressure[i] = 0.75 * state.partialPressure[i] +
+                                  0.25 * (newState.partialPressure[i] + timeStep * newState.partialPressureDot[i]);
   }
 
   computeEquilibriumLoadings(newState);
@@ -81,8 +81,9 @@ bool RungeKutta3::propagate(BreakthroughState& state, size_t step)
   {
     newState.adsorption[i] = (1.0 / 3.0) * state.adsorption[i] +
                              (2.0 / 3.0) * (newState.adsorption[i] + timeStep * newState.adsorptionDot[i]);
-    newState.partialPressure[i] = (1.0 / 3.0) * state.partialPressure[i] +
-                                  (2.0 / 3.0) * (newState.partialPressure[i] + timeStep * newState.pressureDot[i]);
+    newState.partialPressure[i] =
+        (1.0 / 3.0) * state.partialPressure[i] +
+        (2.0 / 3.0) * (newState.partialPressure[i] + timeStep * newState.partialPressureDot[i]);
   }
 
   computeEquilibriumLoadings(newState);

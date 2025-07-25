@@ -94,17 +94,17 @@ void Breakthrough::run()
   std::ofstream movieStream("column.data");
 
   size_t column_nr = 1;
-  std::print(movieStream, "# column {}: z (column position)\n", column_nr);
-  std::print(movieStream, "# column {}: V  (velocity)\n", column_nr);
-  std::print(movieStream, "# column {}: Pt (total pressure)\n", column_nr);
+  std::print(movieStream, "# column {}: z (column position)\n", column_nr++);
+  std::print(movieStream, "# column {}: V  (velocity)\n", column_nr++);
+  std::print(movieStream, "# column {}: Pt (total pressure)\n", column_nr++);
   for (size_t j = 0; j < Ncomp; ++j)
   {
-    std::print(movieStream, "# column {}: component {} Q     (loading)\n", column_nr, j);
-    std::print(movieStream, "# column {}: component {} Qeq   (equlibrium loading)\n", column_nr, j);
-    std::print(movieStream, "# column {}: component {} P     (partial pressure)\n", column_nr, j);
-    std::print(movieStream, "# column {}: component {} Pnorm (normalized partial pressure)\n", column_nr, j);
-    std::print(movieStream, "# column {}: component {} Dpdt  (derivative P with t)\n", column_nr, j);
-    std::print(movieStream, "# column {}: component {} Dqdt  (derivative Q with t)\n", column_nr, j);
+    std::print(movieStream, "# column {}: component {} Q     (loading)\n", column_nr++, j);
+    std::print(movieStream, "# column {}: component {} Qeq   (equlibrium loading)\n", column_nr++, j);
+    std::print(movieStream, "# column {}: component {} P     (partial pressure)\n", column_nr++, j);
+    std::print(movieStream, "# column {}: component {} Pnorm (normalized partial pressure)\n", column_nr++, j);
+    std::print(movieStream, "# column {}: component {} Dpdt  (derivative P with t)\n", column_nr++, j);
+    std::print(movieStream, "# column {}: component {} Dqdt  (derivative Q with t)\n", column_nr++, j);
   }
 
   bool finished = false;
