@@ -1,94 +1,52 @@
-import _ruptura
-import numpy as np
-from typing import Union, Literal
-import matplotlib.pyplot as plt
-from .utils import *
+import _ruptura import numpy as np from typing import Union, Literal import matplotlib.pyplot as plt from.utils import *
 
-def from_input(file_path):
-    return from_config(input_to_config(file_path))
+                                                             def from_input(file_path) : return from_config(input_to_config(file_path))
 
-def from_config(config):
-    ruptura_objects = {"Components": Components(config["components"])}
-    if "Fitting" in config.keys():
-        ruptura_objects["Fitting"] = Fitting(components=ruptura_objects["Components"], **config["Fitting"])
-    if "Breakthrough" in config.keys():
-        ruptura_objects["Breakthrough"] = Breakthrough(components=ruptura_objects["Components"], **config["Breakthrough"])
-    if "MixturePrediction" in config.keys():
-        ruptura_objects["MixturePrediction"] = MixturePrediction(components=ruptura_objects["Components"], **config["MixturePrediction"])
-    return ruptura_objects
+                                                                 def from_config(config) :ruptura_objects = {"Components" :Components(config["components"]) } if "Fitting" in config.keys() :ruptura_objects["Fitting"] = Fitting(components = ruptura_objects["Components"], ** config["Fitting"]) if "Breakthrough" in config.keys() :ruptura_objects["Breakthrough"] = Breakthrough(components = ruptura_objects["Components"], ** config["Breakthrough"]) if "MixturePrediction" in config.keys() :ruptura_objects["MixturePrediction"] = MixturePrediction(components = ruptura_objects["Components"], ** config["MixturePrediction"]) return ruptura_objects
 
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      class Components: ""
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        "
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Class to manage a list of components for simulation.
 
-class Components:
-    """
-    Class to manage a list of components for simulation.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      Each component is represented as a dictionary with various attributes like name, molFraction, isotherms, MassTransferCoefficient, AxialDispersionCoefficient, and whether it's a CarrierGas.
 
-    Each component is represented as a dictionary with
-    various attributes like name, molFraction, isotherms, 
-    MassTransferCoefficient, AxialDispersionCoefficient, 
-    and whether it's a CarrierGas.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             Attributes:components(list) :A list of all components(cpp objects) added to this instance.labels(list) :A list of labels for all components in this instance.CarrierGas(int) :The index of the carrier gas in the components list, if any.""
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       "
 
-    Attributes:
-        components (list): A list of all components (cpp objects) added to this instance.
-        labels (list): A list of labels for all components in this instance.
-        CarrierGas (int): The index of the carrier gas in the components list, if any.
-    """
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                def __init__(self, components:list[dict] =[]) : ""
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                "
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             Initialize an instance of Components class.
 
-    def __init__(self, components: list[dict] = []):
-        """
-        Initialize an instance of Components class.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             Parameters:components(list[dict], optional) :A list of dictionaries representing the components.Defaults to an empty list.""
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       "
 
-        Parameters:
-            components (list[dict], optional): A list of dictionaries representing the components. 
-                Defaults to an empty list.
-        """
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        self._components =[] self.labels =[] self.CarrierGas = None
 
-        self._components = []
-        self.labels = []
-        self.CarrierGas = None
+#Add each component in the list
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           for comp in components:self.addComponent(** comp)
 
-        # Add each component in the list
-        for comp in components:
-            self.addComponent(**comp)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               def addComponent(self, MoleculeName:str, GasPhaseMolFraction: float, isotherms:list =[], MassTransferCoefficient: float = 0.0, AxialDispersionCoefficient: float = 0.0, CarrierGas: bool = False, ) : ""
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     "
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     Adds a component to the list of components.
 
-    def addComponent(
-        self,
-        MoleculeName: str,
-        GasPhaseMolFraction: float,
-        isotherms: list = [],
-        MassTransferCoefficient: float = 0.0,
-        AxialDispersionCoefficient: float = 0.0,
-        CarrierGas: bool = False,
-    ):
-        """
-        Adds a component to the list of components.
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     Parameters:MoleculeName(str) :The name of the component.GasPhaseMolFraction(float) :The mol fraction of the component.isotherms(list, optional) :List of isotherms.Defaults to empty list.MassTransferCoefficient(float, optional) :The mass transfer coefficient of the component.Defaults to 0.0. AxialDispersionCoefficient(float, optional) :The axial dispersion coefficient of the component.Defaults to 0.0. CarrierGas(bool, optional) :Specifies whether this component is the carrier gas.Defaults to False.""
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           "
 
-        Parameters:
-            MoleculeName (str): The name of the component.
-            GasPhaseMolFraction (float): The mol fraction of the component.
-            isotherms (list, optional): List of isotherms. Defaults to empty list.
-            MassTransferCoefficient (float, optional): The mass transfer coefficient of the component. 
-                Defaults to 0.0.
-            AxialDispersionCoefficient (float, optional): The axial dispersion coefficient of the component.
-                Defaults to 0.0.
-            CarrierGas (bool, optional): Specifies whether this component is the carrier gas. 
-                Defaults to False.
-        """
-
-        # check valid molfrac
-        if GasPhaseMolFraction < 0.0:
+#check valid molfrac
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    if GasPhaseMolFraction < 0.0:
             raise ValueError("Mol fraction can not be negative!")
 
-        # get idx from existing components
+#get idx from existing components
         idx = len(self._components)
 
-        # create labels for each isotherm in the component
+#create labels for each isotherm in the component
         for site, isotherm in enumerate(isotherms):
             self.labels += [f"c{idx}_s{site}_{label}" for label in isothermMeta[isotherm[0]]['labels']]
 
-        # add isotherm information
+#add isotherm information
         _cpp_isotherms = [_ruptura.Isotherm(isotherm[0], isotherm[1:], len(isotherm) - 1) for isotherm in isotherms]
 
-        # create and append the new component
+#create and append the new component
         _comp = _ruptura.Component(
             idx,
             MoleculeName,
@@ -99,7 +57,7 @@ class Components:
             CarrierGas,
         )
 
-        # if this component is the carrier gas, update the CarrierGas attribute
+#if this component is the carrier gas, update the CarrierGas attribute
         if CarrierGas:
             self.CarrierGas = idx
 
@@ -157,7 +115,7 @@ class Fitting:
         self.data = None
         self.DisplayName = DisplayName
 
-        # create cpp object
+#create cpp object
         self._Fitting = _ruptura.Fitting(DisplayName, components._components, pressureScales[PressureScale])
 
     def compute(self, data: list[list[tuple]]) -> np.ndarray:
@@ -252,19 +210,19 @@ class MixturePrediction:
         IASTMethod: str
             IAST Method: 'FastIAST' or 'NestedLoopBisection' (default is 'FastIAST').
         """
-        # set shape attribute
+#set shape attribute
         self.shape = (NumberOfPressurePoints, len(components._components), 6)
         self.DisplayName=DisplayName
 
-        # select method integers (enum)
+#select method integers(enum)
         PressureScale = pressureScales[PressureScale]
         MixturePredictionMethod = {"IAST": 0, "SIAST": 1, "EI": 2, "SEI": 3}[MixturePredictionMethod]
         IASTMethod = {"FastIAST": 0, "NestedLoopBisection": 1}[IASTMethod]
         self.components = components
 
-        # on carriergas: ruptura first checks if the numberOfCarrierGases is 0 or more. more is
-        # always 1, as CarrierGasComponent is size_t. if the carriergas is notpresent, set
-        # component to 0 (default), it is not checked.
+#on carriergas : ruptura first checks if the numberOfCarrierGases is 0 or more.more is
+#always 1, as CarrierGasComponent is size_t.if the carriergas is notpresent, set
+#component to 0(default), it is not checked.
 
         self._MixturePrediction = _ruptura.MixturePrediction(
             DisplayName,
@@ -311,13 +269,13 @@ class MixturePrediction:
             The type of plot: 'pure', 'mixture', 'mixture_molfrac'.
         """
 
-        # get columne
+#get columne
         select = {"pure": 1, "mixture": 2, "mixture_molfrac": 4}[plot_type]
 
         if self.data is None:
             raise ValueError("Data not computed yet")
 
-        # set axes
+#set axes
         ax.set_title(self.DisplayName + f" ({plot_type})")
         ax.set_xlabel("Total bulk fluid phase fugacity, f/Pa")
         ylabel = {
@@ -328,11 +286,11 @@ class MixturePrediction:
         ax.set_ylabel(ylabel[plot_type])
         ax.set_xscale("log")
 
-        # set values for loop
+#set values for loop
         ncomp = self.data.shape[1]
         labels = self.components.getLabels()
 
-        # plot all components
+#plot all components
         for comp in range(ncomp):
             ax.scatter(self.data[:, comp, 0],
                        self.data[:, comp, select],
@@ -395,24 +353,24 @@ class Breakthrough:
             MixturePredictionMethod (str): Method of prediction: 'IAST', 'SIAST', 'EI', 'SEI' (default is 'IAST').
         """
 
-        # set attributes
+#set attributes
         self.components = components
         self.DisplayName = DisplayName
         self.data = None
-        
-        # determine number of timesteps and set autosteps flag
+
+#determine number of timesteps and set autosteps flag
         autoSteps = NumberOfTimeSteps == "auto"
         NumberOfTimeSteps = 0 if NumberOfTimeSteps == "auto" else int(NumberOfTimeSteps)
 
-        # determine pulsetime and pulse flag
+#determine pulsetime and pulse flag
         pulse = PulseTime is not None
         PulseTime = 0 if PulseTime is None else PulseTime
 
-        # create mixtureprediction object
+#create mixtureprediction object
         CarrierGas = components.CarrierGas if components.CarrierGas else 0
         mix = MixturePrediction(DisplayName=DisplayName, Temperature=Temperature, components=components, MixturePredictionMethod=MixturePredictionMethod)
 
-        # create breakthrough cpp object
+#create breakthrough cpp object
         self._Breakthrough = _ruptura.Breakthrough(
             DisplayName,
             components._components,
@@ -461,7 +419,7 @@ class Breakthrough:
         if self.data is None:
             raise ValueError("Data not computed yet")
 
-        # set values for loop
+#set values for loop
         labels = self.components.getLabels()
         ncomp = len(labels)
 

@@ -1,1 +1,1 @@
-from .ruptura import *
+from.ruptura import*

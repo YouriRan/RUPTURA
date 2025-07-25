@@ -45,10 +45,10 @@ struct CVODE
   void initialize(BreakthroughState& state);
 };
 
-inline void packState(const BreakthroughState& state, N_Vector u);
-inline void packStateDot(const BreakthroughState& state, N_Vector uDot);
-inline void unpackState(BreakthroughState& state, N_Vector u);
-inline void unpackStateDot(BreakthroughState& state, N_Vector uDot);
+inline void copyFromState(const BreakthroughState& state, N_Vector u);
+inline void copyFromStateDot(const BreakthroughState& state, N_Vector uDot);
+inline void copyIntoState(BreakthroughState& state, N_Vector u);
+inline void copyIntoStateDot(BreakthroughState& state, N_Vector uDot);
 
 inline std::span<double> getTotalPressureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);
 inline std::span<double> getTemperatureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <span>
 #include <tuple>
 #include <vector>
 
@@ -178,16 +179,17 @@ class MixturePrediction
    *
    * Computes the adsorbed phase mole fractions and loadings based on the gas phase compositions and pressure.
    *
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
-   * \param cachedP0 An array to cache intermediate pressure calculations.
-   * \param cachedPsi An array to cache intermediate psi calculations.
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
+   * \param cachedPressure An array to cache intermediate pressure calculations.
+   * \param cachedGrandPotential An array to cache intermediate psi calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> predictMixture(const std::vector<double> &Yi, const double &P, std::vector<double> &Xi,
-                                           std::vector<double> &Ni, double *cachedP0, double *cachedPsi);
+  std::pair<size_t, size_t> predictMixture(std::span<const double> idealGasMolFractions, const double &externalPressure,
+                                           std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules,
+                                           double *cachedPressure, double *cachedGrandPotential);
 
  private:
   std::string displayName;                  ///< The display name for the simulation.
@@ -249,129 +251,146 @@ class MixturePrediction
   /**
    * \brief Computes mixture prediction using Fast IAST method.
    *
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
-   * \param cachedP0 An array to cache intermediate pressure calculations.
-   * \param cachedPsi An array to cache intermediate psi calculations.
-   * \return A pair containing the number of IAST steps and a status code.
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
+   * \param cachedPressure An array to cache intermediate pressure calculations.
+   * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \return A pair containing the number of IAST steps and a status code.a
    */
-  std::pair<size_t, size_t> computeFastIAST(const std::vector<double> &Yi, const double &P, std::vector<double> &Xi,
-                                            std::vector<double> &Ni, double *cachedP0, double *cachedPsi);
+  std::pair<size_t, size_t> computeFastIAST(std::span<const double> idealGasMolFractions,
+                                            const double &externalPressure, std::span<double> adsorbedMolFractions,
+                                            std::span<double> numberOfMolecules, double *cachedPressure,
+                                            double *cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction using Fast SIAST method.
    *
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
-   * \param cachedP0 An array to cache intermediate pressure calculations.
-   * \param cachedPsi An array to cache intermediate psi calculations.
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
+   * \param cachedPressure An array to cache intermediate pressure calculations.
+   * \param cachedGrandPotential An array to cache intermediate psi calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> computeFastSIAST(const std::vector<double> &Yi, const double &P, std::vector<double> &Xi,
-                                             std::vector<double> &Ni, double *cachedP0, double *cachedPsi);
+  std::pair<size_t, size_t> computeFastSIAST(std::span<const double> idealGasMolFractions,
+                                             const double &externalPressure, std::span<double> adsorbedMolFractions,
+                                             std::span<double> numberOfMolecules, double *cachedPressure,
+                                             double *cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction for a specific term using Fast SIAST method.
    *
    * \param term The index of the isotherm term.
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
-   * \param cachedP0 An array to cache intermediate pressure calculations.
-   * \param cachedPsi An array to cache intermediate psi calculations.
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
+   * \param cachedPressure An array to cache intermediate pressure calculations.
+   * \param cachedGrandPotential An array to cache intermediate psi calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> computeFastSIAST(size_t term, const std::vector<double> &Yi, const double &P,
-                                             std::vector<double> &Xi, std::vector<double> &Ni, double *cachedP0,
-                                             double *cachedPsi);
+  std::pair<size_t, size_t> computeFastSIAST(size_t term, std::span<const double> idealGasMolFractions,
+                                             const double &externalPressure, std::span<double> adsorbedMolFractions,
+                                             std::span<double> numberOfMolecules, double *cachedPressure,
+                                             double *cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction using IAST with nested loop bisection method.
    *
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
-   * \param cachedP0 An array to cache intermediate pressure calculations.
-   * \param cachedPsi An array to cache intermediate psi calculations.
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
+   * \param cachedPressure An array to cache intermediate pressure calculations.
+   * \param cachedGrandPotential An array to cache intermediate psi calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> computeIASTNestedLoopBisection(const std::vector<double> &Yi, const double &P,
-                                                           std::vector<double> &Xi, std::vector<double> &Ni,
-                                                           double *cachedP0, double *cachedPsi);
+  std::pair<size_t, size_t> computeIASTNestedLoopBisection(std::span<const double> idealGasMolFractions,
+                                                           const double &externalPressure,
+                                                           std::span<double> adsorbedMolFractions,
+                                                           std::span<double> numberOfMolecules, double *cachedPressure,
+                                                           double *cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction using SIAST with nested loop bisection method.
    *
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
-   * \param cachedP0 An array to cache intermediate pressure calculations.
-   * \param cachedPsi An array to cache intermediate psi calculations.
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
+   * \param cachedPressure An array to cache intermediate pressure calculations.
+   * \param cachedGrandPotential An array to cache intermediate psi calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> computeSIASTNestedLoopBisection(const std::vector<double> &Yi, const double &P,
-                                                            std::vector<double> &Xi, std::vector<double> &Ni,
-                                                            double *cachedP0, double *cachedPsi);
+  std::pair<size_t, size_t> computeSIASTNestedLoopBisection(std::span<const double> idealGasMolFractions,
+                                                            const double &externalPressure,
+                                                            std::span<double> adsorbedMolFractions,
+                                                            std::span<double> numberOfMolecules, double *cachedPressure,
+                                                            double *cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction for a specific term using SIAST with nested loop bisection method.
    *
    * \param term The index of the isotherm term.
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
-   * \param cachedP0 An array to cache intermediate pressure calculations.
-   * \param cachedPsi An array to cache intermediate psi calculations.
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
+   * \param cachedPressure An array to cache intermediate pressure calculations.
+   * \param cachedGrandPotential An array to cache intermediate psi calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> computeSIASTNestedLoopBisection(size_t term, const std::vector<double> &Yi, const double &P,
-                                                            std::vector<double> &Xi, std::vector<double> &Ni,
-                                                            double *cachedP0, double *cachedPsi);
+  std::pair<size_t, size_t> computeSIASTNestedLoopBisection(size_t term, std::span<const double> idealGasMolFractions,
+                                                            const double &externalPressure,
+                                                            std::span<double> adsorbedMolFractions,
+                                                            std::span<double> numberOfMolecules, double *cachedPressure,
+                                                            double *cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction using explicit isotherm model.
    *
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \return A pair containing the number of steps and a status code.
    */
-  std::pair<size_t, size_t> computeExplicitIsotherm(const std::vector<double> &Yi, const double &P,
-                                                    std::vector<double> &Xi, std::vector<double> &Ni);
+  std::pair<size_t, size_t> computeExplicitIsotherm(std::span<const double> idealGasMolFractions,
+                                                    const double &externalPressure,
+                                                    std::span<double> adsorbedMolFractions,
+                                                    std::span<double> numberOfMolecules);
 
   /**
    * \brief Computes mixture prediction using segregated explicit isotherm model.
    *
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \return A pair containing the number of steps and a status code.
    */
-  std::pair<size_t, size_t> computeSegratedExplicitIsotherm(const std::vector<double> &Yi, const double &P,
-                                                            std::vector<double> &Xi, std::vector<double> &Ni);
+  std::pair<size_t, size_t> computeSegratedExplicitIsotherm(std::span<const double> idealGasMolFractions,
+                                                            const double &externalPressure,
+                                                            std::span<double> adsorbedMolFractions,
+                                                            std::span<double> numberOfMolecules);
 
   /**
    * \brief Computes mixture prediction for a specific term using segregated explicit isotherm model.
    *
    * \param site The index of the isotherm site.
-   * \param Yi The gas phase mole fractions.
+   * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param Xi The adsorbed phase mole fractions (output).
-   * \param Ni The number of adsorbed molecules of each component (output).
+   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
+   * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \return A pair containing the number of steps and a status code.
    */
-  std::pair<size_t, size_t> computeSegratedExplicitIsotherm(size_t site, const std::vector<double> &Yi, const double &P,
-                                                            std::vector<double> &Xi, std::vector<double> &Ni);
+  std::pair<size_t, size_t> computeSegratedExplicitIsotherm(size_t site, std::span<const double> idealGasMolFractions,
+                                                            const double &externalPressure,
+                                                            std::span<double> adsorbedMolFractions,
+                                                            std::span<double> numberOfMolecules);
 
   /**
    * \brief Prints error status for debugging purposes.
@@ -381,8 +400,9 @@ class MixturePrediction
    * \param psi The current psi value.
    * \param sum The current sum of mole fractions.
    * \param P The total pressure.
-   * \param Yi The gas phase mole fractions.
-   * \param cachedP0 An array of cached pressure values.
+   * \param idealGasMolFractions The gas phase mole fractions.
+   * \param cachedPressure An array of cached pressure values.
    */
-  void printErrorStatus(double psi, double sum, double P, const std::vector<double> Yi, double cachedP0[]);
+  void printErrorStatus(double psi, double sum, double P, std::span<const double> idealGasMolFractions,
+                        double cachedPressure[]);
 };
