@@ -6,7 +6,7 @@
 #include <span>
 #include <vector>
 
-bool CVODE::propagate(BreakthroughState &state, size_t step)
+bool CVODE::propagate(Column& state, size_t step)
 {
   double t = static_cast<double>(step) * timeStep;
   double tNext = static_cast<double>(step + 1) * timeStep;
@@ -47,7 +47,7 @@ bool CVODE::propagate(BreakthroughState &state, size_t step)
   return (!autoSteps && step >= numberOfSteps - 1);
 }
 
-void CVODE::initialize(BreakthroughState &state)
+void CVODE::initialize(Column& state)
 {
   // initialize logger and context
   SUNContext_Create(SUN_COMM_NULL, &sunContext);
@@ -104,7 +104,7 @@ void CVODE::initialize(BreakthroughState &state)
 
 inline std::span<double> getPartialPressureSpan(N_Vector u, size_t Ngrid, size_t Ncomp)
 {
-  double *base = static_cast<double *>(N_VGetArrayPointer(u));
+  double* base = static_cast<double*>(N_VGetArrayPointer(u));
   size_t small = Ngrid + 1;
   size_t big = small * Ncomp;
   return {base + 0 * small + 0 * big, big};
@@ -112,7 +112,7 @@ inline std::span<double> getPartialPressureSpan(N_Vector u, size_t Ngrid, size_t
 
 inline std::span<double> getAdsorptionSpan(N_Vector u, size_t Ngrid, size_t Ncomp)
 {
-  double *base = static_cast<double *>(N_VGetArrayPointer(u));
+  double* base = static_cast<double*>(N_VGetArrayPointer(u));
   size_t small = Ngrid + 1;
   size_t big = small * Ncomp;
   return {base + 0 * small + 1 * big, big};
@@ -126,7 +126,7 @@ inline std::span<double> getAdsorptionSpan(N_Vector u, size_t Ngrid, size_t Ncom
 //   return {base + 3 * small + 2 * big, big};
 // }
 
-inline void copyFromState(const BreakthroughState &state, N_Vector u)
+inline void copyFromState(const Column& state, N_Vector u)
 {
   //   std::copy(state.totalPressure.begin(), state.totalPressure.end(),
   //             getTotalPressureSpan(u, state.Ngrid, state.Ncomp).begin());
@@ -142,7 +142,7 @@ inline void copyFromState(const BreakthroughState &state, N_Vector u)
   //             getMoleFractionSpan(u, state.Ngrid, state.Ncomp).begin());
 }
 
-inline void copyFromStateDot(const BreakthroughState &state, N_Vector uDot)
+inline void copyFromStateDot(const Column& state, N_Vector uDot)
 {
   //   std::copy(state.totalpartialPressureDot.begin(), state.totalpartialPressureDot.end(),
   //             getTotalPressureSpan(uDot, state.Ngrid, state.Ncomp).begin());
@@ -159,7 +159,7 @@ inline void copyFromStateDot(const BreakthroughState &state, N_Vector uDot)
   //             getMoleFractionSpan(uDot, state.Ngrid, state.Ncomp).begin());
 }
 
-inline void copyIntoState(BreakthroughState &state, N_Vector u)
+inline void copyIntoState(Column& state, N_Vector u)
 {
   //   std::copy(getTotalPressureSpan(u, state.Ngrid, state.Ncomp).begin(),
   //             getTotalPressureSpan(u, state.Ngrid, state.Ncomp).end(), state.totalPressure.begin());
@@ -176,7 +176,7 @@ inline void copyIntoState(BreakthroughState &state, N_Vector u)
   //             getMoleFractionSpan(u, state.Ngrid, state.Ncomp).end(), state.moleFraction.begin());
 }
 
-inline void copyIntoStateDot(BreakthroughState &state, N_Vector uDot)
+inline void copyIntoStateDot(Column& state, N_Vector uDot)
 {
   //   std::copy(getTotalPressureSpan(uDot, state.Ngrid, state.Ncomp).begin(),
   //             getTotalPressureSpan(uDot, state.Ngrid, state.Ncomp).end(), state.totalpartialPressureDot.begin());
@@ -193,9 +193,9 @@ inline void copyIntoStateDot(BreakthroughState &state, N_Vector uDot)
   //             getMoleFractionSpan(uDot, state.Ngrid, state.Ncomp).end(), state.moleFractionDot.begin());
 }
 
-static int f(sunrealtype t, N_Vector u, N_Vector uDot, void *user_data)
+static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data)
 {
-  auto *state = reinterpret_cast<BreakthroughState *>(user_data);
+  auto* state = reinterpret_cast<Column*>(user_data);
 
   // auto spanTotalPressure = getTotalPressureSpan(u, state->Ngrid, state->Ncomp);
   //   auto spanTemperature = getTemperatureSpan(u, state->Ngrid, state->Ncomp);

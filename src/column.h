@@ -19,12 +19,12 @@
 namespace py = pybind11;
 #endif  // PYBUILD
 
-struct BreakthroughState
+struct Column
 {
-  BreakthroughState(MixturePrediction mixture, std::vector<Component> components, size_t Ngrid, size_t Ncomp,
-                    size_t maxIsothermTerms, double externalTemperature, double externalPressure,
-                    double pressureGradient, double voidFraction, double particleDensity, double columnEntranceVelocity,
-                    double columnLength, bool pulse, double pulseTime, size_t carrierGasComponent)
+  Column(MixturePrediction mixture, std::vector<Component> components, size_t Ngrid, size_t Ncomp,
+         size_t maxIsothermTerms, double externalTemperature, double externalPressure, double pressureGradient,
+         double voidFraction, double particleDensity, double columnEntranceVelocity, double columnLength, bool pulse,
+         double pulseTime, size_t carrierGasComponent)
       : mixture(mixture),
         components(components),
         Ngrid(Ngrid),

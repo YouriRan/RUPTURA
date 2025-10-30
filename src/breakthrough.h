@@ -2,12 +2,13 @@
 #include <tuple>
 #include <vector>
 
-#include "breakthrough_state.h"
+#include "column.h"
 #include "component.h"
 #include "cvode.h"
 #include "inputreader.h"
 #include "mixture_prediction.h"
 #include "rk3.h"
+#include "rk3_si.h"
 
 #ifdef PYBUILD
 #include <pybind11/numpy.h>
@@ -30,6 +31,7 @@ struct Breakthrough
     SSP_RK = 0,     ///< Strong Stability Preserving Runge-Kutta method.
     CVODE = 1,      ///< CVODE integration
     Iterative = 2,  ///< Iterative integration scheme.
+    SIRK3 = 3,
   };
 
   /**
@@ -39,7 +41,7 @@ struct Breakthrough
    *
    * \param inputreader Reference to an InputReader containing simulation parameters.
    */
-  Breakthrough(const InputReader &inputreader);
+  Breakthrough(const InputReader& inputreader);
 
   /**
    * \brief Constructs a Breakthrough simulation with specified parameters.
@@ -152,8 +154,9 @@ struct Breakthrough
   double tpulse;            ///< Pulse time.
   size_t maxIsothermTerms;  ///< Maximum number of isotherm terms.
 
-  BreakthroughState state;
+  Column state;
   RungeKutta3 rk3;
+  SemiImplicitRungeKutta3 sirk3;
   CVODE cvode;
   IntegrationScheme integrationScheme;
 
@@ -169,9 +172,9 @@ struct Breakthrough
    * \param v Interstitial gas velocities.
    * \param p Partial pressures.
    */
-  void computeFirstDerivatives(std::vector<double> &dqdt, std::vector<double> &dpdt, const std::vector<double> &q_eq,
-                               const std::vector<double> &q, const std::vector<double> &v,
-                               const std::vector<double> &p);
+  void computeFirstDerivatives(std::vector<double>& dqdt, std::vector<double>& dpdt, const std::vector<double>& q_eq,
+                               const std::vector<double>& q, const std::vector<double>& v,
+                               const std::vector<double>& p);
 
   /**
    * \brief Computes a single simulation step.

@@ -20,7 +20,7 @@
 namespace py = pybind11;
 #endif  // PYBUILD
 
-void BreakthroughState::initialize()
+void Column::initialize()
 {
   // precomputed factor for mass transfer
   for (size_t j = 0; j < Ncomp; ++j)
@@ -102,8 +102,7 @@ void BreakthroughState::initialize()
   }
 }
 
-void BreakthroughState::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& movieStream,
-                                    double time)
+void Column::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& movieStream, double time)
 {
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
@@ -142,7 +141,7 @@ void BreakthroughState::writeOutput(std::vector<std::ofstream>& componentStreams
   std::print(movieStream, "\n\n");
 }
 
-std::string BreakthroughState::repr() const
+std::string Column::repr() const
 {
   std::string s;
 

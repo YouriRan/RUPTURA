@@ -14,7 +14,7 @@ extern double hypergeometric2F1(double a, double b, double c, double z);
 extern double hypergeometric(double a, double b, double c, double x);
 
 template <typename T>
-std::vector<size_t> sort_indexes(const std::vector<T> &v)
+std::vector<size_t> sort_indexes(const std::vector<T>& v)
 {
   // initialize original index locations
   std::vector<size_t> idx(v.size());

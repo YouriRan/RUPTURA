@@ -54,7 +54,7 @@ class MixturePrediction
    *
    * \param inputreader The InputReader containing the simulation parameters.
    */
-  MixturePrediction(const InputReader &inputreader);
+  MixturePrediction(const InputReader& inputreader);
 
   /**
    * \brief Constructs a MixturePrediction object with specified parameters.
@@ -187,9 +187,9 @@ class MixturePrediction
    * \param cachedGrandPotential An array to cache intermediate psi calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> predictMixture(std::span<const double> idealGasMolFractions, const double &externalPressure,
+  std::pair<size_t, size_t> predictMixture(std::span<const double> idealGasMolFractions, const double& externalPressure,
                                            std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules,
-                                           double *cachedPressure, double *cachedGrandPotential);
+                                           double* cachedPressure, double* cachedGrandPotential);
 
  private:
   std::string displayName;                  ///< The display name for the simulation.
@@ -260,9 +260,9 @@ class MixturePrediction
    * \return A pair containing the number of IAST steps and a status code.a
    */
   std::pair<size_t, size_t> computeFastIAST(std::span<const double> idealGasMolFractions,
-                                            const double &externalPressure, std::span<double> adsorbedMolFractions,
-                                            std::span<double> numberOfMolecules, double *cachedPressure,
-                                            double *cachedGrandPotential);
+                                            const double& externalPressure, std::span<double> adsorbedMolFractions,
+                                            std::span<double> numberOfMolecules, double* cachedPressure,
+                                            double* cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction using Fast SIAST method.
@@ -276,9 +276,9 @@ class MixturePrediction
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeFastSIAST(std::span<const double> idealGasMolFractions,
-                                             const double &externalPressure, std::span<double> adsorbedMolFractions,
-                                             std::span<double> numberOfMolecules, double *cachedPressure,
-                                             double *cachedGrandPotential);
+                                             const double& externalPressure, std::span<double> adsorbedMolFractions,
+                                             std::span<double> numberOfMolecules, double* cachedPressure,
+                                             double* cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction for a specific term using Fast SIAST method.
@@ -293,9 +293,9 @@ class MixturePrediction
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeFastSIAST(size_t term, std::span<const double> idealGasMolFractions,
-                                             const double &externalPressure, std::span<double> adsorbedMolFractions,
-                                             std::span<double> numberOfMolecules, double *cachedPressure,
-                                             double *cachedGrandPotential);
+                                             const double& externalPressure, std::span<double> adsorbedMolFractions,
+                                             std::span<double> numberOfMolecules, double* cachedPressure,
+                                             double* cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction using IAST with nested loop bisection method.
@@ -309,10 +309,10 @@ class MixturePrediction
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeIASTNestedLoopBisection(std::span<const double> idealGasMolFractions,
-                                                           const double &externalPressure,
+                                                           const double& externalPressure,
                                                            std::span<double> adsorbedMolFractions,
-                                                           std::span<double> numberOfMolecules, double *cachedPressure,
-                                                           double *cachedGrandPotential);
+                                                           std::span<double> numberOfMolecules, double* cachedPressure,
+                                                           double* cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction using SIAST with nested loop bisection method.
@@ -326,10 +326,10 @@ class MixturePrediction
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeSIASTNestedLoopBisection(std::span<const double> idealGasMolFractions,
-                                                            const double &externalPressure,
+                                                            const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
-                                                            std::span<double> numberOfMolecules, double *cachedPressure,
-                                                            double *cachedGrandPotential);
+                                                            std::span<double> numberOfMolecules, double* cachedPressure,
+                                                            double* cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction for a specific term using SIAST with nested loop bisection method.
@@ -344,10 +344,10 @@ class MixturePrediction
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeSIASTNestedLoopBisection(size_t term, std::span<const double> idealGasMolFractions,
-                                                            const double &externalPressure,
+                                                            const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
-                                                            std::span<double> numberOfMolecules, double *cachedPressure,
-                                                            double *cachedGrandPotential);
+                                                            std::span<double> numberOfMolecules, double* cachedPressure,
+                                                            double* cachedGrandPotential);
 
   /**
    * \brief Computes mixture prediction using explicit isotherm model.
@@ -359,7 +359,7 @@ class MixturePrediction
    * \return A pair containing the number of steps and a status code.
    */
   std::pair<size_t, size_t> computeExplicitIsotherm(std::span<const double> idealGasMolFractions,
-                                                    const double &externalPressure,
+                                                    const double& externalPressure,
                                                     std::span<double> adsorbedMolFractions,
                                                     std::span<double> numberOfMolecules);
 
@@ -373,7 +373,7 @@ class MixturePrediction
    * \return A pair containing the number of steps and a status code.
    */
   std::pair<size_t, size_t> computeSegratedExplicitIsotherm(std::span<const double> idealGasMolFractions,
-                                                            const double &externalPressure,
+                                                            const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
                                                             std::span<double> numberOfMolecules);
 
@@ -388,7 +388,7 @@ class MixturePrediction
    * \return A pair containing the number of steps and a status code.
    */
   std::pair<size_t, size_t> computeSegratedExplicitIsotherm(size_t site, std::span<const double> idealGasMolFractions,
-                                                            const double &externalPressure,
+                                                            const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
                                                             std::span<double> numberOfMolecules);
 
