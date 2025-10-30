@@ -1,6 +1,6 @@
 #pragma once
 
-#include "breakthrough_state.h"
+#include "column.h"
 #include "compute.h"
 
 struct RungeKutta3
@@ -12,5 +12,5 @@ struct RungeKutta3
   bool autoSteps;
   size_t numberOfSteps;
 
-  bool propagate(BreakthroughState& state, size_t step);
+  bool propagate(Column& state, size_t step);
 };

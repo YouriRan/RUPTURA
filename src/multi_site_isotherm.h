@@ -38,7 +38,7 @@ struct MultiSiteIsotherm
    * \param i The global parameter index.
    * \return Reference to the parameter value.
    */
-  double &parameters(size_t i)
+  double& parameters(size_t i)
   {
     std::pair<size_t, size_t> index = parameterIndices[i];
     return sites[index.first].parameters[index.second];
@@ -52,7 +52,7 @@ struct MultiSiteIsotherm
    * \param i The global parameter index.
    * \return Const reference to the parameter value.
    */
-  const double &parameters(size_t i) const
+  const double& parameters(size_t i) const
   {
     std::pair<size_t, size_t> index = parameterIndices[i];
     return sites[index.first].parameters[index.second];
@@ -66,7 +66,7 @@ struct MultiSiteIsotherm
    *
    * \param isotherm The Isotherm object to be added.
    */
-  void add(const Isotherm &isotherm);
+  void add(const Isotherm& isotherm);
 
   /**
    * \brief Prints the string representation of the MultiSiteIsotherm.
@@ -203,7 +203,7 @@ struct MultiSiteIsotherm
    * \param cachedP0 A reference to a cached pressure value for starting point optimization.
    * \return The inverse of the pressure corresponding to the reduced grand potential.
    */
-  double inversePressureForPsi(double reduced_grand_potential, double &cachedP0) const;
+  double inversePressureForPsi(double reduced_grand_potential, double& cachedP0) const;
 
   /**
    * \brief Computes the inverse pressure for a specific site corresponding to a given reduced grand potential.
@@ -216,7 +216,7 @@ struct MultiSiteIsotherm
    * \param cachedP0 A reference to a cached pressure value for starting point optimization.
    * \return The inverse of the pressure for the specified site, or 0.0 if the site index is invalid.
    */
-  double inversePressureForPsi(size_t site, double reduced_grand_potential, double &cachedP0) const
+  double inversePressureForPsi(size_t site, double reduced_grand_potential, double& cachedP0) const
   {
     if (site < numberOfSites)
     {
@@ -250,10 +250,10 @@ namespace std
 template <>
 struct hash<MultiSiteIsotherm>
 {
-  size_t operator()(const MultiSiteIsotherm &k) const
+  size_t operator()(const MultiSiteIsotherm& k) const
   {
     std::size_t h = 0;
-    for (const Isotherm &isotherm : k.sites)
+    for (const Isotherm& isotherm : k.sites)
     {
       for (size_t i = 0; i < isotherm.numberOfParameters; ++i)
       {

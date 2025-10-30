@@ -5,12 +5,12 @@
 #include <mdspan>
 #include <vector>
 
-bool RungeKutta3::propagate(BreakthroughState& state, size_t step)
+bool RungeKutta3::propagate(Column& state, size_t step)
 {
   double t = static_cast<double>(step) * timeStep;
   size_t Ngrid = state.Ngrid;
   size_t Ncomp = state.Ncomp;
-  BreakthroughState newState(state);
+  Column newState(state);
 
   if (autoSteps)
   {

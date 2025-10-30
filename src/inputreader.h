@@ -5,8 +5,8 @@
 
 #include "component.h"
 
-extern bool startsWith(const std::string &str, const std::string &prefix);
-extern std::string trim(const std::string &s);
+extern bool startsWith(const std::string& str, const std::string& prefix);
+extern std::string trim(const std::string& s);
 
 /**
  * \brief Parses input files and stores simulation parameters.

@@ -249,6 +249,11 @@ InputReader::InputReader(const std::string fileName) : components()
             breakthroughIntegrator = 1;
             continue;
           }
+          if (caseInSensStringCompare(str, "SIRK3"))
+          {
+            breakthroughIntegrator = 3;
+            continue;
+          }
         };
       }
 

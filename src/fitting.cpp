@@ -29,7 +29,7 @@
 namespace py = pybind11;
 #endif  // PYBUILD
 
-Fitting::Fitting(const InputReader &inputreader)
+Fitting::Fitting(const InputReader& inputreader)
     : Ncomp(inputreader.components.size()),
       components(inputreader.components),
       displayName(inputreader.displayName),
@@ -113,7 +113,7 @@ void Fitting::readData(size_t ID)
   logPressureRange = std::make_pair(std::log(pressureRange.first), std::log(pressureRange.second));
 
   std::cout << "Found " << rawData.size() << " data points\n";
-  for (const std::pair<double, double> &data : rawData)
+  for (const std::pair<double, double>& data : rawData)
   {
     std::cout << data.first << " " << data.second << std::endl;
   }
@@ -177,7 +177,7 @@ void Fitting::sliceData(size_t ID)
 {
   // data shaped as (Npress, Ncomp)
   rawData.clear();
-  for (const auto &pressPoint : fullData)
+  for (const auto& pressPoint : fullData)
   {
     rawData.push_back(std::pair<double, double>(pressPoint[0], pressPoint[ID + 1]));
   }
@@ -188,7 +188,7 @@ void Fitting::sliceData(size_t ID)
   logPressureRange = std::make_pair(std::log(pressureRange.first), std::log(pressureRange.second));
 
   maximumLoading = 0.0;
-  for (const auto &pair : rawData)
+  for (const auto& pair : rawData)
   {
     if (pair.second > maximumLoading)
     {
@@ -211,7 +211,7 @@ std::vector<double> Fitting::compute()
 
     // run algorithm
     sliceData(i);
-    for (const auto &pair : rawData)
+    for (const auto& pair : rawData)
     {
       std::cout << "(" << pair.first << ", " << pair.second << ") ";
     }
@@ -235,7 +235,7 @@ py::array_t<double> Fitting::evaluate()
   size_t Npress = rawData.size();
   std::array<size_t, 2> shape{{Npress, Ncomp}};
   py::array_t<double> output(shape);
-  double *data = output.mutable_data();
+  double* data = output.mutable_data();
 
   // add datapoints
   for (size_t i = 0; i < Npress; i++)
@@ -276,7 +276,7 @@ Fitting::DNA Fitting::newCitizen(size_t ID)
   return citizen;
 }
 
-void Fitting::updateCitizen(DNA &citizen) { citizen.fitness = fitness(citizen.phenotype); }
+void Fitting::updateCitizen(DNA& citizen) { citizen.fitness = fitness(citizen.phenotype); }
 
 inline bool my_isnan(double val)
 {
@@ -288,7 +288,7 @@ inline bool my_isnan(double val)
   return (u.x << 1) > (0x7ff0000000000000u << 1);
 }
 
-double Fitting::fitness(const MultiSiteIsotherm &phenotype)
+double Fitting::fitness(const MultiSiteIsotherm& phenotype)
 // For evaluating isotherm goodness-of-fit:
 // Residual Root Mean Square Error (RMSE)
 {
@@ -312,7 +312,7 @@ double Fitting::fitness(const MultiSiteIsotherm &phenotype)
   return fitnessValue;
 }
 
-double Fitting::RCorrelation(const MultiSiteIsotherm &phenotype)
+double Fitting::RCorrelation(const MultiSiteIsotherm& phenotype)
 {
   double RCorrelationValue = phenotype.fitness();
   size_t m = rawData.size();
@@ -343,10 +343,10 @@ double Fitting::RCorrelation(const MultiSiteIsotherm &phenotype)
   return RCorrelationValue;
 }
 
-size_t Fitting::biodiversity(const std::vector<DNA> &citizens)
+size_t Fitting::biodiversity(const std::vector<DNA>& citizens)
 {
   std::map<size_t, size_t> counts;
-  for (const DNA &dna : citizens)
+  for (const DNA& dna : citizens)
   {
     if (counts.find(dna.hash) != counts.end())
     {
@@ -383,7 +383,7 @@ void Fitting::elitism()
             children.begin());
 }
 
-void Fitting::mutate(DNA &mutant)
+void Fitting::mutate(DNA& mutant)
 {
   mutant.genotype.clear();
   mutant.genotype.reserve((sizeof(double) * CHAR_BIT) * mutant.phenotype.numberOfParameters);
@@ -530,7 +530,7 @@ void Fitting::crossover(size_t ID, size_t s1, size_t s2, size_t i1, size_t i2, s
   }
 }
 
-void Fitting::chooseRandomly(size_t kk1, size_t kk2, size_t jj1, size_t jj2, size_t &ii1, size_t &ii2)
+void Fitting::chooseRandomly(size_t kk1, size_t kk2, size_t jj1, size_t jj2, size_t& ii1, size_t& ii2)
 {
   ii1 = RandomNumber::Integer(kk1, kk2);
   ii2 = RandomNumber::Integer(jj1, jj2);
@@ -574,7 +574,7 @@ void Fitting::mate(size_t ID)
   }
 }
 
-bool DNA_Fitness_Sorter(Fitting::DNA const &lhs, Fitting::DNA const &rhs) { return lhs.fitness < rhs.fitness; }
+bool DNA_Fitness_Sorter(Fitting::DNA const& lhs, Fitting::DNA const& rhs) { return lhs.fitness < rhs.fitness; }
 
 void Fitting::sortByFitness() { std::sort(parents.begin(), parents.end(), &DNA_Fitness_Sorter); }
 
@@ -966,7 +966,7 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
   return citizen;
 }
 
-void Fitting::createPlotScripts(const DNA &citizen, size_t ID)
+void Fitting::createPlotScripts(const DNA& citizen, size_t ID)
 {
   std::string plotFileName = "plot_fit_component_" + std::to_string(ID) + "_" + componentName[ID];
   std::ofstream stream(plotFileName);

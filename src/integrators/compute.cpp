@@ -4,7 +4,7 @@
 
 #include "utils.h"
 
-void computeEquilibriumLoadings(BreakthroughState& state)
+void computeEquilibriumLoadings(Column& state)
 {
   computeEquilibriumLoadings(state.Ncomp, state.Ngrid, state.totalPressure, state.partialPressure,
                              state.idealGasMolFractions, state.adsorbedMolFractions, state.numberOfMolecules,
@@ -63,7 +63,7 @@ void computeEquilibriumLoadings(size_t Ncomp, size_t Ngrid, std::span<double> to
   }
 }
 
-void computeVelocity(BreakthroughState& state)
+void computeVelocity(Column& state)
 {
   computeVelocity(state.Ncomp, state.Ngrid, state.resolution, state.interstitialGasVelocity,
                   state.columnEntranceVelocity, state.pressureGradient, state.totalPressure,
@@ -123,7 +123,7 @@ void computeVelocity(size_t Ncomp, size_t Ngrid, double resolution, std::span<do
   }
 }
 
-void computeFirstDerivatives(BreakthroughState& state)
+void computeFirstDerivatives(Column& state)
 {
   computeFirstDerivatives(state.Ncomp, state.Ngrid, state.resolution, state.partialPressure,
                           state.equilibriumAdsorption, state.adsorption, state.adsorptionDot, state.partialPressureDot,

@@ -25,7 +25,7 @@
 namespace py = pybind11;
 #endif  // PYBUILD
 
-Breakthrough::Breakthrough(const InputReader &inputReader)
+Breakthrough::Breakthrough(const InputReader& inputReader)
     : displayName(inputReader.displayName),
       carrierGasComponent(inputReader.carrierGasComponent),
       Ncomp(inputReader.components.size()),
@@ -44,6 +44,7 @@ Breakthrough::Breakthrough(const InputReader &inputReader)
             inputReader.columnLength, inputReader.pulseBreakthrough, inputReader.pulseTime,
             inputReader.carrierGasComponent),
       rk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
+      sirk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       cvode(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       integrationScheme(IntegrationScheme(inputReader.breakthroughIntegrator))
 
@@ -74,6 +75,7 @@ Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _com
             _columnVoidFraction, _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime,
             _carrierGasComponent),
       rk3(dt, _autoSteps, _numberOfTimeSteps),
+      sirk3(dt, _autoSteps, _numberOfTimeSteps),
       cvode(dt, _autoSteps, _numberOfTimeSteps),
       integrationScheme(IntegrationScheme(_breakthroughIntegrator))
 {
@@ -123,6 +125,11 @@ void Breakthrough::run()
       case IntegrationScheme::CVODE:
       {
         finished = cvode.propagate(state, step);
+        break;
+      }
+      case IntegrationScheme::SIRK3:
+      {
+        finished = sirk3.propagate(state, step);
         break;
       }
       default:
@@ -204,9 +211,9 @@ py::array_t<double> Breakthrough::compute()
 
   std::vector<double> buffer;
   buffer.reserve(brk.size() * (Ngrid + 1) * colsize);
-  for (const auto &vec1 : brk)
+  for (const auto& vec1 : brk)
   {
-    for (const auto &vec2 : vec1)
+    for (const auto& vec2 : vec1)
     {
       buffer.insert(buffer.end(), vec2.begin(), vec2.end());
     }

@@ -68,7 +68,7 @@ struct Isotherm
    * \param values A vector of parameter values for the isotherm model.
    * \param numberOfValues The number of parameters.
    */
-  Isotherm(Isotherm::Type type, const std::vector<double> &values, size_t numberOfValues);
+  Isotherm(Isotherm::Type type, const std::vector<double>& values, size_t numberOfValues);
 
   /**
    * \brief Constructs an Isotherm with specified type index and parameters.
@@ -79,7 +79,7 @@ struct Isotherm
    * \param values A vector of parameter values for the isotherm model.
    * \param numberOfValues The number of parameters.
    */
-  Isotherm(size_t t, const std::vector<double> &values, size_t numberOfValues);
+  Isotherm(size_t t, const std::vector<double>& values, size_t numberOfValues);
 
   Isotherm::Type type;             ///< The type of the isotherm model.
   std::vector<double> parameters;  ///< Parameter values for the isotherm model.
@@ -329,7 +329,7 @@ struct Isotherm
             return Rc[i];
           }
 
-          double *rt = Rp;
+          double* rt = Rp;
           Rp = Rc;
           Rc = rt;
         }
@@ -350,7 +350,7 @@ struct Isotherm
    * \param cachedP0 A reference to a cached pressure value used to initialize the calculation.
    * \return The inverse of the pressure corresponding to the given psi.
    */
-  inline double inversePressureForPsi(double reduced_grand_potential, double &cachedP0) const
+  inline double inversePressureForPsi(double reduced_grand_potential, double& cachedP0) const
   {
     switch (type)
     {

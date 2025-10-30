@@ -15,7 +15,7 @@
 
 #include <span>
 
-#include "breakthrough_state.h"
+#include "column.h"
 #include "component.h"
 #include "compute.h"
 #include "mixture_prediction.h"
@@ -41,14 +41,14 @@ struct CVODE
   const sunrealtype relativeTolerance = 1.0e-3;
   const sunrealtype absoluteTolerance = 1.0e-6;
 
-  bool propagate(BreakthroughState& state, size_t step);
-  void initialize(BreakthroughState& state);
+  bool propagate(Column& state, size_t step);
+  void initialize(Column& state);
 };
 
-inline void copyFromState(const BreakthroughState& state, N_Vector u);
-inline void copyFromStateDot(const BreakthroughState& state, N_Vector uDot);
-inline void copyIntoState(BreakthroughState& state, N_Vector u);
-inline void copyIntoStateDot(BreakthroughState& state, N_Vector uDot);
+inline void copyFromState(const Column& state, N_Vector u);
+inline void copyFromStateDot(const Column& state, N_Vector uDot);
+inline void copyIntoState(Column& state, N_Vector u);
+inline void copyIntoStateDot(Column& state, N_Vector uDot);
 
 inline std::span<double> getTotalPressureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);
 inline std::span<double> getTemperatureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);

@@ -2,11 +2,11 @@
 
 #include <cstdlib>
 
-Isotherm::Isotherm(Isotherm::Type t, const std::vector<double> &values, size_t numberOfValues)
+Isotherm::Isotherm(Isotherm::Type t, const std::vector<double>& values, size_t numberOfValues)
     : type(t), parameters(values), numberOfParameters(numberOfValues)
 {
 }
-Isotherm::Isotherm(size_t t, const std::vector<double> &values, size_t numberOfValues)
+Isotherm::Isotherm(size_t t, const std::vector<double>& values, size_t numberOfValues)
     : type(Isotherm::Type(t)), parameters(values), numberOfParameters(numberOfValues)
 {
 }

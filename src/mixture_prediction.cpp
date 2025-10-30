@@ -22,7 +22,7 @@
 namespace py = pybind11;
 #endif  // PYBUILD
 
-bool LangmuirLoadingSorter(Component const &lhs, Component const &rhs)
+bool LangmuirLoadingSorter(Component const& lhs, Component const& rhs)
 {
   if (lhs.isCarrierGas) return false;
   if (rhs.isCarrierGas) return true;
@@ -31,19 +31,19 @@ bool LangmuirLoadingSorter(Component const &lhs, Component const &rhs)
 
 // allow std::pairs to be added
 template <typename T, typename U>
-std::pair<T, U> operator+(const std::pair<T, U> &l, const std::pair<T, U> &r)
+std::pair<T, U> operator+(const std::pair<T, U>& l, const std::pair<T, U>& r)
 {
   return {l.first + r.first, l.second + r.second};
 }
 template <typename T, typename U>
-std::pair<T, U> &operator+=(std::pair<T, U> &l, const std::pair<T, U> &r)
+std::pair<T, U>& operator+=(std::pair<T, U>& l, const std::pair<T, U>& r)
 {
   l.first += r.first;
   l.second += r.second;
   return l;
 }
 
-MixturePrediction::MixturePrediction(const InputReader &inputreader)
+MixturePrediction::MixturePrediction(const InputReader& inputreader)
     : displayName(inputreader.displayName),
       components(inputreader.components),
       sortedComponents(components),
@@ -105,7 +105,7 @@ MixturePrediction::MixturePrediction(std::string _displayName, std::vector<Compo
   if (!components.empty())
   {
     std::vector<Component>::iterator maxIsothermTermsIterator =
-        std::max_element(_components.begin(), _components.end(), [](Component &lhs, Component &rhs)
+        std::max_element(_components.begin(), _components.end(), [](Component& lhs, Component& rhs)
                          { return lhs.isotherm.numberOfSites < rhs.isotherm.numberOfSites; });
     maxIsothermTerms = maxIsothermTermsIterator->isotherm.numberOfSites;
   }
@@ -116,10 +116,10 @@ MixturePrediction::MixturePrediction(std::string _displayName, std::vector<Compo
 }
 
 std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const double> idealGasMolFractions,
-                                                            const double &externalPressure,
+                                                            const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
-                                                            std::span<double> numberOfMolecules, double *cachedPressure,
-                                                            double *cachedGrandPotential)
+                                                            std::span<double> numberOfMolecules, double* cachedPressure,
+                                                            double* cachedGrandPotential)
 {
   const double tiny = 1.0e-10;
 
@@ -192,10 +192,10 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
 // adsorbedMolFractions  = adsorbed phase molefraction
 // numberOfMolecules  = number of adsorbed molecules of component i
 std::pair<size_t, size_t> MixturePrediction::computeFastIAST(std::span<const double> idealGasMolFractions,
-                                                             const double &externalPressure,
+                                                             const double& externalPressure,
                                                              std::span<double> adsorbedMolFractions,
                                                              std::span<double> numberOfMolecules,
-                                                             double *cachedPressure, double *cachedGrandPotential)
+                                                             double* cachedPressure, double* cachedGrandPotential)
 {
   const double tiny = 1.0e-13;
 
@@ -363,10 +363,10 @@ std::pair<size_t, size_t> MixturePrediction::computeFastIAST(std::span<const dou
 // adsorbedMolFractions  = adsorbed phase molefraction
 // numberOfMolecules  = number of adsorbed molecules of component i
 std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(std::span<const double> idealGasMolFractions,
-                                                              const double &externalPressure,
+                                                              const double& externalPressure,
                                                               std::span<double> adsorbedMolFractions,
                                                               std::span<double> numberOfMolecules,
-                                                              double *cachedPressure, double *cachedGrandPotential)
+                                                              double* cachedPressure, double* cachedGrandPotential)
 {
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
   std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
@@ -397,10 +397,10 @@ std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(std::span<const do
 // adsorbedMolFractions  = adsorbed phase molefraction
 // numberOfMolecules  = number of adsorbed molecules of component i
 std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(size_t site, std::span<const double> idealGasMolFractions,
-                                                              const double &externalPressure,
+                                                              const double& externalPressure,
                                                               std::span<double> adsorbedMolFractions,
                                                               std::span<double> numberOfMolecules,
-                                                              double *cachedPressure, double *cachedGrandPotential)
+                                                              double* cachedPressure, double* cachedGrandPotential)
 {
   const double tiny = 1.0e-13;
 
@@ -569,9 +569,9 @@ std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(size_t site, std::
 // adsorbedMolFractions  = adsorbed phase molefraction
 // numberOfMolecules  = number of adsorbed molecules of component i
 std::pair<size_t, size_t> MixturePrediction::computeIASTNestedLoopBisection(
-    std::span<const double> idealGasMolFractions, const double &externalPressure,
-    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double *cachedPressure,
-    double *cachedGrandPotential)
+    std::span<const double> idealGasMolFractions, const double& externalPressure,
+    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double* cachedPressure,
+    double* cachedGrandPotential)
 {
   const double tiny = 1.0e-15;
 
@@ -743,9 +743,9 @@ std::pair<size_t, size_t> MixturePrediction::computeIASTNestedLoopBisection(
 // adsorbedMolFractions  = adsorbed phase molefraction
 // numberOfMolecules  = number of adsorbed molecules of component i
 std::pair<size_t, size_t> MixturePrediction::computeSIASTNestedLoopBisection(
-    std::span<const double> idealGasMolFractions, const double &externalPressure,
-    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double *cachedPressure,
-    double *cachedGrandPotential)
+    std::span<const double> idealGasMolFractions, const double& externalPressure,
+    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double* cachedPressure,
+    double* cachedGrandPotential)
 {
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
   std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
@@ -776,9 +776,9 @@ std::pair<size_t, size_t> MixturePrediction::computeSIASTNestedLoopBisection(
 // adsorbedMolFractions  = adsorbed phase molefraction
 // numberOfMolecules  = number of adsorbed molecules of component i
 std::pair<size_t, size_t> MixturePrediction::computeSIASTNestedLoopBisection(
-    size_t site, std::span<const double> idealGasMolFractions, const double &externalPressure,
-    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double *cachedPressure,
-    double *cachedGrandPotential)
+    size_t site, std::span<const double> idealGasMolFractions, const double& externalPressure,
+    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double* cachedPressure,
+    double* cachedGrandPotential)
 {
   const double tiny = 1.0e-15;
 
@@ -938,7 +938,7 @@ std::pair<size_t, size_t> MixturePrediction::computeSIASTNestedLoopBisection(
 // At present, only single site isotherms are considered for pure components
 
 std::pair<size_t, size_t> MixturePrediction::computeExplicitIsotherm(std::span<const double> idealGasMolFractions,
-                                                                     const double &externalPressure,
+                                                                     const double& externalPressure,
                                                                      std::span<double> adsorbedMolFractions,
                                                                      std::span<double> numberOfMolecules)
 {
@@ -996,7 +996,7 @@ std::pair<size_t, size_t> MixturePrediction::computeExplicitIsotherm(std::span<c
 }
 
 std::pair<size_t, size_t> MixturePrediction::computeSegratedExplicitIsotherm(
-    std::span<const double> idealGasMolFractions, const double &externalPressure,
+    std::span<const double> idealGasMolFractions, const double& externalPressure,
     std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules)
 {
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
@@ -1023,7 +1023,7 @@ std::pair<size_t, size_t> MixturePrediction::computeSegratedExplicitIsotherm(
 }
 
 std::pair<size_t, size_t> MixturePrediction::computeSegratedExplicitIsotherm(
-    size_t site, std::span<const double> idealGasMolFractions, const double &externalPressure,
+    size_t site, std::span<const double> idealGasMolFractions, const double& externalPressure,
     std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules)
 {
   x[0] = 1.0;
@@ -1168,7 +1168,7 @@ py::array_t<double> MixturePrediction::compute()
 
   std::array<size_t, 3> shape{{numberOfPressurePoints, Ncomp, 6}};
   py::array_t<double> mixPred(shape);
-  double *data = mixPred.mutable_data();
+  double* data = mixPred.mutable_data();
 
   for (size_t i = 0; i < numberOfPressurePoints; ++i)
   {

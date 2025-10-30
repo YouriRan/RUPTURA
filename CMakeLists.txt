@@ -5,6 +5,7 @@ project(ruptura LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(LAPACK)
 find_package(SUNDIALS COMPONENTS cvode nvecserial nvecmanyvector
         HINTS "${SUNDIALS_ROOT}" REQUIRED)
 
@@ -39,7 +40,7 @@ set(CXX_COMPILE_FLAGS
 # Collect source files
 set(SOURCES
         src/breakthrough.cpp
-        src/breakthrough_state.cpp
+        src/column.cpp
         src/component.cpp
         src/fitting.cpp
         src/inputreader.cpp
@@ -49,6 +50,7 @@ set(SOURCES
         src/random_numbers.cpp
         src/special_functions.cpp
         src/integrators/rk3.cpp
+        src/integrators/rk3_si.cpp
         src/integrators/cvode.cpp
         src/integrators/compute.cpp
         src/utils.h
@@ -66,6 +68,7 @@ target_include_directories(ruptura PRIVATE src src/integrators)
 target_link_libraries(ruptura PRIVATE
         SUNDIALS::cvode
         SUNDIALS::nvecserial
+        ${LAPACK_LIBRARIES}
 )
 
 # -------------------------------

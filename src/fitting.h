@@ -60,7 +60,7 @@ struct Fitting
    * \brief Constructs a Fitting object from input parameters.
    * \param inputreader InputReader containing simulation parameters.
    */
-  Fitting(const InputReader &inputreader);
+  Fitting(const InputReader& inputreader);
 
   /**
    * \brief Reads data for a specific component.
@@ -84,7 +84,7 @@ struct Fitting
    * \param citizen DNA of the optimized individual.
    * \param ID Index of the component.
    */
-  void createPlotScripts(const DNA &citizen, size_t ID);
+  void createPlotScripts(const DNA& citizen, size_t ID);
 
   /**
    * \brief Creates a master plot script.
@@ -135,28 +135,28 @@ struct Fitting
    * \brief Updates the fitness of a DNA object.
    * \param citizen DNA object to update.
    */
-  void updateCitizen(DNA &citizen);
+  void updateCitizen(DNA& citizen);
 
   /**
    * \brief Calculates the fitness of a phenotype.
    * \param phenotype Phenotype to evaluate.
    * \return Fitness value.
    */
-  double fitness(const MultiSiteIsotherm &phenotype);
+  double fitness(const MultiSiteIsotherm& phenotype);
 
   /**
    * \brief Calculates the correlation coefficient R.
    * \param phenotype Phenotype to evaluate.
    * \return Correlation coefficient.
    */
-  double RCorrelation(const MultiSiteIsotherm &phenotype);
+  double RCorrelation(const MultiSiteIsotherm& phenotype);
 
   /**
    * \brief Measures biodiversity in the population.
    * \param citizens Vector of DNA objects.
    * \return Biodiversity metric.
    */
-  size_t biodiversity(const std::vector<DNA> &citizens);
+  size_t biodiversity(const std::vector<DNA>& citizens);
 
   /**
    * \brief Simulates a nuclear disaster to introduce new genetic material.
@@ -173,7 +173,7 @@ struct Fitting
    * \brief Mutates a DNA object.
    * \param Mutant DNA object to mutate.
    */
-  void mutate(DNA &Mutant);
+  void mutate(DNA& Mutant);
 
   /**
    * \brief Performs crossover between individuals.
@@ -196,7 +196,7 @@ struct Fitting
    * \param ii1 Output index for parent1.
    * \param ii2 Output index for parent2.
    */
-  void chooseRandomly(size_t kk1, size_t kk2, size_t jj1, size_t jj2, size_t &ii1, size_t &ii2);
+  void chooseRandomly(size_t kk1, size_t kk2, size_t jj1, size_t jj2, size_t& ii1, size_t& ii2);
 
   /**
    * \brief Mates individuals to produce the next generation.
@@ -267,6 +267,6 @@ struct Fitting
 
   std::vector<DNA> popAlpha;   ///< First population buffer.
   std::vector<DNA> popBeta;    ///< Second population buffer.
-  std::vector<DNA> &parents;   ///< Reference to current parent population.
-  std::vector<DNA> &children;  ///< Reference to current child population.
+  std::vector<DNA>& parents;   ///< Reference to current parent population.
+  std::vector<DNA>& children;  ///< Reference to current child population.
 };
