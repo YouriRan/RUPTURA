@@ -74,7 +74,7 @@ struct Breakthrough
                double _columnVoidFraction, double _pressureGradient, double _particleDensity,
                double _columnEntranceVelocity, double _columnLength, double _timeStep, size_t _numberOfTimeSteps,
                bool _autoSteps, bool _pulse, double _pulseTime, const MixturePrediction _mixture,
-               size_t _breakthroughIntegrator);
+               size_t _breakthroughIntegrator, std::optional<std::string> readColumnFile);
 
   /**
    * \brief Prints the representation of the Breakthrough object to the console.
@@ -154,7 +154,7 @@ struct Breakthrough
   double tpulse;            ///< Pulse time.
   size_t maxIsothermTerms;  ///< Maximum number of isotherm terms.
 
-  Column state;
+  Column column;
   RungeKutta3 rk3;
   SemiImplicitRungeKutta3 sirk3;
   CVODE cvode;

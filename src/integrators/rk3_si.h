@@ -12,8 +12,8 @@ struct SemiImplicitRungeKutta3
   bool autoSteps;
   size_t numberOfSteps;
 
-  bool propagate(Column& state, size_t step);
+  bool propagate(Column& column, size_t step);
 };
 
-void computePressureUpdateMatrix(Column& state, double timeStep, std::vector<double>& solved);
-void computePressureUpdateMatrixFinal(Column& state, double timeStep, std::vector<double>& solved);
+void computePressureUpdateMatrix(Column& column, double timeStep, std::vector<double>& solved);
+void computePressureUpdateMatrixFinal(Column& column, double timeStep, std::vector<double>& solved);

@@ -57,4 +57,4 @@ random_numbers.o : random_numbers.cpp random_numbers.h $(CXX) $(CXXFLAGS) -
 
     clean : rm
             -
-            f *.pcm *.o *.a ruptura
+            f*.pcm*.o*.a ruptura

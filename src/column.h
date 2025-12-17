@@ -125,4 +125,7 @@ struct Column
   void initialize();
   void writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& movieStream, double time);
   std::string repr() const;
+
+  void writeJSON(const std::string& fileName) const;
+  void readJSON(const std::string& fileName);
 };

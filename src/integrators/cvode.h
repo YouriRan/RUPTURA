@@ -41,14 +41,14 @@ struct CVODE
   const sunrealtype relativeTolerance = 1.0e-3;
   const sunrealtype absoluteTolerance = 1.0e-6;
 
-  bool propagate(Column& state, size_t step);
-  void initialize(Column& state);
+  bool propagate(Column& column, size_t step);
+  void initialize(Column& column);
 };
 
-inline void copyFromState(const Column& state, N_Vector u);
-inline void copyFromStateDot(const Column& state, N_Vector uDot);
-inline void copyIntoState(Column& state, N_Vector u);
-inline void copyIntoStateDot(Column& state, N_Vector uDot);
+inline void copyFromcolumn(const Column& column, N_Vector u);
+inline void copyFromcolumnDot(const Column& column, N_Vector uDot);
+inline void copyIntocolumn(Column& column, N_Vector u);
+inline void copyIntocolumnDot(Column& column, N_Vector uDot);
 
 inline std::span<double> getTotalPressureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);
 inline std::span<double> getTemperatureSpan(N_Vector u, size_t Ngrid, size_t /*Ncomp*/);

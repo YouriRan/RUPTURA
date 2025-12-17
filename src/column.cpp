@@ -5,12 +5,14 @@
 #include <limits>
 #include <numeric>
 #include <print>
+#include <source_location>
 #include <sstream>
 #include <string>
 
 #include "breakthrough.h"
 #include "component.h"
 #include "inputreader.h"
+#include "json.h"
 #include "mixture_prediction.h"
 #include "utils.h"
 
@@ -110,7 +112,10 @@ void Column::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofst
     // column 1: dimensionless time
     // column 2: time [minutes]
     // column 3: normalized partial pressure
-    double normalizedPressure = partialPressure[Ngrid * Ncomp + comp] / (exitPressure * components[comp].Yi0);
+    double normalizedPressure = (components[comp].Yi0 > 0.0)
+                                    ? partialPressure[Ngrid * Ncomp + comp] / (exitPressure * components[comp].Yi0)
+                                    : 0.0;
+
     std::print(componentStreams[comp], "{} {} {}\n", time * timeNormalizationFactor, time / 60.0, normalizedPressure);
   }
 
@@ -131,9 +136,11 @@ void Column::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofst
       // column 7 + 6 * comp: normalized partial pressure
       // column 8 + 6 * comp: pressure time derivative
       // column 9 + 6 * comp: adsorption time derivative
+      double normalizedPressure = (components[comp].Yi0 > 0.0) ? partialPressure[grid * Ncomp + comp] /
+                                                                     (totalPressure[grid] * components[comp].Yi0)
+                                                               : 0.0;
       std::print(movieStream, "{} {} {} {} {} {} ", adsorption[grid * Ncomp + comp],
-                 equilibriumAdsorption[grid * Ncomp + comp], partialPressure[grid * Ncomp + comp],
-                 partialPressure[grid * Ncomp + comp] / (totalPressure[grid] * components[comp].Yi0),
+                 equilibriumAdsorption[grid * Ncomp + comp], partialPressure[grid * Ncomp + comp], normalizedPressure,
                  partialPressureDot[grid * Ncomp + comp], adsorptionDot[grid * Ncomp + comp]);
     }
     std::print(movieStream, "\n");
@@ -157,4 +164,118 @@ std::string Column::repr() const
       "\n\n",
       externalTemperature, columnLength, voidFraction, particleDensity, externalPressure, pressureGradient,
       columnEntranceVelocity);
+}
+
+void Column::writeJSON(const std::string& filename) const
+{
+  std::ofstream out(filename);
+  if (!out) throw std::runtime_error("Column::writeJSON: cannot open file '" + filename + "'");
+
+  nlohmann::json j;
+  j["Ngrid"] = Ngrid;
+  j["Ncomp"] = Ncomp;
+  j["maxIsothermTerms"] = maxIsothermTerms;
+
+  // Ncomp-sized vectors
+  j["prefactorMassTransfer"] = prefactorMassTransfer;
+  j["idealGasMolFractions"] = idealGasMolFractions;
+  j["adsorbedMolFractions"] = adsorbedMolFractions;
+  j["numberOfMolecules"] = numberOfMolecules;
+
+  // (Ngrid+1)-sized vectors
+  j["interstitialGasVelocity"] = interstitialGasVelocity;
+  j["totalPressure"] = totalPressure;
+  j["totalpartialPressureDot"] = totalpartialPressureDot;
+  j["temperature"] = temperature;
+  j["temperatureDot"] = temperatureDot;
+  j["wallTemperature"] = wallTemperature;
+  j["wallTemperatureDot"] = wallTemperatureDot;
+
+  // (Ngrid+1)*Ncomp vectors
+  j["partialPressure"] = partialPressure;
+  j["partialPressureDot"] = partialPressureDot;
+  j["adsorption"] = adsorption;
+  j["adsorptionDot"] = adsorptionDot;
+  j["equilibriumAdsorption"] = equilibriumAdsorption;
+  j["moleFraction"] = moleFraction;
+  j["moleFractionDot"] = moleFractionDot;
+
+  // cache vectors (sizes depend on maxIsothermTerms too, but we just write them)
+  j["cachedPressure"] = cachedPressure;
+  j["cachedGrandPotential"] = cachedGrandPotential;
+
+  out << j.dump(4) << "\n";
+}
+
+void Column::readJSON(const std::string& filename)
+{
+  std::ifstream in(filename);
+  if (!in) throw std::runtime_error("Column::readJSONFile: cannot open file '" + filename + "'");
+
+  nlohmann::json j;
+  in >> j;
+
+  auto requireSizeT = [&](const char* key) -> size_t
+  {
+    if (!j.contains(key)) throw std::runtime_error(std::string("Column::readJSON: missing required key '") + key + "'");
+    return j.at(key).get<size_t>();
+  };
+
+  const size_t fileNgrid = requireSizeT("Ngrid");
+  const size_t fileNcomp = requireSizeT("Ncomp");
+  const size_t fileMaxIsothermTerms = requireSizeT("maxIsothermTerms");
+
+  if (fileNgrid != Ngrid)
+    throw std::runtime_error("Column::readJSON: Ngrid mismatch (file " + std::to_string(fileNgrid) + ", column " +
+                             std::to_string(Ngrid) + ")");
+  if (fileNcomp != Ncomp)
+    throw std::runtime_error("Column::readJSON: Ncomp mismatch (file " + std::to_string(fileNcomp) + ", column " +
+                             std::to_string(Ncomp) + ")");
+  if (fileMaxIsothermTerms != maxIsothermTerms)
+    throw std::runtime_error("Column::readJSON: maxIsothermTerms mismatch (file " +
+                             std::to_string(fileMaxIsothermTerms) + ", column " + std::to_string(maxIsothermTerms) +
+                             ")");
+
+  auto loadVectorChecked = [&](const char* key, std::vector<double>& dst)
+  {
+    if (!j.contains(key)) return;  // key absent -> skip (keeps current values)
+    const auto& a = j.at(key);
+    if (!a.is_array()) throw std::runtime_error(std::string("Column::readJSON: key '") + key + "' is not an array");
+
+    const size_t expected = dst.size();
+    const size_t got = a.size();
+    if (got != expected)
+      throw std::runtime_error("Column::readJSON: size mismatch for '" + std::string(key) + "' (file " +
+                               std::to_string(got) + ", expected " + std::to_string(expected) + ")");
+
+    dst = a.get<std::vector<double>>();
+  };
+
+  // Ncomp-sized
+  loadVectorChecked("prefactorMassTransfer", prefactorMassTransfer);
+  loadVectorChecked("idealGasMolFractions", idealGasMolFractions);
+  loadVectorChecked("adsorbedMolFractions", adsorbedMolFractions);
+  loadVectorChecked("numberOfMolecules", numberOfMolecules);
+
+  // (Ngrid+1)-sized
+  loadVectorChecked("interstitialGasVelocity", interstitialGasVelocity);
+  loadVectorChecked("totalPressure", totalPressure);
+  loadVectorChecked("totalpartialPressureDot", totalpartialPressureDot);
+  loadVectorChecked("temperature", temperature);
+  loadVectorChecked("temperatureDot", temperatureDot);
+  loadVectorChecked("wallTemperature", wallTemperature);
+  loadVectorChecked("wallTemperatureDot", wallTemperatureDot);
+
+  // (Ngrid+1)*Ncomp
+  loadVectorChecked("partialPressure", partialPressure);
+  loadVectorChecked("partialPressureDot", partialPressureDot);
+  loadVectorChecked("adsorption", adsorption);
+  loadVectorChecked("adsorptionDot", adsorptionDot);
+  loadVectorChecked("equilibriumAdsorption", equilibriumAdsorption);
+  loadVectorChecked("moleFraction", moleFraction);
+  loadVectorChecked("moleFractionDot", moleFractionDot);
+
+  // caches
+  loadVectorChecked("cachedPressure", cachedPressure);
+  loadVectorChecked("cachedGrandPotential", cachedGrandPotential);
 }

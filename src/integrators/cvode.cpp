@@ -6,21 +6,21 @@
 #include <span>
 #include <vector>
 
-bool CVODE::propagate(Column& state, size_t step)
+bool CVODE::propagate(Column& column, size_t step)
 {
   double t = static_cast<double>(step) * timeStep;
   double tNext = static_cast<double>(step + 1) * timeStep;
-  size_t Ngrid = state.Ngrid;
-  size_t Ncomp = state.Ncomp;
+  size_t Ngrid = column.Ngrid;
+  size_t Ncomp = column.Ncomp;
 
   if (autoSteps)
   {
     double tolerance = 0.0;
     for (size_t j = 0; j < Ncomp; ++j)
     {
-      tolerance = std::max(
-          tolerance,
-          std::abs((state.partialPressure[Ngrid * Ncomp + j] / (state.exitPressure * state.components[j].Yi0)) - 1.0));
+      tolerance = std::max(tolerance, std::abs((column.partialPressure[Ngrid * Ncomp + j] /
+                                                (column.exitPressure * column.components[j].Yi0)) -
+                                               1.0));
     }
 
     // consider 1% as being visibily indistinguishable from 'converged'
@@ -36,18 +36,18 @@ bool CVODE::propagate(Column& state, size_t step)
   sunrealtype tReturn = t;
 
   // maybe not necessary? Are there external things influencing these values?
-  // copyFromState(state, u);
-  // copyFromStateDot(state, u);
+  // copyFromcolumn(column, u);
+  // copyFromcolumnDot(column, u);
 
   CVode(cvodeMem, tNext, u, &tReturn, CV_NORMAL);
 
-  copyIntoState(state, u);
-  copyIntoStateDot(state, uDot);
+  copyIntocolumn(column, u);
+  copyIntocolumnDot(column, uDot);
 
   return (!autoSteps && step >= numberOfSteps - 1);
 }
 
-void CVODE::initialize(Column& state)
+void CVODE::initialize(Column& column)
 {
   // initialize logger and context
   SUNContext_Create(SUN_COMM_NULL, &sunContext);
@@ -55,17 +55,17 @@ void CVODE::initialize(Column& state)
   SUNContext_SetLogger(sunContext, sunLogger);
 
   // create vector that cvode will operate on
-  // const sunindextype totalSize = static_cast<sunindextype>(3 * (state.Ncomp + 1) * (state.Ngrid + 1));
-  const sunindextype totalSize = static_cast<sunindextype>((2 * state.Ncomp) * (state.Ngrid + 1));
+  // const sunindextype totalSize = static_cast<sunindextype>(3 * (column.Ncomp + 1) * (column.Ngrid + 1));
+  const sunindextype totalSize = static_cast<sunindextype>((2 * column.Ncomp) * (column.Ngrid + 1));
   u = N_VNew_Serial(totalSize, sunContext);
-  copyFromState(state, u);
+  copyFromcolumn(column, u);
   uDot = N_VNew_Serial(totalSize, sunContext);
-  copyFromStateDot(state, uDot);
+  copyFromcolumnDot(column, uDot);
 
   cvodeMem = CVodeCreate(CV_BDF, sunContext);
   CVodeSetMaxNumSteps(cvodeMem, 1e6);
 
-  CVodeSetUserData(cvodeMem, &state);
+  CVodeSetUserData(cvodeMem, &column);
 
   const sunrealtype t0 = 0.0;
   CVodeInit(cvodeMem, f, t0, u);
@@ -126,101 +126,102 @@ inline std::span<double> getAdsorptionSpan(N_Vector u, size_t Ngrid, size_t Ncom
 //   return {base + 3 * small + 2 * big, big};
 // }
 
-inline void copyFromState(const Column& state, N_Vector u)
+inline void copyFromcolumn(const Column& column, N_Vector u)
 {
-  //   std::copy(state.totalPressure.begin(), state.totalPressure.end(),
-  //             getTotalPressureSpan(u, state.Ngrid, state.Ncomp).begin());
-  //   std::copy(state.temperature.begin(), state.temperature.end(),
-  //             getTemperatureSpan(u, state.Ngrid, state.Ncomp).begin());
-  //   std::copy(state.wallTemperature.begin(), state.wallTemperature.end(),
-  //             getWallTemperatureSpan(u, state.Ngrid, state.Ncomp).begin());
+  //   std::copy(column.totalPressure.begin(), column.totalPressure.end(),
+  //             getTotalPressureSpan(u, column.Ngrid, column.Ncomp).begin());
+  //   std::copy(column.temperature.begin(), column.temperature.end(),
+  //             getTemperatureSpan(u, column.Ngrid, column.Ncomp).begin());
+  //   std::copy(column.wallTemperature.begin(), column.wallTemperature.end(),
+  //             getWallTemperatureSpan(u, column.Ngrid, column.Ncomp).begin());
 
-  std::copy(state.partialPressure.begin(), state.partialPressure.end(),
-            getPartialPressureSpan(u, state.Ngrid, state.Ncomp).begin());
-  std::copy(state.adsorption.begin(), state.adsorption.end(), getAdsorptionSpan(u, state.Ngrid, state.Ncomp).begin());
-  //   std::copy(state.moleFraction.begin(), state.moleFraction.end(),
-  //             getMoleFractionSpan(u, state.Ngrid, state.Ncomp).begin());
+  std::copy(column.partialPressure.begin(), column.partialPressure.end(),
+            getPartialPressureSpan(u, column.Ngrid, column.Ncomp).begin());
+  std::copy(column.adsorption.begin(), column.adsorption.end(),
+            getAdsorptionSpan(u, column.Ngrid, column.Ncomp).begin());
+  //   std::copy(column.moleFraction.begin(), column.moleFraction.end(),
+  //             getMoleFractionSpan(u, column.Ngrid, column.Ncomp).begin());
 }
 
-inline void copyFromStateDot(const Column& state, N_Vector uDot)
+inline void copyFromcolumnDot(const Column& column, N_Vector uDot)
 {
-  //   std::copy(state.totalpartialPressureDot.begin(), state.totalpartialPressureDot.end(),
-  //             getTotalPressureSpan(uDot, state.Ngrid, state.Ncomp).begin());
-  //   std::copy(state.temperatureDot.begin(), state.temperatureDot.end(),
-  //             getTemperatureSpan(uDot, state.Ngrid, state.Ncomp).begin());
-  //   std::copy(state.wallTemperatureDot.begin(), state.wallTemperatureDot.end(),
-  //             getWallTemperatureSpan(uDot, state.Ngrid, state.Ncomp).begin());
+  //   std::copy(column.totalpartialPressureDot.begin(), column.totalpartialPressureDot.end(),
+  //             getTotalPressureSpan(uDot, column.Ngrid, column.Ncomp).begin());
+  //   std::copy(column.temperatureDot.begin(), column.temperatureDot.end(),
+  //             getTemperatureSpan(uDot, column.Ngrid, column.Ncomp).begin());
+  //   std::copy(column.wallTemperatureDot.begin(), column.wallTemperatureDot.end(),
+  //             getWallTemperatureSpan(uDot, column.Ngrid, column.Ncomp).begin());
 
-  std::copy(state.partialPressureDot.begin(), state.partialPressureDot.end(),
-            getPartialPressureSpan(uDot, state.Ngrid, state.Ncomp).begin());
-  std::copy(state.adsorptionDot.begin(), state.adsorptionDot.end(),
-            getAdsorptionSpan(uDot, state.Ngrid, state.Ncomp).begin());
-  //   std::copy(state.moleFractionDot.begin(), state.moleFractionDot.end(),
-  //             getMoleFractionSpan(uDot, state.Ngrid, state.Ncomp).begin());
+  std::copy(column.partialPressureDot.begin(), column.partialPressureDot.end(),
+            getPartialPressureSpan(uDot, column.Ngrid, column.Ncomp).begin());
+  std::copy(column.adsorptionDot.begin(), column.adsorptionDot.end(),
+            getAdsorptionSpan(uDot, column.Ngrid, column.Ncomp).begin());
+  //   std::copy(column.moleFractionDot.begin(), column.moleFractionDot.end(),
+  //             getMoleFractionSpan(uDot, column.Ngrid, column.Ncomp).begin());
 }
 
-inline void copyIntoState(Column& state, N_Vector u)
+inline void copyIntocolumn(Column& column, N_Vector u)
 {
-  //   std::copy(getTotalPressureSpan(u, state.Ngrid, state.Ncomp).begin(),
-  //             getTotalPressureSpan(u, state.Ngrid, state.Ncomp).end(), state.totalPressure.begin());
-  //   std::copy(getTemperatureSpan(u, state.Ngrid, state.Ncomp).begin(),
-  //             getTemperatureSpan(u, state.Ngrid, state.Ncomp).end(), state.temperature.begin());
-  //   std::copy(getWallTemperatureSpan(u, state.Ngrid, state.Ncomp).begin(),
-  //             getWallTemperatureSpan(u, state.Ngrid, state.Ncomp).end(), state.wallTemperature.begin());
+  //   std::copy(getTotalPressureSpan(u, column.Ngrid, column.Ncomp).begin(),
+  //             getTotalPressureSpan(u, column.Ngrid, column.Ncomp).end(), column.totalPressure.begin());
+  //   std::copy(getTemperatureSpan(u, column.Ngrid, column.Ncomp).begin(),
+  //             getTemperatureSpan(u, column.Ngrid, column.Ncomp).end(), column.temperature.begin());
+  //   std::copy(getWallTemperatureSpan(u, column.Ngrid, column.Ncomp).begin(),
+  //             getWallTemperatureSpan(u, column.Ngrid, column.Ncomp).end(), column.wallTemperature.begin());
 
-  std::copy(getPartialPressureSpan(u, state.Ngrid, state.Ncomp).begin(),
-            getPartialPressureSpan(u, state.Ngrid, state.Ncomp).end(), state.partialPressure.begin());
-  std::copy(getAdsorptionSpan(u, state.Ngrid, state.Ncomp).begin(),
-            getAdsorptionSpan(u, state.Ngrid, state.Ncomp).end(), state.adsorption.begin());
-  //   std::copy(getMoleFractionSpan(u, state.Ngrid, state.Ncomp).begin(),
-  //             getMoleFractionSpan(u, state.Ngrid, state.Ncomp).end(), state.moleFraction.begin());
+  std::copy(getPartialPressureSpan(u, column.Ngrid, column.Ncomp).begin(),
+            getPartialPressureSpan(u, column.Ngrid, column.Ncomp).end(), column.partialPressure.begin());
+  std::copy(getAdsorptionSpan(u, column.Ngrid, column.Ncomp).begin(),
+            getAdsorptionSpan(u, column.Ngrid, column.Ncomp).end(), column.adsorption.begin());
+  //   std::copy(getMoleFractionSpan(u, column.Ngrid, column.Ncomp).begin(),
+  //             getMoleFractionSpan(u, column.Ngrid, column.Ncomp).end(), column.moleFraction.begin());
 }
 
-inline void copyIntoStateDot(Column& state, N_Vector uDot)
+inline void copyIntocolumnDot(Column& column, N_Vector uDot)
 {
-  //   std::copy(getTotalPressureSpan(uDot, state.Ngrid, state.Ncomp).begin(),
-  //             getTotalPressureSpan(uDot, state.Ngrid, state.Ncomp).end(), state.totalpartialPressureDot.begin());
-  //   std::copy(getTemperatureSpan(uDot, state.Ngrid, state.Ncomp).begin(),
-  //             getTemperatureSpan(uDot, state.Ngrid, state.Ncomp).end(), state.temperatureDot.begin());
-  //   std::copy(getWallTemperatureSpan(uDot, state.Ngrid, state.Ncomp).begin(),
-  //             getWallTemperatureSpan(uDot, state.Ngrid, state.Ncomp).end(), state.wallTemperatureDot.begin());
+  //   std::copy(getTotalPressureSpan(uDot, column.Ngrid, column.Ncomp).begin(),
+  //             getTotalPressureSpan(uDot, column.Ngrid, column.Ncomp).end(), column.totalpartialPressureDot.begin());
+  //   std::copy(getTemperatureSpan(uDot, column.Ngrid, column.Ncomp).begin(),
+  //             getTemperatureSpan(uDot, column.Ngrid, column.Ncomp).end(), column.temperatureDot.begin());
+  //   std::copy(getWallTemperatureSpan(uDot, column.Ngrid, column.Ncomp).begin(),
+  //             getWallTemperatureSpan(uDot, column.Ngrid, column.Ncomp).end(), column.wallTemperatureDot.begin());
 
-  std::copy(getPartialPressureSpan(uDot, state.Ngrid, state.Ncomp).begin(),
-            getPartialPressureSpan(uDot, state.Ngrid, state.Ncomp).end(), state.partialPressureDot.begin());
-  std::copy(getAdsorptionSpan(uDot, state.Ngrid, state.Ncomp).begin(),
-            getAdsorptionSpan(uDot, state.Ngrid, state.Ncomp).end(), state.adsorptionDot.begin());
-  //   std::copy(getMoleFractionSpan(uDot, state.Ngrid, state.Ncomp).begin(),
-  //             getMoleFractionSpan(uDot, state.Ngrid, state.Ncomp).end(), state.moleFractionDot.begin());
+  std::copy(getPartialPressureSpan(uDot, column.Ngrid, column.Ncomp).begin(),
+            getPartialPressureSpan(uDot, column.Ngrid, column.Ncomp).end(), column.partialPressureDot.begin());
+  std::copy(getAdsorptionSpan(uDot, column.Ngrid, column.Ncomp).begin(),
+            getAdsorptionSpan(uDot, column.Ngrid, column.Ncomp).end(), column.adsorptionDot.begin());
+  //   std::copy(getMoleFractionSpan(uDot, column.Ngrid, column.Ncomp).begin(),
+  //             getMoleFractionSpan(uDot, column.Ngrid, column.Ncomp).end(), column.moleFractionDot.begin());
 }
 
 static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data)
 {
-  auto* state = reinterpret_cast<Column*>(user_data);
+  auto* column = reinterpret_cast<Column*>(user_data);
 
-  // auto spanTotalPressure = getTotalPressureSpan(u, state->Ngrid, state->Ncomp);
-  //   auto spanTemperature = getTemperatureSpan(u, state->Ngrid, state->Ncomp);
-  //   auto spanWallTemperature = getWallTemperatureSpan(u, state->Ngrid, state->Ncomp);
-  auto spanPartialPressure = getPartialPressureSpan(u, state->Ngrid, state->Ncomp);
-  auto spanAdsorption = getAdsorptionSpan(u, state->Ngrid, state->Ncomp);
-  //   auto spanMoleFraction = getMoleFractionSpan(u, state->Ngrid, state->Ncomp);
+  // auto spanTotalPressure = getTotalPressureSpan(u, column->Ngrid, column->Ncomp);
+  //   auto spanTemperature = getTemperatureSpan(u, column->Ngrid, column->Ncomp);
+  //   auto spanWallTemperature = getWallTemperatureSpan(u, column->Ngrid, column->Ncomp);
+  auto spanPartialPressure = getPartialPressureSpan(u, column->Ngrid, column->Ncomp);
+  auto spanAdsorption = getAdsorptionSpan(u, column->Ngrid, column->Ncomp);
+  //   auto spanMoleFraction = getMoleFractionSpan(u, column->Ngrid, column->Ncomp);
 
-  auto spanAdsorptionDot = getAdsorptionSpan(uDot, state->Ngrid, state->Ncomp);
-  auto spanpartialPressureDot = getPartialPressureSpan(uDot, state->Ngrid, state->Ncomp);
+  auto spanAdsorptionDot = getAdsorptionSpan(uDot, column->Ngrid, column->Ncomp);
+  auto spanpartialPressureDot = getPartialPressureSpan(uDot, column->Ngrid, column->Ncomp);
 
-  computeEquilibriumLoadings(state->Ncomp, state->Ngrid, state->totalPressure, spanPartialPressure,
-                             state->idealGasMolFractions, state->adsorbedMolFractions, state->numberOfMolecules,
-                             state->cachedPressure, state->cachedGrandPotential, state->equilibriumAdsorption,
-                             state->mixture, state->iastPerformance, state->pressureGradient, state->columnLength,
-                             state->maxIsothermTerms);
+  computeEquilibriumLoadings(column->Ncomp, column->Ngrid, column->totalPressure, spanPartialPressure,
+                             column->idealGasMolFractions, column->adsorbedMolFractions, column->numberOfMolecules,
+                             column->cachedPressure, column->cachedGrandPotential, column->equilibriumAdsorption,
+                             column->mixture, column->iastPerformance, column->pressureGradient, column->columnLength,
+                             column->maxIsothermTerms);
 
-  computeVelocity(state->Ncomp, state->Ngrid, state->resolution, state->interstitialGasVelocity,
-                  state->columnEntranceVelocity, state->pressureGradient, state->totalPressure,
-                  state->prefactorMassTransfer, state->equilibriumAdsorption, spanAdsorption, state->components,
+  computeVelocity(column->Ncomp, column->Ngrid, column->resolution, column->interstitialGasVelocity,
+                  column->columnEntranceVelocity, column->pressureGradient, column->totalPressure,
+                  column->prefactorMassTransfer, column->equilibriumAdsorption, spanAdsorption, column->components,
                   spanPartialPressure);
 
-  computeFirstDerivatives(state->Ncomp, state->Ngrid, state->resolution, spanPartialPressure,
-                          state->equilibriumAdsorption, spanAdsorption, spanAdsorptionDot, spanpartialPressureDot,
-                          state->interstitialGasVelocity, state->prefactorMassTransfer, state->components);
+  computeFirstDerivatives(column->Ncomp, column->Ngrid, column->resolution, spanPartialPressure,
+                          column->equilibriumAdsorption, spanAdsorption, spanAdsorptionDot, spanpartialPressureDot,
+                          column->interstitialGasVelocity, column->prefactorMassTransfer, column->components);
 
   return 0;
 }

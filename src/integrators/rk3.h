@@ -12,5 +12,5 @@ struct RungeKutta3
   bool autoSteps;
   size_t numberOfSteps;
 
-  bool propagate(Column& state, size_t step);
+  bool propagate(Column& column, size_t step);
 };

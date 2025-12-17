@@ -7,53 +7,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(LAPACK)
 find_package(SUNDIALS COMPONENTS cvode nvecserial nvecmanyvector
-        HINTS "${SUNDIALS_ROOT}" REQUIRED)
+  HINTS "${SUNDIALS_ROOT}" REQUIRED)
 
 # Include directories
 include_directories(src)
 
-# Compiler flags
-set(CXX_COMPILE_FLAGS
-        -g
-        -O3
-        -march=native
-        -ffast-math
-        -Wall
-        -Wextra
-        -Wshadow
-        -Wnon-virtual-dtor
-        -Wold-style-cast
-        -Wcast-align
-        -Woverloaded-virtual
-        -Wpedantic
-        -Wconversion
-        -Wsign-conversion
-        -Wnull-dereference
-        -Wdouble-promotion
-        -Wformat=2
-        -fomit-frame-pointer
-        -ftree-vectorize
-        -fno-stack-check
-        -funroll-loops
-)
-
 # Collect source files
 set(SOURCES
-        src/breakthrough.cpp
-        src/column.cpp
-        src/component.cpp
-        src/fitting.cpp
-        src/inputreader.cpp
-        src/isotherm.cpp
-        src/mixture_prediction.cpp
-        src/multi_site_isotherm.cpp
-        src/random_numbers.cpp
-        src/special_functions.cpp
-        src/integrators/rk3.cpp
-        src/integrators/rk3_si.cpp
-        src/integrators/cvode.cpp
-        src/integrators/compute.cpp
-        src/utils.h
+  src/breakthrough.cpp
+  src/column.cpp
+  src/component.cpp
+  src/fitting.cpp
+  src/inputreader.cpp
+  src/isotherm.cpp
+  src/mixture_prediction.cpp
+  src/multi_site_isotherm.cpp
+  src/random_numbers.cpp
+  src/special_functions.cpp
+  src/integrators/rk3.cpp
+  src/integrators/rk3_si.cpp
+  src/integrators/cvode.cpp
+  src/integrators/compute.cpp
+  src/utils.h
 )
 
 # -------------------------------
@@ -61,14 +36,21 @@ set(SOURCES
 # -------------------------------
 add_executable(ruptura src/main.cpp ${SOURCES})
 
-target_compile_options(ruptura PRIVATE ${CXX_COMPILE_FLAGS})
+target_compile_options(ruptura PRIVATE
+  -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
+  -Woverloaded-virtual -Wpedantic -Wconversion -Wsign-conversion
+  -Wnull-dereference -Wdouble-promotion -Wformat=2
+)
+
+target_compile_options(ruptura PRIVATE -O3 -march=native -ffast-math -fomit-frame-pointer -ftree-vectorize -funroll-loops
+)
 
 target_include_directories(ruptura PRIVATE src src/integrators)
 
 target_link_libraries(ruptura PRIVATE
-        SUNDIALS::cvode
-        SUNDIALS::nvecserial
-        ${LAPACK_LIBRARIES}
+  SUNDIALS::cvode
+  SUNDIALS::nvecserial
+  ${LAPACK_LIBRARIES}
 )
 
 # -------------------------------
