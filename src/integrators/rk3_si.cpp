@@ -12,23 +12,29 @@ extern "C"
   void dgbsv_(int* n, int* kl, int* ku, int* nrhs, double* ab, int* ldab, int* ipiv, double* b, int* ldb, int* info);
 }
 
-bool SemiImplicitRungeKutta3::propagate(Column& state, size_t step)
+bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
 {
   double t = static_cast<double>(step) * timeStep;
-  size_t Ngrid = state.Ngrid;
-  size_t Ncomp = state.Ncomp;
-  Column newState(state);
+  size_t Ngrid = column.Ngrid;
+  size_t Ncomp = column.Ncomp;
+  Column newcolumn(column);
 
-  std::vector<double> solved(state.partialPressure.size());
+  std::vector<double> solved(column.partialPressure.size());
+
+  std::vector<double> implicitInvKLs(Ncomp);
+  for (size_t comp = 0; comp < Ncomp; ++comp)
+  {
+    implicitInvKLs[comp] = 1.0 / (1.0 + timeStep * column.components[comp].Kl);
+  }
 
   if (autoSteps)
   {
     double tolerance = 0.0;
     for (size_t j = 0; j < Ncomp; ++j)
     {
-      tolerance = std::max(
-          tolerance,
-          std::abs((state.partialPressure[Ngrid * Ncomp + j] / (state.exitPressure * state.components[j].Yi0)) - 1.0));
+      tolerance = std::max(tolerance, std::abs((column.partialPressure[Ngrid * Ncomp + j] /
+                                                (column.exitPressure * column.components[j].Yi0)) -
+                                               1.0));
     }
 
     // consider 1% as being visibily indistinguishable from 'converged'
@@ -50,24 +56,23 @@ bool SemiImplicitRungeKutta3::propagate(Column& state, size_t step)
   // make estimate for the new loadings and new gas phase partial pressures
   // first iteration is made using the Explicit Euler scheme
 
-  for (size_t i = 0; i < state.adsorption.size(); ++i)
+  for (size_t i = 0; i < column.adsorption.size(); ++i)
   {
     size_t comp = i % Ncomp;
-    double kl = state.components[comp].Kl;
-    newState.adsorption[i] =
-        (state.adsorption[i] + timeStep * kl * state.equilibriumAdsorption[i]) / (1.0 + timeStep * kl);
+    double kl = column.components[comp].Kl;
+    newcolumn.adsorption[i] =
+        (column.adsorption[i] + timeStep * kl * column.equilibriumAdsorption[i]) * implicitInvKLs[comp];
   }
 
-  computeVelocity(newState);
-  computePressureUpdateMatrix(newState, timeStep, solved);
+  computeVelocity(newcolumn);
+  computePressureUpdateMatrix(newcolumn, timeStep, solved);
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newState.partialPressure[i] = solved[i];
+    newcolumn.partialPressure[i] = solved[i];
   }
 
-
-  computeEquilibriumLoadings(newState);
+  computeEquilibriumLoadings(newcolumn);
 
   // SSP-RK Step 2
   // ======================================================================
@@ -75,24 +80,24 @@ bool SemiImplicitRungeKutta3::propagate(Column& state, size_t step)
   // calculate new derivatives at new (current) timestep
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
 
-  for (size_t i = 0; i < state.adsorption.size(); ++i)
+  for (size_t i = 0; i < column.adsorption.size(); ++i)
   {
     size_t comp = i % Ncomp;
-    double kl = state.components[comp].Kl;
-    newState.adsorption[i] =
-        0.75 * state.adsorption[i] +
-        0.25 * (newState.adsorption[i] + timeStep * kl * state.equilibriumAdsorption[i]) / (1.0 + timeStep * kl);
+    double kl = column.components[comp].Kl;
+    newcolumn.adsorption[i] =
+        0.75 * column.adsorption[i] +
+        0.25 * (newcolumn.adsorption[i] + timeStep * kl * column.equilibriumAdsorption[i]) * implicitInvKLs[comp];
   }
 
-  computeVelocity(newState);
-  computePressureUpdateMatrix(newState, timeStep, solved);
+  computeVelocity(newcolumn);
+  computePressureUpdateMatrix(newcolumn, timeStep, solved);
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newState.partialPressure[i] = 0.75 * state.partialPressure[i] + 0.25 * solved[i];
+    newcolumn.partialPressure[i] = 0.75 * column.partialPressure[i] + 0.25 * solved[i];
   }
 
-  computeEquilibriumLoadings(newState);
+  computeEquilibriumLoadings(newcolumn);
 
   // SSP-RK Step 3
   // ======================================================================
@@ -100,62 +105,61 @@ bool SemiImplicitRungeKutta3::propagate(Column& state, size_t step)
   // calculate new derivatives at new (current) timestep
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
 
-  for (size_t i = 0; i < state.adsorption.size(); ++i)
+  for (size_t i = 0; i < column.adsorption.size(); ++i)
   {
     size_t comp = i % Ncomp;
-    double kl = state.components[comp].Kl;
-    newState.adsorption[i] =
-        (1.0 / 3.0) * state.adsorption[i] +
-        (2.0 / 3.0) * (newState.adsorption[i] + timeStep * kl * state.equilibriumAdsorption[i]) / (1.0 + timeStep * kl);
+    double kl = column.components[comp].Kl;
+    newcolumn.adsorption[i] = (1.0 / 3.0) * column.adsorption[i] +
+                              (2.0 / 3.0) *
+                                  (newcolumn.adsorption[i] + timeStep * kl * column.equilibriumAdsorption[i]) *
+                                  implicitInvKLs[comp];
   }
 
-  computeVelocity(newState);
-  computePressureUpdateMatrix(newState, timeStep, solved);
+  computeVelocity(newcolumn);
+  computePressureUpdateMatrix(newcolumn, timeStep, solved);
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newState.partialPressure[i] = (1.0 / 3.0) * state.partialPressure[i] + (2.0 / 3.0) * solved[i];
+    newcolumn.partialPressure[i] = (1.0 / 3.0) * column.partialPressure[i] + (2.0 / 3.0) * solved[i];
   }
 
-
-  computeEquilibriumLoadings(newState);
+  computeEquilibriumLoadings(newcolumn);
 
   // update to the new time step
-  for (size_t i = 0; i < state.adsorption.size(); ++i)
+  for (size_t i = 0; i < column.adsorption.size(); ++i)
   {
     size_t comp = i % Ncomp;
-    double kl = state.components[comp].Kl;
+    double kl = column.components[comp].Kl;
 
-    newState.adsorption[i] =
-        (newState.adsorption[i] + timeStep * timeStep * kl * kl * newState.equilibriumAdsorption[i]) /
+    newcolumn.adsorption[i] =
+        (newcolumn.adsorption[i] + timeStep * timeStep * kl * kl * newcolumn.equilibriumAdsorption[i]) /
         (1.0 + timeStep * timeStep * kl * kl);
   }
 
-  computeVelocity(newState);
+  computeVelocity(newcolumn);
 
-  computePressureUpdateMatrixFinal(newState, timeStep, solved);
+  computePressureUpdateMatrixFinal(newcolumn, timeStep, solved);
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newState.partialPressure[i] = solved[i];
+    newcolumn.partialPressure[i] = solved[i];
   }
 
-
-  state = newState;
+  column = newcolumn;
 
   // pulse boundary condition
-  if (state.pulse)
+  if (column.pulse)
   {
-    if (t > state.pulseTime)
+    if (t > column.pulseTime)
     {
       for (size_t j = 0; j < Ncomp; ++j)
       {
-        if (j == state.carrierGasComponent)
+        if (j == column.carrierGasComponent)
         {
-          state.partialPressure[0 * Ncomp + j] = state.externalPressure;
+          column.partialPressure[0 * Ncomp + j] = column.externalPressure;
         }
         else
         {
-          state.partialPressure[0 * Ncomp + j] = 0.0;
+          column.partialPressure[0 * Ncomp + j] = 0.0;
         }
       }
     }
@@ -207,12 +211,26 @@ void computePressureFirstDerivative(size_t Ncomp, size_t Ngrid, double resolutio
   }
 }
 
-void computePressureUpdateMatrix(Column& state, double timeStep, std::vector<double>& solved)
+// u' = f(u) + g(u) u
+// u^{i+1} = u + dt * f / (1 + dt * g)
+
+// p' = f(p) + g(p) p
+// f(p) = (q - qeq)
+// g(p) = (D / dx) * v_i-1 * p_i-1 + v_i + v_i+1
+// A = (D / dx)
+// | v_i v_{i+1} 0 0 0 0 |
+// | v_{i-1} v_i v_{i+1} 0 0 0 |
+// | 0 v_{i-1} v_i v_{i+1} 0 0 |
+
+// p^{i+1} = p + dt * f / (1 + dt * A)
+// (1 + dt * A)^{-1} p^{i+1} = p + dt * f
+
+void computePressureUpdateMatrix(Column& column, double timeStep, std::vector<double>& solved)
 {
-  double idx = 1.0 / state.resolution;
+  double idx = 1.0 / column.resolution;
   double idx2 = idx * idx;
-  size_t Ngrid = state.Ngrid;
-  size_t Ncomp = state.Ncomp;
+  size_t Ngrid = column.Ngrid;
+  size_t Ncomp = column.Ncomp;
 
   int n = static_cast<int>(Ngrid + 1);
   int nrhs = 1;
@@ -233,24 +251,24 @@ void computePressureUpdateMatrix(Column& state, double timeStep, std::vector<dou
 
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
-    double D = state.components[comp].D;
-    double b = state.prefactorMassTransfer[comp];
+    double D = column.components[comp].D;
+    double b = column.prefactorMassTransfer[comp];
     for (size_t i = 0; i < Ngrid; ++i)
     {
-      lower[i] = -timeStep * (state.interstitialGasVelocity[i] * idx + D * idx2);
+      lower[i] = -timeStep * (column.interstitialGasVelocity[i] * idx + D * idx2);
       upper[i] = -timeStep * (D * idx2);
     }
     for (size_t i = 0; i < Ngrid + 1; ++i)
     {
-      diag[i] = 1.0 + timeStep * (state.interstitialGasVelocity[i] * idx + 2.0 * D * idx2);
-      rhs[i] = state.partialPressure[i * Ncomp + comp] +
-               timeStep * (-b * (state.equilibriumAdsorption[i * Ncomp + comp] - state.adsorption[i * Ncomp + comp]));
+      diag[i] = 1.0 + timeStep * (column.interstitialGasVelocity[i] * idx + 2.0 * D * idx2);
+      rhs[i] = column.partialPressure[i * Ncomp + comp] +
+               timeStep * (-b * (column.equilibriumAdsorption[i * Ncomp + comp] - column.adsorption[i * Ncomp + comp]));
     }
 
     // boundary conditions
     diag[0] = 1.0;
     upper[0] = 0.0;
-    rhs[0] = state.partialPressure[comp];
+    rhs[0] = column.partialPressure[comp];
 
     dgtsv_(&n, &nrhs, lower.data(), diag.data(), upper.data(), rhs.data(), &n, &info);
     for (size_t grid = 0; grid < Ngrid + 1; ++grid)
@@ -260,13 +278,13 @@ void computePressureUpdateMatrix(Column& state, double timeStep, std::vector<dou
   }
 }
 
-void computePressureUpdateMatrixFinal(Column& state, double timeStep, std::vector<double>& solved)
+void computePressureUpdateMatrixFinal(Column& column, double timeStep, std::vector<double>& solved)
 {
-  double idx = 1.0 / state.resolution;
+  double idx = 1.0 / column.resolution;
   double idx2 = idx * idx;
   double dt2 = timeStep * timeStep;
-  size_t Ngrid = state.Ngrid;
-  size_t Ncomp = state.Ncomp;
+  size_t Ngrid = column.Ngrid;
+  size_t Ncomp = column.Ncomp;
 
   std::vector<double> upper(Ngrid);
   std::vector<double> lower(Ngrid);
@@ -295,19 +313,19 @@ void computePressureUpdateMatrixFinal(Column& state, double timeStep, std::vecto
 
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
-    double D = state.components[comp].D;
-    double b = state.prefactorMassTransfer[comp];
+    double D = column.components[comp].D;
+    double b = column.prefactorMassTransfer[comp];
 
-    // First create tridiagonal matrix A and f 
+    // First create tridiagonal matrix A and f
     for (size_t i = 0; i < Ngrid; ++i)
     {
-      lower[i] = state.interstitialGasVelocity[i] * idx + D * idx2;
+      lower[i] = column.interstitialGasVelocity[i] * idx + D * idx2;
       upper[i] = D * idx2;
     }
     for (size_t i = 0; i < Ngrid + 1; ++i)
     {
-      diag[i] = -(state.interstitialGasVelocity[i] * idx + 2.0 * D * idx2);
-      preRHS[i] = -b * (state.equilibriumAdsorption[i * Ncomp + comp] - state.adsorption[i * Ncomp + comp]);
+      diag[i] = -(column.interstitialGasVelocity[i] * idx + 2.0 * D * idx2);
+      preRHS[i] = -b * (column.equilibriumAdsorption[i * Ncomp + comp] - column.adsorption[i * Ncomp + comp]);
     }
 
     // Now calculate (1 + (dt * A)^2) and (p - dt * A * f)
@@ -327,11 +345,11 @@ void computePressureUpdateMatrixFinal(Column& state, double timeStep, std::vecto
     for (size_t i = 1; i < Ngrid; ++i)
     {
       abS[4, i] = 1.0 + dt2 * (lower[i - 1] * upper[i - 1] + diag[i] * diag[i] + lower[i] * upper[i]);
-      rhs[i] = state.partialPressure[i * Ncomp + comp]  -
+      rhs[i] = column.partialPressure[i * Ncomp + comp] -
                dt2 * (lower[i - 1] * preRHS[i - 1] + diag[i] * preRHS[i] + upper[i] * preRHS[i + 1]);
     }
     abS[4, Ngrid] = 1.0 + dt2 * (lower[Ngrid - 1] * upper[Ngrid - 1] + diag[Ngrid] * diag[Ngrid]);
-    rhs[Ngrid] = state.partialPressure[Ngrid * Ncomp + comp]  -
+    rhs[Ngrid] = column.partialPressure[Ngrid * Ncomp + comp] -
                  dt2 * (lower[Ngrid - 1] * preRHS[Ngrid - 1] + diag[Ngrid] * preRHS[Ngrid]);
 
     // boundary conditions
@@ -339,7 +357,7 @@ void computePressureUpdateMatrixFinal(Column& state, double timeStep, std::vecto
     abS[3, 0] = 0.0;
     abS[2, 0] = 0.0;
 
-    rhs[0] = state.partialPressure[comp];
+    rhs[0] = column.partialPressure[comp];
 
     dgbsv_(&n, &kl, &ku, &nrhs, ab.data(), &ldab, ipiv.data(), rhs.data(), &n, &info);
 

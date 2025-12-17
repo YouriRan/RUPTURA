@@ -38,19 +38,24 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
       pulse(inputReader.pulseBreakthrough),
       tpulse(inputReader.pulseTime),
       maxIsothermTerms(inputReader.maxIsothermTerms),
-      state(MixturePrediction(inputReader), inputReader.components, Ngrid, Ncomp, maxIsothermTerms,
-            inputReader.temperature, inputReader.totalPressure, inputReader.pressureGradient,
-            inputReader.columnVoidFraction, inputReader.particleDensity, inputReader.columnEntranceVelocity,
-            inputReader.columnLength, inputReader.pulseBreakthrough, inputReader.pulseTime,
-            inputReader.carrierGasComponent),
+      column(MixturePrediction(inputReader), inputReader.components, Ngrid, Ncomp, maxIsothermTerms,
+             inputReader.temperature, inputReader.totalPressure, inputReader.pressureGradient,
+             inputReader.columnVoidFraction, inputReader.particleDensity, inputReader.columnEntranceVelocity,
+             inputReader.columnLength, inputReader.pulseBreakthrough, inputReader.pulseTime,
+             inputReader.carrierGasComponent),
       rk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       sirk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       cvode(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       integrationScheme(IntegrationScheme(inputReader.breakthroughIntegrator))
 
 {
-  state.initialize();
-  if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(state);
+  column.initialize();
+  if (inputReader.readColumnFile.has_value())
+  {
+    column.readJSON(inputReader.readColumnFile.value());
+  }
+
+  if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(column);
 }
 
 Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
@@ -58,7 +63,8 @@ Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _com
                            double _externalPressure, double _columnVoidFraction, double _pressureGradient,
                            double _particleDensity, double _columnEntranceVelocity, double _columnLength,
                            double _timeStep, size_t _numberOfTimeSteps, bool _autoSteps, bool _pulse, double _pulseTime,
-                           const MixturePrediction _mixture, size_t _breakthroughIntegrator)
+                           const MixturePrediction _mixture, size_t _breakthroughIntegrator,
+                           std::optional<std::string> readColumnFile)
     : displayName(_displayName),
       carrierGasComponent(_carrierGasComponent),
       Ncomp(_components.size()),
@@ -71,16 +77,21 @@ Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _com
       pulse(_pulse),
       tpulse(_pulseTime),
       maxIsothermTerms(_mixture.getMaxIsothermTerms()),
-      state(_mixture, _components, Ngrid, Ncomp, maxIsothermTerms, _temperature, _externalPressure, _pressureGradient,
-            _columnVoidFraction, _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime,
-            _carrierGasComponent),
+      column(_mixture, _components, Ngrid, Ncomp, maxIsothermTerms, _temperature, _externalPressure, _pressureGradient,
+             _columnVoidFraction, _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime,
+             _carrierGasComponent),
       rk3(dt, _autoSteps, _numberOfTimeSteps),
       sirk3(dt, _autoSteps, _numberOfTimeSteps),
       cvode(dt, _autoSteps, _numberOfTimeSteps),
       integrationScheme(IntegrationScheme(_breakthroughIntegrator))
 {
-  state.initialize();
-  if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(state);
+  column.initialize();
+  if (readColumnFile.has_value())
+  {
+    column.readJSON(readColumnFile.value());
+  }
+
+  if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(column);
 }
 
 void Breakthrough::run()
@@ -89,7 +100,7 @@ void Breakthrough::run()
   std::vector<std::ofstream> streams;
   for (size_t i = 0; i < Ncomp; i++)
   {
-    std::string fileName = "component_" + std::to_string(i) + "_" + state.components[i].name + ".data";
+    std::string fileName = "component_" + std::to_string(i) + "_" + column.components[i].name + ".data";
     streams.emplace_back(std::ofstream{fileName});
   }
 
@@ -119,17 +130,17 @@ void Breakthrough::run()
     {
       case IntegrationScheme::SSP_RK:
       {
-        finished = rk3.propagate(state, step);
+        finished = rk3.propagate(column, step);
         break;
       }
       case IntegrationScheme::CVODE:
       {
-        finished = cvode.propagate(state, step);
+        finished = cvode.propagate(column, step);
         break;
       }
       case IntegrationScheme::SIRK3:
       {
-        finished = sirk3.propagate(state, step);
+        finished = sirk3.propagate(column, step);
         break;
       }
       default:
@@ -139,14 +150,17 @@ void Breakthrough::run()
 
     if (step % writeEvery == 0)
     {
-      state.writeOutput(streams, movieStream, t);
+      column.writeOutput(streams, movieStream, t);
+      const std::string outputFile = "column.json";
+      column.writeJSON(outputFile);
     }
 
     if (step % printEvery == 0)
     {
       std::print("Timestep {}, time: {:6.5f} [s]\n", step, t);
-      std::print("    Average number of mixture-prediction steps: {:6.5f}\n",
-                 static_cast<double>(state.iastPerformance.first) / static_cast<double>(state.iastPerformance.second));
+      std::print(
+          "    Average number of mixture-prediction steps: {:6.5f}\n",
+          static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second));
       std::cout << std::flush;
     }
     step++;
@@ -189,7 +203,7 @@ py::array_t<double> Breakthrough::compute()
           t_brk[i][5 + 6 * j] = Q[i * Ncomp + j];
           t_brk[i][6 + 6 * j] = Qeq[i * Ncomp + j];
           t_brk[i][7 + 6 * j] = P[i * Ncomp + j];
-          t_brk[i][8 + 6 * j] = P[i * Ncomp + j] / (Pt[i] * state.components[j].Yi0);
+          t_brk[i][8 + 6 * j] = P[i * Ncomp + j] / (Pt[i] * column.components[j].Yi0);
           t_brk[i][9 + 6 * j] = Dpdt[i * Ncomp + j];
           t_brk[i][10 + 6 * j] = Dqdt[i * Ncomp + j];
         }
@@ -230,11 +244,11 @@ void Breakthrough::setComponentsParameters(std::vector<double> molfracs, std::ve
   size_t index = 0;
   for (size_t i = 0; i < Ncomp; ++i)
   {
-    state.components[i].Yi0 = molfracs[i];
-    size_t n_params = state.components[i].isotherm.numberOfParameters;
+    column.components[i].Yi0 = molfracs[i];
+    size_t n_params = column.components[i].isotherm.numberOfParameters;
     std::vector<double> slicedVec(params.begin() + index, params.begin() + index + n_params);
     index = index + n_params;
-    state.components[i].isotherm.setParameters(slicedVec);
+    column.components[i].isotherm.setParameters(slicedVec);
   }
 
   // also set for mixture
@@ -246,7 +260,7 @@ std::vector<double> Breakthrough::getComponentsParameters()
   std::vector<double> params;
   for (size_t i = 0; i < Ncomp; ++i)
   {
-    std::vector<double> compParams = state.components[i].isotherm.getParameters();
+    std::vector<double> compParams = column.components[i].isotherm.getParameters();
     params.insert(params.end(), compParams.begin(), compParams.end());
   }
   return params;
@@ -266,7 +280,7 @@ std::string Breakthrough::repr() const
       "Display-name:                          {}\n",
       displayName);
 
-  s += state.repr();
+  s += column.repr();
 
   // Breakthrough settings
   s += std::format(
@@ -286,7 +300,7 @@ std::string Breakthrough::repr() const
       "Number of column grid points:  {}\n"
       "Column spacing:                {} [m]\n"
       "\n\n",
-      dt, Ngrid, state.resolution);
+      dt, Ngrid, column.resolution);
 
   // Component data header
   s += std::format(
@@ -298,7 +312,7 @@ std::string Breakthrough::repr() const
   // Append each component’s repr()
   for (std::size_t i = 0; i < Ncomp; ++i)
   {
-    s += std::format("{}\n", state.components[i].repr());
+    s += std::format("{}\n", column.components[i].repr());
   }
 
   return s;
@@ -342,8 +356,8 @@ void Breakthrough::createPlotScript()
   stream << "set bmargin 4\n";
   stream << "set yrange[0:]\n";
 
-  stream << "set key title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set key title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
 
   stream << "set output 'breakthrough_dimensionless.pdf'\n";
   stream << "set term pdf color solid\n";
@@ -366,9 +380,9 @@ void Breakthrough::createPlotScript()
   stream << "plot \\\n";
   for (size_t i = 0; i < Ncomp; i++)
   {
-    std::string fileName = "component_" + std::to_string(i) + "_" + state.components[i].name + ".data";
-    stream << "    " << "\"" << fileName << "\"" << " us ($1):($3) every ev" << " title \"" << state.components[i].name
-           << " (y_i=" << state.components[i].Yi0 << ")\""
+    std::string fileName = "component_" + std::to_string(i) + "_" + column.components[i].name + ".data";
+    stream << "    " << "\"" << fileName << "\"" << " us ($1):($3) every ev" << " title \"" << column.components[i].name
+           << " (y_i=" << column.components[i].Yi0 << ")\""
            << " with li lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "set output 'breakthrough.pdf'\n";
@@ -380,9 +394,9 @@ void Breakthrough::createPlotScript()
   stream << "plot \\\n";
   for (size_t i = 0; i < Ncomp; i++)
   {
-    std::string fileName = "component_" + std::to_string(i) + "_" + state.components[i].name + ".data";
-    stream << "    " << "\"" << fileName << "\"" << " us ($2):($3) every ev" << " title \"" << state.components[i].name
-           << " (y_i=" << state.components[i].Yi0 << ")\""
+    std::string fileName = "component_" + std::to_string(i) + "_" + column.components[i].name + ".data";
+    stream << "    " << "\"" << fileName << "\"" << " us ($2):($3) every ev" << " title \"" << column.components[i].name
+           << " (y_i=" << column.components[i].Yi0 << ")\""
            << " with li lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
 }
@@ -528,8 +542,8 @@ void Breakthrough::createMovieScriptColumnV()
   stream << "set linetype 12 pt 14 ps 1 lw 4 lc rgb '0x000000'\n";
 
   stream << "set bmargin 4\n";
-  stream << "set title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
   stream << "stats 'column.data' us 2 nooutput\n";
   stream << "max=STATS_max\n";
   stream << "stats 'column.data' us 1 nooutput\n";
@@ -591,8 +605,8 @@ void Breakthrough::createMovieScriptColumnPt()
   stream << "set linetype 12 pt 14 ps 1 lw 4 lc rgb '0x000000'\n";
 
   stream << "set bmargin 4\n";
-  stream << "set title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
   stream << "stats 'column.data' us 3 nooutput\n";
   stream << "max=STATS_max\n";
   stream << "stats 'column.data' us 1 nooutput\n";
@@ -654,8 +668,8 @@ void Breakthrough::createMovieScriptColumnQ()
   stream << "set linetype 12 pt 14 ps 1 lw 4 lc rgb '0x000000'\n";
 
   stream << "set bmargin 4\n";
-  stream << "set key title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set key title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
   stream << "stats 'column.data' nooutput\n";
   stream << "max = 0.0;\n";
   stream << "do for [i=4:STATS_columns:6] {\n";
@@ -678,7 +692,7 @@ void Breakthrough::createMovieScriptColumnQ()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(4 + i * 6) << " index ev*i title '"
-           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
+           << column.components[i].name << " (y_i=" << column.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -732,8 +746,8 @@ void Breakthrough::createMovieScriptColumnQeq()
   stream << "set linetype 12 pt 14 ps 1 lw 4 lc rgb '0x000000'\n";
 
   stream << "set bmargin 4\n";
-  stream << "set key title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set key title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
   stream << "stats 'column.data' nooutput\n";
   stream << "max = 0.0;\n";
   stream << "do for [i=5:STATS_columns:6] {\n";
@@ -756,7 +770,7 @@ void Breakthrough::createMovieScriptColumnQeq()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(5 + i * 6) << " index ev*i title '"
-           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
+           << column.components[i].name << " (y_i=" << column.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -810,8 +824,8 @@ void Breakthrough::createMovieScriptColumnP()
   stream << "set linetype 12 pt 14 ps 1 lw 4 lc rgb '0x000000'\n";
 
   stream << "set bmargin 4\n";
-  stream << "set key title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set key title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
   stream << "stats 'column.data' nooutput\n";
   stream << "max = 0.0;\n";
   stream << "do for [i=6:STATS_columns:6] {\n";
@@ -834,7 +848,7 @@ void Breakthrough::createMovieScriptColumnP()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(6 + i * 6) << " index ev*i title '"
-           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
+           << column.components[i].name << " (y_i=" << column.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -888,8 +902,8 @@ void Breakthrough::createMovieScriptColumnPnormalized()
   stream << "set linetype 12 pt 14 ps 1 lw 4 lc rgb '0x000000'\n";
 
   stream << "set bmargin 4\n";
-  stream << "set key title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set key title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
   stream << "stats 'column.data' nooutput\n";
   stream << "max = 0.0;\n";
   stream << "do for [i=7:STATS_columns:6] {\n";
@@ -912,7 +926,7 @@ void Breakthrough::createMovieScriptColumnPnormalized()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(7 + i * 6) << " index ev*i title '"
-           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
+           << column.components[i].name << " (y_i=" << column.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -966,8 +980,8 @@ void Breakthrough::createMovieScriptColumnDpdt()
   stream << "set linetype 12 pt 14 ps 1 lw 4 lc rgb '0x000000'\n";
 
   stream << "set bmargin 4\n";
-  stream << "set key title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set key title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
   stream << "stats 'column.data' nooutput\n";
   stream << "max = -1e10;\n";
   stream << "min = 1e10;\n";
@@ -994,7 +1008,7 @@ void Breakthrough::createMovieScriptColumnDpdt()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(8 + i * 6) << " index ev*i title '"
-           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
+           << column.components[i].name << " (y_i=" << column.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";
@@ -1049,8 +1063,8 @@ void Breakthrough::createMovieScriptColumnDqdt()
   stream << "set linetype 12 pt 14 ps 1 lw 4 lc rgb '0x000000'\n";
 
   stream << "set bmargin 4\n";
-  stream << "set key title '" << displayName << " {/:Italic T}=" << state.externalTemperature
-         << " K, {/:Italic p_t}=" << state.externalPressure * 1e-3 << " kPa'\n";
+  stream << "set key title '" << displayName << " {/:Italic T}=" << column.externalTemperature
+         << " K, {/:Italic p_t}=" << column.externalPressure * 1e-3 << " kPa'\n";
   stream << "stats 'column.data' nooutput\n";
   stream << "max = -1e10;\n";
   stream << "min = 1e10;\n";
@@ -1078,7 +1092,7 @@ void Breakthrough::createMovieScriptColumnDqdt()
   for (size_t i = 0; i < Ncomp; i++)
   {
     stream << "    " << "'column.data'" << " us 1:" << std::to_string(9 + i * 6) << " index ev*i title '"
-           << state.components[i].name << " (y_i=" << state.components[i].Yi0 << ")'"
+           << column.components[i].name << " (y_i=" << column.components[i].Yi0 << ")'"
            << " with po lt " << i + 1 << (i < Ncomp - 1 ? ",\\" : "") << "\n";
   }
   stream << "}\n";

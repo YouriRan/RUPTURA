@@ -257,6 +257,17 @@ InputReader::InputReader(const std::string fileName) : components()
         };
       }
 
+      if (caseInSensStringCompare(keyword, "ReadColumnFile"))
+      {
+        std::string str;
+        std::istringstream ss(arguments);
+        if (ss >> str)
+        {
+          this->readColumnFile = str;
+          continue;
+        }
+      }
+
       if (caseInSensStringCompare(keyword, "DisplayName"))
       {
         std::string str;

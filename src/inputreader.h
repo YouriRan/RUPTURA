@@ -70,4 +70,6 @@ struct InputReader
   size_t columnPressure{0};  ///< The index of the column for pressure data.
   size_t columnLoading{1};   ///< The index of the column for loading data.
   size_t columnError{2};     ///< The index of the column for error data.
+
+  std::optional<std::string> readColumnFile;
 };
