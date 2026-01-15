@@ -6,8 +6,13 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(LAPACK)
-find_package(SUNDIALS COMPONENTS cvode nvecserial nvecmanyvector
-  HINTS "${SUNDIALS_ROOT}" REQUIRED)
+
+include(FetchContent)
+FetchContent_Declare(sundials
+  GIT_REPOSITORY https://github.com/LLNL/sundials.git
+  GIT_TAG v7.1.1
+)
+FetchContent_MakeAvailable(sundials)
 
 # Include directories
 include_directories(src)
