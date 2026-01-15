@@ -147,21 +147,22 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
   column = newcolumn;
 
   // pulse boundary condition
-  if (column.pulse)
+  for (size_t j = 0; j < Ncomp; ++j)
   {
-    if (t > column.pulseTime)
+    if (column.pulse && t > column.pulseTime)
     {
-      for (size_t j = 0; j < Ncomp; ++j)
+      if (j == column.carrierGasComponent)
       {
-        if (j == column.carrierGasComponent)
-        {
-          column.partialPressure[0 * Ncomp + j] = column.externalPressure;
-        }
-        else
-        {
-          column.partialPressure[0 * Ncomp + j] = 0.0;
-        }
+        column.partialPressure[0 * Ncomp + j] = column.externalPressure;
       }
+      else
+      {
+        column.partialPressure[0 * Ncomp + j] = 0.0;
+      }
+    }
+    else
+    {
+      column.partialPressure[0 * Ncomp + j] = column.externalPressure * column.components[j].Yi0;
     }
   }
 

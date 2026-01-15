@@ -41,7 +41,14 @@ void computeEquilibriumLoadings(size_t Ncomp, size_t Ngrid, std::span<double> to
     }
     for (size_t comp = 0; comp < Ncomp; ++comp)
     {
-      idealGasMolFractions[comp] /= sum;
+      if (sum < 1e-10)
+      {
+        idealGasMolFractions[comp] = 1.0 / static_cast<double>(Ncomp);
+      }
+      else
+      {
+        idealGasMolFractions[comp] /= sum;
+      }
     }
 
     // use Yi and Pt[i] to compute the loadings in the adsorption mixture via mixture prediction
@@ -65,124 +72,143 @@ void computeEquilibriumLoadings(size_t Ncomp, size_t Ngrid, std::span<double> to
 
 void computeVelocity(Column& column)
 {
-  computeVelocity(column.Ncomp, column.Ngrid, column.resolution, column.interstitialGasVelocity,
-                  column.columnEntranceVelocity, column.pressureGradient, column.totalPressure,
-                  column.prefactorMassTransfer, column.equilibriumAdsorption, column.adsorption, column.components,
-                  column.partialPressure);
+  switch (column.velocityProfile)
+  {
+    case Column::VelocityProfile::FixedPressureGradient:
+    {
+      computeVelocityFixedGradient(column.Ncomp, column.Ngrid, column.resolution, column.interstitialGasVelocity,
+                                   column.columnEntranceVelocity, column.pressureGradient, column.totalPressure,
+                                   column.prefactorMassTransfer, column.equilibriumAdsorption, column.adsorption,
+                                   column.components, column.partialPressure);
+      break;
+    }
+    case Column::VelocityProfile::Ergun:
+    {
+      computeVelocityErgun(column.Ncomp, column.Ngrid, column.resolution, column.voidFraction, column.particleDiameter,
+                           column.dynamicViscosity, column.interstitialGasVelocity, column.externalTemperature,
+                           column.columnEntranceVelocity, column.totalPressure, column.components,
+                           column.partialPressure);
+      break;
+    }
+    case Column::VelocityProfile::FixedVelocity:
+      break;
+    default:
+      break;
+  }
 }
 
-  void computeVelocity(size_t Ncomp, size_t Ngrid, double resolution, std::span<double> interstitialGasVelocity,
-                       double columnEntranceVelocity, double pressureGradient, std::span<const double> totalPressure,
-                       std::span<const double> prefactorMassTransfer, std::span<const double> equilibriumAdsorption,
-                       std::span<const double> adsorption, const std::vector<Component>& components,
-                       std::span<const double> partialPressure)
+void computeVelocityFixedGradient(size_t Ncomp, size_t Ngrid, double resolution,
+                                  std::span<double> interstitialGasVelocity, double columnEntranceVelocity,
+                                  double pressureGradient, std::span<const double> totalPressure,
+                                  std::span<const double> prefactorMassTransfer,
+                                  std::span<const double> equilibriumAdsorption, std::span<const double> adsorption,
+                                  const std::vector<Component>& components, std::span<const double> partialPressure)
+{
+  double idx2 = 1.0 / (resolution * resolution);
+
+  // first grid point
+  interstitialGasVelocity[0] = columnEntranceVelocity;
+
+  // middle grid points
+  for (size_t grid = 1; grid < Ngrid; ++grid)
   {
-    double idx2 = 1.0 / (resolution * resolution);
-
-    // first grid point
-    interstitialGasVelocity[0] = columnEntranceVelocity;
-
-    // middle grid points
-    for (size_t grid = 1; grid < Ngrid; ++grid)
+    double sum = 0.0;
+    for (size_t comp = 0; comp < Ncomp; ++comp)
     {
-      double sum = 0.0;
-      for (size_t comp = 0; comp < Ncomp; ++comp)
-      {
-        // mass transfer term
-        sum -=
-            prefactorMassTransfer[comp] * (equilibriumAdsorption[grid * Ncomp + comp] - adsorption[grid * Ncomp +
-            comp]);
+      // mass transfer term
+      sum -=
+          prefactorMassTransfer[comp] * (equilibriumAdsorption[grid * Ncomp + comp] - adsorption[grid * Ncomp + comp]);
 
-        // diffusion term
-        sum += components[comp].D *
-               (partialPressure[(grid - 1) * Ncomp + comp] - 2.0 * partialPressure[grid * Ncomp + comp] +
-                partialPressure[(grid + 1) * Ncomp + comp]) *
-               idx2;
-      }
-
-      // explicit update
-      interstitialGasVelocity[grid] =
-          interstitialGasVelocity[grid - 1] +
-          resolution * (sum - interstitialGasVelocity[grid - 1] * pressureGradient) / totalPressure[grid];
+      // diffusion term
+      sum += components[comp].D *
+             (partialPressure[(grid - 1) * Ncomp + comp] - 2.0 * partialPressure[grid * Ncomp + comp] +
+              partialPressure[(grid + 1) * Ncomp + comp]) *
+             idx2;
     }
 
-    // last grid point
-    {
-      double sum = 0.0;
-      for (size_t comp = 0; comp < Ncomp; ++comp)
-      {
-        sum -= prefactorMassTransfer[comp] *
-               (equilibriumAdsorption[Ngrid * Ncomp + comp] - adsorption[Ngrid * Ncomp + comp]);
-
-        sum += components[comp].D *
-               (partialPressure[(Ngrid - 1) * Ncomp + comp] - partialPressure[Ngrid * Ncomp + comp]) * idx2;
-      }
-
-      interstitialGasVelocity[Ngrid] =
-          interstitialGasVelocity[Ngrid - 1] +
-          resolution * (sum - interstitialGasVelocity[Ngrid - 1] * pressureGradient) / totalPressure[Ngrid];
-    }
+    // explicit update
+    interstitialGasVelocity[grid] =
+        interstitialGasVelocity[grid - 1] +
+        resolution * (sum - interstitialGasVelocity[grid - 1] * pressureGradient) / totalPressure[grid];
   }
 
-// void computeVelocity(Column& column)
+  // last grid point
+  {
+    double sum = 0.0;
+    for (size_t comp = 0; comp < Ncomp; ++comp)
+    {
+      sum -= prefactorMassTransfer[comp] *
+             (equilibriumAdsorption[Ngrid * Ncomp + comp] - adsorption[Ngrid * Ncomp + comp]);
 
-// {
-//   double idx2 = 1.0 / (resolution * resolution);
+      sum += components[comp].D *
+             (partialPressure[(Ngrid - 1) * Ncomp + comp] - partialPressure[Ngrid * Ncomp + comp]) * idx2;
+    }
 
-//   double mu = 1e-5;
-//   double particleDiameter = 1e-3;
+    interstitialGasVelocity[Ngrid] =
+        interstitialGasVelocity[Ngrid - 1] +
+        resolution * (sum - interstitialGasVelocity[Ngrid - 1] * pressureGradient) / totalPressure[Ngrid];
+  }
+}
 
-//   // 1.75 * (L * rho / d) * ((1 - epsilon) / epsilon**3) v^2 +
-//   // 150 (mu * L / d^2) ((1 - epsilon)^2 / epsilon^3) - (dp/dz)
-//   // C_quad = state.totalPressureDot;
-//   // K_viscous = (150 mu L / d^2) ((1 - epsilon)^2 / epsilon^3)
-//   // K_inertial = (1.75 L rho / d) ((1 - epsilon) / epsilon^3)
-//   // B_quad = K_viscous * mu
-//   // A_quad = K_inertial * rho_g
-//   // A v^2 + b v + c = 0
+void computeVelocityErgun(size_t Ncomp, size_t Ngrid, double resolution, double voidFraction, double particleDiameter,
+                          double dynamicViscosity, std::span<double> interstitialGasVelocity,
+                          double externalTemperature, double columnEntranceVelocity,
+                          std::span<const double> totalPressure, const std::vector<Component>& components,
+                          std::span<const double> partialPressure)
+{
+  double idx = 1.0 / (resolution);
 
-//   // v = -B + sqrt(B^2 - 4 A C) / (2 * A)
+  // 1.75 * (L * rho / d) * ((1 - epsilon) / epsilon**3) v^2 +
+  // 150 (mu * L / d^2) ((1 - epsilon)^2 / epsilon^3) - (dp/dz)
+  // C_quad = column.totalPressureDot;
+  // K_viscous = (150 mu L / d^2) ((1 - epsilon)^2 / epsilon^3)
+  // K_inertial = (1.75 L rho / d) ((1 - epsilon) / epsilon^3)
+  // B_quad = K_viscous * mu
+  // A_quad = K_inertial * rho_g
+  // A v^2 + b v + c = 0
 
-//   // mu = dynamic viscosity
-//   // L = column length
-//   // d = particle diameter?
-//   // epsilon = bed porosity
-//   // rho_f = fluid density
-//   // v = velocity
+  // v = -B + sqrt(B^2 - 4 A C) / (2 * A)
 
-//   double invVoidFraction2 = (state.voidFraction * state.voidFraction);
-//   double voidFractionPrefactorA = (1 - state.voidFraction) / invVoidFraction3;
-//   double voidFractionPrefactorB = voidFractionPrefactorA * (1 - state.voidFraction);
+  // mu = dynamic viscosity
+  // L = column length
+  // d = particle diameter?
+  // epsilon = bed porosity
+  // rho_f = fluid density
+  // v = velocity
 
-//   double prefactorA = 1.75 * voidFractionPrefactorA * (state.columnLength * state.particleDensity / particleDiameter);
-//   double prefactorB =
-//       150.0 * voidFractionPrefactorB * (mu * state.columnLength / (particleDiameter * particleDiameter));
+  double voidFractionPrefactorA = (1 - voidFraction) / voidFraction;
+  double voidFractionPrefactorB = (1 - voidFraction) * (1 - voidFraction) / (voidFraction * voidFraction);
 
-//   // first grid point
-//   state.totalPressureGradient[0] = 0.0;
-//   state.interstitialGasVelocity[0] = state.columnEntranceVelocity;
+  double prefactorA = 1.75 * voidFractionPrefactorA / particleDiameter;
+  double B = 150.0 * voidFractionPrefactorB * dynamicViscosity / (particleDiameter * particleDiameter);
 
-//   for (size_t grid = 1; grid < Ngrid + 1; grid++)
-//   {
-//     double gasDensity = 0.0;
-//     state.totalPressureGradient[grid] = for (size_t comp = 0; comp < Ncomp; comp++)
-//     {
-//       gasDensity += state.adsorption[grid] * beta;
-//     }
-//     double A = prefactorA * gasDensity;
+  // first grid point
+  interstitialGasVelocity[0] = columnEntranceVelocity;
 
-//     if (A < 1e-10)
-//     {
-//       state.interstitialGasVelocity[grid] = state.totalPressureGradient[grid] / prefactorB;
-//     }
-//     else
-//     {
-//       double ac4 = std::max(0.0, -4.0 * A * state.totalPressureGradient[grid]);
-//       state.interstititalGasVelocity[grid] = -prefactorB * std::sqrt(ac4) / (2.0 * A);
-//     }
-//     state.intersititialGasVelocity[grid] = std::max(0.0, state.intersititialGasVelocity[grid]);
-//   }
-// }
+  for (size_t grid = 1; grid < Ngrid + 1; grid++)
+  {
+    double C = -(totalPressure[grid] - totalPressure[grid - 1]) * idx;
+
+    double gasDensity = 0.0;
+    for (size_t comp = 0; comp < Ncomp; comp++)
+    {
+      gasDensity += components[comp].molecularWeight * partialPressure[grid * Ncomp + comp] / (R * externalTemperature);
+    }
+    double A = prefactorA * gasDensity;
+
+    double v = 0.0;
+    if (std::abs(A) < 1e-10)
+    {
+      v = -C / B;
+    }
+    else
+    {
+      double ac4 = std::max(0.0, B * B - 4.0 * A * C);
+      v = (-B + std::sqrt(ac4)) / (2.0 * A);
+    }
+    interstitialGasVelocity[grid] = std::max(0.0, v);
+  }
+}
 
 void computeFirstDerivatives(Column& column)
 {

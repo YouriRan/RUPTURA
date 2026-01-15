@@ -109,7 +109,7 @@ bool RungeKutta3::propagate(Column& column, size_t step)
     }
     else
     {
-        column.partialPressure[0 * Ncomp + j] = column.externalPressure * column.components[j].Yi0;
+      column.partialPressure[0 * Ncomp + j] = column.externalPressure * column.components[j].Yi0;
     }
   }
 

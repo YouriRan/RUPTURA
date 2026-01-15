@@ -42,7 +42,8 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
              inputReader.temperature, inputReader.totalPressure, inputReader.pressureGradient,
              inputReader.columnVoidFraction, inputReader.particleDensity, inputReader.columnEntranceVelocity,
              inputReader.columnLength, inputReader.pulseBreakthrough, inputReader.pulseTime,
-             inputReader.carrierGasComponent),
+             inputReader.particleDiameter, inputReader.dynamicViscosity, inputReader.carrierGasComponent,
+             inputReader.velocityProfile),
       rk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       sirk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       cvode(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
@@ -63,7 +64,8 @@ Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _com
                            double _externalPressure, double _columnVoidFraction, double _pressureGradient,
                            double _particleDensity, double _columnEntranceVelocity, double _columnLength,
                            double _timeStep, size_t _numberOfTimeSteps, bool _autoSteps, bool _pulse, double _pulseTime,
-                           const MixturePrediction _mixture, size_t _breakthroughIntegrator,
+                           double _particleDiameter, double _dynamicViscosity, const MixturePrediction _mixture,
+                           size_t _breakthroughIntegrator, size_t _velocityProfile,
                            std::optional<std::string> readColumnFile)
     : displayName(_displayName),
       carrierGasComponent(_carrierGasComponent),
@@ -79,7 +81,7 @@ Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _com
       maxIsothermTerms(_mixture.getMaxIsothermTerms()),
       column(_mixture, _components, Ngrid, Ncomp, maxIsothermTerms, _temperature, _externalPressure, _pressureGradient,
              _columnVoidFraction, _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime,
-             _carrierGasComponent),
+             _particleDiameter, _dynamicViscosity, _carrierGasComponent, _velocityProfile),
       rk3(dt, _autoSteps, _numberOfTimeSteps),
       sirk3(dt, _autoSteps, _numberOfTimeSteps),
       cvode(dt, _autoSteps, _numberOfTimeSteps),
@@ -126,6 +128,13 @@ void Breakthrough::run()
   {
     // compute new step
     // computeStep(step);
+
+    if (step % writeEvery == 0)
+    {
+      const std::string outputFile = std::format("column.json", step);
+      column.writeJSON(outputFile);
+    }
+
     switch (integrationScheme)
     {
       case IntegrationScheme::SSP_RK:
@@ -151,8 +160,6 @@ void Breakthrough::run()
     if (step % writeEvery == 0)
     {
       column.writeOutput(streams, movieStream, t);
-      const std::string outputFile = "column.json";
-      column.writeJSON(outputFile);
     }
 
     if (step % printEvery == 0)

@@ -21,12 +21,21 @@ namespace py = pybind11;
 
 struct Column
 {
+  enum class VelocityProfile
+  {
+    FixedPressureGradient = 0,  ///< Calculate velocities given a fixed gradient dPdx in the input file.
+    Ergun = 1,                  ///< Calculate velocities from actual pressure gradient using Ergun equation.
+    FixedVelocity = 2           ///< Ignore pressure gradient.
+  };
+
   Column(MixturePrediction mixture, std::vector<Component> components, size_t Ngrid, size_t Ncomp,
          size_t maxIsothermTerms, double externalTemperature, double externalPressure, double pressureGradient,
          double voidFraction, double particleDensity, double columnEntranceVelocity, double columnLength, bool pulse,
-         double pulseTime, size_t carrierGasComponent)
+         double pulseTime, double particleDiameter, double dynamicViscosity, size_t carrierGasComponent,
+         size_t velocityProfile)
       : mixture(mixture),
         components(components),
+        velocityProfile(VelocityProfile(velocityProfile)),
         Ngrid(Ngrid),
         Ncomp(Ncomp),
         maxIsothermTerms(maxIsothermTerms),
@@ -37,6 +46,8 @@ struct Column
         particleDensity(particleDensity),
         columnEntranceVelocity(columnEntranceVelocity),
         columnLength(columnLength),
+        dynamicViscosity(dynamicViscosity),
+        particleDiameter(particleDiameter),
         pulse(pulse),
         pulseTime(pulseTime),
         carrierGasComponent(carrierGasComponent),
@@ -66,6 +77,7 @@ struct Column
 
   MixturePrediction mixture;
   std::vector<Component> components;
+  VelocityProfile velocityProfile;
 
   size_t Ngrid;
   size_t Ncomp;
@@ -79,6 +91,8 @@ struct Column
   double particleDensity;
   double columnEntranceVelocity;
   double columnLength;
+  double dynamicViscosity;
+  double particleDiameter;
   bool pulse;
   double pulseTime;
   size_t carrierGasComponent;
