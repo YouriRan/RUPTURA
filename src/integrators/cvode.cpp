@@ -214,10 +214,10 @@ static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data)
                              column->mixture, column->iastPerformance, column->pressureGradient, column->columnLength,
                              column->maxIsothermTerms);
 
-  computeVelocity(column->Ncomp, column->Ngrid, column->resolution, column->interstitialGasVelocity,
-                  column->columnEntranceVelocity, column->pressureGradient, column->totalPressure,
-                  column->prefactorMassTransfer, column->equilibriumAdsorption, spanAdsorption, column->components,
-                  spanPartialPressure);
+  computeVelocityFixedGradient(column->Ncomp, column->Ngrid, column->resolution, column->interstitialGasVelocity,
+                               column->columnEntranceVelocity, column->pressureGradient, column->totalPressure,
+                               column->prefactorMassTransfer, column->equilibriumAdsorption, spanAdsorption,
+                               column->components, spanPartialPressure);
 
   computeFirstDerivatives(column->Ncomp, column->Ngrid, column->resolution, spanPartialPressure,
                           column->equilibriumAdsorption, spanAdsorption, spanAdsorptionDot, spanpartialPressureDot,

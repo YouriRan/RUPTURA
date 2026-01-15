@@ -14,11 +14,17 @@ void computeEquilibriumLoadings(size_t Ncomp, size_t Ngrid, std::span<double> to
                                 double columnLength, size_t maxIsothermTerms);
 
 void computeVelocity(Column& column);
-void computeVelocity(size_t Ncomp, size_t Ngrid, double resolution, std::span<double> interstitialGasVelocity,
-                     double columnEntranceVelocity, double pressureGradient, std::span<const double> totalPressure,
-                     std::span<const double> prefactorMassTransfer, std::span<const double> equilibriumAdsorption,
-                     std::span<const double> adsorption, const std::vector<Component>& components,
-                     std::span<const double> partialPressure);
+void computeVelocityFixedGradient(size_t Ncomp, size_t Ngrid, double resolution,
+                                  std::span<double> interstitialGasVelocity, double columnEntranceVelocity,
+                                  double pressureGradient, std::span<const double> totalPressure,
+                                  std::span<const double> prefactorMassTransfer,
+                                  std::span<const double> equilibriumAdsorption, std::span<const double> adsorption,
+                                  const std::vector<Component>& components, std::span<const double> partialPressure);
+void computeVelocityErgun(size_t Ncomp, size_t Ngrid, double resolution, double voidFraction, double particleDiameter,
+                          double dynamicViscosity, std::span<double> interstitialGasVelocity,
+                          double externalTemperature, double columnEntranceVelocity,
+                          std::span<const double> totalPressure, const std::vector<Component>& components,
+                          std::span<const double> partialPressure);
 
 void computeFirstDerivatives(Column& column);
 void computeFirstDerivatives(size_t Ncomp, size_t Ngrid, double resolution, std::span<const double> partialPressure,

@@ -73,8 +73,9 @@ struct Breakthrough
                size_t _numberOfGridPoints, size_t _printEvery, size_t _writeEvery, double _temperature, double _p_total,
                double _columnVoidFraction, double _pressureGradient, double _particleDensity,
                double _columnEntranceVelocity, double _columnLength, double _timeStep, size_t _numberOfTimeSteps,
-               bool _autoSteps, bool _pulse, double _pulseTime, const MixturePrediction _mixture,
-               size_t _breakthroughIntegrator, std::optional<std::string> readColumnFile);
+               bool _autoSteps, bool _pulse, double _pulseTime, double _particleDiameter, double _dynamicViscosity,
+               const MixturePrediction _mixture, size_t _breakthroughIntegrator, size_t _velocityProfile,
+               std::optional<std::string> readColumnFile);
 
   /**
    * \brief Prints the representation of the Breakthrough object to the console.
@@ -161,22 +162,6 @@ struct Breakthrough
   IntegrationScheme integrationScheme;
 
   /**
-   * \brief Computes the first derivatives of concentrations and pressures.
-   *
-   * Calculates the derivatives Dq/dt and Dp/dt along the column.
-   *
-   * \param dqdt Output vector for the derivatives of Q with respect to time.
-   * \param dpdt Output vector for the derivatives of P with respect to time.
-   * \param q_eq Equilibrium adsorption amounts.
-   * \param q Current adsorption amounts.
-   * \param v Interstitial gas velocities.
-   * \param p Partial pressures.
-   */
-  void computeFirstDerivatives(std::vector<double>& dqdt, std::vector<double>& dpdt, const std::vector<double>& q_eq,
-                               const std::vector<double>& q, const std::vector<double>& v,
-                               const std::vector<double>& p);
-
-  /**
    * \brief Computes a single simulation step.
    *
    * Advances the simulation by one time step.
@@ -184,20 +169,6 @@ struct Breakthrough
    * \param step The current time step index.
    */
   void computeStep(size_t step);
-
-  /**
-   * \brief Computes the equilibrium loadings for the current time step.
-   *
-   * Calculates the equilibrium adsorption amounts based on current pressures.
-   */
-  void computeEquilibriumLoadings();
-
-  /**
-   * \brief Computes the interstitial gas velocities along the column.
-   *
-   * Updates the velocities based on current pressures and adsorption amounts.
-   */
-  void computeVelocity();
 
   /**
    * \brief Creates a script to generate a movie for the interstitial gas velocity.

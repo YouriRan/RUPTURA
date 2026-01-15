@@ -44,9 +44,12 @@ struct InputReader
   size_t mixturePredictionMethod{0};                            ///< The method used for mixture prediction.
   size_t IASTMethod{0};                                         ///< The method used for IAST calculations.
   size_t breakthroughIntegrator{0};                             ///< The integrator used for breakthrough calculations.
+  size_t velocityProfile{0};                                    ///< The method used to calculate the velocity profile.
   std::string displayName{"Column"};                            ///< The display name for the simulation.
   double temperature{433.0};                                    ///< The simulation temperature in Kelvin.
   double columnVoidFraction{0.4};                               ///< The void fraction of the column.
+  double dynamicViscosity{1e-5};                                ///< Dynamic viscosity of the flue gas.
+  double particleDiameter{1e-3};                                ///< Diameter of the particle packed in the column.
   double particleDensity{1000.0};                               ///< The density of the particles in kg/m^3.
   double totalPressure{1.0e6};                                  ///< The total pressure in the system in Pa.
   double pressureGradient{0.0};                                 ///< The pressure gradient in the column.

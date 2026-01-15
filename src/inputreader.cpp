@@ -257,6 +257,30 @@ InputReader::InputReader(const std::string fileName) : components()
         };
       }
 
+      if (caseInSensStringCompare(keyword, "VelocityProfile"))
+      {
+        std::string str;
+        std::istringstream ss(arguments);
+        if (ss >> str)
+        {
+          if (caseInSensStringCompare(str, "FixedPressureGradient"))
+          {
+            velocityProfile = 0;
+            continue;
+          }
+          if (caseInSensStringCompare(str, "Ergun"))
+          {
+            velocityProfile = 1;
+            continue;
+          }
+          if (caseInSensStringCompare(str, "FixedVelocity"))
+          {
+            velocityProfile = 2;
+            continue;
+          }
+        };
+      }
+
       if (caseInSensStringCompare(keyword, "ReadColumnFile"))
       {
         std::string str;
@@ -289,6 +313,18 @@ InputReader::InputReader(const std::string fileName) : components()
       {
         double value = parseDouble(arguments, keyword, lineNumber);
         this->columnVoidFraction = value;
+        continue;
+      }
+      if (caseInSensStringCompare(keyword, "DynamicViscosity"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->dynamicViscosity = value;
+        continue;
+      }
+      if (caseInSensStringCompare(keyword, "ParticleDiameter"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->particleDiameter = value;
         continue;
       }
       if (caseInSensStringCompare(keyword, "ParticleDensity"))
@@ -486,6 +522,12 @@ InputReader::InputReader(const std::string fileName) : components()
       {
         double value = parseDouble(arguments, keyword, lineNumber);
         components[numberOfComponents - 1].D = value;
+        continue;
+      }
+      if (caseInSensStringCompare(keyword, "MolecularWeight"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        components[numberOfComponents - 1].molecularWeight = value;
         continue;
       }
 
