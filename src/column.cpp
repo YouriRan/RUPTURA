@@ -102,6 +102,12 @@ void Column::initialize()
       totalPressure[i] += std::max(0.0, partialPressure[i * Ncomp + j]);
     }
   }
+
+  // the initial state sets all temperatures to the influx temperature
+  if (std::abs(influxTemperature) < 1e-10) influxTemperature = externalTemperature;
+  std::fill(gasTemperature.begin(), gasTemperature.end(), influxTemperature);
+  std::fill(solidTemperature.begin(), solidTemperature.end(), influxTemperature);
+  std::fill(wallTemperature.begin(), wallTemperature.end(), influxTemperature);
 }
 
 void Column::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& movieStream, double time)
@@ -185,9 +191,11 @@ void Column::writeJSON(const std::string& filename) const
   // (Ngrid+1)-sized vectors
   j["interstitialGasVelocity"] = interstitialGasVelocity;
   j["totalPressure"] = totalPressure;
-  j["totalpartialPressureDot"] = totalpartialPressureDot;
-  j["temperature"] = temperature;
-  j["temperatureDot"] = temperatureDot;
+  j["totalPressureDot"] = totalPressureDot;
+  j["gasTemperature"] = gasTemperature;
+  j["gasTemperatureDot"] = gasTemperatureDot;
+  j["solidTemperature"] = solidTemperature;
+  j["solidTemperatureDot"] = solidTemperatureDot;
   j["wallTemperature"] = wallTemperature;
   j["wallTemperatureDot"] = wallTemperatureDot;
 
@@ -260,9 +268,11 @@ void Column::readJSON(const std::string& filename)
   // (Ngrid+1)-sized
   loadVectorChecked("interstitialGasVelocity", interstitialGasVelocity);
   loadVectorChecked("totalPressure", totalPressure);
-  loadVectorChecked("totalpartialPressureDot", totalpartialPressureDot);
-  loadVectorChecked("temperature", temperature);
-  loadVectorChecked("temperatureDot", temperatureDot);
+  loadVectorChecked("totalPressureDot", totalPressureDot);
+  loadVectorChecked("gasTemperature", gasTemperature);
+  loadVectorChecked("gasTemperatureDot", gasTemperatureDot);
+  loadVectorChecked("solidTemperature", solidTemperature);
+  loadVectorChecked("solidTemperatureDot", solidTemperatureDot);
   loadVectorChecked("wallTemperature", wallTemperature);
   loadVectorChecked("wallTemperatureDot", wallTemperatureDot);
 

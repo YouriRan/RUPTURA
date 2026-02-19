@@ -69,13 +69,13 @@ struct Breakthrough
    * \param _mixture MixturePrediction object for mixture predictions.
    * \param _breakthroughIntegrator Type of integrator used for solving PDE.
    */
-  Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
-               size_t _numberOfGridPoints, size_t _printEvery, size_t _writeEvery, double _temperature, double _p_total,
-               double _columnVoidFraction, double _pressureGradient, double _particleDensity,
-               double _columnEntranceVelocity, double _columnLength, double _timeStep, size_t _numberOfTimeSteps,
-               bool _autoSteps, bool _pulse, double _pulseTime, double _particleDiameter, double _dynamicViscosity,
-               const MixturePrediction _mixture, size_t _breakthroughIntegrator, size_t _velocityProfile,
-               std::optional<std::string> readColumnFile);
+  // Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
+  //              size_t _numberOfGridPoints, size_t _printEvery, size_t _writeEvery, double _temperature, double
+  //              _p_total, double _columnVoidFraction, double _pressureGradient, double _particleDensity, double
+  //              _columnEntranceVelocity, double _columnLength, double _timeStep, size_t _numberOfTimeSteps, bool
+  //              _autoSteps, bool _pulse, double _pulseTime, double _particleDiameter, double _dynamicViscosity, const
+  //              MixturePrediction _mixture, size_t _breakthroughIntegrator, size_t _velocityProfile,
+  //              std::optional<std::string> readColumnFile);
 
   /**
    * \brief Prints the representation of the Breakthrough object to the console.
@@ -148,12 +148,13 @@ struct Breakthrough
   size_t printEvery;  ///< Frequency of printing time steps to the screen.
   size_t writeEvery;  ///< Frequency of writing data to files.
 
-  double dt;                ///< Time step for integration.
-  size_t Nsteps;            ///< Total number of steps.
-  bool autoSteps;           ///< Flag to use automatic number of steps.
-  bool pulse;               ///< Pulsed inlet condition for breakthrough.
-  double tpulse;            ///< Pulse time.
-  size_t maxIsothermTerms;  ///< Maximum number of isotherm terms.
+  double dt;                     ///< Time step for integration.
+  size_t numberOfInitTimeSteps;  ///< Ramping up the timestep.
+  size_t Nsteps;                 ///< Total number of steps.
+  bool autoSteps;                ///< Flag to use automatic number of steps.
+  bool pulse;                    ///< Pulsed inlet condition for breakthrough.
+  double tpulse;                 ///< Pulse time.
+  size_t maxIsothermTerms;       ///< Maximum number of isotherm terms.
 
   Column column;
   RungeKutta3 rk3;

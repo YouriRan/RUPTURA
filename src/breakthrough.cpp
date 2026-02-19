@@ -33,17 +33,13 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
       printEvery(inputReader.printEvery),
       writeEvery(inputReader.writeEvery),
       dt(inputReader.timeStep),
+      numberOfInitTimeSteps(inputReader.numberOfInitTimeSteps),
       Nsteps(inputReader.numberOfTimeSteps),
       autoSteps(inputReader.autoNumberOfTimeSteps),
       pulse(inputReader.pulseBreakthrough),
       tpulse(inputReader.pulseTime),
       maxIsothermTerms(inputReader.maxIsothermTerms),
-      column(MixturePrediction(inputReader), inputReader.components, Ngrid, Ncomp, maxIsothermTerms,
-             inputReader.temperature, inputReader.totalPressure, inputReader.pressureGradient,
-             inputReader.columnVoidFraction, inputReader.particleDensity, inputReader.columnEntranceVelocity,
-             inputReader.columnLength, inputReader.pulseBreakthrough, inputReader.pulseTime,
-             inputReader.particleDiameter, inputReader.dynamicViscosity, inputReader.carrierGasComponent,
-             inputReader.velocityProfile),
+      column(inputReader),
       rk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       sirk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
       cvode(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
@@ -59,42 +55,43 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
   if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(column);
 }
 
-Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
-                           size_t _numberOfGridPoints, size_t _printEvery, size_t _writeEvery, double _temperature,
-                           double _externalPressure, double _columnVoidFraction, double _pressureGradient,
-                           double _particleDensity, double _columnEntranceVelocity, double _columnLength,
-                           double _timeStep, size_t _numberOfTimeSteps, bool _autoSteps, bool _pulse, double _pulseTime,
-                           double _particleDiameter, double _dynamicViscosity, const MixturePrediction _mixture,
-                           size_t _breakthroughIntegrator, size_t _velocityProfile,
-                           std::optional<std::string> readColumnFile)
-    : displayName(_displayName),
-      carrierGasComponent(_carrierGasComponent),
-      Ncomp(_components.size()),
-      Ngrid(_numberOfGridPoints),
-      printEvery(_printEvery),
-      writeEvery(_writeEvery),
-      dt(_timeStep),
-      Nsteps(_numberOfTimeSteps),
-      autoSteps(_autoSteps),
-      pulse(_pulse),
-      tpulse(_pulseTime),
-      maxIsothermTerms(_mixture.getMaxIsothermTerms()),
-      column(_mixture, _components, Ngrid, Ncomp, maxIsothermTerms, _temperature, _externalPressure, _pressureGradient,
-             _columnVoidFraction, _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime,
-             _particleDiameter, _dynamicViscosity, _carrierGasComponent, _velocityProfile),
-      rk3(dt, _autoSteps, _numberOfTimeSteps),
-      sirk3(dt, _autoSteps, _numberOfTimeSteps),
-      cvode(dt, _autoSteps, _numberOfTimeSteps),
-      integrationScheme(IntegrationScheme(_breakthroughIntegrator))
-{
-  column.initialize();
-  if (readColumnFile.has_value())
-  {
-    column.readJSON(readColumnFile.value());
-  }
+// Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
+//                            size_t _numberOfGridPoints, size_t _printEvery, size_t _writeEvery, double _temperature,
+//                            double _externalPressure, double _columnVoidFraction, double _pressureGradient,
+//                            double _particleDensity, double _columnEntranceVelocity, double _columnLength,
+//                            double _timeStep, size_t _numberOfTimeSteps, bool _autoSteps, bool _pulse, double
+//                            _pulseTime, double _particleDiameter, double _dynamicViscosity, const MixturePrediction
+//                            _mixture, size_t _breakthroughIntegrator, size_t _velocityProfile,
+//                            std::optional<std::string> readColumnFile)
+//     : displayName(_displayName),
+//       carrierGasComponent(_carrierGasComponent),
+//       Ncomp(_components.size()),
+//       Ngrid(_numberOfGridPoints),
+//       printEvery(_printEvery),
+//       writeEvery(_writeEvery),
+//       dt(_timeStep),
+//       Nsteps(_numberOfTimeSteps),
+//       autoSteps(_autoSteps),
+//       pulse(_pulse),
+//       tpulse(_pulseTime),
+//       maxIsothermTerms(_mixture.getMaxIsothermTerms()),
+//       column(_mixture, _components, Ngrid, Ncomp, maxIsothermTerms, _temperature, _externalPressure,
+//       _pressureGradient,
+//              _columnVoidFraction, _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime,
+//              _particleDiameter, _dynamicViscosity, _carrierGasComponent, _velocityProfile),
+//       rk3(dt, _autoSteps, _numberOfTimeSteps),
+//       sirk3(dt, _autoSteps, _numberOfTimeSteps),
+//       cvode(dt, _autoSteps, _numberOfTimeSteps),
+//       integrationScheme(IntegrationScheme(_breakthroughIntegrator))
+// {
+//   column.initialize();
+//   if (readColumnFile.has_value())
+//   {
+//     column.readJSON(readColumnFile.value());
+//   }
 
-  if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(column);
-}
+//   if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(column);
+// }
 
 void Breakthrough::run()
 {
@@ -124,6 +121,19 @@ void Breakthrough::run()
 
   bool finished = false;
   size_t step = 0;
+  double realTime = 0.0;
+  double xi = 1e-4;
+
+  if (numberOfInitTimeSteps > 0)
+  {
+    rk3.autoSteps = false;
+    cvode.autoSteps = false;
+    sirk3.autoSteps = false;
+    rk3.timeStep = dt * xi;
+    cvode.timeStep = dt * xi;
+    sirk3.timeStep = dt * xi;
+  }
+
   while (!finished)
   {
     // compute new step
@@ -140,36 +150,56 @@ void Breakthrough::run()
       case IntegrationScheme::SSP_RK:
       {
         finished = rk3.propagate(column, step);
+        realTime += rk3.timeStep;
         break;
       }
       case IntegrationScheme::CVODE:
       {
         finished = cvode.propagate(column, step);
+        realTime += cvode.timeStep;
         break;
       }
       case IntegrationScheme::SIRK3:
       {
         finished = sirk3.propagate(column, step);
+        realTime += sirk3.timeStep;
         break;
       }
       default:
         break;
     }
-    double t = static_cast<double>(step) * dt;
+
+    if (step < numberOfInitTimeSteps)
+    {
+      double i = static_cast<double>(step) / numberOfInitTimeSteps;
+
+      rk3.timeStep = dt * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
+      cvode.timeStep = dt * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
+      sirk3.timeStep = dt * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
+    }
+    else if (step == numberOfInitTimeSteps)
+    {
+      rk3.autoSteps = autoSteps;
+      cvode.autoSteps = autoSteps;
+      sirk3.autoSteps = autoSteps;
+      rk3.timeStep = dt;
+      cvode.timeStep = dt;
+      sirk3.timeStep = dt;
+    }
 
     if (step % writeEvery == 0)
     {
-      column.writeOutput(streams, movieStream, t);
+      column.writeOutput(streams, movieStream, realTime);
     }
-
     if (step % printEvery == 0)
     {
-      std::print("Timestep {}, time: {:6.5f} [s]\n", step, t);
+      std::print("Timestep {}, time: {:6.5f} [s]\n", step, realTime);
       std::print(
           "    Average number of mixture-prediction steps: {:6.5f}\n",
           static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second));
       std::cout << std::flush;
     }
+
     step++;
   }
 
