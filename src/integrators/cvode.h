@@ -6,11 +6,13 @@
 #include <sundials/sundials_logger.h>
 #include <sundials/sundials_types.h> /* definition of sunrealtype                      */
 #include <sunlinsol/sunlinsol_dense.h>
+#include <sunlinsol/sunlinsol_klu.h>
 #include <sunlinsol/sunlinsol_spbcgs.h>  /* access to SPBCGS SUNLinearSolver            */
 #include <sunlinsol/sunlinsol_spfgmr.h>  /* access to SPFGMR SUNLinearSolver            */
 #include <sunlinsol/sunlinsol_spgmr.h>   /* access to SPGMR SUNLinearSolver             */
 #include <sunlinsol/sunlinsol_sptfqmr.h> /* access to SPTFQMR SUNLinearSolver           */
 #include <sunmatrix/sunmatrix_dense.h>
+#include <sunmatrix/sunmatrix_sparse.h>
 #include <sunnonlinsol/sunnonlinsol_newton.h> /* access to Newton SUNNonlinearSolver         */
 
 #include <span>
@@ -58,3 +60,5 @@ inline std::span<double> getAdsorptionSpan(N_Vector u, size_t Ngrid, size_t Ncom
 inline std::span<double> getMoleFractionSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
 
 static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data);
+// static int JacSparse(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix Jac, void* user_data, N_Vector tmp1,
+//                      N_Vector tmp2, N_Vector tmp3);

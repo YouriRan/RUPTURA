@@ -36,7 +36,7 @@ struct Component
    * \param _isCarrierGas Optional flag indicating if this is the carrier gas (default is false).
    */
   Component(size_t _id, std::string _name, std::vector<Isotherm> _isotherms, double _Yi0, double _Kl, double _D,
-            bool _isCarrierGas = false, double molecularWeight = 1.0);
+            bool _isCarrierGas = false, double molecularWeight = 1.0, double heatOfAdsorption = 0.0);
 
   size_t id;                   ///< Identifier of the component.
   std::string name{};          ///< Name of the component.
@@ -45,6 +45,7 @@ struct Component
   double Yi0;                  ///< Gas phase mol-fraction [-].
   double Kl;                   ///< Mass transfer coefficient [1/s].
   double D;                    ///< Axial dispersion coefficient [m^2/s].
+  double heatOfAdsorption;     ///< Heat of adsorption in [K].
   bool isCarrierGas{false};    ///< Flag indicating if this is the carrier gas.
   double molecularWeight;
 

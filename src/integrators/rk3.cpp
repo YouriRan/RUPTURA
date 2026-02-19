@@ -5,12 +5,40 @@
 #include <mdspan>
 #include <vector>
 
+void updateStateRK(Column& column, Column& newColumn, double alpha, double beta, double timeStep)
+{
+  for (size_t i = 0; i < column.adsorption.size(); i++)
+  {
+    newColumn.adsorption[i] =
+        alpha * column.adsorption[i] + beta * (newColumn.adsorption[i] + timeStep * newColumn.adsorptionDot[i]);
+    newColumn.partialPressure[i] = alpha * column.partialPressure[i] +
+                                   beta * (newColumn.partialPressure[i] + timeStep * newColumn.partialPressureDot[i]);
+  }
+  if (column.energyBalance)
+  {
+    for (size_t grid = 0; grid < column.Ngrid + 1; grid++)
+    {
+      // newColumn.totalPressure[grid] =
+      //     alpha * column.totalPressure[grid] +
+      //     beta * (newColumn.totalPressure[grid] + timeStep * newColumn.totalPressureDot[grid]);
+      newColumn.gasTemperature[grid] =
+          alpha * column.gasTemperature[grid] +
+          beta * (newColumn.gasTemperature[grid] + timeStep * newColumn.gasTemperatureDot[grid]);
+      newColumn.solidTemperature[grid] =
+          alpha * column.solidTemperature[grid] +
+          beta * (newColumn.solidTemperature[grid] + timeStep * newColumn.solidTemperatureDot[grid]);
+      newColumn.wallTemperature[grid] =
+          alpha * column.wallTemperature[grid] +
+          beta * (newColumn.wallTemperature[grid] + timeStep * newColumn.wallTemperatureDot[grid]);
+    }
+  }
+}
+
 bool RungeKutta3::propagate(Column& column, size_t step)
 {
   double t = static_cast<double>(step) * timeStep;
   size_t Ngrid = column.Ngrid;
   size_t Ncomp = column.Ncomp;
-  Column newColumn(column);
 
   if (autoSteps)
   {
@@ -37,16 +65,13 @@ bool RungeKutta3::propagate(Column& column, size_t step)
 
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P
   computeFirstDerivatives(column);
+  Column newColumn(column);
+
+  updateStateRK(column, newColumn, 0.0, 1.0, timeStep);
 
   // Dqdt and Dpdt are calculated at old time step
   // make estimate for the new loadings and new gas phase partial pressures
   // first iteration is made using the Explicit Euler scheme
-  for (size_t i = 0; i < column.adsorption.size(); ++i)
-  {
-    newColumn.adsorption[i] = column.adsorption[i] + timeStep * column.adsorptionDot[i];
-    newColumn.partialPressure[i] = column.partialPressure[i] + timeStep * column.partialPressureDot[i];
-  }
-
   computeEquilibriumLoadings(newColumn);
 
   computeVelocity(newColumn);
@@ -57,14 +82,7 @@ bool RungeKutta3::propagate(Column& column, size_t step)
   // calculate new derivatives at new (current) timestep
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
   computeFirstDerivatives(newColumn);
-
-  for (size_t i = 0; i < column.adsorption.size(); ++i)
-  {
-    newColumn.adsorption[i] =
-        0.75 * column.adsorption[i] + 0.25 * (newColumn.adsorption[i] + timeStep * newColumn.adsorptionDot[i]);
-    newColumn.partialPressure[i] = 0.75 * column.partialPressure[i] +
-                                   0.25 * (newColumn.partialPressure[i] + timeStep * newColumn.partialPressureDot[i]);
-  }
+  updateStateRK(column, newColumn, 0.75, 0.25, timeStep);
 
   computeEquilibriumLoadings(newColumn);
 
@@ -76,15 +94,7 @@ bool RungeKutta3::propagate(Column& column, size_t step)
   // calculate new derivatives at new (current) timestep
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
   computeFirstDerivatives(newColumn);
-
-  for (size_t i = 0; i < column.adsorption.size(); ++i)
-  {
-    newColumn.adsorption[i] = (1.0 / 3.0) * column.adsorption[i] +
-                              (2.0 / 3.0) * (newColumn.adsorption[i] + timeStep * newColumn.adsorptionDot[i]);
-    newColumn.partialPressure[i] =
-        (1.0 / 3.0) * column.partialPressure[i] +
-        (2.0 / 3.0) * (newColumn.partialPressure[i] + timeStep * newColumn.partialPressureDot[i]);
-  }
+  updateStateRK(column, newColumn, (1.0 / 3.0), (2.0 / 3.0), timeStep);
 
   computeEquilibriumLoadings(newColumn);
 

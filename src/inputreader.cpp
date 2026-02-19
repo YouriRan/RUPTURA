@@ -413,6 +413,18 @@ InputReader::InputReader(const std::string fileName) : components()
         }
       }
 
+      if (caseInSensStringCompare(keyword, "NumberOfInitTimeSteps"))
+      {
+        std::string str;
+        std::istringstream ss(arguments);
+        if (ss >> str)
+        {
+          size_t value = parse<size_t>(arguments, keyword, lineNumber);
+          this->numberOfInitTimeSteps = value;
+          continue;
+        }
+      }
+
       if (caseInSensStringCompare(keyword, "PulseBreakthrough"))
       {
         bool value = parseBoolean(arguments, keyword, lineNumber);
@@ -478,6 +490,107 @@ InputReader::InputReader(const std::string fileName) : components()
         continue;
       }
 
+      if (caseInSensStringCompare(keyword, "InfluxTemperature"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->influxTemperature = value;
+        continue;
+      }
+      else
+      {
+        this->influxTemperature = temperature;
+      }
+
+      if (caseInSensStringCompare(keyword, "internalDiameter"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->internalDiameter = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "outerDiameter"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->outerDiameter = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "wallDensity"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->wallDensity = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "gasThermalConductivity"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->gasThermalConductivity = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "wallThermalConductivity"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->wallThermalConductivity = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "heatTransferGasSolid"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->heatTransferGasSolid = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "heatTransferGasWall"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->heatTransferGasWall = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "heatTransferGasWall"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->heatTransferGasWall = value;
+        continue;
+      }
+      if (caseInSensStringCompare(keyword, "heatTransferWallExternal"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->heatTransferWallExternal = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "heatCapacityGas"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->heatCapacityGas = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "heatCapacitySolid"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->heatCapacitySolid = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "heatCapacityWall"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        this->heatCapacityWall = value;
+        continue;
+      }
+
+      if (caseInSensStringCompare(keyword, "energyBalance"))
+      {
+        bool value = parseBoolean(arguments, keyword, lineNumber);
+        this->energyBalance = value;
+        continue;
+      }
+
       if (caseInSensStringCompare(keyword, std::string("Component")))
       {
         std::istringstream ss(arguments);
@@ -528,6 +641,12 @@ InputReader::InputReader(const std::string fileName) : components()
       {
         double value = parseDouble(arguments, keyword, lineNumber);
         components[numberOfComponents - 1].molecularWeight = value;
+        continue;
+      }
+      if (caseInSensStringCompare(keyword, "HeatOfAdsorption"))
+      {
+        double value = parseDouble(arguments, keyword, lineNumber);
+        components[numberOfComponents - 1].heatOfAdsorption = value;
         continue;
       }
 

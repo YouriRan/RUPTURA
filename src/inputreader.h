@@ -56,7 +56,22 @@ struct InputReader
   double columnEntranceVelocity{0.1};                           ///< The entrance velocity of the column in m/s.
   double columnLength{0.3};                                     ///< The length of the column in meters.
 
+  double influxTemperature;
+  double internalDiameter;
+  double outerDiameter;
+  double wallDensity;
+  double gasThermalConductivity;
+  double wallThermalConductivity;
+  double heatTransferGasSolid;
+  double heatTransferGasWall;
+  double heatTransferWallExternal;
+  double heatCapacityGas;
+  double heatCapacitySolid;
+  double heatCapacityWall;
+  bool energyBalance;
+
   size_t numberOfTimeSteps{0};       ///< The number of time steps in the simulation.
+  size_t numberOfInitTimeSteps{0};   ///< The number of time steps in the simulation.
   bool autoNumberOfTimeSteps{true};  ///< Whether to automatically determine the number of time steps.
   double timeStep{0.0005};           ///< The time step size in seconds.
   bool pulseBreakthrough{false};     ///< Whether to use pulse breakthrough mode.

@@ -6,8 +6,15 @@
 #include "isotherm.h"
 
 Component::Component(size_t _id, std::string _name, std::vector<Isotherm> _isotherms, double _Yi0, double _Kl,
-                     double _D, bool _isCarrierGas, double molecularWeight)
-    : id(_id), name(_name), Yi0(_Yi0), Kl(_Kl), D(_D), isCarrierGas(_isCarrierGas), molecularWeight(molecularWeight)
+                     double _D, bool _isCarrierGas, double molecularWeight, double heatOfAdsorption)
+    : id(_id),
+      name(_name),
+      Yi0(_Yi0),
+      Kl(_Kl),
+      D(_D),
+      isCarrierGas(_isCarrierGas),
+      molecularWeight(molecularWeight),
+      heatOfAdsorption(heatOfAdsorption)
 {
   isotherm.numberOfSites = _isotherms.size();
   for (Isotherm it : _isotherms)
