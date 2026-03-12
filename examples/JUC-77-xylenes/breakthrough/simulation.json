@@ -1,0 +1,122 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "JUC-77",
+  "Temperature": 443.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1144.03,
+  "TotalPressure": 2500000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "ColumnLength": 0.3,
+  "NumberOfTimeSteps": "auto",
+  "PrintEvery": 10000,
+  "WriteEvery": 10000,
+  "TimeStep": 0.0005,
+  "NumberOfGridPoints": 100,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.96,
+      "CarrierGas": true
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.4,
+            0.0024,
+            0.8
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.9,
+            0.0201
+          ]
+        }
+      ],
+      "Name": "o-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.53,
+            0.0124,
+            0.822
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.77,
+            0.031,
+            1.1
+          ]
+        }
+      ],
+      "Name": "m-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.6,
+            0.0124,
+            0.9
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.7,
+            0.0314,
+            1.05
+          ]
+        }
+      ],
+      "Name": "p-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.4,
+            0.000702,
+            0.9
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.9,
+            0.00298,
+            1.2
+          ]
+        }
+      ],
+      "Name": "ethylbenzene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    }
+  ]
+}

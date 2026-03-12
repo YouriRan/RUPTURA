@@ -1,0 +1,102 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "JUC-77",
+  "Temperature": 443.0,
+  "PressureStart": 1.0,
+  "PressureEnd": 1000000.0,
+  "NumberOfPressurePoints": 100,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.4,
+            0.0024,
+            0.8
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.9,
+            0.0201
+          ]
+        }
+      ],
+      "Name": "o-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.53,
+            0.0124,
+            0.822
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.77,
+            0.031,
+            1.1
+          ]
+        }
+      ],
+      "Name": "m-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.6,
+            0.0124,
+            0.9
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.7,
+            0.0314,
+            1.05
+          ]
+        }
+      ],
+      "Name": "p-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.4,
+            0.000702,
+            0.9
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.9,
+            0.00298,
+            1.2
+          ]
+        }
+      ],
+      "Name": "ethylbenzene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    }
+  ]
+}

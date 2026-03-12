@@ -1,0 +1,24 @@
+{
+  "SimulationType": "Fitting",
+  "DisplayName": "BEA",
+  "ColumnPressure": 3,
+  "ColumnLoading": 8,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Toth",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "Name": "nC7",
+      "FileName": "Results.dat-BEA-Repeat-552K-nC7",
+      "NumberOfIsothermSites": 1
+    }
+  ]
+}

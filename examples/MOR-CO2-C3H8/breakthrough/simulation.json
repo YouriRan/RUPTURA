@@ -1,0 +1,71 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "MOR",
+  "Temperature": 300.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1693.89,
+  "TotalPressure": 2500000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "ColumnLength": 0.3,
+  "BreakthroughIntegrator": "CVODE",
+  "NumberOfTimeSteps": "auto",
+  "PrintEvery": 10000,
+  "WriteEvery": 10000,
+  "TimeStep": 0.0005,
+  "NumberOfGridPoints": 100,
+  "MixturePredictionMethod": "SIAST",
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.9,
+      "CarrierGas": true
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            4.4,
+            0.000291
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            10.0,
+            6.96e-07
+          ]
+        }
+      ],
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.05,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            4.97,
+            9.3e-09
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.99,
+            0.000279
+          ]
+        }
+      ],
+      "Name": "C3H8",
+      "GasPhaseMolFraction": 0.05,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    }
+  ]
+}

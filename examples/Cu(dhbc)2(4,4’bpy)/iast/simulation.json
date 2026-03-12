@@ -1,0 +1,41 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "Cu(dhbc)2(4,4\u2019bpy)",
+  "Temperature": 298.0,
+  "PressureStart": 1.0,
+  "PressureEnd": 8000000.0,
+  "NumberOfPressurePoints": 50,
+  "PressureScale": "linear",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Bingel&Walton",
+          "Parameters": [
+            2.77,
+            9.695e-06,
+            -1.005e-05
+          ]
+        }
+      ],
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.5,
+      "NumberOfIsothermSites": 1
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Bingel&Walton",
+          "Parameters": [
+            1.85,
+            8.094e-11,
+            2.214e-06
+          ]
+        }
+      ],
+      "Name": "O2",
+      "GasPhaseMolFraction": 0.5,
+      "NumberOfIsothermSites": 1
+    }
+  ]
+}
