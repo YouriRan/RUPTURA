@@ -80,9 +80,7 @@ class FittingPlotly(BasePlotly):
             required_cols = max(required_cols, self.columnError)
 
         if df.shape[1] <= required_cols:
-            raise ValueError(
-                f"{fileName} does not contain the requested fitting columns"
-            )
+            raise ValueError(f"{fileName} does not contain the requested fitting columns")
 
         out = pd.DataFrame(
             {
@@ -110,9 +108,7 @@ class FittingPlotly(BasePlotly):
         if callable(isotherm):
             return np.asarray([isotherm(float(p)) for p in pressure], dtype=float)
 
-        raise TypeError(
-            "isotherm must either be callable or expose a value(pressure) method"
-        )
+        raise TypeError("isotherm must either be callable or expose a value(pressure) method")
 
     def _pressure_grid(self, pressure_data: np.ndarray, npoints: int = 400) -> np.ndarray:
         pmin = float(np.nanmin(pressure_data))
@@ -140,12 +136,8 @@ class FittingPlotly(BasePlotly):
         loading_data = df["loading"].to_numpy(dtype=float)
         pressure_grid = self._pressure_grid(pressure_data)
 
-        start_loading = self._evaluate_isotherm(
-            self.start_isotherms[comp_index], pressure_grid
-        )
-        fit_loading = self._evaluate_isotherm(
-            self.fit_isotherms[comp_index], pressure_grid
-        )
+        start_loading = self._evaluate_isotherm(self.start_isotherms[comp_index], pressure_grid)
+        fit_loading = self._evaluate_isotherm(self.fit_isotherms[comp_index], pressure_grid)
 
         ymax = 0.0
         for values in (loading_data, start_loading, fit_loading):
@@ -161,11 +153,7 @@ class FittingPlotly(BasePlotly):
                 mode="lines",
                 name="start f(x)",
                 line=dict(width=2.4, dash="dash"),
-                hovertemplate=(
-                    "start f(x)<br>"
-                    + "P=%{x:.4g} Pa<br>"
-                    + "q=%{y:.6g} mol/kg<extra></extra>"
-                ),
+                hovertemplate=("start f(x)<br>" + "P=%{x:.4g} Pa<br>" + "q=%{y:.6g} mol/kg<extra></extra>"),
             )
         )
 
@@ -176,11 +164,7 @@ class FittingPlotly(BasePlotly):
                 mode="lines",
                 name="fit f(x)",
                 line=dict(width=3.0),
-                hovertemplate=(
-                    "fit f(x)<br>"
-                    + "P=%{x:.4g} Pa<br>"
-                    + "q=%{y:.6g} mol/kg<extra></extra>"
-                ),
+                hovertemplate=("fit f(x)<br>" + "P=%{x:.4g} Pa<br>" + "q=%{y:.6g} mol/kg<extra></extra>"),
             )
         )
 
@@ -201,11 +185,7 @@ class FittingPlotly(BasePlotly):
                 mode="markers",
                 name="raw data",
                 marker=dict(size=7),
-                hovertemplate=(
-                    "raw data<br>"
-                    + "P=%{x:.4g} Pa<br>"
-                    + "q=%{y:.6g} mol/kg<extra></extra>"
-                ),
+                hovertemplate=("raw data<br>" + "P=%{x:.4g} Pa<br>" + "q=%{y:.6g} mol/kg<extra></extra>"),
                 **scatter_kwargs,
             )
         )
@@ -250,6 +230,5 @@ class FittingPlotly(BasePlotly):
 
     def all_fit_figures(self) -> dict[str, go.Figure]:
         return {
-            comp.name: self.fit_figure(comp.index)
-            for comp in sorted(self.components, key=self._component_sort_key)
+            comp.name: self.fit_figure(comp.index) for comp in sorted(self.components, key=self._component_sort_key)
         }

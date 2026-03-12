@@ -53,7 +53,9 @@ def load_simulation_metadata(simulation_json: Union[str, Path]) -> Dict[str, obj
     }
 
 
-def infer_components_from_files(data_dir: Union[str, Path] = ".") -> List[ComponentInfo]:
+def infer_components_from_files(
+    data_dir: Union[str, Path] = ".",
+) -> List[ComponentInfo]:
     pattern = str(Path(data_dir) / "component_*.data")
     files = sorted(glob.glob(pattern))
 
@@ -105,9 +107,7 @@ def parse_header_metadata(path: Union[str, Path]) -> Dict:
     components: Dict[int, HeaderComponentInfo] = {}
 
     col_pat = re.compile(r"^\s*#\s*column\s+(\d+)\s*:\s*(.+?)\s*$", re.IGNORECASE)
-    comp_name_pat = re.compile(
-        r"^\s*#\s*component\s+(\d+)\s*[:=]\s*(.+?)\s*$", re.IGNORECASE
-    )
+    comp_name_pat = re.compile(r"^\s*#\s*component\s+(\d+)\s*[:=]\s*(.+?)\s*$", re.IGNORECASE)
 
     comp_names: Dict[int, str] = {}
     for line in header_lines:
@@ -128,9 +128,7 @@ def parse_header_metadata(path: Union[str, Path]) -> Dict:
         if re.match(r"^\s*z\b", desc, flags=re.IGNORECASE):
             z_col_0 = col_num - 1
 
-        m2 = re.match(
-            r"^\s*component\s+(\d+)\s+([A-Za-z0-9_]+)\b", desc, flags=re.IGNORECASE
-        )
+        m2 = re.match(r"^\s*component\s+(\d+)\s+([A-Za-z0-9_]+)\b", desc, flags=re.IGNORECASE)
         if m2:
             ci = int(m2.group(1))
             prop = m2.group(2)
