@@ -4,24 +4,28 @@
   "Temperature": 552.0,
   "ColumnVoidFraction": 0.4,
   "ParticleDensity": 1508.52,
-  "TotalPressure": 1200.0,
+  "TotalPressure": 120000.0,
   "PressureGradient": -1000.0,
-  "ColumnEntranceVelocity": 0.2,
+  "ColumnEntranceVelocity": 0.019,
   "ColumnLength": 0.1,
-  "BreakthroughIntegrator": "RungeKutta3",
   "NumberOfTimeSteps": "auto",
+  "BreakthroughIntegrator": "CVODE",
   "PrintEvery": 10000,
   "WriteEvery": 10000,
-  "TimeStep": 0.005,
+  "TimeStep": 0.0005,
   "NumberOfGridPoints": 100,
   "Components": [
     {
       "Name": "Helium",
       "GasPhaseMolFraction": 0.93,
-      "MolecularWeight": 0.004,
       "CarrierGas": true
     },
     {
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -37,15 +41,14 @@
             8.90731e-07
           ]
         }
-      ],
-      "Name": "nC7",
+      ]
+    },
+    {
+      "Name": "C6m2",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -61,15 +64,14 @@
             9.64046e-08
           ]
         }
-      ],
-      "Name": "C6m2",
+      ]
+    },
+    {
+      "Name": "C6m3",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -85,15 +87,14 @@
             7.99897e-08
           ]
         }
-      ],
-      "Name": "C6m3",
+      ]
+    },
+    {
+      "Name": "C5m2m2",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -102,15 +103,14 @@
             6.99287e-06
           ]
         }
-      ],
-      "Name": "C5m2m2",
+      ]
+    },
+    {
+      "Name": "C5m2m3",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 1
-    },
-    {
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -119,15 +119,14 @@
             1.41992e-05
           ]
         }
-      ],
-      "Name": "C5m2m3",
+      ]
+    },
+    {
+      "Name": "C5m2m4",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 1
-    },
-    {
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -136,15 +135,14 @@
             2.11233e-05
           ]
         }
-      ],
-      "Name": "C5m2m4",
+      ]
+    },
+    {
+      "Name": "C5m3m3",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 1
-    },
-    {
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -153,13 +151,7 @@
             4.398e-06
           ]
         }
-      ],
-      "Name": "C5m3m3",
-      "GasPhaseMolFraction": 0.01,
-      "MassTransferCoefficient": 0.06,
-      "AxialDispersionCoefficient": 0.0,
-      "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 1
+      ]
     }
   ]
 }

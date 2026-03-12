@@ -6,6 +6,9 @@
   "PressureScale": "log",
   "Components": [
     {
+      "Name": "p-xylene",
+      "FileName": "Results.dat-CoBDP-P1-Repeat-433K-p-xylene",
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -23,10 +26,7 @@
             0.0
           ]
         }
-      ],
-      "Name": "p-xylene",
-      "FileName": "Results.dat-CoBDP-P1-Repeat-433K-p-xylene",
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }

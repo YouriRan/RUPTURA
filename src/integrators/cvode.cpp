@@ -6,64 +6,6 @@
 #include <span>
 #include <vector>
 
-// static inline sunindextype idxP(size_t grid, size_t comp, size_t Ncomp)
-// {
-//   return static_cast<sunindextype>(grid * Ncomp + comp);
-// }
-
-// static inline sunindextype idxQ(size_t grid, size_t comp, size_t Ncomp, size_t offset)
-// {
-//   return static_cast<sunindextype>(offset + grid * Ncomp + comp);
-// }
-
-// struct CscPattern
-// {
-//   std::vector<sunindextype> colptr;  // size N+1
-//   std::vector<sunindextype> rowind;  // size nnz
-// };
-
-// static void buildPatternCSC(SUNMatrix A, size_t Ngrid, size_t Ncomp)
-// {
-//   const size_t nNodes = Ngrid + 1, offset = nNodes * Ncomp, N = 2 * offset;
-
-//   auto* colptr = SM_INDEXPTRS_S(A);
-//   auto* rowind = SM_INDEXVALS_S(A);
-
-//   sunindextype nnz = 0;
-//   for (size_t col = 0; col < N; ++col)
-//   {
-//     colptr[col] = nnz;
-
-//     const bool isPcol = (col < offset);
-//     const size_t local = isPcol ? col : (col - offset);
-//     const size_t grid = local / Ncomp;
-//     const size_t comp = local % Ncomp;
-
-//     if (isPcol)
-//     {
-//       // rows: pDot(grid), pDot(grid+1), pDot(grid-1), with exclusions (pDot row 0 is zero)
-//       if (grid >= 1) rowind[nnz++] = P(grid, comp, Ncomp);
-//       if (grid + 1 <= Ngrid) rowind[nnz++] = P(grid + 1, comp, Ncomp);
-//       if (grid >= 2) rowind[nnz++] = P(grid - 1, comp, Ncomp);
-
-//       // sort+unique within this column (KLU likes sorted row indices)
-//       auto* beg = rowind + colptr[col];
-//       auto* end = rowind + nnz;
-//       std::sort(beg, end);
-//       end = std::unique(beg, end);
-//       nnz = static_cast<sunindextype>(end - rowind);
-//     }
-//     else
-//     {
-//       // rows: qDot(grid) always; pDot(grid) if grid>=1
-//       rowind[nnz++] = Q(grid, comp, Ncomp, offset);
-//       if (grid >= 1) rowind[nnz++] = P(grid, comp, Ncomp);
-//       if (grid >= 1 && rowind[nnz - 2] > rowind[nnz - 1]) std::swap(rowind[nnz - 2], rowind[nnz - 1]);
-//     }
-//   }
-//   colptr[N] = nnz;
-// }
-
 #if BUILD_SUNDIALS
 
 bool CVODE::propagate(Column& column, size_t step)
@@ -336,6 +278,64 @@ bool CVODE::propagate(Column&, size_t)
 void CVODE::initialize(Column&) {}
 
 #endif
+
+// static inline sunindextype idxP(size_t grid, size_t comp, size_t Ncomp)
+// {
+//   return static_cast<sunindextype>(grid * Ncomp + comp);
+// }
+
+// static inline sunindextype idxQ(size_t grid, size_t comp, size_t Ncomp, size_t offset)
+// {
+//   return static_cast<sunindextype>(offset + grid * Ncomp + comp);
+// }
+
+// struct CscPattern
+// {
+//   std::vector<sunindextype> colptr;  // size N+1
+//   std::vector<sunindextype> rowind;  // size nnz
+// };
+
+// static void buildPatternCSC(SUNMatrix A, size_t Ngrid, size_t Ncomp)
+// {
+//   const size_t nNodes = Ngrid + 1, offset = nNodes * Ncomp, N = 2 * offset;
+
+//   auto* colptr = SM_INDEXPTRS_S(A);
+//   auto* rowind = SM_INDEXVALS_S(A);
+
+//   sunindextype nnz = 0;
+//   for (size_t col = 0; col < N; ++col)
+//   {
+//     colptr[col] = nnz;
+
+//     const bool isPcol = (col < offset);
+//     const size_t local = isPcol ? col : (col - offset);
+//     const size_t grid = local / Ncomp;
+//     const size_t comp = local % Ncomp;
+
+//     if (isPcol)
+//     {
+//       // rows: pDot(grid), pDot(grid+1), pDot(grid-1), with exclusions (pDot row 0 is zero)
+//       if (grid >= 1) rowind[nnz++] = P(grid, comp, Ncomp);
+//       if (grid + 1 <= Ngrid) rowind[nnz++] = P(grid + 1, comp, Ncomp);
+//       if (grid >= 2) rowind[nnz++] = P(grid - 1, comp, Ncomp);
+
+//       // sort+unique within this column (KLU likes sorted row indices)
+//       auto* beg = rowind + colptr[col];
+//       auto* end = rowind + nnz;
+//       std::sort(beg, end);
+//       end = std::unique(beg, end);
+//       nnz = static_cast<sunindextype>(end - rowind);
+//     }
+//     else
+//     {
+//       // rows: qDot(grid) always; pDot(grid) if grid>=1
+//       rowind[nnz++] = Q(grid, comp, Ncomp, offset);
+//       if (grid >= 1) rowind[nnz++] = P(grid, comp, Ncomp);
+//       if (grid >= 1 && rowind[nnz - 2] > rowind[nnz - 1]) std::swap(rowind[nnz - 2], rowind[nnz - 1]);
+//     }
+//   }
+//   colptr[N] = nnz;
+// }
 
 // static int JacSparseCSC(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix Jac, void* user_data, N_Vector tmp1,
 //                         N_Vector tmp2, N_Vector tmp3)

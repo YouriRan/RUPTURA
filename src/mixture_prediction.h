@@ -99,34 +99,6 @@ class MixturePrediction
    */
   void run();
 
-  /**
-   * \brief Creates a Gnuplot script for pure component isotherms.
-   *
-   * Generates a Gnuplot script to plot pure component isotherms.
-   */
-  void createPureComponentsPlotScript();
-
-  /**
-   * \brief Creates a Gnuplot script for mixture prediction.
-   *
-   * Generates a Gnuplot script to plot mixture prediction results.
-   */
-  void createMixturePlotScript();
-
-  /**
-   * \brief Creates a Gnuplot script for mixture adsorbed mol fractions.
-   *
-   * Generates a Gnuplot script to plot adsorbed mol fractions in the mixture.
-   */
-  void createMixtureAdsorbedMolFractionPlotScript();
-
-  /**
-   * \brief Creates plot scripts for the mixture prediction.
-   *
-   * Generates the necessary Gnuplot scripts to plot the simulation results.
-   */
-  void createPlotScript();
-
 #ifdef PYBUILD
   /**
    * \brief Computes the mixture prediction.

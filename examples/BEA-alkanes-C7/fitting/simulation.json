@@ -6,6 +6,9 @@
   "PressureScale": "log",
   "Components": [
     {
+      "Name": "nC7",
+      "FileName": "Results.dat-BEA-Repeat-552K-nC7",
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Toth",
@@ -15,10 +18,7 @@
             0.0
           ]
         }
-      ],
-      "Name": "nC7",
-      "FileName": "Results.dat-BEA-Repeat-552K-nC7",
-      "NumberOfIsothermSites": 1
+      ]
     }
   ]
 }

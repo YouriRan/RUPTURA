@@ -21,6 +21,11 @@
       "CarrierGas": true
     },
     {
+      "Name": "nC6",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -38,14 +43,14 @@
             1.35
           ]
         }
-      ],
-      "Name": "nC6",
+      ]
+    },
+    {
+      "Name": "2MP",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -63,14 +68,14 @@
             1.26
           ]
         }
-      ],
-      "Name": "2MP",
+      ]
+    },
+    {
+      "Name": "3MP",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -88,14 +93,14 @@
             1.24
           ]
         }
-      ],
-      "Name": "3MP",
+      ]
+    },
+    {
+      "Name": "23DMB",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -113,14 +118,14 @@
             1.13
           ]
         }
-      ],
-      "Name": "23DMB",
+      ]
+    },
+    {
+      "Name": "22DMB",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -138,12 +143,7 @@
             1.04
           ]
         }
-      ],
-      "Name": "22DMB",
-      "GasPhaseMolFraction": 0.01,
-      "MassTransferCoefficient": 0.06,
-      "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }

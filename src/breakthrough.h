@@ -170,44 +170,4 @@ struct Breakthrough
    * \param step The current time step index.
    */
   void computeStep(size_t step);
-
-  /**
-   * \brief Creates a script to generate a movie for the interstitial gas velocity.
-   */
-  void createMovieScriptColumnV();
-
-  /**
-   * \brief Creates a script to generate a movie for the total pressure along the column.
-   */
-  void createMovieScriptColumnPt();
-
-  /**
-   * \brief Creates a script to generate a movie for the adsorption amounts Q.
-   */
-  void createMovieScriptColumnQ();
-
-  /**
-   * \brief Creates a script to generate a movie for the equilibrium adsorption amounts Qeq.
-   */
-  void createMovieScriptColumnQeq();
-
-  /**
-   * \brief Creates a script to generate a movie for the partial pressures P.
-   */
-  void createMovieScriptColumnP();
-
-  /**
-   * \brief Creates a script to generate a movie for the derivatives of pressure Dp/dt.
-   */
-  void createMovieScriptColumnDpdt();
-
-  /**
-   * \brief Creates a script to generate a movie for the derivatives of adsorption amounts Dq/dt.
-   */
-  void createMovieScriptColumnDqdt();
-
-  /**
-   * \brief Creates a script to generate a movie for the normalized partial pressures.
-   */
-  void createMovieScriptColumnPnormalized();
 };

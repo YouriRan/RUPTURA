@@ -20,6 +20,11 @@
       "CarrierGas": true
     },
     {
+      "Name": "nC6",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -37,14 +42,14 @@
             0.592334
           ]
         }
-      ],
-      "Name": "nC6",
+      ]
+    },
+    {
+      "Name": "2MP",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -62,14 +67,14 @@
             0.643915
           ]
         }
-      ],
-      "Name": "2MP",
+      ]
+    },
+    {
+      "Name": "22DMB",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -87,14 +92,14 @@
             1.13388
           ]
         }
-      ],
-      "Name": "22DMB",
+      ]
+    },
+    {
+      "Name": "23DMB",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 3,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -120,14 +125,14 @@
             1.24258
           ]
         }
-      ],
-      "Name": "23DMB",
+      ]
+    },
+    {
+      "Name": "3MP",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 3
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -145,12 +150,7 @@
             2.77617
           ]
         }
-      ],
-      "Name": "3MP",
-      "GasPhaseMolFraction": 0.01,
-      "MassTransferCoefficient": 0.06,
-      "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }

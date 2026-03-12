@@ -6,6 +6,9 @@
   "PressureScale": "log",
   "Components": [
     {
+      "Name": "nC7",
+      "FileName": "Results.dat-ZIF-77-433K-nC7",
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -23,10 +26,7 @@
             0.0
           ]
         }
-      ],
-      "Name": "nC7",
-      "FileName": "Results.dat-ZIF-77-433K-nC7",
-      "NumberOfIsothermSites": 1
+      ]
     }
   ]
 }

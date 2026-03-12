@@ -20,6 +20,11 @@
       "CarrierGas": true
     },
     {
+      "Name": "1-3-butadiene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 3,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -45,14 +50,14 @@
             1.65435
           ]
         }
-      ],
-      "Name": "1-3-butadiene",
+      ]
+    },
+    {
+      "Name": "1-butene",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 3
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -70,14 +75,14 @@
             0.431999
           ]
         }
-      ],
-      "Name": "1-butene",
+      ]
+    },
+    {
+      "Name": "2-cis-butene",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -95,14 +100,14 @@
             0.75982
           ]
         }
-      ],
-      "Name": "2-cis-butene",
+      ]
+    },
+    {
+      "Name": "2-trans-butene",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -120,12 +125,7 @@
             0.531051
           ]
         }
-      ],
-      "Name": "2-trans-butene",
-      "GasPhaseMolFraction": 0.01,
-      "MassTransferCoefficient": 0.06,
-      "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }
