@@ -1,0 +1,103 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "CoBDP",
+  "Temperature": 443.0,
+  "PressureStart": 100.0,
+  "PressureEnd": 1000000.0,
+  "NumberOfPressurePoints": 100,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            4.8,
+            1.28e-05,
+            1.4
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.5,
+            0.00016,
+            0.7
+          ]
+        }
+      ],
+      "Name": "o-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            4.8,
+            3.19e-05,
+            1.27
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.2,
+            4.72e-05,
+            0.7
+          ]
+        }
+      ],
+      "Name": "m-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            4.5,
+            2.3e-06,
+            1.7
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.6,
+            0.000146,
+            0.7
+          ]
+        }
+      ],
+      "Name": "p-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            4.5,
+            7.38e-06,
+            1.5
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.4,
+            0.00016,
+            0.7
+          ]
+        }
+      ],
+      "Name": "ethylbenzene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    }
+  ]
+}

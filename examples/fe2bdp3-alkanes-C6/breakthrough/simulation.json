@@ -1,0 +1,148 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "fe2bdp3",
+  "Temperature": 443.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1146.041505,
+  "TotalPressure": 2000000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "ColumnLength": 0.3,
+  "NumberOfTimeSteps": "auto",
+  "PrintEvery": 10000,
+  "WriteEvery": 10000,
+  "TimeStep": 0.0005,
+  "NumberOfGridPoints": 100,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.95,
+      "CarrierGas": true
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            3.00235,
+            7.25768e-06,
+            0.620377
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            10.5343,
+            0.00687815,
+            0.9091
+          ]
+        }
+      ],
+      "Name": "nC6",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            8.83778,
+            7.88048e-06,
+            1.25587
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            5.00817,
+            0.00123702,
+            0.530231
+          ]
+        }
+      ],
+      "Name": "2MP",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            5.77817,
+            2.88082e-05,
+            0.67525
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            10.3198,
+            3.53526e-05,
+            1.0461
+          ]
+        }
+      ],
+      "Name": "3MP",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            12.0192,
+            2.91413e-10,
+            1.32848
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            3.84375,
+            2.83716e-14,
+            1.9199
+          ]
+        }
+      ],
+      "Name": "23DMB",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            14.2226,
+            5.04973e-10,
+            1.41099
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.73058,
+            1.5909e-11,
+            1.40682
+          ]
+        }
+      ],
+      "Name": "22DMB",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    }
+  ]
+}

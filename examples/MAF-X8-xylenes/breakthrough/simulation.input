@@ -14,7 +14,7 @@ ColumnLength             0.3             // [m]
 NumberOfTimeSteps       auto
 PrintEvery              10000
 WriteEvery              10000
-TimeStep                0.0005           // [s]
+TimeStep                0.001           // [s]
 NumberOfGridPoints      100
 
 Component 0 MoleculeName               Helium

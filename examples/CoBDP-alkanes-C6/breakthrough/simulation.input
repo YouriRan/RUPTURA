@@ -9,15 +9,16 @@ TotalPressure            2.0e6           // [Pa]
 PressureGradient         0.0             // [Pa/m]
 ColumnEntranceVelocity   0.1             // [m/s]
 ColumnLength             0.3             // [m]
+BreakthroughIntegrator   SIRK3
 
 // Run settings
 NumberOfTimeSteps       auto
 PrintEvery              10000
 WriteEvery              10000
-TimeStep                0.0005           // [s]
-NumberOfGridPoints      100
+TimeStep                0.005          // [s]
+NumberOfGridPoints      200
 
-Component 0 Helium
+Component 0 MoleculeName               Helium
             GasPhaseMolFraction        0.95    // [-]
             CarrierGas                 yes
 

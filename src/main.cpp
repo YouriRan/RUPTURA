@@ -10,7 +10,7 @@ int main(void)
 {
   try
   {
-    InputReader reader("simulation.input");
+    InputReader reader("simulation.json");
 
     switch (reader.simulationType)
     {

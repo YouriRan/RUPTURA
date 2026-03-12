@@ -1,0 +1,111 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "Fe-MOF-74",
+  "Temperature": 298.0,
+  "PressureStart": 1e-06,
+  "PressureEnd": 10000.0,
+  "NumberOfPressurePoints": 512,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.77359,
+            0.964548,
+            0.891275
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            4.71979,
+            4193000.0,
+            1.76902
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.874237,
+            2857.35,
+            1.65435
+          ]
+        }
+      ],
+      "Name": "1-3-butadiene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 3
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            4.12029,
+            260699,
+            2.19499
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.33644,
+            0.953314,
+            0.431999
+          ]
+        }
+      ],
+      "Name": "1-butene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            5.25517,
+            3145730.0,
+            2.10887
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.28055,
+            7.58487,
+            0.75982
+          ]
+        }
+      ],
+      "Name": "2-cis-butene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            3.81848,
+            212583000.0,
+            3.11845
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.95468,
+            3.58644,
+            0.531051
+          ]
+        }
+      ],
+      "Name": "2-trans-butene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2
+    }
+  ]
+}

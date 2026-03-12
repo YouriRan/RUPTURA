@@ -1,0 +1,102 @@
+{
+  "SimulationType": "Fitting",
+  "DisplayName": "MAF-X8",
+  "ColumnPressure": 3,
+  "ColumnLoading": 8,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "Name": "o-xylene",
+      "FileName": "Results.dat-MAF-x8-P1-Repeat-433K-o-xylene",
+      "NumberOfIsothermSites": 3
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "Name": "m-xylene",
+      "FileName": "Results.dat-MAF-x8-P1-Repeat-433K-m-xylene",
+      "NumberOfIsothermSites": 3
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "Name": "p-xylene",
+      "FileName": "Results.dat-MAF-x8-P1-Repeat-433K-p-xylene",
+      "NumberOfIsothermSites": 3
+    }
+  ]
+}

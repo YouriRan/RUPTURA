@@ -1,0 +1,24 @@
+{
+  "SimulationType": "Fitting",
+  "DisplayName": "Cu(dhbc)2(4,4\u2019bpy)",
+  "ColumnPressure": 1,
+  "ColumnLoading": 2,
+  "PressureScale": "normal",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Bingel&Walton",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "Name": "CO2",
+      "FileName": "CO2.data",
+      "NumberOfIsothermSites": 1
+    }
+  ]
+}

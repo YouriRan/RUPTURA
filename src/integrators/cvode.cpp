@@ -64,6 +64,8 @@
 //   colptr[N] = nnz;
 // }
 
+#if BUILD_SUNDIALS
+
 bool CVODE::propagate(Column& column, size_t step)
 {
   double t = static_cast<double>(step) * timeStep;
@@ -81,8 +83,6 @@ bool CVODE::propagate(Column& column, size_t step)
                                                1.0));
     }
 
-    // consider 1% as being visibily indistinguishable from 'converged'
-    // use a 10% longer time for display purposes
     if (tolerance < 0.01)
     {
       std::cout << "\nConvergence criteria reached, running 10% longer\n\n" << std::endl;
@@ -93,7 +93,6 @@ bool CVODE::propagate(Column& column, size_t step)
 
   sunrealtype tReturn = t;
 
-  // maybe not necessary? Are there external things influencing these values?
   copyFromcolumn(column, u);
   copyFromcolumnDot(column, uDot);
 
@@ -107,47 +106,37 @@ bool CVODE::propagate(Column& column, size_t step)
 
 void CVODE::initialize(Column& column)
 {
-  // initialize logger and context
   SUNContext_Create(SUN_COMM_NULL, &sunContext);
   SUNLogger_Create(SUN_COMM_NULL, 0, &sunLogger);
   SUNContext_SetLogger(sunContext, sunLogger);
 
-  // create vector that cvode will operate on
-  // adsorption, partialPressure, gasTemperature, solidTemperature, wallTemperature
   const sunindextype totalSize = (column.energyBalance)
                                      ? static_cast<sunindextype>(2 * (column.Ncomp + 3) * (column.Ngrid + 1))
                                      : static_cast<sunindextype>(2 * column.Ncomp * (column.Ngrid + 1));
+
   u = N_VNew_Serial(totalSize, sunContext);
   copyFromcolumn(column, u);
+
   uDot = N_VNew_Serial(totalSize, sunContext);
   copyFromcolumnDot(column, uDot);
 
   cvodeMem = CVodeCreate(CV_BDF, sunContext);
   CVodeSetMaxNumSteps(cvodeMem, 1e6);
-
   CVodeSetUserData(cvodeMem, &column);
 
   const sunrealtype t0 = 0.0;
   CVodeInit(cvodeMem, f, t0, u);
 
   CVodeSStolerances(cvodeMem, relativeTolerance, absoluteTolerance);
+
   solver = SUNNonlinSol_Newton(u, sunContext);
   CVodeSetNonlinearSolver(cvodeMem, solver);
 
   A = SUNDenseMatrix(totalSize, totalSize, sunContext);
-  // CscPattern pat = buildJacobianPatternCSC(column.Ngrid, column.Ncomp);
-  // A = SUNSparseMatrix(totalSize, totalSize, static_cast<sunindextype>(pat.rowind.size()), CSC_MAT, sunContext);
-  // auto* colptr = SM_INDEXPTRS_S(A);
-  // auto* rowind = SM_INDEXVALS_S(A);
-  // std::copy(pat.colptr.begin(), pat.colptr.end(), colptr);
-  // std::copy(pat.rowind.begin(), pat.rowind.end(), rowind);
-
-  // linSolver = SUNLinSol_Dense(u, A, sunContext);
-  linSolver = SUNLinSol_KLU(u, A, sunContext);
+  linSolver = SUNLinSol_Dense(u, A, sunContext);
   CVodeSetLinearSolver(cvodeMem, linSolver, A);
 
   CVodeSetJacFn(cvodeMem, nullptr);
-  // CVodeSetJacFn(cvodeMem, JacSparse);
 }
 
 inline std::span<double> getPartialPressureSpan(N_Vector u, size_t Ngrid, size_t Ncomp)
@@ -196,6 +185,7 @@ inline void copyFromcolumn(const Column& column, N_Vector u)
             getPartialPressureSpan(u, column.Ngrid, column.Ncomp).begin());
   std::copy(column.adsorption.begin(), column.adsorption.end(),
             getAdsorptionSpan(u, column.Ngrid, column.Ncomp).begin());
+
   if (column.energyBalance)
   {
     std::copy(column.gasTemperature.begin(), column.gasTemperature.end(),
@@ -213,6 +203,7 @@ inline void copyFromcolumnDot(const Column& column, N_Vector uDot)
             getPartialPressureSpan(uDot, column.Ngrid, column.Ncomp).begin());
   std::copy(column.adsorptionDot.begin(), column.adsorptionDot.end(),
             getAdsorptionSpan(uDot, column.Ngrid, column.Ncomp).begin());
+
   if (column.energyBalance)
   {
     std::copy(column.gasTemperatureDot.begin(), column.gasTemperatureDot.end(),
@@ -228,8 +219,10 @@ inline void copyIntocolumn(Column& column, N_Vector u)
 {
   std::copy(getPartialPressureSpan(u, column.Ngrid, column.Ncomp).begin(),
             getPartialPressureSpan(u, column.Ngrid, column.Ncomp).end(), column.partialPressure.begin());
+
   std::copy(getAdsorptionSpan(u, column.Ngrid, column.Ncomp).begin(),
             getAdsorptionSpan(u, column.Ngrid, column.Ncomp).end(), column.adsorption.begin());
+
   if (column.energyBalance)
   {
     std::copy(getGasTemperatureSpan(u, column.Ngrid, column.Ncomp).begin(),
@@ -245,8 +238,10 @@ inline void copyIntocolumnDot(Column& column, N_Vector uDot)
 {
   std::copy(getPartialPressureSpan(uDot, column.Ngrid, column.Ncomp).begin(),
             getPartialPressureSpan(uDot, column.Ngrid, column.Ncomp).end(), column.partialPressureDot.begin());
+
   std::copy(getAdsorptionSpan(uDot, column.Ngrid, column.Ncomp).begin(),
             getAdsorptionSpan(uDot, column.Ngrid, column.Ncomp).end(), column.adsorptionDot.begin());
+
   if (column.energyBalance)
   {
     std::copy(getGasTemperatureSpan(uDot, column.Ngrid, column.Ncomp).begin(),
@@ -257,6 +252,7 @@ inline void copyIntocolumnDot(Column& column, N_Vector uDot)
               getWallTemperatureSpan(uDot, column.Ngrid, column.Ncomp).end(), column.wallTemperatureDot.begin());
   }
 }
+
 static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data)
 {
   auto* column = reinterpret_cast<Column*>(user_data);
@@ -329,6 +325,17 @@ static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data)
 
   return 0;
 }
+
+#else
+
+bool CVODE::propagate(Column&, size_t)
+{
+  throw std::runtime_error("CVODE::propagate() called, but this build was compiled without SUNDIALS support");
+}
+
+void CVODE::initialize(Column&) {}
+
+#endif
 
 // static int JacSparseCSC(sunrealtype t, N_Vector y, N_Vector fy, SUNMatrix Jac, void* user_data, N_Vector tmp1,
 //                         N_Vector tmp2, N_Vector tmp3)

@@ -1,0 +1,32 @@
+{
+  "SimulationType": "Fitting",
+  "DisplayName": "ZIF-77",
+  "ColumnPressure": 3,
+  "ColumnLoading": 6,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ],
+      "Name": "nC7",
+      "FileName": "Results.dat-ZIF-77-433K-nC7",
+      "NumberOfIsothermSites": 1
+    }
+  ]
+}

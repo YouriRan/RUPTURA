@@ -9,6 +9,8 @@ TotalPressure            2.5e6           // [Pa]
 PressureGradient         0.0             // [Pa/m]
 ColumnEntranceVelocity   0.1             // [m/s]
 ColumnLength             0.3             // [m]
+BreakthroughIntegrator CVODE
+
 
 // Run settings
 NumberOfTimeSteps       auto

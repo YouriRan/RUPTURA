@@ -1,0 +1,370 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "ZIF-77",
+  "Temperature": 443.0,
+  "PressureStart": 1.0,
+  "PressureEnd": 1000000.0,
+  "NumberOfPressurePoints": 100,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.777988,
+            0.0028668,
+            0.401129
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.14543,
+            0.000254606,
+            0.75763
+          ]
+        }
+      ],
+      "Name": "nC4",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.70797,
+            9.79017e-05,
+            0.643565
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.458558,
+            5.62846e-06,
+            1.14944
+          ]
+        }
+      ],
+      "Name": "2mC3",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.937968,
+            0.000530062,
+            0.841165
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.634205,
+            4.36785e-05,
+            0.742879
+          ]
+        }
+      ],
+      "Name": "nC5",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.714103,
+            2.69729e-05,
+            0.671999
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.771593,
+            4.05931e-05,
+            0.927118
+          ]
+        }
+      ],
+      "Name": "2mC4",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.690561,
+            5.13286e-08,
+            1.01479
+          ]
+        }
+      ],
+      "Name": "22dmC3",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 1
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.869905,
+            0.00316758,
+            0.475264
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.578986,
+            0.000238141,
+            1.11479
+          ]
+        }
+      ],
+      "Name": "nC6",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.960776,
+            0.000296532,
+            0.788678
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.590593,
+            0.000100636,
+            0.460252
+          ]
+        }
+      ],
+      "Name": "2MP",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.532722,
+            9.61523e-05,
+            0.405003
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.02932,
+            0.000949822,
+            0.58711
+          ]
+        }
+      ],
+      "Name": "3MP",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.692959,
+            5.59469e-09,
+            1.34698
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.53868,
+            0.00056127,
+            0.423081
+          ]
+        }
+      ],
+      "Name": "23DMB",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.644694,
+            6.16965e-10,
+            1.21463
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.884571,
+            5.02998e-09,
+            0.727642
+          ]
+        }
+      ],
+      "Name": "22DMB",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.688052,
+            0.00525971,
+            0.402162
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.622752,
+            0.00166728,
+            0.990279
+          ]
+        }
+      ],
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.310174,
+            0.00344507,
+            0.279028
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.932413,
+            0.00042831,
+            0.794345
+          ]
+        }
+      ],
+      "Name": "2MH",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.627761,
+            2.0218e-05,
+            1.10607
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.492039,
+            0.00563881,
+            0.341391
+          ]
+        }
+      ],
+      "Name": "3MH",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.983143,
+            1.98894e-05,
+            0.782319
+          ]
+        }
+      ],
+      "Name": "23DMP",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 1
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.673428,
+            4.69463e-10,
+            1.27279
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.428088,
+            3.8364e-10,
+            0.888983
+          ]
+        }
+      ],
+      "Name": "22DMP",
+      "GasPhaseMolFraction": 0.06666,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2
+    }
+  ]
+}

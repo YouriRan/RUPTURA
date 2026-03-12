@@ -1,0 +1,65 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "MAF-6",
+  "Temperature": 298.0,
+  "PressureStart": 0.1,
+  "PressureEnd": 1000000.0,
+  "NumberOfPressurePoints": 256,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.88752,
+            1.14774e-07,
+            2.25341
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.938131,
+            0.0266853,
+            1.13388
+          ]
+        }
+      ],
+      "Name": "22DMB",
+      "GasPhaseMolFraction": 1.0,
+      "NumberOfIsothermSites": 2
+    },
+    {
+      "IsothermSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            3.13648,
+            1.37996e-08,
+            3.11688
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.00385344,
+            4.51394,
+            10.1938
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.875397,
+            0.105484,
+            1.24258
+          ]
+        }
+      ],
+      "Name": "23DMB",
+      "GasPhaseMolFraction": 1.0,
+      "NumberOfIsothermSites": 3
+    }
+  ]
+}
