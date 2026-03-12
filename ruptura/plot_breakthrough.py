@@ -151,11 +151,7 @@ class BreakthroughPlotly(BasePlotly):
                     mode="lines",
                     name=label,
                     line=dict(width=line_width),
-                    hovertemplate=(
-                        f"{label}<br>"
-                        + "x=%{x:.3f}<br>"
-                        + "y=%{y:.3f}<extra></extra>"
-                    ),
+                    hovertemplate=(f"{label}<br>" + "x=%{x:.3f}<br>" + "y=%{y:.3f}<extra></extra>"),
                 )
             )
 
@@ -325,9 +321,7 @@ class BreakthroughPlotly(BasePlotly):
                 go.Frame(
                     name=str(idx),
                     data=data,
-                    layout=go.Layout(
-                        title_text=f"{self._plot_title()} — {metric} — frame {idx}"
-                    ),
+                    layout=go.Layout(title_text=f"{self._plot_title()} — {metric} — frame {idx}"),
                 )
             )
 
@@ -450,9 +444,7 @@ class ColumnDataExplorer:
         legend_title: str = "",
     ):
         if widgets is None:
-            raise ImportError(
-                "ipywidgets is required for ColumnDataExplorer (pip install ipywidgets)."
-            )
+            raise ImportError("ipywidgets is required for ColumnDataExplorer (pip install ipywidgets).")
 
         self.datafile = Path(datafile)
         self.meta = parse_header_metadata(self.datafile)
@@ -485,13 +477,9 @@ class ColumnDataExplorer:
 
     def _build_widgets(self):
         default_prop = (
-            "P"
-            if "P" in self.available_props
-            else (self.available_props[0] if self.available_props else "P")
+            "P" if "P" in self.available_props else (self.available_props[0] if self.available_props else "P")
         )
-        self.w_prop = widgets.Dropdown(
-            options=self.available_props or ["P"], value=default_prop, description="y:"
-        )
+        self.w_prop = widgets.Dropdown(options=self.available_props or ["P"], value=default_prop, description="y:")
 
         self.w_xmode = widgets.Dropdown(
             options=[("grid (z)", "grid"), ("time", "time")],
@@ -499,20 +487,15 @@ class ColumnDataExplorer:
             description="x:",
         )
 
-        self.w_block = widgets.IntSlider(
-            value=0, min=0, max=len(self.blocks) - 1, step=1, description="block"
-        )
+        self.w_block = widgets.IntSlider(value=0, min=0, max=len(self.blocks) - 1, step=1, description="block")
 
         step = (self.zmax - self.zmin) / 200 if (self.zmax > self.zmin) else 1.0
         if step <= 0 or not np.isfinite(step):
             step = 1.0
-        self.w_z = widgets.FloatSlider(
-            value=self.zmin, min=self.zmin, max=self.zmax, step=step, description="z@"
-        )
+        self.w_z = widgets.FloatSlider(value=self.zmin, min=self.zmin, max=self.zmax, step=step, description="z@")
 
         comp_options = [
-            (f"{ci}: {self.meta['components'][ci].name}", ci)
-            for ci in sorted(self.meta["components"].keys())
+            (f"{ci}: {self.meta['components'][ci].name}", ci) for ci in sorted(self.meta["components"].keys())
         ]
         self.w_comps = widgets.SelectMultiple(
             options=comp_options,
@@ -523,9 +506,7 @@ class ColumnDataExplorer:
 
         self.controls_top = widgets.HBox([self.w_xmode, self.w_prop, self.w_block])
         self.controls_bottom = widgets.HBox([self.w_z])
-        self.controls = widgets.VBox(
-            [self.controls_top, self.controls_bottom, self.w_comps]
-        )
+        self.controls = widgets.VBox([self.controls_top, self.controls_bottom, self.w_comps])
 
         for w in [self.w_prop, self.w_xmode, self.w_block, self.w_z, self.w_comps]:
             w.observe(self._on_change, names="value")
@@ -680,13 +661,9 @@ class ColumnDataExplorer:
         comp_ids = self._selected_components()
 
         if self.w_xmode.value == "grid":
-            self._render_grid(
-                prop=prop, block_index=int(self.w_block.value), comp_ids=comp_ids
-            )
+            self._render_grid(prop=prop, block_index=int(self.w_block.value), comp_ids=comp_ids)
         else:
-            self._render_time(
-                prop=prop, z_value=float(self.w_z.value), comp_ids=comp_ids
-            )
+            self._render_time(prop=prop, z_value=float(self.w_z.value), comp_ids=comp_ids)
 
     def widget(self):
         return widgets.VBox([self.controls, self.fig])

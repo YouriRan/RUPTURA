@@ -140,11 +140,7 @@ class MixturePredictionPlotly(BasePlotly):
                     mode="lines",
                     name=label,
                     line=dict(width=line_width),
-                    hovertemplate=(
-                        f"{label}<br>"
-                        + "P=%{x:.4g} Pa<br>"
-                        + "y=%{y:.6g}<extra></extra>"
-                    ),
+                    hovertemplate=(f"{label}<br>" + "P=%{x:.4g} Pa<br>" + "y=%{y:.6g}<extra></extra>"),
                 )
             )
 

@@ -30,7 +30,7 @@ class BasePlotly:
 
         if self.carrierGasComponent is not None:
             for comp in self.components:
-                comp.isCarrierGas = (comp.index == self.carrierGasComponent)
+                comp.isCarrierGas = comp.index == self.carrierGasComponent
 
     def _component_file_name(self, i: int, name: str) -> Path:
         return self.data_dir / f"component_{i}_{name}.data"
@@ -61,88 +61,88 @@ class BasePlotly:
         return df
 
     def _publication_layout(
-            self,
-            fig: go.Figure,
-            xaxis_title: str,
-            yaxis_title: str,
-            title_text: str,
-            x_range: Optional[List[float]] = None,
-            y_range: Optional[List[float]] = None,
-            width: int = 640,
-            height: int = 480,
-            margin_left: int = 95,
-            margin_right: int = 30,
-            margin_top: int = 40,
-            margin_bottom: int = 110,
-            show_legend: bool = True,
-        ) -> go.Figure:
-            fig.update_layout(
-                title=dict(
-                    text=title_text,
-                    x=0.5,
-                    xanchor="center",
-                    y=0.96,
-                    yanchor="top",
-                    font=dict(size=20),
-                ),
-                width=width,
-                height=height,
-                template="simple_white",
-                paper_bgcolor="white",
-                plot_bgcolor="white",
-                margin=dict(
-                    l=margin_left,
-                    r=margin_right,
-                    t=margin_top,
-                    b=margin_bottom,
-                ),
-                font=dict(size=16),
-                showlegend=show_legend,
-                legend=dict(
-                    orientation="h",
-                    yanchor="top",
-                    y=-0.3,
-                    xanchor="center",
-                    x=0.5,
-                    bgcolor="rgba(255,255,255,0.95)",
-                    bordercolor="black",
-                    borderwidth=0.8,
-                    font=dict(size=13),
-                    title=dict(text="Components"),
-                ),
-            )
+        self,
+        fig: go.Figure,
+        xaxis_title: str,
+        yaxis_title: str,
+        title_text: str,
+        x_range: Optional[List[float]] = None,
+        y_range: Optional[List[float]] = None,
+        width: int = 640,
+        height: int = 480,
+        margin_left: int = 95,
+        margin_right: int = 30,
+        margin_top: int = 40,
+        margin_bottom: int = 110,
+        show_legend: bool = True,
+    ) -> go.Figure:
+        fig.update_layout(
+            title=dict(
+                text=title_text,
+                x=0.5,
+                xanchor="center",
+                y=0.96,
+                yanchor="top",
+                font=dict(size=20),
+            ),
+            width=width,
+            height=height,
+            template="simple_white",
+            paper_bgcolor="white",
+            plot_bgcolor="white",
+            margin=dict(
+                l=margin_left,
+                r=margin_right,
+                t=margin_top,
+                b=margin_bottom,
+            ),
+            font=dict(size=16),
+            showlegend=show_legend,
+            legend=dict(
+                orientation="h",
+                yanchor="top",
+                y=-0.3,
+                xanchor="center",
+                x=0.5,
+                bgcolor="rgba(255,255,255,0.95)",
+                bordercolor="black",
+                borderwidth=0.8,
+                font=dict(size=13),
+                title=dict(text="Components"),
+            ),
+        )
 
-            fig.update_xaxes(
-                title=xaxis_title,
-                showline=True,
-                linewidth=1.4,
-                linecolor="black",
-                mirror=True,
-                ticks="outside",
-                tickwidth=1.2,
-                ticklen=6,
-                showgrid=False,
-                zeroline=False,
-            )
-            fig.update_yaxes(
-                title=yaxis_title,
-                showline=True,
-                linewidth=1.4,
-                linecolor="black",
-                mirror=True,
-                ticks="outside",
-                tickwidth=1.2,
-                ticklen=6,
-                showgrid=False,
-                zeroline=False,
-            )
+        fig.update_xaxes(
+            title=xaxis_title,
+            showline=True,
+            linewidth=1.4,
+            linecolor="black",
+            mirror=True,
+            ticks="outside",
+            tickwidth=1.2,
+            ticklen=6,
+            showgrid=False,
+            zeroline=False,
+        )
+        fig.update_yaxes(
+            title=yaxis_title,
+            showline=True,
+            linewidth=1.4,
+            linecolor="black",
+            mirror=True,
+            ticks="outside",
+            tickwidth=1.2,
+            ticklen=6,
+            showgrid=False,
+            zeroline=False,
+        )
 
-            if x_range is not None:
-                fig.update_xaxes(range=x_range)
-            if y_range is not None:
-                fig.update_yaxes(range=y_range)
+        if x_range is not None:
+            fig.update_xaxes(range=x_range)
+        if y_range is not None:
+            fig.update_yaxes(range=y_range)
 
-            return fig
+        return fig
 
     @staticmethod
     def _safe_minmax(values: np.ndarray) -> Optional[tuple[float, float]]:
