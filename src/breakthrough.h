@@ -97,48 +97,13 @@ struct Breakthrough
   void run();
 
   /**
-   * \brief Creates a Gnuplot script for plotting breakthrough curves.
+   * \brief Computes a single simulation step.
    *
-   * Generates a Gnuplot script to visualize the simulation results.
+   * Advances the simulation by one time step.
+   *
+   * \param step The current time step index.
    */
-  void createPlotScript();
-
-  /**
-   * \brief Creates scripts for generating movies of the simulation.
-   *
-   * Generates scripts to create movies visualizing the simulation over time.
-   */
-  void createMovieScripts();
-
-#ifdef PYBUILD
-  /**
-   * \brief Computes the Breakthrough simulation and returns the results.
-   *
-   * Executes the simulation and returns a NumPy array containing the simulation data.
-   *
-   * \return A NumPy array of simulation results.
-   */
-  py::array_t<double> compute();
-
-  /**
-   * \brief Sets the component parameters for the simulation.
-   *
-   * Updates the mole fractions and isotherm parameters for each component.
-   *
-   * \param molfracs Vector of mole fractions for each component.
-   * \param params Vector of isotherm parameters for the components.
-   */
-  void setComponentsParameters(std::vector<double> molfracs, std::vector<double> params);
-
-  /**
-   * \brief Retrieves the component parameters used in the simulation.
-   *
-   * Returns the isotherm parameters for each component.
-   *
-   * \return A vector containing the isotherm parameters for the components.
-   */
-  std::vector<double> getComponentsParameters();
-#endif  // PYBUILD
+  void computeStep(size_t step);
 
   const std::string displayName;  ///< Name of the simulation for display purposes.
   size_t carrierGasComponent{0};  ///< Index of the carrier gas component.
@@ -161,13 +126,4 @@ struct Breakthrough
   SemiImplicitRungeKutta3 sirk3;
   CVODE cvode;
   IntegrationScheme integrationScheme;
-
-  /**
-   * \brief Computes a single simulation step.
-   *
-   * Advances the simulation by one time step.
-   *
-   * \param step The current time step index.
-   */
-  void computeStep(size_t step);
 };

@@ -39,6 +39,15 @@ int main(void)
         fitting.run();
         break;
       }
+      case InputReader::SimulationType::SwingAdsorption:
+      {
+        SwingAdsorption swingAdsorption(reader);
+
+        swingAdsorption.print();
+        swingAdsorption.run();
+        swingAdsorption.print();
+        break;
+      }
     }
   }
   catch (std::exception const& e)
