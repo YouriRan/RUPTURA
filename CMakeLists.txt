@@ -108,11 +108,11 @@ set(SOURCES
   src/multi_site_isotherm.cpp
   src/random_numbers.cpp
   src/special_functions.cpp
+  src/swing_adsorption.cpp
   src/integrators/rk3.cpp
   src/integrators/rk3_si.cpp
   src/integrators/cvode.cpp
   src/integrators/compute.cpp
-  src/utils.h
 )
 
 add_executable(ruptura src/main.cpp ${SOURCES})
