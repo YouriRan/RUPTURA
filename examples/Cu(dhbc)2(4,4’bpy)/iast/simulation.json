@@ -8,6 +8,9 @@
   "PressureScale": "linear",
   "Components": [
     {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.5,
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Bingel&Walton",
@@ -17,12 +20,12 @@
             -1.005e-05
           ]
         }
-      ],
-      "Name": "CO2",
-      "GasPhaseMolFraction": 0.5,
-      "NumberOfIsothermSites": 1
+      ]
     },
     {
+      "Name": "O2",
+      "GasPhaseMolFraction": 0.5,
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Bingel&Walton",
@@ -32,10 +35,7 @@
             2.214e-06
           ]
         }
-      ],
-      "Name": "O2",
-      "GasPhaseMolFraction": 0.5,
-      "NumberOfIsothermSites": 1
+      ]
     }
   ]
 }

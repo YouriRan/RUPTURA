@@ -21,6 +21,11 @@
       "CarrierGas": true
     },
     {
+      "Name": "o-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -38,14 +43,14 @@
             0.7
           ]
         }
-      ],
-      "Name": "o-xylene",
+      ]
+    },
+    {
+      "Name": "m-xylene",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -63,14 +68,14 @@
             0.7
           ]
         }
-      ],
-      "Name": "m-xylene",
+      ]
+    },
+    {
+      "Name": "p-xylene",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -88,14 +93,14 @@
             0.7
           ]
         }
-      ],
-      "Name": "p-xylene",
+      ]
+    },
+    {
+      "Name": "ethylbenzene",
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -113,12 +118,7 @@
             0.7
           ]
         }
-      ],
-      "Name": "ethylbenzene",
-      "GasPhaseMolFraction": 0.01,
-      "MassTransferCoefficient": 0.06,
-      "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }

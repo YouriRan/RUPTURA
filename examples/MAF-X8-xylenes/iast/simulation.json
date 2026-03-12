@@ -8,6 +8,9 @@
   "PressureScale": "log",
   "Components": [
     {
+      "Name": "o-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -25,12 +28,12 @@
             1.1
           ]
         }
-      ],
-      "Name": "o-xylene",
-      "GasPhaseMolFraction": 0.25,
-      "NumberOfIsothermSites": 2
+      ]
     },
     {
+      "Name": "m-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -48,12 +51,12 @@
             1.07
           ]
         }
-      ],
-      "Name": "m-xylene",
-      "GasPhaseMolFraction": 0.25,
-      "NumberOfIsothermSites": 2
+      ]
     },
     {
+      "Name": "p-xylene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -71,12 +74,12 @@
             1.2
           ]
         }
-      ],
-      "Name": "p-xylene",
-      "GasPhaseMolFraction": 0.25,
-      "NumberOfIsothermSites": 2
+      ]
     },
     {
+      "Name": "ethylbenzene",
+      "GasPhaseMolFraction": 0.25,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -93,10 +96,7 @@
             37600.0
           ]
         }
-      ],
-      "Name": "ethylbenzene",
-      "GasPhaseMolFraction": 0.25,
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }

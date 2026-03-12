@@ -14,6 +14,9 @@
       "CarrierGas": true
     },
     {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.5,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -29,12 +32,12 @@
             6.96e-07
           ]
         }
-      ],
-      "Name": "CO2",
-      "GasPhaseMolFraction": 0.5,
-      "NumberOfIsothermSites": 2
+      ]
     },
     {
+      "Name": "C3H8",
+      "GasPhaseMolFraction": 0.5,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -50,10 +53,7 @@
             0.000279
           ]
         }
-      ],
-      "Name": "C3H8",
-      "GasPhaseMolFraction": 0.5,
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }

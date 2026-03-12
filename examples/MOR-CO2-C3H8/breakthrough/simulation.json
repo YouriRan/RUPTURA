@@ -22,6 +22,11 @@
       "CarrierGas": true
     },
     {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.05,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -37,14 +42,14 @@
             6.96e-07
           ]
         }
-      ],
-      "Name": "CO2",
+      ]
+    },
+    {
+      "Name": "C3H8",
       "GasPhaseMolFraction": 0.05,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
-    },
-    {
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir",
@@ -60,12 +65,7 @@
             0.000279
           ]
         }
-      ],
-      "Name": "C3H8",
-      "GasPhaseMolFraction": 0.05,
-      "MassTransferCoefficient": 0.06,
-      "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }

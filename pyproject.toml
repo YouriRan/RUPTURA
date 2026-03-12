@@ -1,30 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ruptura"
-version = "1.0.5"
+version = "2.0.0"
 authors = [
-  {name="Shrinjay Sharma, Delft University of Technology, The Netherlands"},
-  {name="Youri Ran, University of Amsterdam, The Netherlands"},
-  {name="Salvador R.G. Balestra, Pablo de Olavide University, Spain"},
-  {name="Richard Baur, Shell Global Solutions International B.V., The Netherlands"},
-  {name="Umang Agarwal, Shell Global Solutions International B.V., The Netherlands"},
-  {name="Eric Zuidema, Shell Global Solutions International B.V., The Netherlands"},
-  {name="Marcello Rigutto, Shell Global Solutions International B.V., The Netherlands"},
-  {name="Sofia Calero, Eindhoven University of Technology, The Netherlands"},
-  {name="Thijs J.H. Vlugt, Delft University of Technology, The Netherlands"},
-  {name="David Dubbeldam, University of Amsterdam, The Netherlands"}
-]
-requires-python = ">=3.10"
-readme = "README.md"
-dependencies = [
-  "matplotlib>=3",
-  "numpy>=1",
-  "pybind11>=2",
-  "setuptools>=42"
+  { name = "Shrinjay Sharma" },
+  { name = "Salvador R.G. Balestra" },
+  { name = "Richard Baur" },
+  { name = "Umang Agarwal" },
+  { name = "Eric Zuidema" },
+  { name = "Marcello Rigutto" },
+  { name = "Sofia Calero" },
+  { name = "Thijs J.H. Vlugt" },
+  { name = "David Dubbeldam" },
 ]
 
-[build-system]
-requires = [
-    "setuptools>=42",
-    "pybind11>=2.10.0",
-]
-build-backend = "setuptools.build_meta"
+[tool.setuptools]
+zip-safe = false
+packages = ["ruptura"]
+
+[tool.setuptools.package-dir]
+ruptura = "ruptura"

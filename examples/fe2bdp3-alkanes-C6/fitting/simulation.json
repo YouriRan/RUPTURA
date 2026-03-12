@@ -6,6 +6,9 @@
   "PressureScale": "log",
   "Components": [
     {
+      "Name": "22DMB",
+      "FileName": "Results.dat-fe2bdp3-433K-22dmC4",
+      "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
           "Type": "Langmuir-Freundlich",
@@ -23,10 +26,7 @@
             0.0
           ]
         }
-      ],
-      "Name": "22DMB",
-      "FileName": "Results.dat-fe2bdp3-433K-22dmC4",
-      "NumberOfIsothermSites": 2
+      ]
     }
   ]
 }

@@ -184,7 +184,7 @@ def ruptura_to_json(text: str) -> Dict[str, Any]:
         # Component header
         if first_l == "component":
             cid, name = parse_component_header(tokens, line_number)
-            comp: Dict[str, Any] = {"_ComponentId": cid, "IsothermSites": []}
+            comp: Dict[str, Any] = {"_ComponentId": cid}
             if name is not None:
                 comp["Name"] = name
             component_by_id[cid] = comp
@@ -257,11 +257,15 @@ def ruptura_to_json(text: str) -> Dict[str, Any]:
     comps = sorted(component_by_id.values(), key=lambda c: c["_ComponentId"])
     for c in comps:
         c.pop("_ComponentId", None)
-        if "IsothermSites" in c and not c["IsothermSites"]:
-            c.pop("IsothermSites", None)
+
+        isotherm_sites = c.pop("IsothermSites", None)
+
         if "Name" not in c:
             raise RuntimeError("Component without Name/MoleculeName encountered")
 
+        if isotherm_sites:
+            c["IsothermSites"] = isotherm_sites
+            
     top["Components"] = comps
     return top
 

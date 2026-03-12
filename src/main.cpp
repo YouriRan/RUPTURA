@@ -20,8 +20,6 @@ int main(void)
         Breakthrough breakthrough(reader);
 
         breakthrough.print();
-        breakthrough.createPlotScript();
-        breakthrough.createMovieScripts();
         breakthrough.run();
         break;
       }
@@ -31,10 +29,6 @@ int main(void)
 
         mixture.print();
         mixture.run();
-        mixture.createPureComponentsPlotScript();
-        mixture.createMixturePlotScript();
-        mixture.createMixtureAdsorbedMolFractionPlotScript();
-        mixture.createPlotScript();
         mixture.print();
         break;
       }

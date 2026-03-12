@@ -6,6 +6,9 @@
   "PressureScale": "normal",
   "Components": [
     {
+      "Name": "CO2",
+      "FileName": "CO2.data",
+      "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
           "Type": "Bingel&Walton",
@@ -15,10 +18,7 @@
             0.0
           ]
         }
-      ],
-      "Name": "CO2",
-      "FileName": "CO2.data",
-      "NumberOfIsothermSites": 1
+      ]
     }
   ]
 }
