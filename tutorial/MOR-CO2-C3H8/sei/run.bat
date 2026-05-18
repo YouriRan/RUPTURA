@@ -1,1 +1,0 @@
-..\..\..\src\ruptura.exe

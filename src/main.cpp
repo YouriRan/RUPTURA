@@ -5,6 +5,7 @@
 #include "inputreader.h"
 #include "mixture_prediction.h"
 #include "special_functions.h"
+#include "swing_adsorption.h"
 
 int main(void)
 {
@@ -45,7 +46,6 @@ int main(void)
 
         swingAdsorption.print();
         swingAdsorption.run();
-        swingAdsorption.print();
         break;
       }
     }

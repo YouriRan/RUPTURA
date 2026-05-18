@@ -2,140 +2,46 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstddef>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
+#include <string_view>
 
 #include "json.h"
 
+/**
+ * \brief Parses a JSON stream and reports the byte offset on parse failure.
+ */
+nlohmann::json readJson(std::ifstream& fileInput)
+{
+  try
+  {
+    return nlohmann::json::parse(fileInput);
+  }
+  catch (const nlohmann::json::parse_error& ex)
+  {
+    std::cerr << "parse error at byte " << ex.byte << std::endl;
+    throw;
+  }
+}
+
+/**
+ * \brief Case-insensitive string comparison for user-facing input tokens.
+ */
 bool caseInSensStringCompare(const std::string& str1, const std::string& str2)
 {
-  return str1.size() == str2.size() && std::equal(str1.begin(), str1.end(), str2.begin(),
-                                                  [](int a, int b) { return std::tolower(a) == std::tolower(b); });
+  return str1.size() == str2.size() &&
+         std::equal(str1.begin(), str1.end(), str2.begin(),
+                    [](unsigned char a, unsigned char b) { return std::tolower(a) == std::tolower(b); });
 }
 
-bool startsWith(const std::string& str, const std::string& prefix)
-{
-  return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
-}
-
-std::string trim(const std::string& s)
-{
-  auto start = s.begin();
-  while (start != s.end() && std::isspace(*start))
-  {
-    start++;
-  }
-
-  auto end = s.end();
-  do
-  {
-    end--;
-  } while (std::distance(start, end) > 0 && std::isspace(*end));
-
-  return std::string(start, end + 1);
-}
-
-template <class T>
-T parse(const std::string& arguments, [[maybe_unused]] const std::string& keyword, [[maybe_unused]] size_t lineNumber)
-{
-  T value;
-
-  std::string str;
-  std::istringstream ss(arguments);
-
-  ss >> value;
-
-  return value;
-}
-
-template <typename T>
-std::vector<T> parseListOfSystemValues(const std::string& arguments, const std::string& keyword, size_t lineNumber)
-{
-  std::vector<T> list{};
-
-  std::string str;
-  std::istringstream ss(arguments);
-
-  std::string errorString =
-      "No values could be read for keyword '" + keyword + "' at line: " + std::to_string(lineNumber) + "\n";
-
-  while (ss >> str)
-  {
-    if (trim(str).rfind("//", 0) == 0)
-    {
-      if (list.empty())
-      {
-        throw std::runtime_error(errorString);
-      }
-      return list;
-    }
-    T value;
-    std::istringstream s(str);
-    if (s >> value)
-    {
-      list.push_back(value);
-    }
-    else
-    {
-      if (list.empty())
-      {
-        throw std::runtime_error(errorString);
-      }
-      return list;
-    }
-  };
-
-  if (list.empty())
-  {
-    throw std::runtime_error(errorString);
-  }
-  return list;
-}
-
-double parseDouble(const std::string& arguments, const std::string& keyword, size_t lineNumber)
-{
-  double value{};
-
-  std::string str;
-  std::istringstream ss(arguments);
-
-  if (ss >> value)
-  {
-    return value;
-  };
-
-  std::string errorString =
-      "Numbers could not be read for keyword '" + keyword + "' at line: " + std::to_string(lineNumber) + "\n";
-  throw std::runtime_error(errorString);
-}
-
-int parseBoolean(const std::string& arguments, const std::string& keyword, size_t lineNumber)
-{
-  bool value{};
-
-  std::istringstream ss(arguments);
-
-  if (ss >> std::boolalpha >> value)
-  {
-    return value;
-  };
-
-  std::string str;
-  std::istringstream ss2(arguments);
-  if (ss2 >> str)
-  {
-    if (caseInSensStringCompare(str, "yes")) return true;
-    if (caseInSensStringCompare(str, "no")) return false;
-  };
-
-  std::string errorString =
-      "Booleands could not be read for keyword '" + keyword + "' at line: " + std::to_string(lineNumber) + "\n";
-  throw std::runtime_error(errorString);
-}
-
+/**
+ * \brief Finds a JSON object key using exact lookup first, then case-insensitive lookup.
+ */
 static const nlohmann::json* findKeyCaseInsensitive(const nlohmann::json& object, const std::string& key)
 {
   if (!object.is_object())
@@ -211,7 +117,7 @@ static bool getBoolOrThrow(const nlohmann::json& value, const std::string& key, 
     return value.get<bool>();
   }
 
-  // Accept legacy-like encodings: "yes"/"no".
+  // Accept legacy-like encodings from older input files.
   if (value.is_string())
   {
     std::string s = value.get<std::string>();
@@ -225,126 +131,181 @@ static bool getBoolOrThrow(const nlohmann::json& value, const std::string& key, 
                            (context.empty() ? "" : (" (" + context + ")")));
 }
 
-static void addIsothermSiteFromJson(Component& component, const std::string& typeString, const nlohmann::json& params,
-                                    const std::string& context)
+template <typename T>
+static std::vector<T> getNumberListOrThrow(const nlohmann::json& value, const std::string& key,
+                                           const std::string& context)
 {
-  if (!params.is_array())
+  if (!value.is_array())
   {
-    throw std::runtime_error("Error: isotherm parameters must be an array" +
+    throw std::runtime_error("Error: key '" + key + "' must be an array" +
                              (context.empty() ? "" : (" (" + context + ")")));
   }
 
-  std::vector<double> values{};
   try
   {
-    values = params.get<std::vector<double>>();
+    return value.get<std::vector<T>>();
   }
   catch (const nlohmann::json::exception&)
   {
-    throw std::runtime_error("Error: isotherm parameters must be numeric array" +
+    throw std::runtime_error("Error: key '" + key + "' must be an array of numbers" +
+                             (context.empty() ? "" : (" (" + context + ")")));
+  }
+}
+
+static std::vector<double> requireDoubleParameterCount(std::vector<double> values, std::size_t n,
+                                                       const std::string& name, const std::string& context)
+{
+  if (values.size() < n)
+  {
+    throw std::runtime_error("Error: " + name + " requires " + std::to_string(n) + " parameters" +
                              (context.empty() ? "" : (" (" + context + ")")));
   }
 
-  auto requireAtLeast = [&](std::size_t n, const std::string& name)
+  values.resize(n);
+  return values;
+}
+
+template <typename T>
+static void readOptionalNumber(const nlohmann::json& object, const std::string& key, T& target)
+{
+  if (containsKeyCaseInsensitive(object, key))
   {
-    if (values.size() < n)
+    target = getNumberOrThrow<T>(requireKeyCaseInsensitive(object, key, ""), key, "");
+  }
+}
+
+static void readOptionalString(const nlohmann::json& object, const std::string& key, std::string& target)
+{
+  if (containsKeyCaseInsensitive(object, key))
+  {
+    target = getStringOrThrow(requireKeyCaseInsensitive(object, key, ""), key, "");
+  }
+}
+
+static void readOptionalString(const nlohmann::json& object, const std::string& key, std::optional<std::string>& target)
+{
+  if (containsKeyCaseInsensitive(object, key))
+  {
+    target = getStringOrThrow(requireKeyCaseInsensitive(object, key, ""), key, "");
+  }
+}
+
+static void readOptionalBool(const nlohmann::json& object, const std::string& key, bool& target)
+{
+  if (containsKeyCaseInsensitive(object, key))
+  {
+    target = getBoolOrThrow(requireKeyCaseInsensitive(object, key, ""), key, "");
+  }
+}
+
+template <typename T>
+static T parseMappedStringOrThrow(const nlohmann::json& object, const std::string& key,
+                                  std::initializer_list<std::pair<std::string_view, T>> mapping)
+{
+  const nlohmann::json* value = findKeyCaseInsensitive(object, key);
+  if (value == nullptr)
+  {
+    throw std::runtime_error("Error: required key '" + key + "' missing");
+  }
+
+  std::string str = getStringOrThrow(*value, key, "");
+  for (const auto& [name, result] : mapping)
+  {
+    if (caseInSensStringCompare(str, std::string{name}))
     {
-      throw std::runtime_error("Error: " + name + " requires " + std::to_string(n) + " parameters" +
-                               (context.empty() ? "" : (" (" + context + ")")));
+      return result;
     }
-    values.resize(n);
+  }
+
+  throw std::runtime_error("Error: invalid " + key + " '" + str + "'");
+}
+
+template <typename T>
+static void readOptionalMappedString(const nlohmann::json& object, const std::string& key, T& target,
+                                     std::initializer_list<std::pair<std::string_view, T>> mapping)
+{
+  const nlohmann::json* value = findKeyCaseInsensitive(object, key);
+  if (value == nullptr)
+  {
+    return;
+  }
+
+  std::string str = getStringOrThrow(*value, key, "");
+  for (const auto& [name, result] : mapping)
+  {
+    if (caseInSensStringCompare(str, std::string{name}))
+    {
+      target = result;
+      return;
+    }
+  }
+
+  throw std::runtime_error("Error: invalid " + key + " '" + str + "'");
+}
+
+struct IsothermSpec
+{
+  Isotherm::Type type;
+  std::size_t parameterCount;
+};
+
+static const IsothermSpec* findIsothermSpec(const std::string& typeString)
+{
+  static const std::vector<std::pair<std::string_view, IsothermSpec>> specs{
+      {"Langmuir", {Isotherm::Type::Langmuir, 2}},
+      {"Anti-Langmuir", {Isotherm::Type::Anti_Langmuir, 2}},
+      {"Anti_Langmuir", {Isotherm::Type::Anti_Langmuir, 2}},
+      {"BET", {Isotherm::Type::BET, 3}},
+      {"Henry", {Isotherm::Type::Henry, 1}},
+      {"Freundlich", {Isotherm::Type::Freundlich, 2}},
+      {"Sips", {Isotherm::Type::Sips, 3}},
+      {"Langmuir-Freundlich", {Isotherm::Type::Langmuir_Freundlich, 3}},
+      {"Langmuir_Freundlich", {Isotherm::Type::Langmuir_Freundlich, 3}},
+      {"Redlich-Peterson", {Isotherm::Type::Redlich_Peterson, 3}},
+      {"Redlich_Peterson", {Isotherm::Type::Redlich_Peterson, 3}},
+      {"Toth", {Isotherm::Type::Toth, 3}},
+      {"Unilan", {Isotherm::Type::Unilan, 3}},
+      {"O'Brian&Myers", {Isotherm::Type::OBrien_Myers, 3}},
+      {"OBrien_Myers", {Isotherm::Type::OBrien_Myers, 3}},
+      {"OBrien&Myers", {Isotherm::Type::OBrien_Myers, 3}},
+      {"Quadratic", {Isotherm::Type::Quadratic, 3}},
+      {"Temkin", {Isotherm::Type::Temkin, 3}},
+      {"Bingel&Walton", {Isotherm::Type::BingelWalton, 3}},
+      {"BingelWalton", {Isotherm::Type::BingelWalton, 3}},
   };
 
-  if (caseInSensStringCompare(typeString, "Langmuir"))
+  for (const auto& [name, spec] : specs)
   {
-    requireAtLeast(2, "Langmuir");
-    component.isotherm.add(Isotherm(Isotherm::Type::Langmuir, values, 2));
-    return;
+    if (caseInSensStringCompare(typeString, std::string{name}))
+    {
+      return &spec;
+    }
   }
-  if (caseInSensStringCompare(typeString, "Anti-Langmuir") || caseInSensStringCompare(typeString, "Anti_Langmuir"))
+  return nullptr;
+}
+
+static void addIsothermSiteFromJson(Component& component, const std::string& typeString, const nlohmann::json& params,
+                                    const std::string& context)
+{
+  const IsothermSpec* spec = findIsothermSpec(typeString);
+  if (spec == nullptr)
   {
-    requireAtLeast(2, "Anti-Langmuir");
-    component.isotherm.add(Isotherm(Isotherm::Type::Anti_Langmuir, values, 2));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "BET"))
-  {
-    requireAtLeast(3, "BET");
-    component.isotherm.add(Isotherm(Isotherm::Type::BET, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Henry"))
-  {
-    requireAtLeast(1, "Henry");
-    component.isotherm.add(Isotherm(Isotherm::Type::Henry, values, 1));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Freundlich"))
-  {
-    requireAtLeast(2, "Freundlich");
-    component.isotherm.add(Isotherm(Isotherm::Type::Freundlich, values, 2));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Sips"))
-  {
-    requireAtLeast(3, "Sips");
-    component.isotherm.add(Isotherm(Isotherm::Type::Sips, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Langmuir-Freundlich") ||
-      caseInSensStringCompare(typeString, "Langmuir_Freundlich"))
-  {
-    requireAtLeast(3, "Langmuir-Freundlich");
-    component.isotherm.add(Isotherm(Isotherm::Type::Langmuir_Freundlich, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Redlich-Peterson") ||
-      caseInSensStringCompare(typeString, "Redlich_Peterson"))
-  {
-    requireAtLeast(3, "Redlich-Peterson");
-    component.isotherm.add(Isotherm(Isotherm::Type::Redlich_Peterson, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Toth"))
-  {
-    requireAtLeast(3, "Toth");
-    component.isotherm.add(Isotherm(Isotherm::Type::Toth, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Unilan"))
-  {
-    requireAtLeast(3, "Unilan");
-    component.isotherm.add(Isotherm(Isotherm::Type::Unilan, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "O'Brian&Myers") || caseInSensStringCompare(typeString, "OBrien_Myers") ||
-      caseInSensStringCompare(typeString, "OBrien&Myers"))
-  {
-    requireAtLeast(3, "O'Brien&Myers");
-    component.isotherm.add(Isotherm(Isotherm::Type::OBrien_Myers, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Quadratic"))
-  {
-    requireAtLeast(3, "Quadratic");
-    component.isotherm.add(Isotherm(Isotherm::Type::Quadratic, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Temkin"))
-  {
-    requireAtLeast(3, "Temkin");
-    component.isotherm.add(Isotherm(Isotherm::Type::Temkin, values, 3));
-    return;
-  }
-  if (caseInSensStringCompare(typeString, "Bingel&Walton") || caseInSensStringCompare(typeString, "BingelWalton"))
-  {
-    requireAtLeast(3, "Bingel&Walton");
-    component.isotherm.add(Isotherm(Isotherm::Type::BingelWalton, values, 3));
-    return;
+    throw std::runtime_error("Error: unknown isotherm type '" + typeString + "'" +
+                             (context.empty() ? "" : (" (" + context + ")")));
   }
 
-  throw std::runtime_error("Error: unknown isotherm type '" + typeString + "'" +
-                           (context.empty() ? "" : (" (" + context + ")")));
+  std::vector<double> values = requireDoubleParameterCount(getNumberListOrThrow<double>(params, typeString, context),
+                                                           spec->parameterCount, typeString, context);
+
+  component.isotherm.add(Isotherm(spec->type, values, spec->parameterCount));
+}
+
+static void requireConfigured(bool condition, const std::string& message)
+{
+  if (!condition)
+  {
+    throw std::runtime_error(message);
+  }
 }
 
 InputReader::InputReader(const std::string fileName) : components()
@@ -362,168 +323,75 @@ InputReader::InputReader(const std::string fileName) : components()
     throw std::runtime_error("Required input file '" + fileName + "' could not be opened");
   }
 
-  nlohmann::json parsed_data{};
-  try
-  {
-    parsed_data = nlohmann::json::parse(fileInput);
-  }
-  catch (const nlohmann::json::parse_error& ex)
-  {
-    std::cerr << "parse error at byte " << ex.byte << std::endl;
-    throw;
-  }
+  const nlohmann::json parsed_data = readJson(fileInput);
 
-  // Top-level options
-  if (containsKeyCaseInsensitive(parsed_data, "SimulationType"))
-  {
-    std::string str =
-        getStringOrThrow(requireKeyCaseInsensitive(parsed_data, "SimulationType", ""), "SimulationType", "");
-    if (caseInSensStringCompare(str, "Breakthrough"))
-      simulationType = SimulationType::Breakthrough;
-    else if (caseInSensStringCompare(str, "MixturePrediction"))
-      simulationType = SimulationType::MixturePrediction;
-    else if (caseInSensStringCompare(str, "Fitting"))
-      simulationType = SimulationType::Fitting;
-    else if (caseInSensStringCompare(str, "Test"))
-      simulationType = SimulationType::Test;
-    else
-      throw std::runtime_error("Error: invalid SimulationType '" + str + "'");
-  }
+  // Track presence separately from value, because some numeric defaults are valid runtime values.
+  const bool hasInletPressure = containsKeyCaseInsensitive(parsed_data, "InletPressure") ||
+                                containsKeyCaseInsensitive(parsed_data, "TotalPressure");
+  const bool hasOutletPressure = containsKeyCaseInsensitive(parsed_data, "OutletPressure");
+  const bool hasColumnEntranceVelocity = containsKeyCaseInsensitive(parsed_data, "ColumnEntranceVelocity");
+  const bool hasPressureGradient = containsKeyCaseInsensitive(parsed_data, "PressureGradient");
 
-  if (containsKeyCaseInsensitive(parsed_data, "MixturePredictionMethod"))
-  {
-    std::string str = getStringOrThrow(requireKeyCaseInsensitive(parsed_data, "MixturePredictionMethod", ""),
-                                       "MixturePredictionMethod", "");
-    if (caseInSensStringCompare(str, "IAST"))
-      mixturePredictionMethod = 0;
-    else if (caseInSensStringCompare(str, "SIAST"))
-      mixturePredictionMethod = 1;
-    else if (caseInSensStringCompare(str, "EI"))
-      mixturePredictionMethod = 2;
-    else if (caseInSensStringCompare(str, "SEI"))
-      mixturePredictionMethod = 3;
-    else
-      throw std::runtime_error("Error: invalid MixturePredictionMethod '" + str + "'");
-  }
+  readOptionalMappedString(parsed_data, "SimulationType", simulationType,
+                           {{"Breakthrough", SimulationType::Breakthrough},
+                            {"MixturePrediction", SimulationType::MixturePrediction},
+                            {"Fitting", SimulationType::Fitting},
+                            {"SwingAdsorption", SimulationType::SwingAdsorption},
+                            {"Test", SimulationType::Test}});
 
-  if (containsKeyCaseInsensitive(parsed_data, "IASTMethod"))
-  {
-    std::string str = getStringOrThrow(requireKeyCaseInsensitive(parsed_data, "IASTMethod", ""), "IASTMethod", "");
-    if (caseInSensStringCompare(str, "FastIAS"))
-      IASTMethod = 0;
-    else if (caseInSensStringCompare(str, "Bisection"))
-      IASTMethod = 1;
-    else
-      throw std::runtime_error("Error: invalid IASTMethod '" + str + "'");
-  }
+  readOptionalMappedString(parsed_data, "MixturePredictionMethod", mixturePredictionMethod,
+                           {{"IAST", 0}, {"SIAST", 1}, {"EI", 2}, {"SEI", 3}});
 
-  if (containsKeyCaseInsensitive(parsed_data, "BreakthroughIntegrator"))
-  {
-    std::string str = getStringOrThrow(requireKeyCaseInsensitive(parsed_data, "BreakthroughIntegrator", ""),
-                                       "BreakthroughIntegrator", "");
-    if (caseInSensStringCompare(str, "RungeKutta3"))
-      breakthroughIntegrator = 0;
-    else if (caseInSensStringCompare(str, "CVODE"))
-      breakthroughIntegrator = 1;
-    else if (caseInSensStringCompare(str, "SIRK3"))
-      breakthroughIntegrator = 3;
-    else
-      throw std::runtime_error("Error: invalid BreakthroughIntegrator '" + str + "'");
-  }
+  readOptionalMappedString(parsed_data, "IASTMethod", IASTMethod, {{"FastIAS", 0}, {"Bisection", 1}});
 
-  if (containsKeyCaseInsensitive(parsed_data, "VelocityProfile"))
-  {
-    std::string str =
-        getStringOrThrow(requireKeyCaseInsensitive(parsed_data, "VelocityProfile", ""), "VelocityProfile", "");
-    if (caseInSensStringCompare(str, "FixedPressureGradient"))
-      velocityProfile = 0;
-    else if (caseInSensStringCompare(str, "Ergun"))
-      velocityProfile = 1;
-    else if (caseInSensStringCompare(str, "FixedVelocity"))
-      velocityProfile = 2;
-    else
-      throw std::runtime_error("Error: invalid VelocityProfile '" + str + "'");
-  }
+  readOptionalMappedString(parsed_data, "BreakthroughIntegrator", breakthroughIntegrator,
+                           {{"RungeKutta3", 0}, {"CVODE", 1}, {"SIRK3", 3}});
 
-  if (containsKeyCaseInsensitive(parsed_data, "ReadColumnFile"))
-  {
-    readColumnFile =
-        getStringOrThrow(requireKeyCaseInsensitive(parsed_data, "ReadColumnFile", ""), "ReadColumnFile", "");
-  }
+  readOptionalMappedString(parsed_data, "VelocityProfile", velocityProfile,
+                           {{"FixedPressureGradient", 0}, {"Ergun", 1}, {"FixedVelocity", 2}});
 
-  if (containsKeyCaseInsensitive(parsed_data, "DisplayName"))
-  {
-    displayName = getStringOrThrow(requireKeyCaseInsensitive(parsed_data, "DisplayName", ""), "DisplayName", "");
-  }
+  readOptionalMappedString(
+      parsed_data, "BoundaryCondition", boundaryCondition,
+      {{"InletPressureInletVelocity", 0}, {"InletPressureOutletPressure", 1}, {"InletVelocityOutletPressure", 2}});
 
-  if (containsKeyCaseInsensitive(parsed_data, "Temperature"))
+  readOptionalMappedString(parsed_data, "PressureScale", pressureScale, {{"Log", 0}, {"Linear", 1}, {"Normal", 1}});
+
+  readOptionalString(parsed_data, "ReadColumnFile", readColumnFile);
+  readOptionalString(parsed_data, "DisplayName", displayName);
+
+  readOptionalNumber<double>(parsed_data, "Temperature", temperature);
+  readOptionalNumber<double>(parsed_data, "ColumnVoidFraction", columnVoidFraction);
+  readOptionalNumber<double>(parsed_data, "DynamicViscosity", dynamicViscosity);
+  readOptionalNumber<double>(parsed_data, "ParticleDiameter", particleDiameter);
+  readOptionalNumber<double>(parsed_data, "ParticleDensity", particleDensity);
+
+  if (containsKeyCaseInsensitive(parsed_data, "InletPressure"))
   {
-    temperature =
-        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "Temperature", ""), "Temperature", "");
+    inletPressure =
+        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "InletPressure", ""), "InletPressure", "");
   }
-  if (containsKeyCaseInsensitive(parsed_data, "ColumnVoidFraction"))
+  else if (containsKeyCaseInsensitive(parsed_data, "TotalPressure"))
   {
-    columnVoidFraction = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "ColumnVoidFraction", ""),
-                                                  "ColumnVoidFraction", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "DynamicViscosity"))
-  {
-    dynamicViscosity = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "DynamicViscosity", ""),
-                                                "DynamicViscosity", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "ParticleDiameter"))
-  {
-    particleDiameter = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "ParticleDiameter", ""),
-                                                "ParticleDiameter", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "ParticleDensity"))
-  {
-    particleDensity =
-        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "ParticleDensity", ""), "ParticleDensity", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "TotalPressure"))
-  {
-    totalPressure =
+    // Backward-compatible alias for old breakthrough input files.
+    inletPressure =
         getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "TotalPressure", ""), "TotalPressure", "");
   }
-  if (containsKeyCaseInsensitive(parsed_data, "PressureStart"))
-  {
-    pressureStart =
-        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "PressureStart", ""), "PressureStart", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "PressureEnd"))
-  {
-    pressureEnd =
-        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "PressureEnd", ""), "PressureEnd", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "NumberOfPressurePoints"))
-  {
-    numberOfPressurePoints = getNumberOrThrow<std::size_t>(
-        requireKeyCaseInsensitive(parsed_data, "NumberOfPressurePoints", ""), "NumberOfPressurePoints", "");
-  }
 
-  if (containsKeyCaseInsensitive(parsed_data, "PressureScale"))
-  {
-    std::string str =
-        getStringOrThrow(requireKeyCaseInsensitive(parsed_data, "PressureScale", ""), "PressureScale", "");
-    if (caseInSensStringCompare(str, "Log"))
-      pressureScale = 0;
-    else if (caseInSensStringCompare(str, "Linear") || caseInSensStringCompare(str, "Normal"))
-      pressureScale = 1;
-    else
-      throw std::runtime_error("Error: invalid PressureScale '" + str + "'");
-  }
-
-  if (containsKeyCaseInsensitive(parsed_data, "PressureGradient"))
-  {
-    pressureGradient = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "PressureGradient", ""),
-                                                "PressureGradient", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "ColumnEntranceVelocity"))
-  {
-    columnEntranceVelocity = getNumberOrThrow<double>(
-        requireKeyCaseInsensitive(parsed_data, "ColumnEntranceVelocity", ""), "ColumnEntranceVelocity", "");
-  }
+  readOptionalNumber<double>(parsed_data, "OutletPressure", outletPressure);
+  readOptionalNumber<double>(parsed_data, "PressureStart", pressureStart);
+  readOptionalNumber<double>(parsed_data, "PressureEnd", pressureEnd);
+  readOptionalNumber<size_t>(parsed_data, "NumberOfPressurePoints", numberOfPressurePoints);
+  readOptionalNumber<double>(parsed_data, "PressureGradient", pressureGradient);
+  readOptionalNumber<double>(parsed_data, "ColumnEntranceVelocity", columnEntranceVelocity);
+  readOptionalNumber<size_t>(parsed_data, "NumberOfInitTimeSteps", numberOfInitTimeSteps);
+  readOptionalNumber<double>(parsed_data, "TimeStep", timeStep);
+  readOptionalNumber<size_t>(parsed_data, "PrintEvery", printEvery);
+  readOptionalNumber<size_t>(parsed_data, "WriteEvery", writeEvery);
+  readOptionalNumber<double>(parsed_data, "ColumnLength", columnLength);
+  readOptionalNumber<size_t>(parsed_data, "NumberOfGridPoints", numberOfGridPoints);
+  readOptionalNumber<size_t>(parsed_data, "ColumnPressure", columnPressure);
+  readOptionalNumber<size_t>(parsed_data, "ColumnLoading", columnLoading);
+  readOptionalNumber<size_t>(parsed_data, "ColumnError", columnError);
 
   if (containsKeyCaseInsensitive(parsed_data, "NumberOfTimeSteps"))
   {
@@ -547,61 +415,6 @@ InputReader::InputReader(const std::string fileName) : components()
     }
   }
 
-  if (containsKeyCaseInsensitive(parsed_data, "NumberOfInitTimeSteps"))
-  {
-    numberOfInitTimeSteps = getNumberOrThrow<std::size_t>(
-        requireKeyCaseInsensitive(parsed_data, "NumberOfInitTimeSteps", ""), "NumberOfInitTimeSteps", "");
-  }
-
-  if (containsKeyCaseInsensitive(parsed_data, "PulseBreakthrough"))
-  {
-    pulseBreakthrough =
-        getBoolOrThrow(requireKeyCaseInsensitive(parsed_data, "PulseBreakthrough", ""), "PulseBreakthrough", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "PulseTime"))
-  {
-    pulseTime = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "PulseTime", ""), "PulseTime", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "TimeStep"))
-  {
-    timeStep = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "TimeStep", ""), "TimeStep", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "PrintEvery"))
-  {
-    printEvery =
-        getNumberOrThrow<std::size_t>(requireKeyCaseInsensitive(parsed_data, "PrintEvery", ""), "PrintEvery", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "WriteEvery"))
-  {
-    writeEvery =
-        getNumberOrThrow<std::size_t>(requireKeyCaseInsensitive(parsed_data, "WriteEvery", ""), "WriteEvery", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "ColumnLength"))
-  {
-    columnLength =
-        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "ColumnLength", ""), "ColumnLength", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "NumberOfGridPoints"))
-  {
-    numberOfGridPoints = getNumberOrThrow<std::size_t>(requireKeyCaseInsensitive(parsed_data, "NumberOfGridPoints", ""),
-                                                       "NumberOfGridPoints", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "ColumnPressure"))
-  {
-    columnPressure = getNumberOrThrow<std::size_t>(requireKeyCaseInsensitive(parsed_data, "ColumnPressure", ""),
-                                                   "ColumnPressure", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "ColumnLoading"))
-  {
-    columnLoading =
-        getNumberOrThrow<std::size_t>(requireKeyCaseInsensitive(parsed_data, "ColumnLoading", ""), "ColumnLoading", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "ColumnError"))
-  {
-    columnError =
-        getNumberOrThrow<std::size_t>(requireKeyCaseInsensitive(parsed_data, "ColumnError", ""), "ColumnError", "");
-  }
-
   // InfluxTemperature defaults to Temperature when not specified.
   if (containsKeyCaseInsensitive(parsed_data, "InfluxTemperature"))
   {
@@ -613,64 +426,33 @@ InputReader::InputReader(const std::string fileName) : components()
     influxTemperature = temperature;
   }
 
-  if (containsKeyCaseInsensitive(parsed_data, "internalDiameter"))
+  readOptionalNumber<double>(parsed_data, "internalDiameter", internalDiameter);
+  readOptionalNumber<double>(parsed_data, "outerDiameter", outerDiameter);
+  readOptionalNumber<double>(parsed_data, "wallDensity", wallDensity);
+  readOptionalNumber<double>(parsed_data, "gasThermalConductivity", gasThermalConductivity);
+  readOptionalNumber<double>(parsed_data, "wallThermalConductivity", wallThermalConductivity);
+  readOptionalNumber<double>(parsed_data, "heatTransferGasWall", heatTransferGasWall);
+  readOptionalNumber<double>(parsed_data, "heatTransferGasSolid", heatTransferGasSolid);
+  readOptionalNumber<double>(parsed_data, "heatTransferWallExternal", heatTransferWallExternal);
+  readOptionalNumber<double>(parsed_data, "heatCapacityGas", heatCapacityGas);
+  readOptionalNumber<double>(parsed_data, "heatCapacitySolid", heatCapacitySolid);
+  readOptionalNumber<double>(parsed_data, "heatCapacityWall", heatCapacityWall);
+  readOptionalBool(parsed_data, "energyBalance", energyBalance);
+
+  if (containsKeyCaseInsensitive(parsed_data, "swingTemperatures"))
   {
-    internalDiameter = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "internalDiameter", ""),
-                                                "internalDiameter", "");
+    swingTemperatures = getNumberListOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "swingTemperatures", ""),
+                                                     "swingTemperatures", "");
   }
-  if (containsKeyCaseInsensitive(parsed_data, "outerDiameter"))
+  if (containsKeyCaseInsensitive(parsed_data, "swingPressures"))
   {
-    outerDiameter =
-        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "outerDiameter", ""), "outerDiameter", "");
+    swingPressures = getNumberListOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "swingPressures", ""),
+                                                  "swingPressures", "");
   }
-  if (containsKeyCaseInsensitive(parsed_data, "wallDensity"))
+  if (containsKeyCaseInsensitive(parsed_data, "swingSteps"))
   {
-    wallDensity =
-        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "wallDensity", ""), "wallDensity", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "gasThermalConductivity"))
-  {
-    gasThermalConductivity = getNumberOrThrow<double>(
-        requireKeyCaseInsensitive(parsed_data, "gasThermalConductivity", ""), "gasThermalConductivity", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "wallThermalConductivity"))
-  {
-    wallThermalConductivity = getNumberOrThrow<double>(
-        requireKeyCaseInsensitive(parsed_data, "wallThermalConductivity", ""), "wallThermalConductivity", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "heatTransferGasSolid"))
-  {
-    heatTransferGasSolid = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "heatTransferGasSolid", ""),
-                                                    "heatTransferGasSolid", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "heatTransferGasWall"))
-  {
-    heatTransferGasWall = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "heatTransferGasWall", ""),
-                                                   "heatTransferGasWall", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "heatTransferWallExternal"))
-  {
-    heatTransferWallExternal = getNumberOrThrow<double>(
-        requireKeyCaseInsensitive(parsed_data, "heatTransferWallExternal", ""), "heatTransferWallExternal", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "heatCapacityGas"))
-  {
-    heatCapacityGas =
-        getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "heatCapacityGas", ""), "heatCapacityGas", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "heatCapacitySolid"))
-  {
-    heatCapacitySolid = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "heatCapacitySolid", ""),
-                                                 "heatCapacitySolid", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "heatCapacityWall"))
-  {
-    heatCapacityWall = getNumberOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "heatCapacityWall", ""),
-                                                "heatCapacityWall", "");
-  }
-  if (containsKeyCaseInsensitive(parsed_data, "energyBalance"))
-  {
-    energyBalance = getBoolOrThrow(requireKeyCaseInsensitive(parsed_data, "energyBalance", ""), "energyBalance", "");
+    swingSteps =
+        getNumberListOrThrow<size_t>(requireKeyCaseInsensitive(parsed_data, "swingSteps", ""), "swingSteps", "");
   }
 
   // Components
@@ -686,63 +468,21 @@ InputReader::InputReader(const std::string fileName) : components()
 
       std::string context = "Component " + std::to_string(componentId);
 
-      // Use 'Name' for the component name.
       std::string componentName = getStringOrThrow(requireKeyCaseInsensitive(item, "Name", context), "Name", context);
 
-      // Preserve legacy behavior: componentId is the position in the list.
-      if (componentId == components.size())
-      {
-        components.push_back(Component(componentId, componentName));
-      }
-      else
-      {
-        components[componentId] = Component(componentId, componentName);
-      }
+      components.emplace_back(componentId, componentName);
+      Component& comp = components.back();
 
-      if (containsKeyCaseInsensitive(item, "FileName"))
-      {
-        components[componentId].filename =
-            getStringOrThrow(requireKeyCaseInsensitive(item, "FileName", context), "FileName", context);
-      }
-      if (containsKeyCaseInsensitive(item, "CarrierGas"))
-      {
-        components[componentId].isCarrierGas =
-            getBoolOrThrow(requireKeyCaseInsensitive(item, "CarrierGas", context), "CarrierGas", context);
-      }
-      if (containsKeyCaseInsensitive(item, "GasPhaseMolFraction"))
-      {
-        components[componentId].Yi0 = getNumberOrThrow<double>(
-            requireKeyCaseInsensitive(item, "GasPhaseMolFraction", context), "GasPhaseMolFraction", context);
-      }
-      if (containsKeyCaseInsensitive(item, "MassTransferCoefficient"))
-      {
-        components[componentId].Kl = getNumberOrThrow<double>(
-            requireKeyCaseInsensitive(item, "MassTransferCoefficient", context), "MassTransferCoefficient", context);
-      }
-      if (containsKeyCaseInsensitive(item, "AxialDispersionCoefficient"))
-      {
-        components[componentId].D =
-            getNumberOrThrow<double>(requireKeyCaseInsensitive(item, "AxialDispersionCoefficient", context),
-                                     "AxialDispersionCoefficient", context);
-      }
-      if (containsKeyCaseInsensitive(item, "MolecularWeight"))
-      {
-        components[componentId].molecularWeight = getNumberOrThrow<double>(
-            requireKeyCaseInsensitive(item, "MolecularWeight", context), "MolecularWeight", context);
-      }
-      if (containsKeyCaseInsensitive(item, "HeatOfAdsorption"))
-      {
-        components[componentId].heatOfAdsorption = getNumberOrThrow<double>(
-            requireKeyCaseInsensitive(item, "HeatOfAdsorption", context), "HeatOfAdsorption", context);
-      }
+      readOptionalString(item, "FileName", comp.filename);
+      readOptionalBool(item, "CarrierGas", comp.isCarrierGas);
+      readOptionalNumber<double>(item, "GasPhaseMolFraction", comp.Yi0);
+      readOptionalNumber<double>(item, "MassTransferCoefficient", comp.Kl);
+      readOptionalNumber<double>(item, "AxialDispersionCoefficient", comp.D);
+      readOptionalNumber<double>(item, "MolecularWeight", comp.molecularWeight);
+      readOptionalNumber<double>(item, "HeatOfAdsorption", comp.heatOfAdsorption);
+      readOptionalNumber<size_t>(item, "NumberOfIsothermSites", comp.isotherm.numberOfSites);
 
-      if (containsKeyCaseInsensitive(item, "NumberOfIsothermSites"))
-      {
-        components[componentId].isotherm.numberOfSites = getNumberOrThrow<std::size_t>(
-            requireKeyCaseInsensitive(item, "NumberOfIsothermSites", context), "NumberOfIsothermSites", context);
-      }
-
-      // Preferred JSON format: "IsothermSites": [ {"Type":"Langmuir", "Parameters":[...]}, ... ]
+      // Preferred format: "IsothermSites": [{"Type": "...", "Parameters": [...]}, ...].
       if (containsKeyCaseInsensitive(item, "IsothermSites"))
       {
         const nlohmann::json& sites = requireKeyCaseInsensitive(item, "IsothermSites", context);
@@ -762,13 +502,13 @@ InputReader::InputReader(const std::string fileName) : components()
             std::string typeString =
                 getStringOrThrow(requireKeyCaseInsensitive(site, "Type", siteContext), "Type", siteContext);
             const nlohmann::json& params = requireKeyCaseInsensitive(site, "Parameters", siteContext);
-            addIsothermSiteFromJson(components[componentId], typeString, params, siteContext);
+            addIsothermSiteFromJson(comp, typeString, params, siteContext);
           }
           else if (site.is_object() && site.size() == 1)
           {
-            // Alternative compact encoding: {"Langmuir": [..]}
+            // Compact format: {"Langmuir": [...]}.
             auto it = site.begin();
-            addIsothermSiteFromJson(components[componentId], it.key(), it.value(), siteContext);
+            addIsothermSiteFromJson(comp, it.key(), it.value(), siteContext);
           }
           else
           {
@@ -778,22 +518,12 @@ InputReader::InputReader(const std::string fileName) : components()
       }
       else
       {
-        // Backward-compatible JSON encoding: allow direct isotherm keys at the component level.
+        // Legacy format: isotherm type names appear directly as component keys.
         for (auto it = item.begin(); it != item.end(); ++it)
         {
-          const std::string& k = it.key();
-          if (caseInSensStringCompare(k, "Langmuir") || caseInSensStringCompare(k, "Anti-Langmuir") ||
-              caseInSensStringCompare(k, "Anti_Langmuir") || caseInSensStringCompare(k, "BET") ||
-              caseInSensStringCompare(k, "Henry") || caseInSensStringCompare(k, "Freundlich") ||
-              caseInSensStringCompare(k, "Sips") || caseInSensStringCompare(k, "Langmuir-Freundlich") ||
-              caseInSensStringCompare(k, "Langmuir_Freundlich") || caseInSensStringCompare(k, "Redlich-Peterson") ||
-              caseInSensStringCompare(k, "Redlich_Peterson") || caseInSensStringCompare(k, "Toth") ||
-              caseInSensStringCompare(k, "Unilan") || caseInSensStringCompare(k, "O'Brian&Myers") ||
-              caseInSensStringCompare(k, "OBrien_Myers") || caseInSensStringCompare(k, "OBrien&Myers") ||
-              caseInSensStringCompare(k, "Quadratic") || caseInSensStringCompare(k, "Temkin") ||
-              caseInSensStringCompare(k, "Bingel&Walton") || caseInSensStringCompare(k, "BingelWalton"))
+          if (findIsothermSpec(it.key()) != nullptr)
           {
-            addIsothermSiteFromJson(components[componentId], k, it.value(), context);
+            addIsothermSiteFromJson(comp, it.key(), it.value(), context);
           }
         }
       }
@@ -811,7 +541,7 @@ InputReader::InputReader(const std::string fileName) : components()
     }
     else if (comps.is_object())
     {
-      // Allow object form { "0": {...}, "1": {...} } but keep IDs in insertion order.
+      // Object form is accepted, but component IDs follow JSON insertion order.
       components.reserve(comps.size());
       std::size_t componentId = 0;
       for (auto it = comps.begin(); it != comps.end(); ++it, ++componentId)
@@ -825,7 +555,7 @@ InputReader::InputReader(const std::string fileName) : components()
     }
   }
 
-  // normalize gas-phase mol-fractions to unity
+  // Normalize feed gas fractions for non-fitting runs.
   if (simulationType != SimulationType::Fitting)
   {
     double sum = 0.0;
@@ -884,46 +614,72 @@ InputReader::InputReader(const std::string fileName) : components()
 
   if (simulationType == SimulationType::Breakthrough)
   {
-    if (numberOfCarrierGases == 0)
+    static constexpr size_t fixedPressureGradient = 0;
+    static constexpr size_t ergun = 1;
+    static constexpr size_t fixedVelocity = 2;
+
+    static constexpr size_t inletPressureInletVelocity = 0;
+    static constexpr size_t inletPressureOutletPressure = 1;
+    static constexpr size_t inletVelocityOutletPressure = 2;
+
+    // Boundary conditions define which externally supplied quantities are mandatory.
+    const bool boundaryNeedsInletPressure =
+        boundaryCondition == inletPressureInletVelocity || boundaryCondition == inletPressureOutletPressure;
+    const bool boundaryNeedsOutletPressure =
+        boundaryCondition == inletPressureOutletPressure || boundaryCondition == inletVelocityOutletPressure;
+    const bool boundaryNeedsInletVelocity =
+        boundaryCondition == inletPressureInletVelocity || boundaryCondition == inletVelocityOutletPressure;
+
+    requireConfigured(numberOfCarrierGases != 0, "Error: no carrier gas component present");
+    requireConfigured(numberOfCarrierGases == 1,
+                      "Error: multiple carrier gas component present (there can be only one)");
+
+    requireConfigured(temperature >= 0.0, "Error: temperature not set (Use e.g.: 'Temperature 300')");
+    requireConfigured(columnVoidFraction > 0.0,
+                      "Error: void-fraction of the column not set or invalid (Use e.g.: 'ColumnVoidFraction 0.4')");
+    requireConfigured(particleDensity >= 0.0, "Error: particle density not set (Use e.g.: 'ParticleDensity 1408.2')");
+    requireConfigured(numberOfTimeSteps != 0 || autoNumberOfTimeSteps,
+                      "Error: number of time steps not set (Use e.g.: 'NumberOfTimeSteps 5000000')");
+    requireConfigured(numberOfGridPoints != 0,
+                      "Error: number of grid points not set (Use e.g.: 'NumberOfGridPoints 50')");
+    requireConfigured(columnLength > 0.0, "Error: column length not set or invalid (Use e.g.: 'ColumnLength 0.3')");
+
+    if (boundaryNeedsInletPressure)
     {
-      throw std::runtime_error("Error: no carrier gas component present");
-    }
-    if (numberOfCarrierGases > 1)
-    {
-      throw std::runtime_error("Error: multiple carrier gas component present (there can be only one)");
-    }
-    if (temperature < 0.0)
-    {
-      throw std::runtime_error("Error: temperature not set (Use e.g.: 'Temperature 300'");
-    }
-    if (columnVoidFraction < 0.0)
-    {
-      throw std::runtime_error("Error: void-fraction of the colum not set (Use e.g.: 'ColumnVoidFraction 0.4'");
-    }
-    if (particleDensity < 0.0)
-    {
-      throw std::runtime_error("Error: particle density not set (Use e.g.: 'ParticleDensity 1408.2'");
-    }
-    if (totalPressure < 0.0)
-    {
-      throw std::runtime_error("Error: total pressure bot set (Use e.g.: 'TotalPressure 1e5'");
-    }
-    if (columnEntranceVelocity < 0.0)
-    {
-      throw std::runtime_error("Error: column entrance velocity not set (Use e.g.: 'columnEntranceVelocity 300'");
+      requireConfigured(hasInletPressure && inletPressure >= 0.0,
+                        "Error: inlet pressure not set (Use e.g.: 'InletPressure 1e5')");
     }
 
-    if ((numberOfTimeSteps == 0) && (!autoNumberOfTimeSteps))
+    if (boundaryNeedsOutletPressure)
     {
-      throw std::runtime_error("Error: number of time steps not set (Use e.g.: 'NumberOfTimeSteps 5000000'");
+      requireConfigured(hasOutletPressure && outletPressure >= 0.0,
+                        "Error: outlet pressure not set (Use e.g.: 'OutletPressure 1e5')");
     }
-    if (numberOfGridPoints == 0)
+
+    if (boundaryNeedsInletVelocity || velocityProfile == fixedVelocity)
     {
-      throw std::runtime_error("Error: number of grid points not set (Use e.g.: 'NumberOfGridPoints 50'");
+      requireConfigured(hasColumnEntranceVelocity && columnEntranceVelocity >= 0.0,
+                        "Error: inlet velocity not set (Use e.g.: 'ColumnEntranceVelocity 0.1')");
     }
-    if (columnLength < 0)
+
+    if (velocityProfile == fixedPressureGradient)
     {
-      throw std::runtime_error("Error: column length not set (Use e.g.: 'ColumnLength 0.3'");
+      requireConfigured(hasPressureGradient,
+                        "Error: pressure gradient not set (Use e.g.: 'PressureGradient -1e5')");
+
+      requireConfigured(inletPressure + columnLength * pressureGradient >= 0.0,
+                        "Error: pressure profile becomes negative: InletPressure + ColumnLength * PressureGradient < 0");
+
+      if (boundaryNeedsOutletPressure)
+      {
+        throw std::runtime_error(
+            "Error: FixedPressureGradient cannot be used with a boundary condition that sets OutletPressure");
+      }
+    }
+
+    if (velocityProfile == ergun && hasPressureGradient)
+    {
+      std::cerr << "Warning: PressureGradient is ignored when VelocityProfile is Ergun" << std::endl;
     }
   }
 }

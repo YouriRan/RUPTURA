@@ -9,14 +9,19 @@
   "ColumnEntranceVelocity": 0.019,
   "ColumnLength": 0.1,
   "NumberOfTimeSteps": "auto",
-  "PrintEvery": 10000,
-  "WriteEvery": 10000,
-  "TimeStep": 0.0005,
+  "VelocityProfile": "Ergun",
+  "BreakthroughIntegrator": "RungeKutta3",
+  "PrintEvery": 100000,
+  "WriteEvery": 100000,
+  "DynamicViscosity": 3e-5,
+  "ParticleDiameter": 1e-3,
+  "TimeStep": 1e-3,
   "NumberOfGridPoints": 100,
   "Components": [
     {
       "Name": "Helium",
       "GasPhaseMolFraction": 0.93,
+      "MolecularWeight": 0.0040026,
       "CarrierGas": true
     },
     {
@@ -24,6 +29,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
       "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
@@ -47,6 +53,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
       "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
@@ -70,6 +77,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
       "NumberOfIsothermSites": 2,
       "IsothermSites": [
         {
@@ -93,6 +101,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
       "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
@@ -109,6 +118,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
       "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
@@ -125,6 +135,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
       "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {
@@ -141,6 +152,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
       "NumberOfIsothermSites": 1,
       "IsothermSites": [
         {

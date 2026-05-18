@@ -11,16 +11,13 @@ void updateStateRK(Column& column, Column& newColumn, double alpha, double beta,
   {
     newColumn.adsorption[i] =
         alpha * column.adsorption[i] + beta * (newColumn.adsorption[i] + timeStep * newColumn.adsorptionDot[i]);
-    newColumn.partialPressure[i] = alpha * column.partialPressure[i] +
-                                   beta * (newColumn.partialPressure[i] + timeStep * newColumn.partialPressureDot[i]);
+    newColumn.concentration[i] = std::max(0.0, alpha * column.concentration[i] +
+                                 beta * (newColumn.concentration[i] + timeStep * newColumn.concentrationDot[i]));
   }
   if (column.energyBalance)
   {
     for (size_t grid = 0; grid < column.Ngrid + 1; grid++)
     {
-      // newColumn.totalPressure[grid] =
-      //     alpha * column.totalPressure[grid] +
-      //     beta * (newColumn.totalPressure[grid] + timeStep * newColumn.totalPressureDot[grid]);
       newColumn.gasTemperature[grid] =
           alpha * column.gasTemperature[grid] +
           beta * (newColumn.gasTemperature[grid] + timeStep * newColumn.gasTemperatureDot[grid]);
@@ -36,7 +33,6 @@ void updateStateRK(Column& column, Column& newColumn, double alpha, double beta,
 
 bool RungeKutta3::propagate(Column& column, size_t step)
 {
-  double t = static_cast<double>(step) * timeStep;
   size_t Ngrid = column.Ngrid;
   size_t Ncomp = column.Ncomp;
 
@@ -45,9 +41,8 @@ bool RungeKutta3::propagate(Column& column, size_t step)
     double tolerance = 0.0;
     for (size_t j = 0; j < Ncomp; ++j)
     {
-      tolerance = std::max(tolerance, std::abs((column.partialPressure[Ngrid * Ncomp + j] /
-                                                (column.exitPressure * column.components[j].Yi0)) -
-                                               1.0));
+      tolerance =
+          std::max(tolerance, std::abs((column.moleFraction[Ngrid * Ncomp + j] / column.components[j].Yi0) - 1.0));
     }
 
     // consider 1% as being visibily indistinguishable from 'converged'
@@ -60,6 +55,8 @@ bool RungeKutta3::propagate(Column& column, size_t step)
     }
   }
 
+  // column.writeJSON(std::format("{}_0.json", step));
+
   // SSP-RK Step 1
   // ======================================================================
 
@@ -68,6 +65,7 @@ bool RungeKutta3::propagate(Column& column, size_t step)
   Column newColumn(column);
 
   updateStateRK(column, newColumn, 0.0, 1.0, timeStep);
+  computePressure(newColumn);
 
   // Dqdt and Dpdt are calculated at old time step
   // make estimate for the new loadings and new gas phase partial pressures
@@ -83,11 +81,14 @@ bool RungeKutta3::propagate(Column& column, size_t step)
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
   computeFirstDerivatives(newColumn);
   updateStateRK(column, newColumn, 0.75, 0.25, timeStep);
+    computePressure(newColumn);
 
   computeEquilibriumLoadings(newColumn);
 
+  // newColumn.writeJSON(std::format("{}_1.json", step));
   computeVelocity(newColumn);
 
+  // newColumn.writeJSON(std::format("{}_2.json", step));
   // SSP-RK Step 3
   // ======================================================================
 
@@ -95,33 +96,15 @@ bool RungeKutta3::propagate(Column& column, size_t step)
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
   computeFirstDerivatives(newColumn);
   updateStateRK(column, newColumn, (1.0 / 3.0), (2.0 / 3.0), timeStep);
+    computePressure(newColumn);
 
   computeEquilibriumLoadings(newColumn);
 
   computeVelocity(newColumn);
 
+  // newColumn.writeJSON(std::format("{}_2.json", step));
   // update to the new time step
   column = newColumn;
-
-  // pulse boundary condition
-  for (size_t j = 0; j < Ncomp; ++j)
-  {
-    if (column.pulse && t > column.pulseTime)
-    {
-      if (j == column.carrierGasComponent)
-      {
-        column.partialPressure[0 * Ncomp + j] = column.externalPressure;
-      }
-      else
-      {
-        column.partialPressure[0 * Ncomp + j] = 0.0;
-      }
-    }
-    else
-    {
-      column.partialPressure[0 * Ncomp + j] = column.externalPressure * column.components[j].Yi0;
-    }
-  }
-
+  // enforceBoundaryCondition(column);
   return (!autoSteps && step >= numberOfSteps - 1);
 }

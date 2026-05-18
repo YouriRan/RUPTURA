@@ -4,49 +4,118 @@
 
 #include "utils.h"
 
-void computeEquilibriumLoadings(Column& column)
+using mdspan2d_const = std::mdspan<const double, std::dextents<size_t, 2>>;
+using mdspan2d_mut = std::mdspan<double, std::dextents<size_t, 2>>;
+
+void computePressure(Column& column)
 {
-  computeEquilibriumLoadings(column.mixture, column.Ngrid, column.Ncomp, column.maxIsothermTerms,
-                             column.iastPerformance, column.pressureGradient, column.columnLength, column.totalPressure,
-                             column.partialPressure, column.idealGasMolFractions, column.adsorbedMolFractions,
-                             column.numberOfMolecules, column.equilibriumAdsorption, column.cachedPressure,
-                             column.cachedGrandPotential);
+  computePressure(column.velocityProfile, column.boundaryCondition, column.components, column.Ngrid, column.Ncomp,
+                  column.externalPressure, column.voidFraction, column.dynamicViscosity, column.particleDiameter,
+                  column.resolution, column.interstitialGasVelocity, column.gasDensity, column.totalConcentration,
+                  column.totalPressure, column.gasTemperature, column.concentration, column.partialPressure,
+                  column.moleFraction);
 }
-void computeEquilibriumLoadings(MixturePrediction& mixture, size_t Ngrid, size_t Ncomp, size_t maxIsothermTerms,
-                                std::pair<size_t, size_t>& iastPerformance, double pressureGradient,
-                                double columnLength, std::span<double> totalPressure, std::span<double> partialPressure,
-                                std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
-                                std::span<double> numberOfMolecules, std::span<double> equilibriumAdsorption,
-                                std::span<double> cachedPressure, std::span<double> cachedGrandPotential)
+
+void computePressure(Column::VelocityProfile& velocityProfile, Column::BoundaryCondition& boundaryCondition,
+                     const std::vector<Component>& components, size_t Ngrid, size_t Ncomp, double externalPressure,
+                     double voidFraction, double dynamicViscosity, double particleDiameter, double resolution,
+                     std::span<const double> interstitialGasVelocity, std::span<double> gasDensity,
+                     std::span<double> totalConcentration, std::span<double> totalPressure,
+                     std::span<double> gasTemperature, std::span<const double> concentration,
+                     std::span<double> partialPressure, std::span<double> moleFraction)
 {
-  // calculate new equilibrium loadings Qeqnew corresponding to the new timestep
+  double prefactor = (1 - voidFraction) / (voidFraction * particleDiameter);
+  if (velocityProfile == Column::VelocityProfile::Ergun)
+  {
+    if (boundaryCondition == Column::BoundaryCondition::InletPressureInletVelocity)
+    {
+      totalPressure[0] = externalPressure;
+      for (size_t grid = 1; grid < Ngrid + 1; ++grid)
+      {
+        double visc = 150.0 * prefactor * prefactor * dynamicViscosity * interstitialGasVelocity[grid - 1];
+        double iner = 1.75 * prefactor * gasDensity[grid - 1] * interstitialGasVelocity[grid - 1] *
+                      interstitialGasVelocity[grid - 1];
+        totalPressure[grid] = totalPressure[grid - 1] - (visc + iner) * resolution;
+      }
+    }
+    else
+    {
+      totalPressure[Ngrid] = externalPressure;
+      for (size_t grid = Ngrid - 1; grid >= 0; grid--)
+      {
+        double visc = 150.0 * prefactor * prefactor * dynamicViscosity * interstitialGasVelocity[grid + 1];
+        double iner = 1.75 * prefactor * gasDensity[grid + 1] * interstitialGasVelocity[grid - 1] *
+                      interstitialGasVelocity[grid + 1];
+        totalPressure[grid] = totalPressure[grid + 1] - (visc + iner) * resolution;
+      }
+    }
+  }
+  else
+  {
+    totalPressure[0] = externalPressure;
+    for (size_t grid = 1; grid < Ngrid + 1; ++grid)
+    {
+      totalPressure[grid] = 0.0;
+      for (size_t comp = 0; comp < Ncomp; ++comp)
+      {
+        totalPressure[grid] += concentration[grid * Ncomp + comp] * R * gasTemperature[grid];
+      }
+    }
+  }
+
   for (size_t grid = 0; grid < Ngrid + 1; ++grid)
   {
-    // estimation of total pressure Pt at each grid point from partial pressures
-    totalPressure[grid] = 0.0;
+    totalConcentration[grid] = 0.0;
     for (size_t comp = 0; comp < Ncomp; ++comp)
     {
-      totalPressure[grid] += std::max(0.0, partialPressure[grid * Ncomp + comp]);
+      totalConcentration[grid] += std::max(0.0, concentration[grid * Ncomp + comp]);
     }
 
-    // compute gas-phase mol-fractions
-    // force the gas-phase mol-fractions to be positive and normalized
-    double sum = 0.0;
+    gasDensity[grid] = 0.0;
     for (size_t comp = 0; comp < Ncomp; ++comp)
     {
-      idealGasMolFractions[comp] = std::max(partialPressure[grid * Ncomp + comp], 0.0);
-      sum += idealGasMolFractions[comp];
-    }
-    for (size_t comp = 0; comp < Ncomp; ++comp)
-    {
-      if (sum < 1e-10)
+      gasDensity[grid] += concentration[grid * Ncomp + comp] * components[comp].molecularWeight;
+      partialPressure[grid * Ncomp + comp] = moleFraction[grid * Ncomp + comp] * totalPressure[grid];
+      if (totalConcentration[grid] > 0.0)
       {
-        idealGasMolFractions[comp] = 1.0 / static_cast<double>(Ncomp);
+        moleFraction[grid * Ncomp + comp] = std::max(0.0, concentration[grid * Ncomp + comp]) / totalConcentration[grid];
       }
       else
       {
-        idealGasMolFractions[comp] /= sum;
+        moleFraction[grid * Ncomp + comp] = 1.0 / Ncomp;
       }
+    }
+  }
+
+  // check the total pressure at the outlet, it should not be negative
+  if (totalPressure[Ngrid] < 0.0)
+  {
+    throw std::runtime_error("Error: pressure gradient is too large (negative outlet pressure)\n");
+  }
+}
+
+void computeEquilibriumLoadings(Column& column)
+{
+  computeEquilibriumLoadings(column.mixture, column.Ngrid, column.Ncomp, column.maxIsothermTerms,
+                             column.iastPerformance, column.totalPressure, column.idealGasMolFractions,
+                             column.adsorbedMolFractions, column.numberOfMolecules, column.equilibriumAdsorption,
+                             column.moleFraction, column.cachedPressure, column.cachedGrandPotential);
+}
+
+void computeEquilibriumLoadings(MixturePrediction& mixture, size_t Ngrid, size_t Ncomp, size_t maxIsothermTerms,
+                                std::pair<size_t, size_t>& iastPerformance, std::span<double> totalPressure,
+                                std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
+                                std::span<double> numberOfMolecules, std::span<double> equilibriumAdsorption,
+                                std::span<double> moleFraction, std::span<double> cachedPressure,
+                                std::span<double> cachedGrandPotential)
+{
+  for (size_t grid = 0; grid < Ngrid + 1; ++grid)
+  {
+    // compute gas-phase mol-fractions
+    // force the gas-phase mol-fractions to be positive and normalized
+    for (size_t comp = 0; comp < Ncomp; ++comp)
+    {
+      idealGasMolFractions[comp] = moleFraction[grid * Ncomp + comp];
     }
 
     // use Yi and Pt[i] to compute the loadings in the adsorption mixture via mixture prediction
@@ -55,16 +124,9 @@ void computeEquilibriumLoadings(MixturePrediction& mixture, size_t Ngrid, size_t
                                               &cachedGrandPotential[grid * maxIsothermTerms]);
 
     for (size_t comp = 0; comp < Ncomp; ++comp)
-
     {
       equilibriumAdsorption[grid * Ncomp + comp] = numberOfMolecules[comp];
     }
-  }
-
-  // check the total pressure at the outlet, it should not be negative
-  if (totalPressure[0] + pressureGradient * columnLength < 0.0)
-  {
-    throw std::runtime_error("Error: pressure gradient is too large (negative outlet pressure)\n");
   }
 }
 
@@ -74,18 +136,18 @@ void computeVelocity(Column& column)
   {
     case Column::VelocityProfile::FixedPressureGradient:
     {
-      computeVelocityFixedGradient(column.components, column.Ngrid, column.Ncomp, column.pressureGradient,
-                                   column.columnEntranceVelocity, column.resolution, column.prefactorMassTransfer,
-                                   column.interstitialGasVelocity, column.totalPressure, column.adsorption,
-                                   column.equilibriumAdsorption, column.partialPressure);
+      computeVelocityFixedGradient(column.boundaryCondition, column.components, column.Ngrid, column.Ncomp,
+                                   column.pressureGradient, column.columnEntranceVelocity, column.resolution,
+                                   column.prefactorMassTransfer, column.interstitialGasVelocity, column.totalPressure,
+                                   column.totalConcentration, column.adsorption, column.equilibriumAdsorption,
+                                   column.concentration);
       break;
     }
     case Column::VelocityProfile::Ergun:
     {
-      computeVelocityErgun(column.components, column.Ngrid, column.Ncomp, column.externalTemperature,
-                           column.voidFraction, column.columnEntranceVelocity, column.dynamicViscosity,
-                           column.particleDiameter, column.resolution, column.interstitialGasVelocity,
-                           column.totalPressure, column.partialPressure);
+      computeVelocityErgun(column.boundaryCondition, column.Ngrid, column.voidFraction, column.columnEntranceVelocity,
+                           column.columnLength, column.dynamicViscosity, column.particleDiameter, column.resolution,
+                           column.interstitialGasVelocity, column.gasDensity, column.totalPressure);
       break;
     }
     case Column::VelocityProfile::FixedVelocity:
@@ -95,14 +157,23 @@ void computeVelocity(Column& column)
   }
 }
 
-void computeVelocityFixedGradient(const std::vector<Component>& components, size_t Ngrid, size_t Ncomp,
+void computeVelocityFixedGradient(Column::BoundaryCondition& boundaryCondition,
+                                  const std::vector<Component>& components, size_t Ngrid, size_t Ncomp,
                                   double pressureGradient, double columnEntranceVelocity, double resolution,
                                   std::span<const double> prefactorMassTransfer,
                                   std::span<double> interstitialGasVelocity, std::span<const double> totalPressure,
-                                  std::span<const double> adsorption, std::span<const double> equilibriumAdsorption,
-                                  std::span<const double> partialPressure)
+                                  std::span<const double> totalConcentration, std::span<const double> adsorption,
+                                  std::span<const double> equilibriumAdsorption, std::span<const double> concentration)
 {
-  double idx2 = 1.0 / (resolution * resolution);
+  double idx = 1.0 / resolution;
+  double idx2 = idx * idx;
+
+  if (boundaryCondition != Column::BoundaryCondition::InletPressureInletVelocity)
+  {
+    throw std::logic_error(
+        "Fixed pressure gradient velocity profile only allowed to use in "
+        "combination with input pressure boundary condition.");
+  }
 
   // first grid point
   interstitialGasVelocity[0] = columnEntranceVelocity;
@@ -111,103 +182,91 @@ void computeVelocityFixedGradient(const std::vector<Component>& components, size
   for (size_t grid = 1; grid < Ngrid; ++grid)
   {
     double sum = 0.0;
+
     for (size_t comp = 0; comp < Ncomp; ++comp)
     {
       // mass transfer term
       sum -=
           prefactorMassTransfer[comp] * (equilibriumAdsorption[grid * Ncomp + comp] - adsorption[grid * Ncomp + comp]);
 
-      // diffusion term
+      // diffusion term in concentration form
       sum += components[comp].D *
-             (partialPressure[(grid - 1) * Ncomp + comp] - 2.0 * partialPressure[grid * Ncomp + comp] +
-              partialPressure[(grid + 1) * Ncomp + comp]) *
+             (concentration[(grid - 1) * Ncomp + comp] - 2.0 * concentration[grid * Ncomp + comp] +
+              concentration[(grid + 1) * Ncomp + comp]) *
              idx2;
     }
+
+    double invTotalConcentration = 1.0 / std::max(1e-10, totalConcentration[grid]);
 
     // explicit update
     interstitialGasVelocity[grid] =
         interstitialGasVelocity[grid - 1] +
-        resolution * (sum - interstitialGasVelocity[grid - 1] * pressureGradient) / totalPressure[grid];
+        resolution *
+            (sum * invTotalConcentration - interstitialGasVelocity[grid - 1] * pressureGradient / totalPressure[grid]);
   }
 
   // last grid point
+  double sum = 0.0;
+  for (size_t comp = 0; comp < Ncomp; ++comp)
   {
-    double sum = 0.0;
-    for (size_t comp = 0; comp < Ncomp; ++comp)
-    {
-      sum -= prefactorMassTransfer[comp] *
-             (equilibriumAdsorption[Ngrid * Ncomp + comp] - adsorption[Ngrid * Ncomp + comp]);
+    sum -=
+        prefactorMassTransfer[comp] * (equilibriumAdsorption[Ngrid * Ncomp + comp] - adsorption[Ngrid * Ncomp + comp]);
 
-      sum += components[comp].D *
-             (partialPressure[(Ngrid - 1) * Ncomp + comp] - partialPressure[Ngrid * Ncomp + comp]) * idx2;
-    }
-
-    interstitialGasVelocity[Ngrid] =
-        interstitialGasVelocity[Ngrid - 1] +
-        resolution * (sum - interstitialGasVelocity[Ngrid - 1] * pressureGradient) / totalPressure[Ngrid];
+    sum +=
+        components[comp].D * (concentration[(Ngrid - 1) * Ncomp + comp] - concentration[Ngrid * Ncomp + comp]) * idx2;
   }
+  double invTotalConcentration = 1.0 / std::max(1e-10, totalConcentration[Ngrid]);
+
+  interstitialGasVelocity[Ngrid] =
+      interstitialGasVelocity[Ngrid - 1] +
+      resolution *
+          (sum * invTotalConcentration - interstitialGasVelocity[Ngrid - 1] * pressureGradient / totalPressure[Ngrid]);
 }
 
-void computeVelocityErgun(const std::vector<Component>& components, size_t Ngrid, size_t Ncomp,
-                          double externalTemperature, double voidFraction, double columnEntranceVelocity,
-                          double dynamicViscosity, double particleDiameter, double resolution,
-                          std::span<double> interstitialGasVelocity, std::span<const double> totalPressure,
-                          std::span<const double> partialPressure)
+void computeVelocityErgun(Column::BoundaryCondition& boundaryCondition, size_t Ngrid, double voidFraction,
+                          double columnEntranceVelocity, double columnLength, double dynamicViscosity,
+                          double particleDiameter, double resolution, std::span<double> interstitialGasVelocity,
+                          std::span<double> gasDensity, std::span<double> totalPressure)
 {
-  double idx = 1.0 / (resolution);
+  const double idx = 1.0 / resolution;
 
-  // 1.75 * (L * rho / d) * ((1 - epsilon) / epsilon**3) v^2 +
-  // 150 (mu * L / d^2) ((1 - epsilon)^2 / epsilon^3) - (dp/dz)
-  // C_quad = d(P_Total) / dz;
-  // K_viscous = (150 mu L / d^2) ((1 - epsilon)^2 / epsilon^3)
-  // K_inertial = (1.75 L rho / d) ((1 - epsilon) / epsilon^3)
-  // B_quad = K_viscous * mu
-  // A_quad = K_inertial * rho_g
-  // A v^2 + b v + c = 0
+  const double voidFractionPrefactorA = (1.0 - voidFraction) / voidFraction;
+  const double voidFractionPrefactorB = (1.0 - voidFraction) * (1.0 - voidFraction) / (voidFraction * voidFraction);
 
-  // v = -B + sqrt(B^2 - 4 A C) / (2 * A)
+  const double prefactorA = 1.75 * voidFractionPrefactorA / particleDiameter;
+  const double B = 150.0 * voidFractionPrefactorB * dynamicViscosity / (particleDiameter * particleDiameter);
 
-  // mu = dynamic viscosity
-  // L = column length
-  // d = particle diameter?
-  // epsilon = bed porosity
-  // rho_f = fluid density
-  // v = velocity
-
-  double voidFractionPrefactorA = (1 - voidFraction) / voidFraction;
-  double voidFractionPrefactorB = (1 - voidFraction) * (1 - voidFraction) / (voidFraction * voidFraction);
-
-  double prefactorA = 1.75 * voidFractionPrefactorA / particleDiameter;
-  double B = 150.0 * voidFractionPrefactorB * dynamicViscosity / (particleDiameter * particleDiameter);
-
-  // first grid point
-  interstitialGasVelocity[0] = columnEntranceVelocity;
-
-  for (size_t grid = 1; grid < Ngrid + 1; grid++)
+  auto computedPdz = [&](size_t grid) -> double
   {
-    double C = -(totalPressure[grid] - totalPressure[grid - 1]) * idx;
+    if (boundaryCondition == Column::BoundaryCondition::InletPressureOutletPressure)
+    {
+      return (totalPressure[Ngrid] - totalPressure[0]) / columnLength;
+    }
 
-    double gasDensity = 0.0;
-    for (size_t comp = 0; comp < Ncomp; comp++)
-    {
-      gasDensity += components[comp].molecularWeight * partialPressure[grid * Ncomp + comp] / (R * externalTemperature);
-    }
-    double A = prefactorA * gasDensity;
+    return (totalPressure[grid] - totalPressure[grid - 1]) * idx;
+  };
 
-    double v = 0.0;
-    if (std::abs(A) < 1e-10)
-    {
-      v = -C / B;
-    }
-    else
-    {
-      double ac4 = std::max(0.0, B * B - 4.0 * A * C);
-      v = (-B + std::sqrt(ac4)) / (2.0 * A);
-    }
-    interstitialGasVelocity[grid] = std::max(0.0, v);
+  auto solveVelocity = [&](size_t grid, double C) -> double
+  {
+    const double A = prefactorA * gasDensity[grid];
+
+    if (std::abs(A) < 1e-10)  return -C / B;
+
+    const double discriminant = std::max(0.0, B * B - 4.0 * A * C);
+    return (-B + std::sqrt(discriminant)) / (2.0 * A);
+  };
+
+  for (size_t grid = 0; grid < Ngrid + 1; ++grid)
+  {
+    interstitialGasVelocity[grid] = solveVelocity(grid, computedPdz(grid));
   }
-}
 
+  if (boundaryCondition != Column::BoundaryCondition::InletPressureOutletPressure)
+  {
+    interstitialGasVelocity[0] = columnEntranceVelocity;
+  }
+
+}
 void computeFirstDerivatives(Column& column)
 {
   if (column.energyBalance)
@@ -219,82 +278,87 @@ void computeFirstDerivatives(Column& column)
         column.heatTransferGasWall, column.heatTransferWallExternal, column.heatCapacityGas, column.heatCapacitySolid,
         column.heatCapacityWall, column.resolution, column.prefactorMassTransfer, column.interstitialGasVelocity,
         column.totalPressure, column.gasTemperature, column.gasTemperatureDot, column.solidTemperature,
-        column.solidTemperatureDot, column.wallTemperature, column.wallTemperatureDot, column.partialPressure,
-        column.partialPressureDot, column.adsorption, column.adsorptionDot, column.equilibriumAdsorption,
+        column.solidTemperatureDot, column.wallTemperature, column.wallTemperatureDot, column.concentration,
+        column.concentrationDot, column.adsorption, column.adsorptionDot, column.equilibriumAdsorption,
         column.moleFraction, column.gasDensity, column.coeffGasGas, column.coeffGasSolid, column.coeffGasWall,
-        column.coeffDiffusion, column.facePressures, column.energyFlow);
+        column.coeffDiffusion, column.facePressures, column.massFlux);
   }
   else
   {
     computeFirstDerivatives(column.components, column.Ngrid, column.Ncomp, column.resolution,
-                            column.prefactorMassTransfer, column.interstitialGasVelocity, column.partialPressure,
-                            column.partialPressureDot, column.adsorption, column.adsorptionDot,
-                            column.equilibriumAdsorption, column.totalPressureDot);
+                            column.prefactorMassTransfer, column.interstitialGasVelocity, column.concentration,
+                            column.concentrationDot, column.adsorption, column.adsorptionDot,
+                            column.equilibriumAdsorption, column.massFlux);
   }
 }
 
 void computeFirstDerivatives(const std::vector<Component>& components, size_t Ngrid, size_t Ncomp, double resolution,
                              std::span<const double> prefactorMassTransfer,
-                             std::span<const double> interstitialGasVelocity, std::span<const double> partialPressure,
-                             std::span<double> partialPressureDot, std::span<const double> adsorption,
+                             std::span<const double> interstitialGasVelocity, std::span<const double> concentration,
+                             std::span<double> concentrationDot, std::span<const double> adsorption,
                              std::span<double> adsorptionDot, std::span<const double> equilibriumAdsorption,
-                             std::span<double> totalPressureDot)
+                             std::span<double> massFlux)
 {
   double idx = 1.0 / resolution;
   double idx2 = idx * idx;
 
-  std::mdspan<const double, std::dextents<size_t, 2>> spanPartialPressure(partialPressure.data(), Ngrid + 1, Ncomp);
-  std::mdspan<const double, std::dextents<size_t, 2>> spanEquilibriumAdsorption(equilibriumAdsorption.data(), Ngrid + 1,
-                                                                                Ncomp);
-  std::mdspan<const double, std::dextents<size_t, 2>> spanAdsorption(adsorption.data(), Ngrid + 1, Ncomp);
+  mdspan2d_const spanConcentration(concentration.data(), Ngrid + 1, Ncomp);
+  mdspan2d_mut spanConcentrationDot(concentrationDot.data(), Ngrid + 1, Ncomp);
+  mdspan2d_const spanEquilibriumAdsorption(equilibriumAdsorption.data(), Ngrid + 1, Ncomp);
+  mdspan2d_const spanAdsorption(adsorption.data(), Ngrid + 1, Ncomp);
+  mdspan2d_mut spanAdsorptionDot(adsorptionDot.data(), Ngrid + 1, Ncomp);
+  mdspan2d_mut spanMassFlux(massFlux.data(), Ngrid + 1, Ncomp);
+
+  // commented out the parts for weno, seems to be unstable
+  for (size_t comp = 0; comp < Ncomp; ++comp)
+  {
+    // std::vector<double> compVelocityPressure(Ngrid + 1);
+    for (size_t grid = 0; grid < Ngrid + 1; ++grid)
+    {
+      // compVelocityPressure[grid] = interstitialGasVelocity[grid] * spanPartialPressure[grid, comp];
+      spanMassFlux[grid, comp] = interstitialGasVelocity[grid] * spanConcentration[grid, comp];
+    }
+  }
 
   // first gridpoint
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
     double diffAdsorption = spanEquilibriumAdsorption[0, comp] - spanAdsorption[0, comp];
-    adsorptionDot[comp] = components[comp].Kl * diffAdsorption;
-    partialPressureDot[comp] = 0.0;
+    spanAdsorptionDot[0, comp] = components[comp].Kl * diffAdsorption;
+    spanConcentrationDot[0, comp] = 0.0;
   }
 
   // middle gridpoints
   for (size_t grid = 1; grid < Ngrid; ++grid)
   {
-    totalPressureDot[grid] = 0.0;
     for (size_t comp = 0; comp < Ncomp; ++comp)
     {
       double diffAdsorption = spanEquilibriumAdsorption[grid, comp] - spanAdsorption[grid, comp];
 
-      adsorptionDot[grid * Ncomp + comp] = components[comp].Kl * diffAdsorption;
+      spanAdsorptionDot[grid, comp] = components[comp].Kl * diffAdsorption;
 
-      partialPressureDot[grid * Ncomp + comp] =
-          (interstitialGasVelocity[grid - 1] * spanPartialPressure[grid - 1, comp] -
-           interstitialGasVelocity[grid] * spanPartialPressure[grid, comp]) *
-              idx +
-          components[comp].D *
-              (spanPartialPressure[grid + 1, comp] - 2.0 * spanPartialPressure[grid, comp] +
-               spanPartialPressure[grid - 1, comp]) *
-              idx2 -
-          prefactorMassTransfer[comp] * diffAdsorption;
-      totalPressureDot[grid] += partialPressureDot[grid * Ncomp + comp];
+      spanConcentrationDot[grid, comp] = idx * (spanMassFlux[grid - 1, comp] - spanMassFlux[grid, comp]) +
+                                         components[comp].D *
+                                             (spanConcentration[grid + 1, comp] - 2.0 * spanConcentration[grid, comp] +
+                                              spanConcentration[grid - 1, comp]) *
+                                             idx2 -
+                                         prefactorMassTransfer[comp] * diffAdsorption;
     }
   }
 
   // last gridpoint
-  totalPressureDot[Ngrid] = 0.0;
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
     double diffAdsorption = spanEquilibriumAdsorption[Ngrid, comp] - spanAdsorption[Ngrid, comp];
 
-    adsorptionDot[Ngrid * Ncomp + comp] = components[comp].Kl * diffAdsorption;
+    spanAdsorptionDot[Ngrid, comp] = components[comp].Kl * diffAdsorption;
 
-    partialPressureDot[Ngrid * Ncomp + comp] =
-        (interstitialGasVelocity[Ngrid - 1] * spanPartialPressure[Ngrid - 1, comp] -
-         interstitialGasVelocity[Ngrid] * spanPartialPressure[Ngrid, comp]) *
-            idx +
-        components[comp].D * (spanPartialPressure[Ngrid - 1, comp] - spanPartialPressure[Ngrid, comp]) * idx2 -
+    spanConcentrationDot[Ngrid, comp] =
+        (spanMassFlux[Ngrid - 1, comp] - spanMassFlux[Ngrid, comp]) * idx +
+        components[comp].D * (spanConcentration[Ngrid - 1, comp] - spanConcentration[Ngrid, comp]) * idx2 -
         prefactorMassTransfer[comp] * diffAdsorption;
-    totalPressureDot[Ngrid] += partialPressureDot[Ngrid * Ncomp + comp];
   }
+
 }
 
 void computeFirstDerivativesEnergyBalance(
@@ -306,23 +370,26 @@ void computeFirstDerivativesEnergyBalance(
     std::span<const double> interstitialGasVelocity, std::span<const double> totalPressure,
     std::span<double> gasTemperature, std::span<double> gasTemperatureDot, std::span<double> solidTemperature,
     std::span<double> solidTemperatureDot, std::span<double> wallTemperature, std::span<double> wallTemperatureDot,
-    std::span<double> partialPressure, std::span<double> partialPressureDot, std::span<double> adsorption,
+    std::span<double> concentration, std::span<double> concentrationDot, std::span<double> adsorption,
     std::span<double> adsorptionDot, std::span<double> equilibriumAdsorption, std::span<double> moleFraction,
     std::span<double> gasDensity, std::span<double> coeffGasGas, std::span<double> coeffGasSolid,
     std::span<double> coeffGasWall, std::span<double> coeffDiffusion, std::span<double> facePressures,
-    std::span<double> energyFlow)
+    std::span<double> massFlux)
 {
   double idx = 1.0 / resolution;
   double idx2 = idx * idx;
 
-  std::mdspan<double, std::dextents<size_t, 2>> spanPartialPressure(partialPressure.data(), Ngrid + 1, Ncomp);
-  std::mdspan<double, std::dextents<size_t, 2>> spanEquilibriumAdsorption(equilibriumAdsorption.data(), Ngrid + 1,
-                                                                          Ncomp);
-  std::mdspan<double, std::dextents<size_t, 2>> spanAdsorption(adsorption.data(), Ngrid + 1, Ncomp);
-  std::mdspan<double, std::dextents<size_t, 2>> spanPartialPressureDot(partialPressureDot.data(), Ngrid + 1, Ncomp);
-  std::mdspan<double, std::dextents<size_t, 2>> spanAdsorptionDot(adsorptionDot.data(), Ngrid + 1, Ncomp);
-  std::mdspan<double, std::dextents<size_t, 2>> spanMoleFraction(moleFraction.data(), Ngrid + 1, Ncomp);
-  std::mdspan<double, std::dextents<size_t, 2>> spanEnergyFlow(energyFlow.data(), Ngrid + 1, Ncomp);
+  mdspan2d_const spanEquilibriumAdsorption(equilibriumAdsorption.data(), Ngrid + 1, Ncomp);
+  mdspan2d_const spanAdsorption(adsorption.data(), Ngrid + 1, Ncomp);
+  mdspan2d_mut spanAdsorptionDot(adsorptionDot.data(), Ngrid + 1, Ncomp);
+  mdspan2d_const spanConcentration(concentration.data(), Ngrid + 1, Ncomp);
+  mdspan2d_mut spanConcentrationDot(concentrationDot.data(), Ngrid + 1, Ncomp);
+  mdspan2d_mut spanMoleFraction(moleFraction.data(), Ngrid + 1, Ncomp);
+  mdspan2d_mut spanMassFlux(massFlux.data(), Ngrid + 1, Ncomp);
+
+  // commented out the parts for weno, seems to be unstable
+  // std::vector<double> gasTemperatureFlux(Ngrid + 1);
+  // computeWENO(gasTemperature, gasTemperatureFlux);
 
   double relativeVolume = ((1 - voidFraction) / voidFraction);
   double accessibleSurface = 6.0 / particleDiameter;  // prefactor 6.0 in python and 2.0 in eqs
@@ -345,22 +412,13 @@ void computeFirstDerivativesEnergyBalance(
 
   for (size_t grid = 0; grid < Ngrid; ++grid)
   {
-    facePressures[grid] = 0.5 * (totalPressure[grid] + totalPressure[grid + 1]);
+    facePressures[grid] = 0.5 * (totalPressure[grid] + totalPressure[grid + 1]) / R;
   }
-
-  double invGasConstant = 1.0 / R;
   for (size_t grid = 0; grid < Ngrid + 1; ++grid)
   {
-    double invTotalPressure = 1.0 / std::max(1e-10, totalPressure[grid]);
-    double invGasTemperature = 1.0 / std::max(1e-10, gasTemperature[grid]);
-    gasDensity[grid] = 0.0;
-
     for (size_t comp = 0; comp < Ncomp; ++comp)
     {
-      spanMoleFraction[grid, comp] = spanPartialPressure[grid, comp] * invTotalPressure;
-      gasDensity[grid] += components[comp].molecularWeight * invGasTemperature * invGasConstant *
-                          std::max(0.0, spanPartialPressure[grid, comp]);
-      spanEnergyFlow[grid, comp] = spanPartialPressure[grid, comp] * interstitialGasVelocity[grid] * invGasTemperature;
+      spanMassFlux[grid, comp] = spanConcentration[grid, comp] * interstitialGasVelocity[grid];
     }
     double invGasDensity = 1.0 / std::max(1e-10, gasDensity[grid]);
     coeffGasGas[grid] = prefactorGasGas * invGasDensity;
@@ -374,7 +432,7 @@ void computeFirstDerivativesEnergyBalance(
   {
     double diffAdsorption = spanEquilibriumAdsorption[0, comp] - spanAdsorption[0, comp];
     spanAdsorptionDot[0, comp] = components[comp].Kl * diffAdsorption;
-    spanPartialPressureDot[0, comp] = 0.0;
+    spanConcentrationDot[0, comp] = 0.0;
   }
 
   // boundary conditions
@@ -399,7 +457,7 @@ void computeFirstDerivativesEnergyBalance(
                                idx2;
 
     // flux from heat diffusion in wall
-    wallTemperatureDot[grid] += (wallThermalConductivity * invHeatDensityWall) *
+    wallTemperatureDot[grid] += idx2 * (wallThermalConductivity * invHeatDensityWall) *
                                 (wallTemperature[grid - 1] - 2.0 * wallTemperature[grid] + wallTemperature[grid + 1]);
 
     // add effect of ambient temperature to wall
@@ -420,25 +478,17 @@ void computeFirstDerivativesEnergyBalance(
           components[comp].heatOfAdsorption * spanAdsorptionDot[grid, comp] / heatCapacitySolid;
 
       // flow due to velocity
-      double dpdt1 = -gasTemperature[grid] * ((spanEnergyFlow[grid, comp] - spanEnergyFlow[grid - 1, comp])) * idx;
-
-      // pressure change due to heating
-      double dpdt2 = spanPartialPressure[grid, comp] * gasTemperatureDot[grid] * invGasTemperature;
+      double dcdt1 = -(spanMassFlux[grid, comp] - spanMassFlux[grid - 1, comp]) * idx;
 
       // diffusion due to pressure
-      double dpdt3 = components[comp].D * idx2 *
+      double dcdt2 = components[comp].D * idx2 * invGasTemperature *
                      (facePressures[grid] * (spanMoleFraction[grid + 1, comp] - spanMoleFraction[grid, comp]) -
                       facePressures[grid - 1] * (spanMoleFraction[grid, comp] - spanMoleFraction[grid - 1, comp]));
 
-      // pressure correction due to advection cause by heating
-      double dpdt4 = -components[comp].D * totalPressure[grid] * invGasTemperature * idx2 *
-                     (gasTemperature[grid - 1] - gasTemperature[grid]) *
-                     (spanMoleFraction[grid - 1, comp] - spanMoleFraction[grid, comp]);
-
       // pressure change due to adsorption
-      double dpdt5 = -prefactorMassTransfer[comp] * diffAdsorption;
+      double dcdt3 = -prefactorMassTransfer[comp] * diffAdsorption;
 
-      spanPartialPressureDot[grid, comp] = dpdt1 + dpdt2 + dpdt3 + dpdt4 + dpdt5;
+      spanConcentrationDot[grid, comp] = dcdt1 + dcdt2 + dcdt3;
     }
   }
 
@@ -452,18 +502,18 @@ void computeFirstDerivativesEnergyBalance(
   wallTemperatureDot[Ngrid] = coeffWallGas * gasTemperature[Ngrid] + coeffWallWall * wallTemperature[Ngrid];
 
   // flux from gas diffusion and advection
-  gasTemperatureDot[Ngrid] =
+  gasTemperatureDot[Ngrid] +=
       interstitialGasVelocity[Ngrid] * (gasTemperature[Ngrid] - gasTemperature[Ngrid - 1]) * idx +
       coeffDiffusion[Ngrid] * (gasTemperature[Ngrid - 1] - gasTemperature[Ngrid]) * idx2;
 
   // flux from heat diffusion in wall
   wallTemperatureDot[Ngrid] +=
-      (wallThermalConductivity * invHeatDensityWall) * (wallTemperature[Ngrid - 1] - wallTemperature[Ngrid]);
+      idx2 * (wallThermalConductivity * invHeatDensityWall) * (wallTemperature[Ngrid - 1] - wallTemperature[Ngrid]);
 
   // add effect of ambient temperature to wall
   wallTemperatureDot[Ngrid] += heatTransferWallExternal * externalArea * externalTemperature * invHeatDensityWall;
 
-  double invGasTemperature = std::max(1e-10, 1.0 / gasTemperature[Ngrid]);
+  double invGasTemperature = 1.0 / std::max(1e-10, gasTemperature[Ngrid]);
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
     double diffAdsorption = spanEquilibriumAdsorption[Ngrid, comp] - spanAdsorption[Ngrid, comp];
@@ -471,83 +521,111 @@ void computeFirstDerivativesEnergyBalance(
     spanAdsorptionDot[Ngrid, comp] = components[comp].Kl * diffAdsorption;
 
     // flow due to velocity
-    double dpdt1 = -gasTemperature[Ngrid] * (spanEnergyFlow[Ngrid, comp] - spanEnergyFlow[Ngrid - 1, comp]) * idx;
-
-    // pressure change due to heating
-    double dpdt2 = spanPartialPressure[Ngrid, comp] * gasTemperatureDot[Ngrid] * invGasTemperature;
+    double dcdt1 = -(spanMassFlux[Ngrid, comp] - spanMassFlux[Ngrid - 1, comp]) * idx;
 
     // diffusion due to pressure
-    double dpdt3 = -components[comp].D * idx2 * facePressures[Ngrid - 1] *
-                   (spanMoleFraction[Ngrid, comp] - spanMoleFraction[Ngrid - 1, comp]);
-
-    // pressure correction due to advection cause by heating
-    double dpdt4 = -components[comp].D * invGasTemperature * totalPressure[Ngrid] * idx2 *
-                   (gasTemperature[Ngrid] - gasTemperature[Ngrid - 1]) *
+    double dcdt2 = -components[comp].D * idx2 * invGasTemperature * facePressures[Ngrid - 1] *
                    (spanMoleFraction[Ngrid, comp] - spanMoleFraction[Ngrid - 1, comp]);
 
     // pressure change due to adsorption
-    double dpdt5 = -prefactorMassTransfer[comp] * diffAdsorption;
+    double dcdt3 = -prefactorMassTransfer[comp] * diffAdsorption;
 
-    spanPartialPressureDot[Ngrid, comp] = dpdt1 + dpdt2 + dpdt3 + dpdt4 + dpdt5;
+    spanConcentrationDot[Ngrid, comp] = dcdt1 + dcdt2 + dcdt3;
   }
 }
 
-std::vector<double> computeWENO(std::vector<double>& vec, bool clamp)
+void enforceBoundaryCondition(Column& column)
 {
-  if (vec.empty()) return vec;
+  switch (column.boundaryCondition)
+  {
+    case Column::BoundaryCondition::InletPressureInletVelocity:
+    {
+      for (size_t j = 0; j < column.Ncomp; ++j)
+      {
+        // column.partialPressure[0 * column.Ncomp + j] = column.externalPressure * column.components[j].Yi0;
+        column.moleFraction[0 * column.Ncomp + j] = column.components[j].Yi0;
+        column.totalPressure[0] = column.externalPressure;
+        column.partialPressure[0 * column.Ncomp + j] = column.components[j].Yi0 * column.totalPressure[0];
+        column.concentration[0 * column.Ncomp + j] =
+            column.partialPressure[0 * column.Ncomp + j] / (R * column.externalTemperature);
+      }
+      break;
+    }
+    default:
+      break;
+  }
+}
 
+void computeWENO(std::span<const double> input, std::span<double> output)
+{
   double tol = 1e-10;
-  double alpha_0, alpha_1, first_term, second_term;
+  double df0, df1, alpha_0, alpha_1, beta_0, beta_1, first_term, second_term;
 
-  size_t size = vec.size();
-  std::vector<double> out(vec);
+  size_t size = input.size();
+  if (size < 3)
+  {
+    throw std::runtime_error("Unable to call WENO with Ngrid smaller than 3.");
+  }
 
-  if (clamp && vec[size - 1] >= 1.0) out[size - 1] = 1.0;
+  // inlet boundary flux: prescribed from Dirichlet inflow state
+  output[0] = input[0];
 
-  // For right wall of 1st Node, alpha_1 and second term values are calculated using half-cell approximation
-  alpha_0 = (2.0 / 3.0) / std::pow((vec[2] - vec[1]) + tol, 4.0);
-  alpha_1 = (1.0 / 3.0) / std::pow(2.0 * (vec[1] - vec[0]) + tol, 4.0);
+  // first interior interface, special one-sided closure
+  df0 = input[2] - input[1];
+  df1 = input[1] - input[0];
+  beta_0 = df0 * df0;
+  beta_1 = df1 * df1;
 
-  first_term = 0.5 * (alpha_0 / (alpha_0 + alpha_1)) * (vec[2] + vec[1]);
-  second_term = (alpha_1 / (alpha_0 + alpha_1)) * (2.0 * vec[1] - vec[0]);
-  out[1] = first_term + second_term;
+  alpha_0 = (2.0 / 3.0) / ((beta_0 + tol) * (beta_0 + tol));
+  alpha_1 = (1.0 / 3.0) / (16.0 * (beta_1 + tol) * (beta_1 + tol));
 
-  // For right walls of 2nd to Ngrid-1 node
+  first_term = 0.5 * (alpha_0 / (alpha_0 + alpha_1)) * (input[2] + input[1]);
+  second_term = (alpha_1 / (alpha_0 + alpha_1)) * (2.0 * input[1] - input[0]);
+  output[1] = first_term + second_term;
+
+  // interior interfaces
   for (size_t i = 2; i < size - 1; ++i)
   {
-    alpha_0 = (2.0 / 3.0) / std::pow(vec[i + 1] - vec[i] + tol, 4.0);
-    alpha_1 = (1.0 / 3.0) / std::pow(vec[i] - vec[i - 1] + tol, 4.0);
+    df0 = input[i + 1] - input[i];
+    df1 = input[i] - input[i - 1];
+    beta_0 = df0 * df0;
+    beta_1 = df1 * df1;
 
-    first_term = 0.5 * (alpha_0 / (alpha_0 + alpha_1)) * (vec[i + 1] + vec[i]);
-    second_term = (alpha_1 / (alpha_0 + alpha_1)) * ((3.0 / 2.0) * vec[i] - (1.0 / 2.0) * vec[i - 1]);
-    out[i] = first_term + second_term;
+    alpha_0 = (2.0 / 3.0) / ((beta_0 + tol) * (beta_0 + tol));
+    alpha_1 = (1.0 / 3.0) / ((beta_1 + tol) * (beta_1 + tol));
+
+    first_term = 0.5 * (alpha_0 / (alpha_0 + alpha_1)) * (input[i + 1] + input[i]);
+    second_term = (alpha_1 / (alpha_0 + alpha_1)) * ((3.0 / 2.0) * input[i] - (1.0 / 2.0) * input[i - 1]);
+    output[i] = first_term + second_term;
   }
-  return out;
+
+  // outlet boundary flux: outflow closure
+  output[size - 1] = input[size - 1];  // simplest option
 }
 
-std::vector<double> computeTVD(std::vector<double>& vec, bool clamp)
-{
-  if (vec.empty()) return vec;
+// void computeTVD(std::span<double> input, std::span<double> output, bool clamp)
+// {
+//   double tol = 1e-10;
+//   double r_value, flux_limiter;
 
-  double tol = 1e-10;
-  double r_value, flux_limiter;
+//   size_t size = input.size();
+//   if (size < 3)
+//   {
+//     throw std::runtime_error("Unable to call TVD with Ngrid smaller than 3, increase number of grid points.");
+//   }
 
-  size_t size = vec.size();
-  std::vector<double> out(vec);
+//   if (clamp && input[size - 1] >= 1.0) output[size - 1] = 1.0;
 
-  if (clamp && vec[size - 1] >= 1.0) out[size - 1] = 1.0;
+//   // For right wall of 1st Node, r_value is calculated using half-cell approximation
+//   r_value = (2.0 * (input[1] - input[0]) + tol) / (input[2] - input[1] + tol);
+//   flux_limiter = (r_value + std::abs(r_value)) / (1.0 + std::abs(r_value));
+//   output[1] += 0.5 * flux_limiter * (input[2] - input[1]);
 
-  // For right wall of 1st Node, r_value is calculated using half-cell approximation
-  r_value = (2.0 * (vec[1] - vec[0]) + tol) / (vec[2] - vec[1] + tol);
-  flux_limiter = (r_value + std::abs(r_value)) / (1.0 + std::abs(r_value));
-  out[1] += 0.5 * flux_limiter * (vec[2] - vec[1]);
-
-  // For right walls of 2nd to Ngrid-1 node
-  for (size_t i = 2; i < size - 1; ++i)
-  {
-    r_value = ((vec[i] - vec[i - 1]) + tol) / ((vec[i + 1] - vec[i]) + tol);
-    flux_limiter = (r_value + std::abs(r_value)) / (1.0 + std::abs(r_value));
-    out[i] = vec[i] + 0.5 * flux_limiter * (vec[i + 1] - vec[i]);
-  }
-  return out;
-}
+//   // For right walls of 2nd to Ngrid-1 node
+//   for (size_t i = 2; i < size - 1; ++i)
+//   {
+//     r_value = ((input[i] - input[i - 1]) + tol) / ((input[i + 1] - input[i]) + tol);
+//     flux_limiter = (r_value + std::abs(r_value)) / (1.0 + std::abs(r_value));
+//     output[i] = input[i] + 0.5 * flux_limiter * (input[i + 1] - input[i]);
+//   }
+// }
