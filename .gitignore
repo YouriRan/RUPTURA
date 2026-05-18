@@ -15,6 +15,9 @@ examples/
 .vscode
 .idea
 
+# data files
+**/*.data
+
 #cmake 
 CMakeLists.txt.user
 CMakeCache.txt

@@ -60,6 +60,28 @@ Fitting::Fitting(const InputReader& inputreader)
   }
 }
 
+bool startsWith(const std::string& str, const std::string& prefix)
+{
+  return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
+}
+
+std::string trim(const std::string& s)
+{
+  auto start = s.begin();
+  while (start != s.end() && std::isspace(*start))
+  {
+    start++;
+  }
+
+  auto end = s.end();
+  do
+  {
+    end--;
+  } while (std::distance(start, end) > 0 && std::isspace(*end));
+
+  return std::string(start, end + 1);
+}
+
 void Fitting::readData(size_t ID)
 {
   std::ifstream fileInput{filename[ID]};

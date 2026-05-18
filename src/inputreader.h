@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -9,11 +11,10 @@ extern bool startsWith(const std::string& str, const std::string& prefix);
 extern std::string trim(const std::string& s);
 
 /**
- * \brief Parses input files and stores simulation parameters.
+ * \brief Parses JSON input files and stores simulation parameters.
  *
- * The InputReader struct is responsible for reading and parsing input files containing simulation parameters.
- * It stores all the necessary data required to set up and run simulations, including components, simulation types,
- * and various parameters related to the simulation environment.
+ * Supports case-insensitive keys for user-facing input fields. The reader also
+ * performs basic consistency checks for breakthrough simulations.
  */
 struct InputReader
 {
@@ -46,16 +47,19 @@ struct InputReader
   size_t IASTMethod{0};                                         ///< The method used for IAST calculations.
   size_t breakthroughIntegrator{0};                             ///< The integrator used for breakthrough calculations.
   size_t velocityProfile{0};                                    ///< The method used to calculate the velocity profile.
+  size_t boundaryCondition{0};                                  ///< The breakthrough boundary condition.
   std::string displayName{"Column"};                            ///< The display name for the simulation.
-  double temperature{433.0};                                    ///< The simulation temperature in Kelvin.
-  double columnVoidFraction{0.4};                               ///< The void fraction of the column.
-  double dynamicViscosity{1e-5};                                ///< Dynamic viscosity of the flue gas.
-  double particleDiameter{1e-3};                                ///< Diameter of the particle packed in the column.
-  double particleDensity{1000.0};                               ///< The density of the particles in kg/m^3.
-  double totalPressure{1.0e6};                                  ///< The total pressure in the system in Pa.
-  double pressureGradient{0.0};                                 ///< The pressure gradient in the column.
-  double columnEntranceVelocity{0.1};                           ///< The entrance velocity of the column in m/s.
-  double columnLength{0.3};                                     ///< The length of the column in meters.
+
+  double temperature{433.0};            ///< The simulation temperature in Kelvin.
+  double columnVoidFraction{0.4};       ///< The void fraction of the packed column.
+  double dynamicViscosity{1e-5};        ///< Dynamic viscosity of the gas phase.
+  double particleDiameter{1e-3};        ///< Diameter of the packed particles.
+  double particleDensity{1000.0};       ///< Particle density in kg/m^3.
+  double inletPressure{-1.0};           ///< Inlet pressure, P_in, in Pa.
+  double outletPressure{-1.0};          ///< Outlet pressure, P_out, in Pa.
+  double pressureGradient{0.0};         ///< Pressure-gradient parameter used by FixedPressureGradient.
+  double columnEntranceVelocity{-1.0};  ///< Inlet velocity, v_in, in m/s.
+  double columnLength{0.3};             ///< Column length in meters.
 
   double influxTemperature;
   double internalDiameter;
@@ -72,11 +76,9 @@ struct InputReader
   bool energyBalance;
 
   size_t numberOfTimeSteps{0};       ///< The number of time steps in the simulation.
-  size_t numberOfInitTimeSteps{0};   ///< The number of time steps in the simulation.
+  size_t numberOfInitTimeSteps{0};   ///< The number of initialization time steps.
   bool autoNumberOfTimeSteps{true};  ///< Whether to automatically determine the number of time steps.
   double timeStep{0.0005};           ///< The time step size in seconds.
-  bool pulseBreakthrough{false};     ///< Whether to use pulse breakthrough mode.
-  double pulseTime{0.0};             ///< The duration of the pulse in seconds.
   size_t printEvery{10000};          ///< The interval at which to print output.
   size_t writeEvery{10000};          ///< The interval at which to write output.
   size_t numberOfGridPoints{100};    ///< The number of grid points in the column.
@@ -84,11 +86,15 @@ struct InputReader
   double pressureStart{-1.0};          ///< The starting pressure for isotherm calculations.
   double pressureEnd{-1.0};            ///< The ending pressure for isotherm calculations.
   size_t numberOfPressurePoints{100};  ///< The number of pressure points to calculate.
-  size_t pressureScale{0};             ///< The scale for pressure calculations (0 for log, 1 for linear).
+  size_t pressureScale{0};             ///< The pressure scale: 0 = log, 1 = linear.
 
   size_t columnPressure{0};  ///< The index of the column for pressure data.
   size_t columnLoading{1};   ///< The index of the column for loading data.
   size_t columnError{2};     ///< The index of the column for error data.
+
+  std::vector<double> swingTemperatures;
+  std::vector<double> swingPressures;
+  std::vector<size_t> swingSteps;
 
   std::optional<std::string> readColumnFile;
 };

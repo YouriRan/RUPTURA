@@ -1,3 +1,5 @@
+#pragma once
+
 #include <vector>
 
 const double R = 8.31446261815324;

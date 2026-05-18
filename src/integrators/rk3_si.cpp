@@ -1,10 +1,13 @@
 #include "rk3_si.h"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <mdspan>
+#include <stdexcept>
 #include <vector>
 
+#include "compute.h"
 #include "utils.h"
 
 extern "C"
@@ -13,6 +16,11 @@ extern "C"
   void dgbsv_(int* n, int* kl, int* ku, int* nrhs, double* ab, int* ldab, int* ipiv, double* b, int* ldb, int* info);
 }
 
+void computePressureUpdateMatrix(Column& column, double timeStep, std::vector<double>& solved);
+void computePressureUpdateMatrixEnergyBalance(Column& column, double timeStep, std::vector<double>& solved);
+void computePressureUpdateMatrixFinal(Column& column, double timeStep, std::vector<double>& solved);
+void computePressureUpdateMatrixFinalEnergyBalance(Column& column, double timeStep, std::vector<double>& solved);
+
 bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
 {
   double t = static_cast<double>(step) * timeStep;
@@ -20,7 +28,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
   size_t Ncomp = column.Ncomp;
   Column newcolumn(column);
 
-  std::vector<double> solved(column.partialPressure.size());
+  std::vector<double> solved(column.concentration.size());
 
   std::vector<double> implicitInvKLs(Ncomp);
   for (size_t comp = 0; comp < Ncomp; ++comp)
@@ -33,13 +41,10 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
     double tolerance = 0.0;
     for (size_t j = 0; j < Ncomp; ++j)
     {
-      tolerance = std::max(tolerance, std::abs((column.partialPressure[Ngrid * Ncomp + j] /
-                                                (column.exitPressure * column.components[j].Yi0)) -
-                                               1.0));
+      tolerance =
+          std::max(tolerance, std::abs((column.moleFraction[Ngrid * Ncomp + j] / column.components[j].Yi0) - 1.0));
     }
 
-    // consider 1% as being visibily indistinguishable from 'converged'
-    // use a 10% longer time for display purposes
     if (tolerance < 0.01)
     {
       std::cout << "\nConvergence criteria reached, running 10% longer\n\n" << std::endl;
@@ -49,14 +54,6 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
   }
 
   // SSP-RK Step 1
-  // ======================================================================
-
-  // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P
-
-  // Dqdt and Dpdt are calculated at old time step
-  // make estimate for the new loadings and new gas phase partial pressures
-  // first iteration is made using the Explicit Euler scheme
-
   for (size_t i = 0; i < column.adsorption.size(); ++i)
   {
     size_t comp = i % Ncomp;
@@ -66,21 +63,24 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
   }
 
   computeVelocity(newcolumn);
-  computePressureUpdateMatrix(newcolumn, timeStep, solved);
+  if (newcolumn.energyBalance)
+  {
+    computePressureUpdateMatrixEnergyBalance(newcolumn, timeStep, solved);
+  }
+  else
+  {
+    computePressureUpdateMatrix(newcolumn, timeStep, solved);
+  }
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newcolumn.partialPressure[i] = solved[i];
+    newcolumn.concentration[i] = solved[i];
   }
 
+  computePressure(newcolumn);
   computeEquilibriumLoadings(newcolumn);
 
   // SSP-RK Step 2
-  // ======================================================================
-
-  // calculate new derivatives at new (current) timestep
-  // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
-
   for (size_t i = 0; i < column.adsorption.size(); ++i)
   {
     size_t comp = i % Ncomp;
@@ -91,21 +91,24 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
   }
 
   computeVelocity(newcolumn);
-  computePressureUpdateMatrix(newcolumn, timeStep, solved);
+  if (newcolumn.energyBalance)
+  {
+    computePressureUpdateMatrixEnergyBalance(newcolumn, timeStep, solved);
+  }
+  else
+  {
+    computePressureUpdateMatrix(newcolumn, timeStep, solved);
+  }
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newcolumn.partialPressure[i] = 0.75 * column.partialPressure[i] + 0.25 * solved[i];
+    newcolumn.concentration[i] = 0.75 * column.concentration[i] + 0.25 * solved[i];
   }
 
+  computePressure(newcolumn);
   computeEquilibriumLoadings(newcolumn);
 
   // SSP-RK Step 3
-  // ======================================================================
-
-  // calculate new derivatives at new (current) timestep
-  // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
-
   for (size_t i = 0; i < column.adsorption.size(); ++i)
   {
     size_t comp = i % Ncomp;
@@ -117,16 +120,24 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
   }
 
   computeVelocity(newcolumn);
-  computePressureUpdateMatrix(newcolumn, timeStep, solved);
+  if (newcolumn.energyBalance)
+  {
+    computePressureUpdateMatrixEnergyBalance(newcolumn, timeStep, solved);
+  }
+  else
+  {
+    computePressureUpdateMatrix(newcolumn, timeStep, solved);
+  }
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newcolumn.partialPressure[i] = (1.0 / 3.0) * column.partialPressure[i] + (2.0 / 3.0) * solved[i];
+    newcolumn.concentration[i] = (1.0 / 3.0) * column.concentration[i] + (2.0 / 3.0) * solved[i];
   }
 
+  computePressure(newcolumn);
   computeEquilibriumLoadings(newcolumn);
 
-  // update to the new time step
+  // final implicit adsorption update
   for (size_t i = 0; i < column.adsorption.size(); ++i)
   {
     size_t comp = i % Ncomp;
@@ -139,34 +150,25 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step)
 
   computeVelocity(newcolumn);
 
-  computePressureUpdateMatrixFinal(newcolumn, timeStep, solved);
+  if (newcolumn.energyBalance)
+  {
+    computePressureUpdateMatrixFinalEnergyBalance(newcolumn, timeStep, solved);
+  }
+  else
+  {
+    computePressureUpdateMatrixFinal(newcolumn, timeStep, solved);
+  }
+
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newcolumn.partialPressure[i] = solved[i];
+    newcolumn.concentration[i] = solved[i];
   }
+
+  computePressure(newcolumn);
+  computeEquilibriumLoadings(newcolumn);
 
   column = newcolumn;
-
-  // pulse boundary condition
-  for (size_t j = 0; j < Ncomp; ++j)
-  {
-    if (column.pulse && t > column.pulseTime)
-    {
-      if (j == column.carrierGasComponent)
-      {
-        column.partialPressure[0 * Ncomp + j] = column.externalPressure;
-      }
-      else
-      {
-        column.partialPressure[0 * Ncomp + j] = 0.0;
-      }
-    }
-    else
-    {
-      column.partialPressure[0 * Ncomp + j] = column.externalPressure * column.components[j].Yi0;
-    }
-  }
-
+  enforceBoundaryCondition(column);
   return (!autoSteps && step >= numberOfSteps - 1);
 }
 
@@ -178,54 +180,37 @@ void computePressureFirstDerivative(size_t Ncomp, size_t Ngrid, double resolutio
   double idx = 1.0 / resolution;
   double idx2 = idx * idx;
 
-  std::mdspan<const double, std::dextents<size_t, 2>> spanPartialPressure(partialPressure.data(), Ngrid + 1, Ncomp);
+  std::mdspan<const double, std::dextents<size_t, 2>> spanConcentration(partialPressure.data(), Ngrid + 1, Ncomp);
 
-  // first gridpoint
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
     partialPressureDot[comp] = 0.0;
   }
 
-  // middle gridpoints
   for (size_t grid = 1; grid < Ngrid; ++grid)
   {
     for (size_t comp = 0; comp < Ncomp; ++comp)
     {
       partialPressureDot[grid * Ncomp + comp] =
-          (interstitialGasVelocity[grid - 1] * spanPartialPressure[grid - 1, comp] -
-           interstitialGasVelocity[grid] * spanPartialPressure[grid, comp]) *
+          (interstitialGasVelocity[grid - 1] * spanConcentration[grid - 1, comp] -
+           interstitialGasVelocity[grid] * spanConcentration[grid, comp]) *
               idx +
           components[comp].D *
-              (spanPartialPressure[grid + 1, comp] - 2.0 * spanPartialPressure[grid, comp] +
-               spanPartialPressure[grid - 1, comp]) *
+              (spanConcentration[grid + 1, comp] - 2.0 * spanConcentration[grid, comp] +
+               spanConcentration[grid - 1, comp]) *
               idx2;
     }
   }
 
-  // last gridpoint
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
     partialPressureDot[Ngrid * Ncomp + comp] =
-        (interstitialGasVelocity[Ngrid - 1] * spanPartialPressure[Ngrid - 1, comp] -
-         interstitialGasVelocity[Ngrid] * spanPartialPressure[Ngrid, comp]) *
+        (interstitialGasVelocity[Ngrid - 1] * spanConcentration[Ngrid - 1, comp] -
+         interstitialGasVelocity[Ngrid] * spanConcentration[Ngrid, comp]) *
             idx +
-        components[comp].D * (spanPartialPressure[Ngrid - 1, comp] - spanPartialPressure[Ngrid, comp]) * idx2;
+        components[comp].D * (spanConcentration[Ngrid - 1, comp] - spanConcentration[Ngrid, comp]) * idx2;
   }
 }
-
-// u' = f(u) + g(u) u
-// u^{i+1} = u + dt * f / (1 + dt * g)
-
-// p' = f(p) + g(p) p
-// f(p) = (q - qeq)
-// g(p) = (D / dx) * v_i-1 * p_i-1 + v_i + v_i+1
-// A = (D / dx)
-// | v_i v_{i+1} 0 0 0 0 |
-// | v_{i-1} v_i v_{i+1} 0 0 0 |
-// | 0 v_{i-1} v_i v_{i+1} 0 0 |
-
-// p^{i+1} = p + dt * f / (1 + dt * A)
-// (1 + dt * A)^{-1} p^{i+1} = p + dt * f
 
 void computePressureUpdateMatrix(Column& column, double timeStep, std::vector<double>& solved)
 {
@@ -236,42 +221,44 @@ void computePressureUpdateMatrix(Column& column, double timeStep, std::vector<do
 
   int n = static_cast<int>(Ngrid + 1);
   int nrhs = 1;
-  int info = 0;
 
   std::vector<double> upper(Ngrid);
   std::vector<double> lower(Ngrid);
   std::vector<double> diag(Ngrid + 1);
   std::vector<double> rhs(Ngrid + 1);
 
-  // pdot = Ap - b(q_eq - q)
-  // diag: Aii = -(v_i / dx + 2D / (dx)^2)
-  // lower: Ai,i-1 = (v_{i-1} / dx + D / (dx)^2)
-  // upper: D / (dx)^2
-  // SIRK3: (1 - dt * A) p^{i+1} = p^i + dt * b * (q_eq - q)
-  // Matrix: I - dt * A
-
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
+    int info = 0;
+
     double D = column.components[comp].D;
     double b = column.prefactorMassTransfer[comp];
+
     for (size_t i = 0; i < Ngrid; ++i)
     {
       lower[i] = -timeStep * (column.interstitialGasVelocity[i] * idx + D * idx2);
       upper[i] = -timeStep * (D * idx2);
     }
+
     for (size_t i = 0; i < Ngrid + 1; ++i)
     {
       diag[i] = 1.0 + timeStep * (column.interstitialGasVelocity[i] * idx + 2.0 * D * idx2);
-      rhs[i] = column.partialPressure[i * Ncomp + comp] +
+      rhs[i] = column.concentration[i * Ncomp + comp] +
                timeStep * (-b * (column.equilibriumAdsorption[i * Ncomp + comp] - column.adsorption[i * Ncomp + comp]));
     }
 
-    // boundary conditions
+    diag[Ngrid] = 1.0 + timeStep * (column.interstitialGasVelocity[Ngrid] * idx + D * idx2);
+
     diag[0] = 1.0;
     upper[0] = 0.0;
-    rhs[0] = column.partialPressure[comp];
+    rhs[0] = column.concentration[comp];
 
     dgtsv_(&n, &nrhs, lower.data(), diag.data(), upper.data(), rhs.data(), &n, &info);
+    if (info != 0)
+    {
+      throw std::runtime_error("dgtsv failed in computePressureUpdateMatrix");
+    }
+
     for (size_t grid = 0; grid < Ngrid + 1; ++grid)
     {
       solved[grid * Ncomp + comp] = rhs[grid];
@@ -288,7 +275,6 @@ void computePressureUpdateMatrixEnergyBalance(Column& column, double timeStep, s
 
   int n = static_cast<int>(Ngrid + 1);
   int nrhs = 1;
-  int info = 0;
 
   std::vector<double> upper(Ngrid);
   std::vector<double> lower(Ngrid);
@@ -297,149 +283,71 @@ void computePressureUpdateMatrixEnergyBalance(Column& column, double timeStep, s
 
   for (size_t grid = 0; grid < Ngrid; ++grid)
   {
-    column.facePressures[grid] = 0.5 * (column.totalPressure[grid] + column.totalPressure[grid + 1]);
+    column.facePressures[grid] = 0.5 * (column.totalPressure[grid] + column.totalPressure[grid + 1]) / R;
   }
-
-  // pdot = Ap - b(q_eq - q)
-  // diag: Aii = -(v_i / dx + 2D / (dx)^2)
-  // lower: Ai,i-1 = (v_{i-1} / dx + D / (dx)^2)
-  // upper: D / (dx)^2
-  // SIRK3: (1 - dt * A) p^{i+1} = p^i + dt * b * (q_eq - q)
-  // Matrix: I - dt * A
 
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
+    int info = 0;
+
     double D = column.components[comp].D;
     double b = column.prefactorMassTransfer[comp];
+
     for (size_t i = 0; i < Ngrid; ++i)
     {
-      lower[i] = -timeStep *
-                 ((column.gasTemperature[i + 1] / column.gasTemperature[i]) * column.interstitialGasVelocity[i] * idx +
-                  D * idx2 *
-                      ((column.facePressures[i] / column.totalPressure[i]) +
-                       (column.totalPressure[i + 1] / column.gasTemperature[i + 1]) *
-                           (column.gasTemperature[i] - column.gasTemperature[i + 1])));
+      double invGasTemperatureUpper = 1.0 / std::max(1e-10, column.gasTemperature[i]);
+      double invTotalConcentrationUpper = 1.0 / std::max(1e-10, column.totalConcentration[i + 1]);
+      double invGasTemperatureLower = 1.0 / std::max(1e-10, column.gasTemperature[i + 1]);
+      double invTotalConcentrationLower = 1.0 / std::max(1e-10, column.totalConcentration[i]);
 
-      upper[i] = -timeStep * (D * idx2 * (column.facePressures[i] / column.totalPressure[i + 1]));
+      upper[i] = -timeStep * (D * idx2 * invGasTemperatureUpper * column.facePressures[i] * invTotalConcentrationUpper);
+
+      lower[i] =
+          -timeStep * (column.interstitialGasVelocity[i] * idx +
+                       D * idx2 * invGasTemperatureLower * column.facePressures[i] * invTotalConcentrationLower);
     }
+
     for (size_t i = 1; i < Ngrid; ++i)
     {
-      // FIX: gasTemperatureDot is not computed!!!
-      diag[i] =
-          1.0 - timeStep * (-column.interstitialGasVelocity[i] * idx +
-                            (column.gasTemperatureDot[i] / column.gasTemperature[i]) +
-                            D * idx2 *
-                                (((column.facePressures[i - 1] + column.facePressures[i]) / column.totalPressure[i]) +
-                                 (column.totalPressure[i] / column.gasTemperature[i]) *
-                                     (column.gasTemperature[i - 1] - column.gasTemperature[i])));
-      rhs[i] = column.partialPressure[i * Ncomp + comp] +
+      double invGasTemperature = 1.0 / std::max(1e-10, column.gasTemperature[i]);
+      double invTotalConcentration = 1.0 / std::max(1e-10, column.totalConcentration[i]);
+
+      diag[i] = 1.0 + timeStep * (column.interstitialGasVelocity[i] * idx +
+                                  D * idx2 * invGasTemperature *
+                                      (column.facePressures[i - 1] + column.facePressures[i]) * invTotalConcentration);
+
+      rhs[i] = column.concentration[i * Ncomp + comp] +
                timeStep * (-b * (column.equilibriumAdsorption[i * Ncomp + comp] - column.adsorption[i * Ncomp + comp]));
     }
 
-    diag[Ngrid] = 1.0 - timeStep * (-column.interstitialGasVelocity[Ngrid] * idx +
-                                    (column.gasTemperatureDot[Ngrid] / column.gasTemperature[Ngrid]) +
-                                    D * idx2 *
-                                        ((column.facePressures[Ngrid - 1] / column.totalPressure[Ngrid]) +
-                                         (column.totalPressure[Ngrid] / column.gasTemperature[Ngrid]) *
-                                             (column.gasTemperature[Ngrid - 1] - column.gasTemperature[Ngrid])));
+    {
+      double invGasTemperature = 1.0 / std::max(1e-10, column.gasTemperature[Ngrid]);
+      double invTotalConcentration = 1.0 / std::max(1e-10, column.totalConcentration[Ngrid]);
 
-    // boundary conditions
+      diag[Ngrid] = 1.0 + timeStep * (column.interstitialGasVelocity[Ngrid] * idx +
+                                      D * idx2 * invGasTemperature * column.facePressures[Ngrid - 1] *
+                                          invTotalConcentration);
+
+      rhs[Ngrid] = column.concentration[Ngrid * Ncomp + comp] +
+                   timeStep * (-b * (column.equilibriumAdsorption[Ngrid * Ncomp + comp] -
+                                     column.adsorption[Ngrid * Ncomp + comp]));
+    }
+
     diag[0] = 1.0;
     upper[0] = 0.0;
-    rhs[0] = column.partialPressure[comp];
+    rhs[0] = column.concentration[comp];
 
     dgtsv_(&n, &nrhs, lower.data(), diag.data(), upper.data(), rhs.data(), &n, &info);
+    if (info != 0)
+    {
+      throw std::runtime_error("dgtsv failed in computePressureUpdateMatrixEnergyBalance");
+    }
+
     for (size_t grid = 0; grid < Ngrid + 1; ++grid)
     {
       solved[grid * Ncomp + comp] = rhs[grid];
     }
   }
-}
-
-void computeEnergyUpdateMatrixEnergyBalance(Column& column, double timeStep, std::vector<double>& solved)
-{
-  double idx = 1.0 / column.resolution;
-  double idx2 = idx * idx;
-  size_t Ngrid = column.Ngrid;
-  size_t Ncomp = column.Ncomp;
-
-  double relativeVolume = ((1 - column.voidFraction) / column.voidFraction);
-  double accessibleSurface = 6.0 / column.particleDiameter;  // prefactor 6.0 in python and 2.0 in eqs
-  double prefactorGasSolid = relativeVolume * accessibleSurface * column.heatTransferGasSolid / column.heatCapacityGas;
-
-  // is this extra 1/eps necessary? It's in python not in eqs
-  double prefactorGasWall =
-      4.0 * column.heatTransferGasWall / (column.voidFraction * column.heatCapacityGas * column.internalDiameter);
-  double prefactorGasGas = -(prefactorGasSolid + prefactorGasWall);
-
-  double coeffSolidGas =
-      accessibleSurface * column.heatTransferGasSolid / (column.heatCapacitySolid * column.particleDensity);
-  double coeffSolidSolid = -coeffSolidGas;
-
-  // prefactor 4 in python, 2 in eqs
-  double internalArea =
-      4.0 * column.internalDiameter /
-      (column.outerDiameter * column.outerDiameter - column.internalDiameter * column.internalDiameter);
-  double externalArea =
-      4.0 * column.outerDiameter /
-      (column.outerDiameter * column.outerDiameter - column.internalDiameter * column.internalDiameter);
-  double invHeatDensityWall = 1.0 / (column.heatCapacityWall * column.wallDensity);
-  double coeffWallGas = column.heatTransferGasWall * internalArea * invHeatDensityWall;
-  double coeffWallWall = -coeffWallGas - column.heatTransferWallExternal * externalArea * invHeatDensityWall;
-  double coeffDiffusion = column.gasThermalConductivity / column.heatCapacityGas;
-
-  int n = static_cast<int>(Ngrid + 1);
-  int nrhs = 1;
-  int info = 0;
-
-  //   Eigen::SparseMatrix<double> A(9 * n * n);
-  //   std::vector<Eigen::Triplet<double>> trips;
-
-  //   for (size_t grid = 0; grid < Ngrid + 1; ++grid)
-  //   {
-  //     column.gasDensity[grid] = 0.0;
-  //     for (size_t comp = 0; comp < Ncomp; ++comp)
-  //     {
-  //       column.gasDensity[grid] += column.components[comp].molecularWeight *
-  //                                  std::max(0.0, column.partialPressure[grid * Ncomp + comp]) /
-  //                                  (R * column.gasTemperature[grid]);
-  //     }
-  //   }
-
-  //   for (size_t grid = 1; grid < Ngrid; ++grid)
-  //   {
-  //     // Ggg
-  //     double invGasDensity = 1.0 / column.gasDensity[grid];
-  //     trips.emplace_back(
-  //         0 * n + grid, 0 * n + grid - 1,
-  //         -timeStep * (idx2 * coeffDiffusion * invGasDensity + idx * column.interstitialGasVelocity[grid]));
-  //     trips.emplace_back(0 * n + grid, 0 * n + grid,
-  //                        1.0 - timeStep * (-(idx2 * coeffDiffusion - prefactorGasGas) * invGasDensity -
-  //                                          idx * column.interstitialGasVelocity[grid]));
-  //     trips.emplace_back(0 * n + grid, 0 * n + grid + 1, -timeStep * idx2 * coeffDiffusion * invGasDensity);
-
-  //     // Ggs
-  //     trips.emplace_back(0 * n + grid, 1 * n + grid, -timeStep * prefactorGasSolid / column.gasDensity[grid]);
-
-  //     // Ggw
-  //     trips.emplace_back(0 * n + grid, 2 * n + grid, -timeStep * prefactorGasWall / column.gasDensity[grid]);
-
-  //     // Gsg
-  //     trips.emplace_back(1 * n + grid, 0 * n + grid, -timeStep * coeffSolidGas);
-
-  //     // Gss
-  //     trips.emplace_back(1 * n + grid, 1 * n + grid, 1.0 - timeStep * coeffSolidSolid);
-
-  //     // Gsw: 0
-
-  //     // Gwg
-  //     trips.emplace_back(2 * n + grid, 0 * n + grid, -timeStep * coeffWallGas);
-
-  //     // Gws: 0
-
-  //     // Gww
-  //     trips.emplace_back(2 * n + grid, 2 * n + grid - 1, -timeStep * ());
-  //   }
 }
 
 void computePressureUpdateMatrixFinal(Column& column, double timeStep, std::vector<double>& solved)
@@ -456,14 +364,6 @@ void computePressureUpdateMatrixFinal(Column& column, double timeStep, std::vect
   std::vector<double> preRHS(Ngrid + 1);
   std::vector<double> rhs(Ngrid + 1);
 
-  // rows:
-  // 0 empty
-  // 1 empty
-  // 2 second superdiagonal
-  // 3 first superdiagonal
-  // 4 main diagonal
-  // 5 first subdiagonal
-  // 6 second subdiagonal
   std::vector<double> ab(7 * (Ngrid + 1), 0.0);
   std::mdspan abS(ab.data(), 7, Ngrid + 1);
   std::vector<int> ipiv(Ngrid + 1);
@@ -477,53 +377,179 @@ void computePressureUpdateMatrixFinal(Column& column, double timeStep, std::vect
 
   for (size_t comp = 0; comp < Ncomp; ++comp)
   {
+    info = 0;
+    std::fill(ab.begin(), ab.end(), 0.0);
+
     double D = column.components[comp].D;
     double b = column.prefactorMassTransfer[comp];
 
-    // First create tridiagonal matrix A and f
     for (size_t i = 0; i < Ngrid; ++i)
     {
       lower[i] = column.interstitialGasVelocity[i] * idx + D * idx2;
       upper[i] = D * idx2;
     }
-    for (size_t i = 0; i < Ngrid + 1; ++i)
+
+    upper[0] = 0.0;
+    diag[0] = 0.0;
+    preRHS[0] = 0.0;
+
+    for (size_t i = 1; i < Ngrid; ++i)
     {
       diag[i] = -(column.interstitialGasVelocity[i] * idx + 2.0 * D * idx2);
       preRHS[i] = -b * (column.equilibriumAdsorption[i * Ncomp + comp] - column.adsorption[i * Ncomp + comp]);
     }
 
-    // Now calculate (1 + (dt * A)^2) and (p - dt * A * f)
-    for (size_t i = 0; i < Ngrid - 1; ++i)
+    diag[Ngrid] = -(column.interstitialGasVelocity[Ngrid] * idx + D * idx2);
+    preRHS[Ngrid] = -b * (column.equilibriumAdsorption[Ngrid * Ncomp + comp] - column.adsorption[Ngrid * Ncomp + comp]);
+
+    for (size_t i = 0; i + 1 < Ngrid; ++i)
     {
       abS[6, i] = dt2 * lower[i + 1] * lower[i];
       abS[2, i + 2] = dt2 * upper[i] * upper[i + 1];
     }
+
     for (size_t i = 0; i < Ngrid; ++i)
     {
       abS[5, i] = dt2 * lower[i] * (diag[i] + diag[i + 1]);
       abS[3, i + 1] = dt2 * upper[i] * (diag[i] + diag[i + 1]);
     }
 
-    // skip the first row as these are set in boundary conditions anyway
+    for (size_t i = 1; i < Ngrid; ++i)
+    {
+      abS[4, i] = 1.0 + dt2 * (lower[i - 1] * upper[i - 1] + diag[i] * diag[i] + lower[i] * upper[i]);
+      rhs[i] = column.concentration[i * Ncomp + comp] -
+               dt2 * (lower[i - 1] * preRHS[i - 1] + diag[i] * preRHS[i] + upper[i] * preRHS[i + 1]);
+    }
+
+    abS[4, Ngrid] = 1.0 + dt2 * (lower[Ngrid - 1] * upper[Ngrid - 1] + diag[Ngrid] * diag[Ngrid]);
+    rhs[Ngrid] = column.concentration[Ngrid * Ncomp + comp] -
+                 dt2 * (lower[Ngrid - 1] * preRHS[Ngrid - 1] + diag[Ngrid] * preRHS[Ngrid]);
+
+    abS[4, 0] = 1.0;
+    rhs[0] = column.concentration[comp];
+
+    dgbsv_(&n, &kl, &ku, &nrhs, ab.data(), &ldab, ipiv.data(), rhs.data(), &n, &info);
+    if (info != 0)
+    {
+      throw std::runtime_error("dgbsv failed in computePressureUpdateMatrixFinal");
+    }
+
+    for (size_t grid = 0; grid < Ngrid + 1; ++grid)
+    {
+      solved[grid * Ncomp + comp] = rhs[grid];
+    }
+  }
+}
+
+void computePressureUpdateMatrixFinalEnergyBalance(Column& column, double timeStep, std::vector<double>& solved)
+{
+  double idx = 1.0 / column.resolution;
+  double idx2 = idx * idx;
+  double dt2 = timeStep * timeStep;
+  size_t Ngrid = column.Ngrid;
+  size_t Ncomp = column.Ncomp;
+
+  std::vector<double> upper(Ngrid);
+  std::vector<double> lower(Ngrid);
+  std::vector<double> diag(Ngrid + 1);
+  std::vector<double> preRHS(Ngrid + 1);
+  std::vector<double> rhs(Ngrid + 1);
+
+  std::vector<double> ab(7 * (Ngrid + 1), 0.0);
+  std::mdspan abS(ab.data(), 7, Ngrid + 1);
+  std::vector<int> ipiv(Ngrid + 1);
+
+  int n = static_cast<int>(Ngrid + 1);
+  int info = 0;
+  int ku = 2;
+  int kl = 2;
+  int ldab = 7;
+  int nrhs = 1;
+
+  for (size_t grid = 0; grid < Ngrid; ++grid)
+  {
+    column.facePressures[grid] = 0.5 * (column.totalPressure[grid] + column.totalPressure[grid + 1]) / R;
+  }
+
+  for (size_t comp = 0; comp < Ncomp; ++comp)
+  {
+    info = 0;
+    std::fill(ab.begin(), ab.end(), 0.0);
+
+    double D = column.components[comp].D;
+    double b = column.prefactorMassTransfer[comp];
+
+    for (size_t i = 0; i < Ngrid; ++i)
+    {
+      double invGasTemperatureUpper = 1.0 / std::max(1e-10, column.gasTemperature[i]);
+      double invTotalConcentrationUpper = 1.0 / std::max(1e-10, column.totalConcentration[i + 1]);
+      double invGasTemperatureLower = 1.0 / std::max(1e-10, column.gasTemperature[i + 1]);
+      double invTotalConcentrationLower = 1.0 / std::max(1e-10, column.totalConcentration[i]);
+
+      upper[i] = D * idx2 * invGasTemperatureUpper * column.facePressures[i] * invTotalConcentrationUpper;
+
+      lower[i] = column.interstitialGasVelocity[i] * idx +
+                 D * idx2 * invGasTemperatureLower * column.facePressures[i] * invTotalConcentrationLower;
+    }
+
+    upper[0] = 0.0;
+    diag[0] = 0.0;
+    preRHS[0] = 0.0;
+
+    for (size_t i = 1; i < Ngrid; ++i)
+    {
+      double invGasTemperature = 1.0 / std::max(1e-10, column.gasTemperature[i]);
+      double invTotalConcentration = 1.0 / std::max(1e-10, column.totalConcentration[i]);
+
+      diag[i] = -(column.interstitialGasVelocity[i] * idx +
+                  D * idx2 * invGasTemperature *
+                      (column.facePressures[i - 1] + column.facePressures[i]) * invTotalConcentration);
+
+      preRHS[i] = -b * (column.equilibriumAdsorption[i * Ncomp + comp] - column.adsorption[i * Ncomp + comp]);
+    }
+
+    {
+      double invGasTemperature = 1.0 / std::max(1e-10, column.gasTemperature[Ngrid]);
+      double invTotalConcentration = 1.0 / std::max(1e-10, column.totalConcentration[Ngrid]);
+
+      diag[Ngrid] = -(column.interstitialGasVelocity[Ngrid] * idx +
+                      D * idx2 * invGasTemperature * column.facePressures[Ngrid - 1] * invTotalConcentration);
+
+      preRHS[Ngrid] =
+          -b * (column.equilibriumAdsorption[Ngrid * Ncomp + comp] - column.adsorption[Ngrid * Ncomp + comp]);
+    }
+
+    for (size_t i = 0; i + 1 < Ngrid; ++i)
+    {
+      abS[6, i] = dt2 * lower[i + 1] * lower[i];
+      abS[2, i + 2] = dt2 * upper[i] * upper[i + 1];
+    }
+
+    for (size_t i = 0; i < Ngrid; ++i)
+    {
+      abS[5, i] = dt2 * lower[i] * (diag[i] + diag[i + 1]);
+      abS[3, i + 1] = dt2 * upper[i] * (diag[i] + diag[i + 1]);
+    }
 
     for (size_t i = 1; i < Ngrid; ++i)
     {
       abS[4, i] = 1.0 + dt2 * (lower[i - 1] * upper[i - 1] + diag[i] * diag[i] + lower[i] * upper[i]);
-      rhs[i] = column.partialPressure[i * Ncomp + comp] -
+      rhs[i] = column.concentration[i * Ncomp + comp] -
                dt2 * (lower[i - 1] * preRHS[i - 1] + diag[i] * preRHS[i] + upper[i] * preRHS[i + 1]);
     }
+
     abS[4, Ngrid] = 1.0 + dt2 * (lower[Ngrid - 1] * upper[Ngrid - 1] + diag[Ngrid] * diag[Ngrid]);
-    rhs[Ngrid] = column.partialPressure[Ngrid * Ncomp + comp] -
+    rhs[Ngrid] = column.concentration[Ngrid * Ncomp + comp] -
                  dt2 * (lower[Ngrid - 1] * preRHS[Ngrid - 1] + diag[Ngrid] * preRHS[Ngrid]);
 
-    // boundary conditions
     abS[4, 0] = 1.0;
-    abS[3, 0] = 0.0;
-    abS[2, 0] = 0.0;
-
-    rhs[0] = column.partialPressure[comp];
+    rhs[0] = column.concentration[comp];
 
     dgbsv_(&n, &kl, &ku, &nrhs, ab.data(), &ldab, ipiv.data(), rhs.data(), &n, &info);
+    if (info != 0)
+    {
+      throw std::runtime_error("dgbsv failed in computePressureUpdateMatrixFinalEnergyBalance");
+    }
 
     for (size_t grid = 0; grid < Ngrid + 1; ++grid)
     {

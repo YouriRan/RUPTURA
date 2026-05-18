@@ -3,6 +3,7 @@
 #include <span>
 #include <stdexcept>
 
+#include "utils.h"
 #include "column.h"
 #include "component.h"
 #include "compute.h"
@@ -27,10 +28,18 @@
 
 struct CVODE
 {
+  CVODE(const InputReader& inputReader)
+      : timeStep(inputReader.timeStep),
+        autoSteps(inputReader.autoNumberOfTimeSteps),
+        numberOfSteps(inputReader.numberOfTimeSteps) {}
+
   CVODE(double timeStep, bool autoSteps, size_t numberOfSteps)
-      : timeStep(timeStep), autoSteps(autoSteps), numberOfSteps(numberOfSteps)
-  {
-  }
+      : timeStep(timeStep), autoSteps(autoSteps), numberOfSteps(numberOfSteps) {}
+
+  ~CVODE();
+
+  CVODE(const CVODE&) = delete;
+  CVODE& operator=(const CVODE&) = delete;
 
   double timeStep;
   bool autoSteps;
@@ -48,23 +57,10 @@ struct CVODE
 
   const sunrealtype relativeTolerance = 1.0e-3;
   const sunrealtype absoluteTolerance = 1.0e-6;
+
+  static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data);
 #endif
 
   bool propagate(Column& column, size_t step);
   void initialize(Column& column);
 };
-
-#if BUILD_SUNDIALS
-inline void copyFromcolumn(const Column& column, N_Vector u);
-inline void copyFromcolumnDot(const Column& column, N_Vector uDot);
-inline void copyIntocolumn(Column& column, N_Vector u);
-inline void copyIntocolumnDot(Column& column, N_Vector uDot);
-
-inline std::span<double> getPartialPressureSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
-inline std::span<double> getAdsorptionSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
-inline std::span<double> getGasTemperatureSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
-inline std::span<double> getSolidTemperatureSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
-inline std::span<double> getWallTemperatureSpan(N_Vector u, size_t Ngrid, size_t Ncomp);
-
-static int f(sunrealtype t, N_Vector u, N_Vector uDot, void* user_data);
-#endif

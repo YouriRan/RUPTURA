@@ -77,8 +77,6 @@ class MixturePredictionPlotly(BasePlotly):
             yaxis_title=yaxis_title,
             title_text=title_text,
             y_range=y_range,
-            width=640,
-            height=480,
             margin_left=105,
             margin_right=35,
             margin_top=60,
@@ -137,9 +135,10 @@ class MixturePredictionPlotly(BasePlotly):
                 go.Scatter(
                     x=x,
                     y=y,
-                    mode="lines",
+                    mode="lines+markers",
                     name=label,
                     line=dict(width=line_width),
+                    marker=dict(symbol="circle", size=8, line=dict(width=1, color="Black")),
                     hovertemplate=(f"{label}<br>" + "P=%{x:.4g} Pa<br>" + "y=%{y:.6g}<extra></extra>"),
                 )
             )

@@ -15,6 +15,7 @@
 #endif
 
 #include "breakthrough.h"
+#include "compute.h"
 #include "mixture_prediction.h"
 #include "rk3.h"
 #include "utils.h"
@@ -36,15 +37,12 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
       numberOfInitTimeSteps(inputReader.numberOfInitTimeSteps),
       Nsteps(inputReader.numberOfTimeSteps),
       autoSteps(inputReader.autoNumberOfTimeSteps),
-      pulse(inputReader.pulseBreakthrough),
-      tpulse(inputReader.pulseTime),
       maxIsothermTerms(inputReader.maxIsothermTerms),
       column(inputReader),
-      rk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
-      sirk3(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
-      cvode(dt, inputReader.autoNumberOfTimeSteps, inputReader.numberOfTimeSteps),
+      rk3(inputReader),
+      sirk3(inputReader),
+      cvode(inputReader),
       integrationScheme(IntegrationScheme(inputReader.breakthroughIntegrator))
-
 {
   column.initialize();
   if (inputReader.readColumnFile.has_value())
@@ -53,71 +51,30 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
   }
 
   if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(column);
+
+  // open the output files in append mode, unless there is a
+  // create the output files
+
+  auto openMode = (inputReader.readColumnFile.has_value()) ? std::ios_base::app : std::ios_base::trunc;
+  std::vector<std::ofstream> componentStreams(Ncomp);
+  for (size_t comp = 0; comp < Ncomp; comp++)
+  {
+    std::string fileName = "component_" + std::to_string(comp) + "_" + column.components[comp].name + ".data";
+    componentStreams[comp] = std::ofstream{fileName, openMode};
+  }
+  std::ofstream columnStream("column.data", openMode);
+  if (!inputReader.readColumnFile.has_value()) column.writeOutputHeader(componentStreams, columnStream);
 }
-
-// Breakthrough::Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
-//                            size_t _numberOfGridPoints, size_t _printEvery, size_t _writeEvery, double _temperature,
-//                            double _externalPressure, double _columnVoidFraction, double _pressureGradient,
-//                            double _particleDensity, double _columnEntranceVelocity, double _columnLength,
-//                            double _timeStep, size_t _numberOfTimeSteps, bool _autoSteps, bool _pulse, double
-//                            _pulseTime, double _particleDiameter, double _dynamicViscosity, const MixturePrediction
-//                            _mixture, size_t _breakthroughIntegrator, size_t _velocityProfile,
-//                            std::optional<std::string> readColumnFile)
-//     : displayName(_displayName),
-//       carrierGasComponent(_carrierGasComponent),
-//       Ncomp(_components.size()),
-//       Ngrid(_numberOfGridPoints),
-//       printEvery(_printEvery),
-//       writeEvery(_writeEvery),
-//       dt(_timeStep),
-//       Nsteps(_numberOfTimeSteps),
-//       autoSteps(_autoSteps),
-//       pulse(_pulse),
-//       tpulse(_pulseTime),
-//       maxIsothermTerms(_mixture.getMaxIsothermTerms()),
-//       column(_mixture, _components, Ngrid, Ncomp, maxIsothermTerms, _temperature, _externalPressure,
-//       _pressureGradient,
-//              _columnVoidFraction, _particleDensity, _columnEntranceVelocity, _columnLength, _pulse, _pulseTime,
-//              _particleDiameter, _dynamicViscosity, _carrierGasComponent, _velocityProfile),
-//       rk3(dt, _autoSteps, _numberOfTimeSteps),
-//       sirk3(dt, _autoSteps, _numberOfTimeSteps),
-//       cvode(dt, _autoSteps, _numberOfTimeSteps),
-//       integrationScheme(IntegrationScheme(_breakthroughIntegrator))
-// {
-//   column.initialize();
-//   if (readColumnFile.has_value())
-//   {
-//     column.readJSON(readColumnFile.value());
-//   }
-
-//   if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(column);
-// }
 
 void Breakthrough::run()
 {
-  // create the output files
-  std::vector<std::ofstream> streams;
-  for (size_t i = 0; i < Ncomp; i++)
+  std::vector<std::ofstream> componentStreams(Ncomp);
+  for (size_t comp = 0; comp < Ncomp; comp++)
   {
-    std::string fileName = "component_" + std::to_string(i) + "_" + column.components[i].name + ".data";
-    streams.emplace_back(std::ofstream{fileName});
+    std::string fileName = "component_" + std::to_string(comp) + "_" + column.components[comp].name + ".data";
+    componentStreams[comp] = std::ofstream{fileName, std::ios_base::app};
   }
-
-  std::ofstream movieStream("column.data");
-
-  size_t column_nr = 1;
-  std::print(movieStream, "# column {}: z (column position)\n", column_nr++);
-  std::print(movieStream, "# column {}: V  (velocity)\n", column_nr++);
-  std::print(movieStream, "# column {}: Pt (total pressure)\n", column_nr++);
-  for (size_t j = 0; j < Ncomp; ++j)
-  {
-    std::print(movieStream, "# column {}: component {} Q     (loading)\n", column_nr++, j);
-    std::print(movieStream, "# column {}: component {} Qeq   (equlibrium loading)\n", column_nr++, j);
-    std::print(movieStream, "# column {}: component {} P     (partial pressure)\n", column_nr++, j);
-    std::print(movieStream, "# column {}: component {} Pnorm (normalized partial pressure)\n", column_nr++, j);
-    std::print(movieStream, "# column {}: component {} Dpdt  (derivative P with t)\n", column_nr++, j);
-    std::print(movieStream, "# column {}: component {} Dqdt  (derivative Q with t)\n", column_nr++, j);
-  }
+  std::ofstream columnStream("column.data", std::ios_base::app);
 
   bool finished = false;
   size_t step = 0;
@@ -134,73 +91,78 @@ void Breakthrough::run()
     sirk3.timeStep = dt * xi;
   }
 
-  while (!finished)
+  try
   {
-    // compute new step
-    // computeStep(step);
-
-    if (step % writeEvery == 0)
+    while (!finished)
     {
-      const std::string outputFile = std::format("column.json", step);
-      column.writeJSON(outputFile);
-    }
-
-    switch (integrationScheme)
-    {
-      case IntegrationScheme::SSP_RK:
+      if (step % writeEvery == 0)
       {
-        finished = rk3.propagate(column, step);
-        realTime += rk3.timeStep;
-        break;
+        const std::string outputFile = std::format("column.json", step);
+        column.writeJSON(outputFile);
       }
-      case IntegrationScheme::CVODE:
+
+      switch (integrationScheme)
       {
-        finished = cvode.propagate(column, step);
-        realTime += cvode.timeStep;
-        break;
+        case IntegrationScheme::SSP_RK:
+        {
+          finished = rk3.propagate(column, step);
+          realTime += rk3.timeStep;
+          break;
+        }
+        case IntegrationScheme::CVODE:
+        {
+          finished = cvode.propagate(column, step);
+          realTime += cvode.timeStep;
+          break;
+        }
+        case IntegrationScheme::SIRK3:
+        {
+          finished = sirk3.propagate(column, step);
+          realTime += sirk3.timeStep;
+          break;
+        }
+        default:
+          break;
       }
-      case IntegrationScheme::SIRK3:
+
+      if (step < numberOfInitTimeSteps)
       {
-        finished = sirk3.propagate(column, step);
-        realTime += sirk3.timeStep;
-        break;
+        double i = static_cast<double>(step) / numberOfInitTimeSteps;
+        double nextTime = dt * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
+        rk3.timeStep = nextTime;
+        cvode.timeStep = nextTime;
+        sirk3.timeStep = nextTime;
       }
-      default:
-        break;
-    }
+      else if (step == numberOfInitTimeSteps)
+      {
+        rk3.autoSteps = autoSteps;
+        cvode.autoSteps = autoSteps;
+        sirk3.autoSteps = autoSteps;
+        rk3.timeStep = dt;
+        cvode.timeStep = dt;
+        sirk3.timeStep = dt;
+      }
 
-    if (step < numberOfInitTimeSteps)
-    {
-      double i = static_cast<double>(step) / numberOfInitTimeSteps;
+      if (step % writeEvery == 0)
+      {
+        column.writeOutput(componentStreams, columnStream, realTime);
+      }
+      if (step % printEvery == 0)
+      {
+        std::print("Timestep {}, time: {:6.5f} [s]\n", step, realTime);
+        std::print(
+            "    Average number of mixture-prediction steps: {:6.5f}\n",
+            static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second));
+        std::cout << std::flush;
+      }
 
-      rk3.timeStep = dt * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
-      cvode.timeStep = dt * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
-      sirk3.timeStep = dt * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
+      step++;
     }
-    else if (step == numberOfInitTimeSteps)
-    {
-      rk3.autoSteps = autoSteps;
-      cvode.autoSteps = autoSteps;
-      sirk3.autoSteps = autoSteps;
-      rk3.timeStep = dt;
-      cvode.timeStep = dt;
-      sirk3.timeStep = dt;
-    }
-
-    if (step % writeEvery == 0)
-    {
-      column.writeOutput(streams, movieStream, realTime);
-    }
-    if (step % printEvery == 0)
-    {
-      std::print("Timestep {}, time: {:6.5f} [s]\n", step, realTime);
-      std::print(
-          "    Average number of mixture-prediction steps: {:6.5f}\n",
-          static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second));
-      std::cout << std::flush;
-    }
-
-    step++;
+  }
+  catch (const std::runtime_error&)
+  {
+    column.writeJSON("failed_state.json");
+    throw;
   }
 
   std::print("Final timestep {}, time: {:6.5f} [s]\n", step, dt * static_cast<double>(step));

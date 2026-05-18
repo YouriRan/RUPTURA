@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstddef>
 #include <tuple>
 #include <vector>
@@ -44,40 +46,6 @@ struct Breakthrough
   Breakthrough(const InputReader& inputreader);
 
   /**
-   * \brief Constructs a Breakthrough simulation with specified parameters.
-   *
-   * Initializes a Breakthrough object with the provided simulation parameters.
-   *
-   * \param _displayName Name of the simulation for display purposes.
-   * \param _components Vector of components involved in the simulation.
-   * \param _carrierGasComponent Index of the carrier gas component.
-   * \param _numberOfGridPoints Number of grid points in the column.
-   * \param _printEvery Frequency of printing time steps to the screen.
-   * \param _writeEvery Frequency of writing data to files.
-   * \param _temperature Simulation temperature in Kelvin.
-   * \param _p_total Total pressure in the column in Pascals.
-   * \param _columnVoidFraction Void fraction of the column.
-   * \param _pressureGradient Pressure gradient in the column.
-   * \param _particleDensity Particle density in kg/m³.
-   * \param _columnEntranceVelocity Interstitial velocity at the beginning of the column in m/s.
-   * \param _columnLength Length of the column in meters.
-   * \param _timeStep Time step for the simulation.
-   * \param _numberOfTimeSteps Total number of time steps.
-   * \param _autoSteps Flag to use automatic number of steps.
-   * \param _pulse Flag to indicate pulsed inlet condition.
-   * \param _pulseTime Pulse time.
-   * \param _mixture MixturePrediction object for mixture predictions.
-   * \param _breakthroughIntegrator Type of integrator used for solving PDE.
-   */
-  // Breakthrough(std::string _displayName, std::vector<Component> _components, size_t _carrierGasComponent,
-  //              size_t _numberOfGridPoints, size_t _printEvery, size_t _writeEvery, double _temperature, double
-  //              _p_total, double _columnVoidFraction, double _pressureGradient, double _particleDensity, double
-  //              _columnEntranceVelocity, double _columnLength, double _timeStep, size_t _numberOfTimeSteps, bool
-  //              _autoSteps, bool _pulse, double _pulseTime, double _particleDiameter, double _dynamicViscosity, const
-  //              MixturePrediction _mixture, size_t _breakthroughIntegrator, size_t _velocityProfile,
-  //              std::optional<std::string> readColumnFile);
-
-  /**
    * \brief Prints the representation of the Breakthrough object to the console.
    */
   void print() const;
@@ -117,8 +85,6 @@ struct Breakthrough
   size_t numberOfInitTimeSteps;  ///< Ramping up the timestep.
   size_t Nsteps;                 ///< Total number of steps.
   bool autoSteps;                ///< Flag to use automatic number of steps.
-  bool pulse;                    ///< Pulsed inlet condition for breakthrough.
-  double tpulse;                 ///< Pulse time.
   size_t maxIsothermTerms;       ///< Maximum number of isotherm terms.
 
   Column column;

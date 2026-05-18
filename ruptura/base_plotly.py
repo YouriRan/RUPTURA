@@ -21,12 +21,14 @@ class BasePlotly:
         components: List[ComponentInfo],
         data_dir: Union[str, Path] = ".",
         carrierGasComponent: Optional[int] = None,
+        showMarkers: bool = False,
     ) -> None:
         self.displayName = displayName
         self.components = components
         self.Ncomp = len(components)
         self.data_dir = Path(data_dir)
         self.carrierGasComponent = carrierGasComponent
+        self.showMarkers = showMarkers
 
         if self.carrierGasComponent is not None:
             for comp in self.components:
@@ -60,6 +62,17 @@ class BasePlotly:
         df.columns = [f"col_{i + 1}" for i in range(df.shape[1])]
         return df
 
+    def _trace_mode(self, with_lines: bool = True) -> str:
+        if with_lines:
+            return "lines+markers" if self.showMarkers else "lines"
+        return "markers" if self.showMarkers else "lines"
+
+    def _trace_kwargs(self, with_lines: bool = True) -> dict:
+        kwargs = {"mode": self._trace_mode(with_lines=with_lines)}
+        if self.showMarkers:
+            kwargs["marker"] = {"size": 7}
+        return kwargs
+
     def _publication_layout(
         self,
         fig: go.Figure,
@@ -68,11 +81,11 @@ class BasePlotly:
         title_text: str,
         x_range: Optional[List[float]] = None,
         y_range: Optional[List[float]] = None,
-        width: int = 640,
-        height: int = 480,
+        width: int = 800,
+        height: int = 600,
         margin_left: int = 95,
         margin_right: int = 30,
-        margin_top: int = 40,
+        margin_top: int = 50,
         margin_bottom: int = 110,
         show_legend: bool = True,
     ) -> go.Figure:
@@ -101,7 +114,7 @@ class BasePlotly:
             legend=dict(
                 orientation="h",
                 yanchor="top",
-                y=-0.3,
+                y=-0.2,
                 xanchor="center",
                 x=0.5,
                 bgcolor="rgba(255,255,255,0.95)",
@@ -143,6 +156,38 @@ class BasePlotly:
             fig.update_yaxes(range=y_range)
 
         return fig
+
+    def save_figure(
+        self,
+        fig: go.Figure,
+        fileName: Union[str, Path],
+        format: Optional[str] = None,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        scale: float = 1.0,
+    ) -> Path:
+        """
+        Save a Plotly figure to disk.
+
+        Static image export requires kaleido:
+            pip install kaleido
+        """
+        path = Path(fileName)
+        fmt = (format or path.suffix.lstrip(".") or "pdf").lower()
+
+        if path.suffix == "":
+            path = path.with_suffix(f".{fmt}")
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+
+        fig.write_image(
+            str(path),
+            format=fmt,
+            width=width,
+            height=height,
+            scale=scale,
+        )
+        return path
 
     @staticmethod
     def _safe_minmax(values: np.ndarray) -> Optional[tuple[float, float]]:

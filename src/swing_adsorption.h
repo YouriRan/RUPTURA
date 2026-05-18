@@ -11,20 +11,21 @@
 #include "rk3.h"
 #include "rk3_si.h"
 
-#ifdef PYBUILD
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-#endif  // PYBUILD
-
 struct SwingAdsorption
 {
+  struct SubStage
+  {
+    double temperature;
+    double pressure;
+    size_t numberOfSteps;
+  };
+
   SwingAdsorption(const InputReader& inputReader);
 
   void run();
+  void print() const;
+  std::string repr() const;
 
-  std::vector<std::pair<double, double>> pressTempPairs;
-  std::vector<double> temperatures;
-  std::vector<double> pressures;
-  std::vector<size_t> steps;
-}
+  Breakthrough breakthrough;
+  std::vector<SubStage> subStages;
+};

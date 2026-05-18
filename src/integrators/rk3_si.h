@@ -5,6 +5,11 @@
 
 struct SemiImplicitRungeKutta3
 {
+  SemiImplicitRungeKutta3(const InputReader& inputReader)
+      : timeStep(inputReader.timeStep),
+        autoSteps(inputReader.autoNumberOfTimeSteps),
+        numberOfSteps(inputReader.numberOfTimeSteps) {};
+
   SemiImplicitRungeKutta3(double timeStep, bool autoSteps, size_t numberOfSteps)
       : timeStep(timeStep), autoSteps(autoSteps), numberOfSteps(numberOfSteps) {};
 

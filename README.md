@@ -15,7 +15,6 @@ Features
 * Fast (sub-second) IAST mixture computation
 * Stable breakthrough computation, including
   - step breakthrough
-  - pulse breakthrough
   - Linearized driving model (LDF)
   - Axial disperion
   - Pressure gradient
