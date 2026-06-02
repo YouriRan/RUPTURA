@@ -209,16 +209,16 @@ struct Column
 
   // Views into state/stateDot. Non-owning; rebind after copy/assignment.
   // Size (Ngrid + 1) * Ncomp. Grid-major index: grid * Ncomp + comp.
-  std::span<double> concentration;       ///< Gas concentration c_i; size (Ngrid + 1) * Ncomp.
-  std::span<double> concentrationDot;    ///< Time derivative dc_i/dt; size (Ngrid + 1) * Ncomp.
-  std::span<double> adsorption;          ///< Adsorbed loading q_i; size (Ngrid + 1) * Ncomp.
-  std::span<double> adsorptionDot;       ///< Time derivative dq_i/dt; size (Ngrid + 1) * Ncomp.
-  std::span<double> gasTemperature;      ///< Gas temperature; size Ngrid + 1.
-  std::span<double> gasTemperatureDot;   ///< Time derivative of gas temperature; size Ngrid + 1.
-  std::span<double> solidTemperature;    ///< Solid temperature; size Ngrid + 1.
-  std::span<double> solidTemperatureDot; ///< Time derivative of solid temperature; size Ngrid + 1.
-  std::span<double> wallTemperature;     ///< Wall temperature; size Ngrid + 1.
-  std::span<double> wallTemperatureDot;  ///< Time derivative of wall temperature; size Ngrid + 1.
+  std::span<double> concentration;        ///< Gas concentration c_i; size (Ngrid + 1) * Ncomp.
+  std::span<double> concentrationDot;     ///< Time derivative dc_i/dt; size (Ngrid + 1) * Ncomp.
+  std::span<double> adsorption;           ///< Adsorbed loading q_i; size (Ngrid + 1) * Ncomp.
+  std::span<double> adsorptionDot;        ///< Time derivative dq_i/dt; size (Ngrid + 1) * Ncomp.
+  std::span<double> gasTemperature;       ///< Gas temperature; size Ngrid + 1.
+  std::span<double> gasTemperatureDot;    ///< Time derivative of gas temperature; size Ngrid + 1.
+  std::span<double> solidTemperature;     ///< Solid temperature; size Ngrid + 1.
+  std::span<double> solidTemperatureDot;  ///< Time derivative of solid temperature; size Ngrid + 1.
+  std::span<double> wallTemperature;      ///< Wall temperature; size Ngrid + 1.
+  std::span<double> wallTemperatureDot;   ///< Time derivative of wall temperature; size Ngrid + 1.
 
   /**
    * \brief Returns the canonical ODE state size.

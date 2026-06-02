@@ -7,9 +7,9 @@
 
 void computePressure(Column& column);
 void computePressure(Column::VelocityProfile& velocityProfile, Column::BoundaryCondition& boundaryCondition,
-                     const std::vector<Component>& components, size_t Ngrid, size_t Ncomp, double externalPressure,
-                     double voidFraction, double dynamicViscosity, double particleDiameter, double resolution,
-                     std::span<const double> interstitialGasVelocity, std::span<double> gasDensity,
+                     const std::vector<Component>& components, size_t Ngrid, size_t Ncomp, double inletPressure,
+                     double outletPressure, double voidFraction, double dynamicViscosity, double particleDiameter,
+                     double resolution, std::span<const double> interstitialGasVelocity, std::span<double> gasDensity,
                      std::span<double> totalConcentration, std::span<double> totalPressure,
                      std::span<double> gasTemperature, std::span<const double> concentration,
                      std::span<double> partialPressure, std::span<double> moleFraction);
@@ -17,10 +17,10 @@ void computePressure(Column::VelocityProfile& velocityProfile, Column::BoundaryC
 void computeEquilibriumLoadings(Column& column);
 void computeEquilibriumLoadings(MixturePrediction& mixture, size_t Ngrid, size_t Ncomp, size_t maxIsothermTerms,
                                 std::pair<size_t, size_t>& iastPerformance, std::span<double> totalPressure,
-                                std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
-                                std::span<double> numberOfMolecules, std::span<double> equilibriumAdsorption,
-                                std::span<double> moleFraction, std::span<double> cachedPressure,
-                                std::span<double> cachedGrandPotential);
+                                std::span<double> gasTemperature, std::span<double> idealGasMolFractions,
+                                std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules,
+                                std::span<double> equilibriumAdsorption, std::span<double> moleFraction,
+                                std::span<double> cachedPressure, std::span<double> cachedGrandPotential);
 
 void computeVelocity(Column& column);
 void computeVelocityFixedGradient(Column::BoundaryCondition& boundaryCondition,
@@ -45,18 +45,18 @@ void computeFirstDerivatives(const std::vector<Component>& components, size_t Ng
 
 void computeFirstDerivativesEnergyBalance(
     const std::vector<Component>& components, size_t Ngrid, size_t Ncomp, double externalTemperature,
-    double voidFraction, double particleDensity, double particleDiameter, double internalDiameter, double outerDiameter,
-    double wallDensity, double gasThermalConductivity, double wallThermalConductivity, double heatTransferGasSolid,
-    double heatTransferGasWall, double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid,
-    double heatCapacityWall, double resolution, std::span<const double> prefactorMassTransfer,
-    std::span<const double> interstitialGasVelocity, std::span<const double> totalPressure,
-    std::span<double> gasTemperature, std::span<double> gasTemperatureDot, std::span<double> solidTemperature,
-    std::span<double> solidTemperatureDot, std::span<double> wallTemperature, std::span<double> wallTemperatureDot,
-    std::span<double> concentration, std::span<double> concentrationDot, std::span<double> adsorption,
-    std::span<double> adsorptionDot, std::span<double> equilibriumAdsorption, std::span<double> moleFraction,
-    std::span<double> gasDensity, std::span<double> coeffGasGas, std::span<double> coeffGasSolid,
-    std::span<double> coeffGasWall, std::span<double> coeffDiffusion, std::span<double> facePressures,
-    std::span<double> massFlux);
+    double voidFraction, double particleDensity, double particleDiameter, double influxTemperature,
+    double internalDiameter, double outerDiameter, double wallDensity, double gasThermalConductivity,
+    double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
+    double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
+    double resolution, std::span<const double> prefactorMassTransfer, std::span<const double> interstitialGasVelocity,
+    std::span<const double> totalPressure, std::span<double> gasTemperature, std::span<double> gasTemperatureDot,
+    std::span<double> solidTemperature, std::span<double> solidTemperatureDot, std::span<double> wallTemperature,
+    std::span<double> wallTemperatureDot, std::span<double> concentration, std::span<double> concentrationDot,
+    std::span<double> adsorption, std::span<double> adsorptionDot, std::span<double> equilibriumAdsorption,
+    std::span<double> moleFraction, std::span<double> gasDensity, std::span<double> coeffGasGas,
+    std::span<double> coeffGasSolid, std::span<double> coeffGasWall, std::span<double> coeffDiffusion,
+    std::span<double> facePressures, std::span<double> massFlux);
 
 void computeFirstDerivativesWENO(Column& column);
 void enforceBoundaryCondition(Column& column);

@@ -72,8 +72,8 @@ bool CVODE::propagate(Column& column, size_t step)
 
     for (size_t j = 0; j < Ncomp; ++j)
     {
-      tolerance = std::max(tolerance, std::abs((column.moleFraction[Ngrid * Ncomp + j] / column.components[j].Yi0) -
-                                               1.0));
+      tolerance =
+          std::max(tolerance, std::abs((column.moleFraction[Ngrid * Ncomp + j] / column.components[j].Yi0) - 1.0));
     }
 
     if (tolerance < 0.01)
@@ -146,23 +146,30 @@ int CVODE::f(sunrealtype /*t*/, N_Vector u, N_Vector uDot, void* user_data)
   auto spanConcentrationDot = getConcentrationSpan(uDot, column->Ngrid, column->Ncomp);
   auto spanAdsorptionDot = getAdsorptionSpan(uDot, column->Ngrid, column->Ncomp);
 
-  auto spanGasTemperature = (column->energyBalance) ? getGasTemperatureSpan(u, column->Ngrid, column->Ncomp) : column->gasTemperature;
-  auto spanSolidTemperature = (column->energyBalance) ? getSolidTemperatureSpan(u, column->Ngrid, column->Ncomp) : column->solidTemperature;
-  auto spanWallTemperature = (column->energyBalance) ? getWallTemperatureSpan(u, column->Ngrid, column->Ncomp) : column->wallTemperature;
-  auto spanGasTemperatureDot = (column->energyBalance) ? getGasTemperatureSpan(uDot, column->Ngrid, column->Ncomp) : column->gasTemperatureDot;
-  auto spanSolidTemperatureDot = (column->energyBalance) ? getSolidTemperatureSpan(uDot, column->Ngrid, column->Ncomp) : column->solidTemperatureDot;
-  auto spanWallTemperatureDot = (column->energyBalance) ? getWallTemperatureSpan(uDot, column->Ngrid, column->Ncomp) : column->wallTemperatureDot;
-  
+  auto spanGasTemperature =
+      (column->energyBalance) ? getGasTemperatureSpan(u, column->Ngrid, column->Ncomp) : column->gasTemperature;
+  auto spanSolidTemperature =
+      (column->energyBalance) ? getSolidTemperatureSpan(u, column->Ngrid, column->Ncomp) : column->solidTemperature;
+  auto spanWallTemperature =
+      (column->energyBalance) ? getWallTemperatureSpan(u, column->Ngrid, column->Ncomp) : column->wallTemperature;
+  auto spanGasTemperatureDot =
+      (column->energyBalance) ? getGasTemperatureSpan(uDot, column->Ngrid, column->Ncomp) : column->gasTemperatureDot;
+  auto spanSolidTemperatureDot = (column->energyBalance) ? getSolidTemperatureSpan(uDot, column->Ngrid, column->Ncomp)
+                                                         : column->solidTemperatureDot;
+  auto spanWallTemperatureDot =
+      (column->energyBalance) ? getWallTemperatureSpan(uDot, column->Ngrid, column->Ncomp) : column->wallTemperatureDot;
+
   computePressure(column->velocityProfile, column->boundaryCondition, column->components, column->Ngrid, column->Ncomp,
-                  column->externalPressure, column->voidFraction, column->dynamicViscosity, column->particleDiameter,
-                  column->resolution, column->interstitialGasVelocity, column->gasDensity, column->totalConcentration,
-                  column->totalPressure, spanGasTemperature, spanConcentration, column->partialPressure,
-                  column->moleFraction);
+                  column->inletPressure, column->outletPressure, column->voidFraction, column->dynamicViscosity,
+                  column->particleDiameter, column->resolution, column->interstitialGasVelocity, column->gasDensity,
+                  column->totalConcentration, column->totalPressure, spanGasTemperature, spanConcentration,
+                  column->partialPressure, column->moleFraction);
 
   computeEquilibriumLoadings(column->mixture, column->Ngrid, column->Ncomp, column->maxIsothermTerms,
-                             column->iastPerformance, column->totalPressure, column->idealGasMolFractions,
-                             column->adsorbedMolFractions, column->numberOfMolecules, column->equilibriumAdsorption,
-                             column->moleFraction, column->cachedPressure, column->cachedGrandPotential);
+                             column->iastPerformance, column->totalPressure, spanGasTemperature,
+                             column->idealGasMolFractions, column->adsorbedMolFractions, column->numberOfMolecules,
+                             column->equilibriumAdsorption, column->moleFraction, column->cachedPressure,
+                             column->cachedGrandPotential);
 
   switch (column->velocityProfile)
   {
@@ -193,8 +200,8 @@ int CVODE::f(sunrealtype /*t*/, N_Vector u, N_Vector uDot, void* user_data)
   {
     computeFirstDerivativesEnergyBalance(
         column->components, column->Ngrid, column->Ncomp, column->externalTemperature, column->voidFraction,
-        column->particleDensity, column->particleDiameter, column->internalDiameter, column->outerDiameter,
-        column->wallDensity, column->gasThermalConductivity, column->wallThermalConductivity,
+        column->particleDensity, column->particleDiameter, column->influxTemperature, column->internalDiameter,
+        column->outerDiameter, column->wallDensity, column->gasThermalConductivity, column->wallThermalConductivity,
         column->heatTransferGasSolid, column->heatTransferGasWall, column->heatTransferWallExternal,
         column->heatCapacityGas, column->heatCapacitySolid, column->heatCapacityWall, column->resolution,
         column->prefactorMassTransfer, column->interstitialGasVelocity, column->totalPressure, spanGasTemperature,

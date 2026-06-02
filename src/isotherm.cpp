@@ -2,12 +2,12 @@
 
 #include <cstdlib>
 
-Isotherm::Isotherm(Isotherm::Type t, const std::vector<double>& values, size_t numberOfValues)
-    : type(t), parameters(values), numberOfParameters(numberOfValues)
+Isotherm::Isotherm(Isotherm::Type t, const std::vector<double>& values, size_t numberOfValues, bool nonIsothermal)
+    : type(t), parameters(values), numberOfParameters(numberOfValues), nonIsothermal(nonIsothermal)
 {
 }
-Isotherm::Isotherm(size_t t, const std::vector<double>& values, size_t numberOfValues)
-    : type(Isotherm::Type(t)), parameters(values), numberOfParameters(numberOfValues)
+Isotherm::Isotherm(size_t t, const std::vector<double>& values, size_t numberOfValues, bool nonIsothermal)
+    : type(Isotherm::Type(t)), parameters(values), numberOfParameters(numberOfValues), nonIsothermal(nonIsothermal)
 {
 }
 
@@ -16,118 +16,127 @@ void Isotherm::print() const { std::cout << repr(); }
 std::string Isotherm::repr() const
 {
   std::string s;
+  auto out = std::back_inserter(s);
+
+  auto appendParameter = [&](std::string_view name, double value)
+  { std::format_to(out, "        {:<7}{:8.4e}\n", name, value); };
+
   switch (type)
   {
     case Isotherm::Type::Langmuir:
     {
-      s += "    Langmuir isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
+      s += nonIsothermal ? "    Langmuir isotherm (non-isothermal)\n" : "    Langmuir isotherm\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter(nonIsothermal ? "b_0:" : "b:", parameters[1]);
+      if (nonIsothermal) appendParameter("ΔH:", parameters[2]);
       break;
     }
     case Isotherm::Type::Anti_Langmuir:
     {
       s += "    Anti-Langmuir isotherm\n";
-      s += "        a:     " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
+      appendParameter("a:", parameters[0]);
+      appendParameter("b:", parameters[1]);
       break;
     }
     case Isotherm::Type::BET:
     {
       s += "    BET isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        c:     " + std::to_string(parameters[2]) + "\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter("b:", parameters[1]);
+      appendParameter("c:", parameters[2]);
       break;
     }
     case Isotherm::Type::Henry:
     {
       s += "    Henry isotherm\n";
-      s += "        a:     " + std::to_string(parameters[0]) + "\n";
+      appendParameter("a:", parameters[0]);
       break;
     }
     case Isotherm::Type::Freundlich:
     {
       s += "    Freundlich isotherm\n";
-      s += "        a:     " + std::to_string(parameters[0]) + "\n";
-      s += "        nu:    " + std::to_string(parameters[1]) + "\n";
+      appendParameter("a:", parameters[0]);
+      appendParameter("nu:", parameters[1]);
       break;
     }
     case Isotherm::Type::Sips:
     {
-      s += "    Sips isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        nu:    " + std::to_string(parameters[2]) + "\n";
+      s += nonIsothermal ? "    Sips isotherm (non-isothermal)\n" : "    Sips isotherm\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter("b:", parameters[1]);
+      appendParameter("nu:", parameters[2]);
+      if (nonIsothermal) appendParameter("ΔH:", parameters[3]);
       break;
     }
     case Isotherm::Type::Langmuir_Freundlich:
     {
-      s += "    Langmuir-Freundlich isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        nu:    " + std::to_string(parameters[2]) + "\n";
+      s += nonIsothermal ? "    Langmuir-Freundlich isotherm (non-isothermal)\n" : "    Langmuir-Freundlich isotherm\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter(nonIsothermal ? "b_0:" : "b:", parameters[1]);
+      appendParameter("nu:", parameters[2]);
+      if (nonIsothermal) appendParameter("ΔH:", parameters[3]);
       break;
     }
     case Isotherm::Type::Redlich_Peterson:
     {
       s += "    Redlich-Peterson isotherm\n";
-      s += "        a:     " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        nu:    " + std::to_string(parameters[2]) + "\n";
+      appendParameter("a:", parameters[0]);
+      appendParameter("b:", parameters[1]);
+      appendParameter("nu:", parameters[2]);
       break;
     }
     case Isotherm::Type::Toth:
     {
       s += "    Toth isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        nu:    " + std::to_string(parameters[2]) + "\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter("b:", parameters[1]);
+      appendParameter("nu:", parameters[2]);
       break;
     }
     case Isotherm::Type::Unilan:
     {
       s += "    Unilan isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        eta:   " + std::to_string(parameters[2]) + "\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter("b:", parameters[1]);
+      appendParameter("eta:", parameters[2]);
       break;
     }
     case Isotherm::Type::OBrien_Myers:
     {
       s += "    O'Brian & Myers isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        sigma: " + std::to_string(parameters[2]) + "\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter("b:", parameters[1]);
+      appendParameter("sigma:", parameters[2]);
       break;
     }
     case Isotherm::Type::Quadratic:
     {
       s += "    Quadratic isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        c:     " + std::to_string(parameters[2]) + "\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter("b:", parameters[1]);
+      appendParameter("c:", parameters[2]);
       break;
     }
     case Isotherm::Type::Temkin:
     {
       s += "    Temkin isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        b:     " + std::to_string(parameters[1]) + "\n";
-      s += "        c:     " + std::to_string(parameters[2]) + "\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter("b:", parameters[1]);
+      appendParameter("c:", parameters[2]);
       break;
     }
     case Isotherm::Type::BingelWalton:
     {
       s += "    Bingel&Walton isotherm\n";
-      s += "        q_sat: " + std::to_string(parameters[0]) + "\n";
-      s += "        a:     " + std::to_string(parameters[1]) + "\n";
-      s += "        b:     " + std::to_string(parameters[2]) + "\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter("a:", parameters[1]);
+      appendParameter("b:", parameters[2]);
       break;
     }
     default:
       break;
   }
+
   return s;
 }
 
@@ -309,101 +318,6 @@ void Isotherm::randomize(double maximumLoading)
       parameters[1] = 0.1 + 2.0 * RandomNumber::Uniform();
       parameters[2] = 0.1 + 2.0 * RandomNumber::Uniform();
       break;
-    }
-    default:
-      throw std::runtime_error("Error: unkown isotherm type");
-  }
-}
-
-std::string Isotherm::gnuplotFunctionString(char c, size_t i) const
-{
-  char stringBuffer[1024];
-
-  switch (type)
-  {
-    case Isotherm::Type::Langmuir:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*%c[%ld]*x/(1.0+%c[%ld]*x)", c, i, c, i + 1, c, i + 1);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Anti_Langmuir:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*x/(1.0-%c[%ld]*x)", c, i, c, i + 1);
-      return stringBuffer;
-    }
-    case Isotherm::Type::BET:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*%c[%ld]*x/((1.0-%c[%ld]*x)*(1.0-%c[%ld]+%c[%ld]*x))", c, i, c, i + 1, c,
-               i + 2, c, i + 2, c, i + 1);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Henry:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*x", c, i);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Freundlich:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*x**[%ld]", c, i, i + 1);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Sips:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*((%c[%ld]*x)**(1.0/%c[%ld]))/(1.0+(%c[%ld]*x)**(1.0/%c[%ld]))", c, i, c,
-               i + 1, c, i + 2, c, i + 1, c, i + 2);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Langmuir_Freundlich:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*%c[%ld]*x**%c[%ld]/(1.0+%c[%ld]*x**%c[%ld])", c, i, c, i + 1, c, i + 2, c,
-               i + 1, c, i + 2);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Redlich_Peterson:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*x/(1.0+%c[%ld]*x**%c[%ld])", c, i, c, i + 1, c, i + 2);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Toth:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*%c[%ld]*x/((1.0+(%c[%ld]*x)**%c[%ld])**(1.0/%c[%ld]))", c, i, c, i + 1, c,
-               i + 1, c, i + 2, c, i + 2);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Unilan:
-    {
-      snprintf(stringBuffer, 1024,
-               "(%c[%ld]/(2.0*%c[%ld]))*log((1.0+%c[%ld]*exp(%c[%ld])*x)/(1.0+%c[%ld]*exp(-%c[%ld])*x))", c, i, c,
-               i + 2, c, i + 1, c, i + 2, c, i + 1, c, i + 2);
-      return stringBuffer;
-    }
-    case Isotherm::Type::OBrien_Myers:
-    {
-      snprintf(stringBuffer, 1024,
-               "%c[%ld]*(%c[%ld]*x/(1.0+%c[%ld]*x) + (%c[%ld]**2)*%c[%ld]*x*(1.0-%c[%ld]*x)/(2.0*(1.0+%c[%ld]*x)**3))",
-               c, i, c, i + 1, c, i + 1, c, i + 2, c, i + 1, c, i + 1, c, i + 1);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Quadratic:
-    {
-      snprintf(stringBuffer, 1024, "%c[%ld]*(%c[%ld]*x+2.0*%c[%ld]*x**2)/(1.0+%c[%ld]*x+%c[%ld]*x**2)", c, i, c, i + 1,
-               c, i + 2, c, i + 1, c, i + 2);
-      return stringBuffer;
-    }
-    case Isotherm::Type::Temkin:
-    {
-      snprintf(stringBuffer, 1024,
-               "%c[%ld]*(%c[%ld]*x/(1.0+%c[%ld]*x))+%c[%ld]*%c[%ld]*((%c[%ld]*x/(1.0+%c[%ld]*x))**2)*(%c[%ld]*x/"
-               "(1.0+%c[%ld]*x)-1.0)",
-               c, i, c, i + 1, c, i + 1, c, i, c, i + 2, c, i + 1, c, i + 1, c, i + 1, c, i + 1);
-      return stringBuffer;
-    }
-    case Isotherm::Type::BingelWalton:
-    {
-      snprintf(stringBuffer, 1024,
-               "%c[%ld]*(1.0-exp(-(%c[%ld]+%c[%ld])*x))/(1.0+(%c[%ld]/%c[%ld])*exp(-(%c[%ld]+%c[%ld])*x))", c, i, c,
-               i + 1, c, i + 2, c, i + 2, c, i + 1, c, i + 1, c, i + 2);
-      return stringBuffer;
     }
     default:
       throw std::runtime_error("Error: unkown isotherm type");

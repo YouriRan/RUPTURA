@@ -11,8 +11,9 @@ void updateStateRK(Column& column, Column& newColumn, double alpha, double beta,
   {
     newColumn.adsorption[i] =
         alpha * column.adsorption[i] + beta * (newColumn.adsorption[i] + timeStep * newColumn.adsorptionDot[i]);
-    newColumn.concentration[i] = std::max(0.0, alpha * column.concentration[i] +
-                                 beta * (newColumn.concentration[i] + timeStep * newColumn.concentrationDot[i]));
+    newColumn.concentration[i] =
+        std::max(0.0, alpha * column.concentration[i] +
+                          beta * (newColumn.concentration[i] + timeStep * newColumn.concentrationDot[i]));
   }
   if (column.energyBalance)
   {
@@ -81,7 +82,7 @@ bool RungeKutta3::propagate(Column& column, size_t step)
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
   computeFirstDerivatives(newColumn);
   updateStateRK(column, newColumn, 0.75, 0.25, timeStep);
-    computePressure(newColumn);
+  computePressure(newColumn);
 
   computeEquilibriumLoadings(newColumn);
 
@@ -96,7 +97,7 @@ bool RungeKutta3::propagate(Column& column, size_t step)
   // calculate the derivatives Dq/dt and Dp/dt based on Qeq, Q, V, and P at new (current) timestep
   computeFirstDerivatives(newColumn);
   updateStateRK(column, newColumn, (1.0 / 3.0), (2.0 / 3.0), timeStep);
-    computePressure(newColumn);
+  computePressure(newColumn);
 
   computeEquilibriumLoadings(newColumn);
 

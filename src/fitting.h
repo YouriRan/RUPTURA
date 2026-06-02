@@ -79,17 +79,17 @@ struct Fitting
    */
   void run();
 
-  /**
-   * \brief Creates plot scripts for a specific component.
-   * \param citizen DNA of the optimized individual.
-   * \param ID Index of the component.
-   */
-  void createPlotScripts(const DNA& citizen, size_t ID);
+  // /**
+  //  * \brief Creates plot scripts for a specific component.
+  //  * \param citizen DNA of the optimized individual.
+  //  * \param ID Index of the component.
+  //  */
+  // void createPlotScripts(const DNA& citizen, size_t ID);
 
-  /**
-   * \brief Creates a master plot script.
-   */
-  void createPlotScript();
+  // /**
+  //  * \brief Creates a master plot script.
+  //  */
+  // void createPlotScript();
 
 #ifdef PYBUILD
   /**
@@ -244,6 +244,7 @@ struct Fitting
   size_t columnLoading{1};                          ///< Column index for loading data.
   size_t columnError{2};                            ///< Column index for error data.
   double maximumLoading{0.0};                       ///< Maximum loading observed.
+  double externalTemperature{298.0};                ///< Temperature for the fitting, currently unused.
   PressureScale pressureScale{PressureScale::Log};  ///< Pressure scale type.
 
   std::vector<std::pair<double, double>> rawData;  ///< Raw data points (pressure, loading).
