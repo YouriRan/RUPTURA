@@ -52,7 +52,7 @@ std::vector<double> MultiSiteIsotherm::getParameters()
 
 // returns the inverse-pressure (1/P) that corresponds to the given reduced_grand_potential psi
 // advantage: for isotherms with zero equilibrium constant the result would be infinite, but the inverse is zero
-double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, double& cachedP0) const
+double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, double& cachedP0, double scale) const
 {
   const double tiny = 1.0e-15;
 
@@ -62,7 +62,7 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
   // For a single Langmuir or Langmuir-Freundlich site, the inverse can be handled analytically
   if (numberOfSites == 1)
   {
-    return sites[0].inversePressureForPsi(reduced_grand_potential, cachedP0);
+    return sites[0].inversePressureForPsi(reduced_grand_potential, cachedP0, scale);
   }
 
   // from here on, work with pressure, and return 1.0 / pressure at the end of the routine
@@ -78,7 +78,7 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
   }
 
   // use bisection algorithm
-  double s = psiForPressure(p_start);
+  double s = psiForPressure(p_start, scale);
 
   size_t nr_steps = 0;
   left_bracket = p_start;
@@ -90,7 +90,7 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
     do
     {
       right_bracket *= 2.0;
-      s = psiForPressure(right_bracket);
+      s = psiForPressure(right_bracket, scale);
 
       ++nr_steps;
       if (nr_steps > 100000)
@@ -110,7 +110,7 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
     do
     {
       left_bracket *= 0.5;
-      s = psiForPressure(left_bracket);
+      s = psiForPressure(left_bracket, scale);
 
       ++nr_steps;
       if (nr_steps > 100000)
@@ -128,7 +128,7 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
   do
   {
     double middle = 0.5 * (left_bracket + right_bracket);
-    s = psiForPressure(middle);
+    s = psiForPressure(middle, scale);
 
     if (s > reduced_grand_potential)
       right_bracket = middle;
@@ -160,19 +160,4 @@ double MultiSiteIsotherm::fitness() const
     if (sites[i].isUnphysical()) return penaltyCost;
   }
   return 0.0;
-}
-
-std::string MultiSiteIsotherm::gnuplotFunctionString([[maybe_unused]] char s) const
-{
-  std::ostringstream stream;
-  for (size_t i = 0; i < numberOfSites; ++i)
-  {
-    // +1 because gnuplot start counting from 1
-    stream << sites[i].gnuplotFunctionString(s, siteParameterIndex[i] + 1);
-    if (i < numberOfSites - 1)
-    {
-      stream << "+";
-    }
-  }
-  return stream.str();
 }

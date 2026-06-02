@@ -48,6 +48,8 @@ struct Component
   double heatOfAdsorption;     ///< Heat of adsorption in [K].
   bool isCarrierGas{false};    ///< Flag indicating if this is the carrier gas.
   double molecularWeight;
+  bool nonIsothermal{false};
+  std::optional<double> referenceTemperature{std::nullopt};
 
   /**
    * \brief Prints the component information to the console.
@@ -64,4 +66,9 @@ struct Component
    * \return A string representing the Component.
    */
   std::string repr() const;
+
+  inline double scale(double& temperature) const
+  {
+    return nonIsothermal ? std::exp((heatOfAdsorption / R) * ((1.0 / temperature) - (1.0 / referenceTemperature.value_or(1.0)))) : 1.0;
+  }
 };

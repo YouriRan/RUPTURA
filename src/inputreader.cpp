@@ -174,6 +174,16 @@ static void readOptionalNumber(const nlohmann::json& object, const std::string& 
   }
 }
 
+
+template <typename T>
+static void readOptionalNumber(const nlohmann::json& object, const std::string& key, std::optional<T>& target)
+{
+  if (containsKeyCaseInsensitive(object, key))
+  {
+    target = getNumberOrThrow<T>(requireKeyCaseInsensitive(object, key, ""), key, "");
+  }
+}
+
 static void readOptionalString(const nlohmann::json& object, const std::string& key, std::string& target)
 {
   if (containsKeyCaseInsensitive(object, key))
@@ -247,31 +257,32 @@ struct IsothermSpec
 {
   Isotherm::Type type;
   std::size_t parameterCount;
+  bool nonIsothermalImplemented;
 };
 
 static const IsothermSpec* findIsothermSpec(const std::string& typeString)
 {
   static const std::vector<std::pair<std::string_view, IsothermSpec>> specs{
-      {"Langmuir", {Isotherm::Type::Langmuir, 2}},
-      {"Anti-Langmuir", {Isotherm::Type::Anti_Langmuir, 2}},
-      {"Anti_Langmuir", {Isotherm::Type::Anti_Langmuir, 2}},
-      {"BET", {Isotherm::Type::BET, 3}},
-      {"Henry", {Isotherm::Type::Henry, 1}},
-      {"Freundlich", {Isotherm::Type::Freundlich, 2}},
-      {"Sips", {Isotherm::Type::Sips, 3}},
-      {"Langmuir-Freundlich", {Isotherm::Type::Langmuir_Freundlich, 3}},
-      {"Langmuir_Freundlich", {Isotherm::Type::Langmuir_Freundlich, 3}},
-      {"Redlich-Peterson", {Isotherm::Type::Redlich_Peterson, 3}},
-      {"Redlich_Peterson", {Isotherm::Type::Redlich_Peterson, 3}},
-      {"Toth", {Isotherm::Type::Toth, 3}},
-      {"Unilan", {Isotherm::Type::Unilan, 3}},
-      {"O'Brian&Myers", {Isotherm::Type::OBrien_Myers, 3}},
-      {"OBrien_Myers", {Isotherm::Type::OBrien_Myers, 3}},
-      {"OBrien&Myers", {Isotherm::Type::OBrien_Myers, 3}},
-      {"Quadratic", {Isotherm::Type::Quadratic, 3}},
-      {"Temkin", {Isotherm::Type::Temkin, 3}},
-      {"Bingel&Walton", {Isotherm::Type::BingelWalton, 3}},
-      {"BingelWalton", {Isotherm::Type::BingelWalton, 3}},
+      {"Langmuir", {Isotherm::Type::Langmuir, 2, true}},
+      {"Anti-Langmuir", {Isotherm::Type::Anti_Langmuir, 2, false}},
+      {"Anti_Langmuir", {Isotherm::Type::Anti_Langmuir, 2, false}},
+      {"BET", {Isotherm::Type::BET, 3, false}},
+      {"Henry", {Isotherm::Type::Henry, 1, false}},
+      {"Freundlich", {Isotherm::Type::Freundlich, 2, false}},
+      {"Sips", {Isotherm::Type::Sips, 3, true}},
+      {"Langmuir-Freundlich", {Isotherm::Type::Langmuir_Freundlich, 3, true}},
+      {"Langmuir_Freundlich", {Isotherm::Type::Langmuir_Freundlich, 3, true}},
+      {"Redlich-Peterson", {Isotherm::Type::Redlich_Peterson, 3, false}},
+      {"Redlich_Peterson", {Isotherm::Type::Redlich_Peterson, 3, false}},
+      {"Toth", {Isotherm::Type::Toth, 3, false}},
+      {"Unilan", {Isotherm::Type::Unilan, 3, false}},
+      {"O'Brian&Myers", {Isotherm::Type::OBrien_Myers, 3, false}},
+      {"OBrien_Myers", {Isotherm::Type::OBrien_Myers, 3, false}},
+      {"OBrien&Myers", {Isotherm::Type::OBrien_Myers, 3, false}},
+      {"Quadratic", {Isotherm::Type::Quadratic, 3, false}},
+      {"Temkin", {Isotherm::Type::Temkin, 3, false}},
+      {"Bingel&Walton", {Isotherm::Type::BingelWalton, 3, false}},
+      {"BingelWalton", {Isotherm::Type::BingelWalton, 3, false}},
   };
 
   for (const auto& [name, spec] : specs)
@@ -297,7 +308,16 @@ static void addIsothermSiteFromJson(Component& component, const std::string& typ
   std::vector<double> values = requireDoubleParameterCount(getNumberListOrThrow<double>(params, typeString, context),
                                                            spec->parameterCount, typeString, context);
 
-  component.isotherm.add(Isotherm(spec->type, values, spec->parameterCount));
+  if (component.nonIsothermal)
+  {
+    if (!spec->nonIsothermalImplemented)
+    {
+      throw std::logic_error("Error: nonIsothermal not implemented for " + typeString);
+    }
+    values.push_back(component.heatOfAdsorption);
+  }
+
+  component.isotherm.add(Isotherm(spec->type, values, spec->parameterCount, component.nonIsothermal));
 }
 
 static void requireConfigured(bool condition, const std::string& message)
@@ -350,9 +370,13 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalMappedString(parsed_data, "VelocityProfile", velocityProfile,
                            {{"FixedPressureGradient", 0}, {"Ergun", 1}, {"FixedVelocity", 2}});
 
-  readOptionalMappedString(
-      parsed_data, "BoundaryCondition", boundaryCondition,
-      {{"InletPressureInletVelocity", 0}, {"InletPressureOutletPressure", 1}, {"InletVelocityOutletPressure", 2}});
+  readOptionalMappedString(parsed_data, "BoundaryCondition", boundaryCondition,
+                           {{"InletPressureInletVelocity", 0},
+                            {"InletVelocityInletPressure", 0},
+                            {"InletPressureOutletPressure", 1},
+                            {"OutletPressureInletPressure", 1},
+                            {"InletVelocityOutletPressure", 2},
+                            {"OutletPressureInletVelocity", 2}});
 
   readOptionalMappedString(parsed_data, "PressureScale", pressureScale, {{"Log", 0}, {"Linear", 1}, {"Normal", 1}});
 
@@ -481,6 +505,14 @@ InputReader::InputReader(const std::string fileName) : components()
       readOptionalNumber<double>(item, "MolecularWeight", comp.molecularWeight);
       readOptionalNumber<double>(item, "HeatOfAdsorption", comp.heatOfAdsorption);
       readOptionalNumber<size_t>(item, "NumberOfIsothermSites", comp.isotherm.numberOfSites);
+      readOptionalNumber<double>(item, "referenceTemperature", comp.referenceTemperature);
+      readOptionalBool(item, "nonIsothermal", comp.nonIsothermal);
+
+      if (comp.nonIsothermal)
+      {
+        auto tmp = requireKeyCaseInsensitive(item, "HeatOfAdsorption",
+                                             "Heat of Adsorption should be set for non-isothermal adsorption models.");
+      }
 
       // Preferred format: "IsothermSites": [{"Type": "...", "Parameters": [...]}, ...].
       if (containsKeyCaseInsensitive(item, "IsothermSites"))
@@ -581,7 +613,7 @@ InputReader::InputReader(const std::string fileName) : components()
     {
       carrierGasComponent = j;
       std::vector<double> values{1.0, 0.0};
-      Isotherm isotherm = Isotherm(Isotherm::Type::Langmuir, values, 2);
+      Isotherm isotherm = Isotherm(Isotherm::Type::Langmuir, values, 2, false);
       components[carrierGasComponent].isotherm.add(isotherm);
       components[carrierGasComponent].isotherm.numberOfSites = 1;
 
@@ -664,11 +696,11 @@ InputReader::InputReader(const std::string fileName) : components()
 
     if (velocityProfile == fixedPressureGradient)
     {
-      requireConfigured(hasPressureGradient,
-                        "Error: pressure gradient not set (Use e.g.: 'PressureGradient -1e5')");
+      requireConfigured(hasPressureGradient, "Error: pressure gradient not set (Use e.g.: 'PressureGradient -1e5')");
 
-      requireConfigured(inletPressure + columnLength * pressureGradient >= 0.0,
-                        "Error: pressure profile becomes negative: InletPressure + ColumnLength * PressureGradient < 0");
+      requireConfigured(
+          inletPressure + columnLength * pressureGradient >= 0.0,
+          "Error: pressure profile becomes negative: InletPressure + ColumnLength * PressureGradient < 0");
 
       if (boundaryNeedsOutletPressure)
       {

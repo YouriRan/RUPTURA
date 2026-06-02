@@ -157,11 +157,13 @@ class MixturePrediction
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \param cachedPressure An array to cache intermediate pressure calculations.
    * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \param gasTemperature Temperature of the gas.
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> predictMixture(std::span<const double> idealGasMolFractions, const double& externalPressure,
                                            std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules,
-                                           double* cachedPressure, double* cachedGrandPotential);
+                                           double* cachedPressure, double* cachedGrandPotential,
+                                           double& gasTemperature);
 
  private:
   std::string displayName;                  ///< The display name for the simulation.
@@ -234,7 +236,7 @@ class MixturePrediction
   std::pair<size_t, size_t> computeFastIAST(std::span<const double> idealGasMolFractions,
                                             const double& externalPressure, std::span<double> adsorbedMolFractions,
                                             std::span<double> numberOfMolecules, double* cachedPressure,
-                                            double* cachedGrandPotential);
+                                            double* cachedGrandPotential, double& gasTemperature);
 
   /**
    * \brief Computes mixture prediction using Fast SIAST method.
@@ -250,7 +252,7 @@ class MixturePrediction
   std::pair<size_t, size_t> computeFastSIAST(std::span<const double> idealGasMolFractions,
                                              const double& externalPressure, std::span<double> adsorbedMolFractions,
                                              std::span<double> numberOfMolecules, double* cachedPressure,
-                                             double* cachedGrandPotential);
+                                             double* cachedGrandPotential, double& gasTemperature);
 
   /**
    * \brief Computes mixture prediction for a specific term using Fast SIAST method.
@@ -267,7 +269,7 @@ class MixturePrediction
   std::pair<size_t, size_t> computeFastSIAST(size_t term, std::span<const double> idealGasMolFractions,
                                              const double& externalPressure, std::span<double> adsorbedMolFractions,
                                              std::span<double> numberOfMolecules, double* cachedPressure,
-                                             double* cachedGrandPotential);
+                                             double* cachedGrandPotential, double& gasTemperature);
 
   /**
    * \brief Computes mixture prediction using IAST with nested loop bisection method.
@@ -284,7 +286,7 @@ class MixturePrediction
                                                            const double& externalPressure,
                                                            std::span<double> adsorbedMolFractions,
                                                            std::span<double> numberOfMolecules, double* cachedPressure,
-                                                           double* cachedGrandPotential);
+                                                           double* cachedGrandPotential, double& gasTemperature);
 
   /**
    * \brief Computes mixture prediction using SIAST with nested loop bisection method.
@@ -301,7 +303,7 @@ class MixturePrediction
                                                             const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
                                                             std::span<double> numberOfMolecules, double* cachedPressure,
-                                                            double* cachedGrandPotential);
+                                                            double* cachedGrandPotential, double& gasTemperature);
 
   /**
    * \brief Computes mixture prediction for a specific term using SIAST with nested loop bisection method.
@@ -319,7 +321,7 @@ class MixturePrediction
                                                             const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
                                                             std::span<double> numberOfMolecules, double* cachedPressure,
-                                                            double* cachedGrandPotential);
+                                                            double* cachedGrandPotential, double& gasTemperature);
 
   /**
    * \brief Computes mixture prediction using explicit isotherm model.
@@ -333,7 +335,7 @@ class MixturePrediction
   std::pair<size_t, size_t> computeExplicitIsotherm(std::span<const double> idealGasMolFractions,
                                                     const double& externalPressure,
                                                     std::span<double> adsorbedMolFractions,
-                                                    std::span<double> numberOfMolecules);
+                                                    std::span<double> numberOfMolecules, double& gasTemperature);
 
   /**
    * \brief Computes mixture prediction using segregated explicit isotherm model.
@@ -347,7 +349,8 @@ class MixturePrediction
   std::pair<size_t, size_t> computeSegratedExplicitIsotherm(std::span<const double> idealGasMolFractions,
                                                             const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
-                                                            std::span<double> numberOfMolecules);
+                                                            std::span<double> numberOfMolecules,
+                                                            double& gasTemperature);
 
   /**
    * \brief Computes mixture prediction for a specific term using segregated explicit isotherm model.
@@ -362,7 +365,8 @@ class MixturePrediction
   std::pair<size_t, size_t> computeSegratedExplicitIsotherm(size_t site, std::span<const double> idealGasMolFractions,
                                                             const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
-                                                            std::span<double> numberOfMolecules);
+                                                            std::span<double> numberOfMolecules,
+                                                            double& gasTemperature);
 
   /**
    * \brief Prints error status for debugging purposes.
@@ -376,5 +380,5 @@ class MixturePrediction
    * \param cachedPressure An array of cached pressure values.
    */
   void printErrorStatus(double psi, double sum, double P, std::span<const double> idealGasMolFractions,
-                        double cachedPressure[]);
+                        double cachedPressure[], double gasTemperature);
 };

@@ -52,7 +52,7 @@ SwingAdsorption::SwingAdsorption(const InputReader& inputReader) : breakthrough(
   for (size_t i = 0; i < numSubStages; ++i)
   {
     const double temperature = (numTemperatures != 0) ? inputReader.swingTemperatures[i] : inputReader.temperature;
-    const double pressure = (numPressures != 0) ? inputReader.swingPressures[i] : inputReader.totalPressure;
+    const double pressure = (numPressures != 0) ? inputReader.swingPressures[i] : inputReader.inletPressure;
     const size_t numberOfSteps = (numSteps != 0) ? inputReader.swingSteps[i] : inputReader.numberOfTimeSteps;
     subStages.emplace_back(SwingAdsorption::SubStage{temperature, pressure, numberOfSteps});
   }
@@ -79,7 +79,7 @@ void SwingAdsorption::run()
   for (auto& stage : subStages)
   {
     column.externalTemperature = stage.temperature;
-    column.externalPressure = stage.pressure;
+    column.inletPressure = stage.pressure;
 
     for (size_t subStep = 0; subStep < stage.numberOfSteps; subStep++)
     {

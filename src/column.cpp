@@ -28,16 +28,10 @@ namespace py = pybind11;
 
 namespace
 {
-std::vector<double> toVector(std::span<const double> s)
-{
-  return std::vector<double>(s.begin(), s.end());
-}
+std::vector<double> toVector(std::span<const double> s) { return std::vector<double>(s.begin(), s.end()); }
 }  // namespace
 
-size_t Column::stateSize() const noexcept
-{
-  return (2 * Ncomp + 3) * (Ngrid + 1);
-}
+size_t Column::stateSize() const noexcept { return (2 * Ncomp + 3) * (Ngrid + 1); }
 
 void Column::bindStateViews() noexcept
 {
@@ -201,19 +195,12 @@ void Column::initialize()
   std::vector<double> initialPressure(Ngrid + 1, 0.0);
 
   auto gridRatio = [&](size_t i) -> double
-  {
-    return Ngrid == 0 ? 0.0 : static_cast<double>(i) / static_cast<double>(Ngrid);
-  };
+  { return Ngrid == 0 ? 0.0 : static_cast<double>(i) / static_cast<double>(Ngrid); };
 
-  auto fillPressure = [&](double pressure)
-  {
-    std::fill(initialPressure.begin(), initialPressure.end(), pressure);
-  };
+  auto fillPressure = [&](double pressure) { std::fill(initialPressure.begin(), initialPressure.end(), pressure); };
 
   auto fillVelocity = [&](double velocity)
-  {
-    std::fill(interstitialGasVelocity.begin(), interstitialGasVelocity.end(), velocity);
-  };
+  { std::fill(interstitialGasVelocity.begin(), interstitialGasVelocity.end(), velocity); };
 
   bool setErgunVelocitiesFromPressureProfile = false;
 
@@ -339,10 +326,9 @@ void Column::initialize()
       molecularWeight += moleFraction[grid * Ncomp + comp] * components[comp].molecularWeight;
     }
 
-    gasDensity[grid] =
-        molecularWeight > 0.0 && gasDensityTemperature > 0.0
-            ? totalPressure[grid] * molecularWeight / (R * gasDensityTemperature)
-            : 0.0;
+    gasDensity[grid] = molecularWeight > 0.0 && gasDensityTemperature > 0.0
+                           ? totalPressure[grid] * molecularWeight / (R * gasDensityTemperature)
+                           : 0.0;
   }
 
   if (setErgunVelocitiesFromPressureProfile)
@@ -363,9 +349,8 @@ void Column::initialize()
     }
 
     const double eps3 = voidFraction * voidFraction * voidFraction;
-    const double viscousCoefficient =
-        150.0 * dynamicViscosity * (1.0 - voidFraction) * (1.0 - voidFraction) /
-        (particleDiameter * particleDiameter * eps3);
+    const double viscousCoefficient = 150.0 * dynamicViscosity * (1.0 - voidFraction) * (1.0 - voidFraction) /
+                                      (particleDiameter * particleDiameter * eps3);
 
     auto pressureDerivative = [&](size_t grid) -> double
     {
@@ -401,10 +386,9 @@ void Column::initialize()
 
       if (inertialCoefficient > 0.0)
       {
-        superficialVelocity =
-            (-viscousCoefficient +
-             std::sqrt(viscousCoefficient * viscousCoefficient + 4.0 * inertialCoefficient * rhs)) /
-            (2.0 * inertialCoefficient);
+        superficialVelocity = (-viscousCoefficient +
+                               std::sqrt(viscousCoefficient * viscousCoefficient + 4.0 * inertialCoefficient * rhs)) /
+                              (2.0 * inertialCoefficient);
       }
       else if (viscousCoefficient > 0.0)
       {
@@ -423,6 +407,11 @@ void Column::initialize()
       interstitialGasVelocity[grid] = ergunInterstitialVelocity(pressureDerivative(grid), gasDensity[grid]);
     }
   }
+
+  if (std::abs(influxTemperature) < 1e-10) influxTemperature = externalTemperature;
+  std::fill(gasTemperature.begin(), gasTemperature.end(), influxTemperature);
+  std::fill(solidTemperature.begin(), solidTemperature.end(), influxTemperature);
+  std::fill(wallTemperature.begin(), wallTemperature.end(), influxTemperature);
 
   for (size_t i = 0; i < Ngrid + 1; ++i)
   {
@@ -445,18 +434,13 @@ void Column::initialize()
 
     iastPerformance += mixture.predictMixture(idealGasMolFractions, initialPressure[i], adsorbedMolFractions,
                                               numberOfMolecules, &cachedPressure[i * Ncomp * maxIsothermTerms],
-                                              &cachedGrandPotential[i * maxIsothermTerms]);
+                                              &cachedGrandPotential[i * maxIsothermTerms], gasTemperature[i]);
 
     for (size_t j = 0; j < Ncomp; ++j)
     {
       equilibriumAdsorption[i * Ncomp + j] = numberOfMolecules[j];
     }
   }
-
-  if (std::abs(influxTemperature) < 1e-10) influxTemperature = externalTemperature;
-  std::fill(gasTemperature.begin(), gasTemperature.end(), influxTemperature);
-  std::fill(solidTemperature.begin(), solidTemperature.end(), influxTemperature);
-  std::fill(wallTemperature.begin(), wallTemperature.end(), influxTemperature);
 }
 
 void Column::setTemperature(double temperature)
@@ -550,8 +534,8 @@ void Column::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofst
         normalizedPressure = partialPressure[index] / (totalPressure[grid] * components[comp].Yi0);
       }
 
-      std::print(componentStreams[comp], "{} {} {} {} {} {} {} {} {} {}\n", time * timeNormalizationFactor,
-                 time / 60.0, static_cast<double>(grid) * resolution, concentration[index], concentrationDot[index],
+      std::print(componentStreams[comp], "{} {} {} {} {} {} {} {} {} {}\n", time * timeNormalizationFactor, time / 60.0,
+                 static_cast<double>(grid) * resolution, concentration[index], concentrationDot[index],
                  adsorption[index], adsorptionDot[index], partialPressure[index], equilibriumAdsorption[index],
                  normalizedPressure);
     }

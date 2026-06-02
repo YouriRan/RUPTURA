@@ -161,7 +161,7 @@ void Fitting::run()
     const DNA bestCitizen = fit(i);
     const DNA optimizedBestCitizen = simplex(bestCitizen, 1.0);
     optimizedBestCitizen.phenotype.print();
-    createPlotScripts(optimizedBestCitizen, i);
+    // createPlotScripts(optimizedBestCitizen, i);
   }
   // createPlotScript();
 }
@@ -264,7 +264,7 @@ py::array_t<double> Fitting::evaluate()
   {
     for (size_t j = 0; j < Ncomp; j++)
     {
-      data[i * Ncomp + j] = components[j].isotherm.value(rawData[i].first);
+      data[i * Ncomp + j] = components[j].isotherm.value(rawData[i].first, externalTemperature);
     }
   }
   return output;
@@ -321,7 +321,7 @@ double Fitting::fitness(const MultiSiteIsotherm& phenotype)
   {
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
-    double difference = loading - phenotype.value(pressure);
+    double difference = loading - phenotype.value(pressure, externalTemperature);
     // double weight = 1.0/(1.0+loading);
     double weight = 1.0;
     fitnessValue += weight * difference * difference;
@@ -349,16 +349,17 @@ double Fitting::RCorrelation(const MultiSiteIsotherm& phenotype)
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
     loading_avg_o += loading / static_cast<double>(m);
-    loading_avg_e += phenotype.value(pressure) / static_cast<double>(m);
+    loading_avg_e += phenotype.value(pressure, externalTemperature) / static_cast<double>(m);
   }
 
   for (std::pair<double, double> dataPoint : rawData)
   {
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
-    tmp1 += (loading - loading_avg_o) * (phenotype.value(pressure) - loading_avg_e);
+    tmp1 += (loading - loading_avg_o) * (phenotype.value(pressure, externalTemperature) - loading_avg_e);
     tmp2 += (loading - loading_avg_o) * (loading - loading_avg_o);
-    tmp3 += (phenotype.value(pressure) - loading_avg_e) * (phenotype.value(pressure) - loading_avg_e);
+    tmp3 += (phenotype.value(pressure, externalTemperature) - loading_avg_e) *
+            (phenotype.value(pressure, externalTemperature) - loading_avg_e);
   }
   RCorrelationValue = tmp1 / sqrt(tmp2 * tmp3);
 
@@ -988,82 +989,82 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
   return citizen;
 }
 
-void Fitting::createPlotScripts(const DNA& citizen, size_t ID)
-{
-  std::string plotFileName = "plot_fit_component_" + std::to_string(ID) + "_" + componentName[ID];
-  std::ofstream stream(plotFileName);
+// void Fitting::createPlotScripts(const DNA& citizen, size_t ID)
+// {
+//   std::string plotFileName = "plot_fit_component_" + std::to_string(ID) + "_" + componentName[ID];
+//   std::ofstream stream(plotFileName);
 
-  stream << "set encoding utf8\n";
-  stream << "set xlabel 'Pressure, {/Helvetica-Italic p} / [Pa]' font \"Helvetica,18\"\n";
-  stream << "set ylabel 'Absolute loading, {/Helvetica-Italic q} / [mol/kg]' offset 0.0,0 font \"Helvetica,18\"\n";
-  stream << "set bmargin 4\n";
-  stream << "set yrange[0:]\n";
-  if (pressureScale == PressureScale::Log)
-  {
-    stream << "set log x\n";
-  }
+//   stream << "set encoding utf8\n";
+//   stream << "set xlabel 'Pressure, {/Helvetica-Italic p} / [Pa]' font \"Helvetica,18\"\n";
+//   stream << "set ylabel 'Absolute loading, {/Helvetica-Italic q} / [mol/kg]' offset 0.0,0 font \"Helvetica,18\"\n";
+//   stream << "set bmargin 4\n";
+//   stream << "set yrange[0:]\n";
+//   if (pressureScale == PressureScale::Log)
+//   {
+//     stream << "set log x\n";
+//   }
 
-  stream << "set key  right bottom vertical samplen 2.5 height 0.5 spacing 1.5 font 'Helvetica, 10'\n";
-  stream << "set key title '" << componentName[ID] << "'\n";
+//   stream << "set key  right bottom vertical samplen 2.5 height 0.5 spacing 1.5 font 'Helvetica, 10'\n";
+//   stream << "set key title '" << componentName[ID] << "'\n";
 
-  stream << "set output 'isotherms_fit_" << componentName[ID] << ".pdf'\n";
-  stream << "set term pdf color solid\n";
+//   stream << "set output 'isotherms_fit_" << componentName[ID] << ".pdf'\n";
+//   stream << "set term pdf color solid\n";
 
-  // colorscheme from book 'gnuplot in action', listing 12.7
-  stream << "set linetype 1 pt 5 ps 0.5 lw 2 lc rgb '0xee0000'\n";
-  stream << "set linetype 2 pt 7 ps 0.5 lw 2 lc rgb '0x008b00'\n";
-  stream << "set linetype 3 pt 9 ps 0.5 lw 2 lc rgb '0x0000cd'\n";
-  stream << "set linetype 4 pt 11 ps 0.5 lw 2 lc rgb '0xff3fb3'\n";
-  stream << "set linetype 5 pt 13 ps 0.5 lw 2 lc rgb '0x00cdcd'\n";
-  stream << "set linetype 6 pt 15 ps 0.5 lw 2 lc rgb '0xcd9b1d'\n";
-  stream << "set linetype 7 pt  4 ps 0.5 lw 2 lc rgb '0x8968ed'\n";
-  stream << "set linetype 8 pt  6 ps 0.5 lw 2 lc rgb '0x8b8b83'\n";
-  stream << "set linetype 9 pt  8 ps 0.5 lw 2 lc rgb '0x00bb00'\n";
-  stream << "set linetype 10 pt 10 ps 0.5 lw 2 lc rgb '0x1e90ff'\n";
-  stream << "set linetype 11 pt 12 ps 0.5 lw 2 lc rgb '0x8b2500'\n";
-  stream << "set linetype 12 pt 14 ps 0.5 lw 2 lc rgb '0x000000'\n";
+//   // colorscheme from book 'gnuplot in action', listing 12.7
+//   stream << "set linetype 1 pt 5 ps 0.5 lw 2 lc rgb '0xee0000'\n";
+//   stream << "set linetype 2 pt 7 ps 0.5 lw 2 lc rgb '0x008b00'\n";
+//   stream << "set linetype 3 pt 9 ps 0.5 lw 2 lc rgb '0x0000cd'\n";
+//   stream << "set linetype 4 pt 11 ps 0.5 lw 2 lc rgb '0xff3fb3'\n";
+//   stream << "set linetype 5 pt 13 ps 0.5 lw 2 lc rgb '0x00cdcd'\n";
+//   stream << "set linetype 6 pt 15 ps 0.5 lw 2 lc rgb '0xcd9b1d'\n";
+//   stream << "set linetype 7 pt  4 ps 0.5 lw 2 lc rgb '0x8968ed'\n";
+//   stream << "set linetype 8 pt  6 ps 0.5 lw 2 lc rgb '0x8b8b83'\n";
+//   stream << "set linetype 9 pt  8 ps 0.5 lw 2 lc rgb '0x00bb00'\n";
+//   stream << "set linetype 10 pt 10 ps 0.5 lw 2 lc rgb '0x1e90ff'\n";
+//   stream << "set linetype 11 pt 12 ps 0.5 lw 2 lc rgb '0x8b2500'\n";
+//   stream << "set linetype 12 pt 14 ps 0.5 lw 2 lc rgb '0x000000'\n";
 
-  stream << "array s[" << isotherms[ID].numberOfParameters << "]\n";
-  for (size_t i = 0; i < isotherms[ID].numberOfParameters; ++i)
-  {
-    stream << "s[" << i + 1 << "]=" << isotherms[ID].parameters(i) << "\n";
-  }
-  stream << "array p[" << citizen.phenotype.numberOfParameters << "]\n";
-  for (size_t i = 0; i < citizen.phenotype.numberOfParameters; ++i)
-  {
-    stream << "p[" << i + 1 << "]=" << citizen.phenotype.parameters(i) << "\n";
-  }
-  stream << "plot \\\n"
-         << isotherms[ID].gnuplotFunctionString('s') << " title 'start f(x)' with li dt 2 lw 2,\\\n"
-         << citizen.phenotype.gnuplotFunctionString('p') << " title 'fit f(x)' with li lw 2,\\\n";
-  stream << "'" << filename[ID] << "' us " << columnPressure + 1 << ":" << columnLoading + 1
-         << " title 'raw data' with po pt 5 ps 0.5\n";
-}
+//   stream << "array s[" << isotherms[ID].numberOfParameters << "]\n";
+//   for (size_t i = 0; i < isotherms[ID].numberOfParameters; ++i)
+//   {
+//     stream << "s[" << i + 1 << "]=" << isotherms[ID].parameters(i) << "\n";
+//   }
+//   stream << "array p[" << citizen.phenotype.numberOfParameters << "]\n";
+//   for (size_t i = 0; i < citizen.phenotype.numberOfParameters; ++i)
+//   {
+//     stream << "p[" << i + 1 << "]=" << citizen.phenotype.parameters(i) << "\n";
+//   }
+//   stream << "plot \\\n"
+//          << isotherms[ID].gnuplotFunctionString('s') << " title 'start f(x)' with li dt 2 lw 2,\\\n"
+//          << citizen.phenotype.gnuplotFunctionString('p') << " title 'fit f(x)' with li lw 2,\\\n";
+//   stream << "'" << filename[ID] << "' us " << columnPressure + 1 << ":" << columnLoading + 1
+//          << " title 'raw data' with po pt 5 ps 0.5\n";
+// }
 
-void Fitting::createPlotScript()
-{
-#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-  std::ofstream stream_graphs("make_graphs.bat");
-  stream_graphs << "set PATH=%PATH%;C:\\Program Files\\gnuplot\\bin;C:\\Program "
-                   "Files\\ffmpeg-master-latest-win64-gpl\\bin;C:\\Program Files\\ffmpeg\\bin\n";
-  for (size_t i = 0; i < Ncomp; ++i)
-  {
-    std::string plotFileName = "plot_fit_component_" + std::to_string(i) + "_" + componentName[i];
-    stream_graphs << "gnuplot.exe " << plotFileName << "\n";
-  }
-#else
-  std::ofstream stream_graphs("make_graphs");
-  for (size_t i = 0; i < Ncomp; ++i)
-  {
-    std::string plotFileName = "plot_fit_component_" + std::to_string(i) + "_" + componentName[i];
-    stream_graphs << "gnuplot " << plotFileName << "\n";
-  }
-#endif
+// void Fitting::createPlotScript()
+// {
+// #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+//   std::ofstream stream_graphs("make_graphs.bat");
+//   stream_graphs << "set PATH=%PATH%;C:\\Program Files\\gnuplot\\bin;C:\\Program "
+//                    "Files\\ffmpeg-master-latest-win64-gpl\\bin;C:\\Program Files\\ffmpeg\\bin\n";
+//   for (size_t i = 0; i < Ncomp; ++i)
+//   {
+//     std::string plotFileName = "plot_fit_component_" + std::to_string(i) + "_" + componentName[i];
+//     stream_graphs << "gnuplot.exe " << plotFileName << "\n";
+//   }
+// #else
+//   std::ofstream stream_graphs("make_graphs");
+//   for (size_t i = 0; i < Ncomp; ++i)
+//   {
+//     std::string plotFileName = "plot_fit_component_" + std::to_string(i) + "_" + componentName[i];
+//     stream_graphs << "gnuplot " << plotFileName << "\n";
+//   }
+// #endif
 
-#if (__cplusplus >= 201703L)
-  std::filesystem::path path{"make_graphs"};
-  std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
-#else
-  chmod("make_graphs", S_IRWXU);
-#endif
-}
+// #if (__cplusplus >= 201703L)
+//   std::filesystem::path path{"make_graphs"};
+//   std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
+// #else
+//   chmod("make_graphs", S_IRWXU);
+// #endif
+// }

@@ -3,11 +3,11 @@
 #include <span>
 #include <stdexcept>
 
-#include "utils.h"
 #include "column.h"
 #include "component.h"
 #include "compute.h"
 #include "mixture_prediction.h"
+#include "utils.h"
 
 #if BUILD_SUNDIALS
 #include <cvode/cvode.h>
@@ -31,10 +31,14 @@ struct CVODE
   CVODE(const InputReader& inputReader)
       : timeStep(inputReader.timeStep),
         autoSteps(inputReader.autoNumberOfTimeSteps),
-        numberOfSteps(inputReader.numberOfTimeSteps) {}
+        numberOfSteps(inputReader.numberOfTimeSteps)
+  {
+  }
 
   CVODE(double timeStep, bool autoSteps, size_t numberOfSteps)
-      : timeStep(timeStep), autoSteps(autoSteps), numberOfSteps(numberOfSteps) {}
+      : timeStep(timeStep), autoSteps(autoSteps), numberOfSteps(numberOfSteps)
+  {
+  }
 
   ~CVODE();
 

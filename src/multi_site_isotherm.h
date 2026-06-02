@@ -127,14 +127,15 @@ struct MultiSiteIsotherm
    * Sums the adsorption values from all isotherm sites at the specified pressure.
    *
    * \param pressure The pressure at which to evaluate the adsorption.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The total adsorption value.
    */
-  inline double value(double pressure) const
+  inline double value(double pressure, double scale) const
   {
     double sum = 0.0;
     for (size_t i = 0; i < numberOfSites; ++i)
     {
-      sum += sites[i].value(pressure);
+      sum += sites[i].value(pressure, scale);
     }
     return sum;
   }
@@ -146,13 +147,14 @@ struct MultiSiteIsotherm
    *
    * \param site The index of the isotherm site.
    * \param pressure The pressure at which to evaluate the adsorption.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The adsorption value for the specified site, or 0.0 if the site index is invalid.
    */
-  inline double value(size_t site, double pressure) const
+  inline double value(size_t site, double pressure, double scale) const
   {
     if (site < numberOfSites)
     {
-      return sites[site].value(pressure);
+      return sites[site].value(pressure, scale);
     }
     return 0.0;
   }
@@ -163,14 +165,15 @@ struct MultiSiteIsotherm
    * Sums the reduced grand potential contributions from all isotherm sites at the specified pressure.
    *
    * \param pressure The pressure at which to compute the reduced grand potential.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The total reduced grand potential.
    */
-  inline double psiForPressure(double pressure) const
+  inline double psiForPressure(double pressure, double scale) const
   {
     double sum = 0.0;
     for (size_t i = 0; i < numberOfSites; ++i)
     {
-      sum += sites[i].psiForPressure(pressure);
+      sum += sites[i].psiForPressure(pressure, scale);
     }
     return sum;
   }
@@ -182,13 +185,14 @@ struct MultiSiteIsotherm
    *
    * \param site The index of the isotherm site.
    * \param pressure The pressure at which to compute the reduced grand potential.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The reduced grand potential for the specified site, or 0.0 if the site index is invalid.
    */
-  inline double psiForPressure(size_t site, double pressure) const
+  inline double psiForPressure(size_t site, double pressure, double scale) const
   {
     if (site < numberOfSites)
     {
-      return sites[site].psiForPressure(pressure);
+      return sites[site].psiForPressure(pressure, scale);
     }
     return 0.0;
   }
@@ -201,9 +205,10 @@ struct MultiSiteIsotherm
    *
    * \param reduced_grand_potential The target reduced grand potential.
    * \param cachedP0 A reference to a cached pressure value for starting point optimization.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The inverse of the pressure corresponding to the reduced grand potential.
    */
-  double inversePressureForPsi(double reduced_grand_potential, double& cachedP0) const;
+  double inversePressureForPsi(double reduced_grand_potential, double& cachedP0, double scale) const;
 
   /**
    * \brief Computes the inverse pressure for a specific site corresponding to a given reduced grand potential.
@@ -214,13 +219,14 @@ struct MultiSiteIsotherm
    * \param site The index of the isotherm site.
    * \param reduced_grand_potential The target reduced grand potential.
    * \param cachedP0 A reference to a cached pressure value for starting point optimization.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The inverse of the pressure for the specified site, or 0.0 if the site index is invalid.
    */
-  double inversePressureForPsi(size_t site, double reduced_grand_potential, double& cachedP0) const
+  double inversePressureForPsi(size_t site, double reduced_grand_potential, double& cachedP0, double scale) const
   {
     if (site < numberOfSites)
     {
-      return sites[site].inversePressureForPsi(reduced_grand_potential, cachedP0);
+      return sites[site].inversePressureForPsi(reduced_grand_potential, cachedP0, scale);
     }
     return 0.0;
   }
@@ -233,16 +239,6 @@ struct MultiSiteIsotherm
    * \return The fitness value, where higher values indicate worse fitness.
    */
   double fitness() const;
-
-  /**
-   * \brief Generates a gnuplot function string for plotting.
-   *
-   * Creates a string that represents the MultiSiteIsotherm as a gnuplot function, suitable for plotting purposes.
-   *
-   * \param s A character representing the parameter variable in the function string.
-   * \return A string representing the MultiSiteIsotherm in gnuplot syntax.
-   */
-  std::string gnuplotFunctionString(char s) const;
 };
 
 namespace std

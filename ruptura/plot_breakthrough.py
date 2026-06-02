@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import plotly.graph_objects as go
@@ -17,17 +18,222 @@ from .base_plotly import BasePlotly
 from .utils import ComponentInfo, load_simulation_metadata, read_blocks
 
 
+@dataclass(frozen=True)
+class MetricSpec:
+    ylabel: str
+    source: str
+    col_0based: int
+
+    @property
+    def col_1based(self) -> int:
+        return self.col_0based + 1
+
+
+@dataclass(frozen=True)
+class AxisSpec:
+    title: str
+    col_0based: int
+    scale: float = 1.0
+
+
+@dataclass(frozen=True)
+class TemperatureUnitSpec:
+    title: str
+    hover_unit: str
+    scale: float = 1.0
+    offset: float = 0.0
+
+
+@dataclass(frozen=True)
+class BreakthroughYSpec:
+    title: str
+    mode: str
+    component_col_0based: Optional[int]
+    hover_label: str
+    normalized: bool = False
+
+
+COLUMN_METRICS: Dict[str, MetricSpec] = {
+    "V": MetricSpec("Interstitial velocity, v [m/s]", "column", 3),
+    "Pt": MetricSpec("Total pressure, p<sub>t</sub> [Pa]", "column", 4),
+    "Tg": MetricSpec("Gas temperature, T<sub>g</sub> [K]", "column", 5),
+    "dTgdt": MetricSpec("Gas temperature derivative, dT<sub>g</sub>/dt [K/s]", "column", 6),
+    "Ts": MetricSpec("Solid temperature, T<sub>s</sub> [K]", "column", 7),
+    "dTsdt": MetricSpec("Solid temperature derivative, dT<sub>s</sub>/dt [K/s]", "column", 8),
+    "Tw": MetricSpec("Wall temperature, T<sub>w</sub> [K]", "column", 9),
+    "dTwdt": MetricSpec("Wall temperature derivative, dT<sub>w</sub>/dt [K/s]", "column", 10),
+    "rho": MetricSpec("Gas density, ρ<sub>g</sub> [kg/m³]", "column", 11),
+}
+
+COMPONENT_METRICS: Dict[str, MetricSpec] = {
+    "C": MetricSpec("Concentration, c<sub>i</sub> [mol/m³]", "component", 3),
+    "Dcdt": MetricSpec("Concentration derivative, dc<sub>i</sub>/dt [mol/m³/s]", "component", 4),
+    "Q": MetricSpec("Adsorption, q<sub>i</sub> [mol/kg]", "component", 5),
+    "Dqdt": MetricSpec("Adsorption derivative, dq<sub>i</sub>/dt [mol/kg/s]", "component", 6),
+    "P": MetricSpec("Partial pressure, p<sub>i</sub> [Pa]", "component", 7),
+    "Qeq": MetricSpec("Equilibrium adsorption, q<sub>i</sub>* [mol/kg]", "component", 8),
+    "Pnorm": MetricSpec("Normalized partial pressure, p<sub>i</sub>/(p<sub>t</sub>y<sub>i,0</sub>) [-]", "component", 9),
+}
+
+METRIC_SPECS: Dict[str, MetricSpec] = {**COLUMN_METRICS, **COMPONENT_METRICS}
+
+BREAKTHROUGH_X_SPECS: Dict[str, AxisSpec] = {
+    "dimensionless": AxisSpec("Dimensionless time, τ = tv/L [-]", 0, 1.0),
+    "min": AxisSpec("Time, t [min]", 1, 1.0),
+    "s": AxisSpec("Time, t [s]", 1, 60.0),
+    "hr": AxisSpec("Time, t [hr]", 1, 1 / 60.0),
+}
+
+BREAKTHROUGH_Y_SPECS: Dict[str, BreakthroughYSpec] = {
+    "concentration": BreakthroughYSpec(
+        title="Concentration, c<sub>i</sub> [mol/m³]",
+        mode="Breakthrough (concentration)",
+        component_col_0based=COMPONENT_METRICS["C"].col_0based,
+        hover_label="c<sub>i</sub>",
+    ),
+    "normalized_concentration": BreakthroughYSpec(
+        title="Normalized concentration, c<sub>i</sub>/c<sub>i,0</sub> [-]",
+        mode="Breakthrough (normalized concentration)",
+        component_col_0based=COMPONENT_METRICS["Pnorm"].col_0based,
+        hover_label="c<sub>i</sub>/c<sub>i,0</sub>",
+        normalized=True,
+    ),
+    "molefraction": BreakthroughYSpec(
+        title="Mole fraction, y<sub>i</sub> [-]",
+        mode="Breakthrough (mole fraction)",
+        component_col_0based=None,
+        hover_label="y<sub>i</sub>",
+        normalized=True,
+    ),
+    "partial_pressure": BreakthroughYSpec(
+        title="Partial pressure, p<sub>i</sub> [Pa]",
+        mode="Breakthrough (partial pressure)",
+        component_col_0based=COMPONENT_METRICS["P"].col_0based,
+        hover_label="p<sub>i</sub>",
+    ),
+}
+
+TEMPERATURE_Y_SPECS: Dict[str, TemperatureUnitSpec] = {
+    "kelvin": TemperatureUnitSpec("Temperature [K]", "K"),
+    "celsius": TemperatureUnitSpec("Temperature [°C]", "°C", offset=-273.15),
+}
+
+X_UNIT_ALIASES = {
+    "dimensionless": "dimensionless",
+    "tau": "dimensionless",
+    "dimless": "dimensionless",
+    "-": "dimensionless",
+    "min": "min",
+    "minute": "min",
+    "minutes": "min",
+    "s": "s",
+    "sec": "s",
+    "second": "s",
+    "seconds": "s",
+    "hr": "hr",
+    "h": "hr",
+    "hour": "hr"
+}
+
+Y_UNIT_ALIASES = {
+    "concentration": "concentration",
+    "c": "concentration",
+    "normalized": "normalized_concentration",
+    "normalised": "normalized_concentration",
+    "normalized_concentration": "normalized_concentration",
+    "normalised_concentration": "normalized_concentration",
+    "c_c0": "normalized_concentration",
+    "ci_ci0": "normalized_concentration",
+    "pnorm": "normalized_concentration",
+    "p_norm": "normalized_concentration",
+    "molefraction": "molefraction",
+    "mole_fraction": "molefraction",
+    "mole_frac": "molefraction",
+    "y": "molefraction",
+    "yi": "molefraction",
+    "partial_pressure": "partial_pressure",
+    "partialpressure": "partial_pressure",
+    "pressure": "partial_pressure",
+    "p": "partial_pressure",
+    "pi": "partial_pressure",
+}
+
+TEMPERATURE_Y_UNIT_ALIASES = {
+    "kelvin": "kelvin",
+    "k": "kelvin",
+    "celsius": "celsius",
+    "c": "celsius",
+    "degc": "celsius",
+    "degree_celsius": "celsius",
+    "degrees_celsius": "celsius",
+    "°c": "celsius",
+}
+
+
+def _canonical_key(value: str, aliases: Dict[str, str], option_name: str) -> str:
+    key = str(value).strip().lower().replace(" ", "_").replace("-", "_")
+    key = key.replace("/", "_")
+    if key in aliases:
+        return aliases[key]
+
+    allowed = ", ".join(sorted(set(aliases.values())))
+    raise ValueError(f"Unknown {option_name} '{value}'. Allowed values: {allowed}")
+
+
+def _props_from_specs(specs: Dict[str, MetricSpec]) -> Dict[str, Dict[str, object]]:
+    return {
+        name: {
+            "ylabel": spec.ylabel,
+            "source": spec.source,
+            "col_0based": spec.col_0based,
+            "col_1based": spec.col_1based,
+        }
+        for name, spec in specs.items()
+    }
+
+
+def _finite_min_max(values: List[np.ndarray]) -> Tuple[Optional[float], Optional[float]]:
+    finite_chunks = []
+    for value in values:
+        arr = np.asarray(value, dtype=float)
+        finite = arr[np.isfinite(arr)]
+        if finite.size:
+            finite_chunks.append(finite)
+
+    if not finite_chunks:
+        return None, None
+
+    all_values = np.concatenate(finite_chunks)
+    return float(np.nanmin(all_values)), float(np.nanmax(all_values))
+
+
+def _padded_y_range(ymin: Optional[float], ymax: Optional[float], normalized: bool = False) -> List[float]:
+    if ymin is None or ymax is None:
+        return [0.0, 1.0]
+
+    if ymin >= 0.0:
+        if normalized and ymax <= 1.02:
+            return [0.0, 1.05]
+        return [0.0, 1.08 * ymax if ymax > 0.0 else 1.0]
+
+    span = ymax - ymin
+    if span <= 0.0 or not np.isfinite(span):
+        span = abs(ymax) if ymax != 0.0 else 1.0
+    padding = 0.08 * span
+    return [ymin - padding, ymax + padding]
+
+
 class BreakthroughPlotly(BasePlotly):
     """
     Notebook-native Plotly interface for breakthrough and column-profile data.
 
-    File layout:
-      - column.data contains only column-level properties
-      - each component file contains only that component's properties
+    Expected file layout:
+      - column.data contains column-level properties only.
+      - component files contain component-level properties only.
 
     Breakthrough curves are reconstructed by selecting one grid row from each
-    stored block in the component_*.data files. By default, the last grid point
-    is used, i.e. the outlet.
+    stored block in each component file. By default, the selected row is the
+    outlet row, i.e. grid_index=-1.
     """
 
     def __init__(
@@ -85,349 +291,264 @@ class BreakthroughPlotly(BasePlotly):
         return "lines+markers" if show_markers else "lines"
 
     def _metric_info(self, metric: str) -> Dict[str, object]:
-        metric_map: Dict[str, Dict[str, object]] = {
-            # column.data
-            "V": {"ylabel": "Interstitial velocity, v [m/s]", "source": "column", "col_1based": 4},
-            "Pt": {"ylabel": "Total pressure, p_t [Pa]", "source": "column", "col_1based": 5},
-            "Tg": {"ylabel": "Gas temperature, T_g [K]", "source": "column", "col_1based": 6},
-            "dTgdt": {"ylabel": "Gas temperature derivative, dT_g/dt [K/s]", "source": "column", "col_1based": 7},
-            "Ts": {"ylabel": "Solid temperature, T_s [K]", "source": "column", "col_1based": 8},
-            "dTsdt": {"ylabel": "Solid temperature derivative, dT_s/dt [K/s]", "source": "column", "col_1based": 9},
-            "Tw": {"ylabel": "Wall temperature, T_w [K]", "source": "column", "col_1based": 10},
-            "dTwdt": {"ylabel": "Wall temperature derivative, dT_w/dt [K/s]", "source": "column", "col_1based": 11},
-            "rho": {"ylabel": "Gas density, ρ_g [kg/m³]", "source": "column", "col_1based": 12},
+        if metric not in METRIC_SPECS:
+            allowed = ", ".join(sorted(METRIC_SPECS))
+            raise ValueError(f"Unknown metric '{metric}'. Allowed metrics: {allowed}")
 
-            # component_*.data
-            "C": {"ylabel": "Concentration, c_i [mol/m³]", "source": "component", "col_1based": 4},
-            "Dcdt": {
-                "ylabel": "Concentration derivative, dc_i/dt [mol/m³/s]",
-                "source": "component",
-                "col_1based": 5,
-            },
-            "Q": {"ylabel": "Adsorption, q_i [mol/kg]", "source": "component", "col_1based": 6},
-            "Dqdt": {"ylabel": "Adsorption derivative, dq_i/dt [mol/kg/s]", "source": "component", "col_1based": 7},
-            "P": {"ylabel": "Partial pressure, p_i [Pa]", "source": "component", "col_1based": 8},
-            "Qeq": {"ylabel": "Equilibrium adsorption, q_i* [mol/kg]", "source": "component", "col_1based": 9},
-            "Pnorm": {
-                "ylabel": "Normalized partial pressure, p_i/p_{t}y_{i,0} [-]",
-                "source": "component",
-                "col_1based": 10,
-            },
+        spec = METRIC_SPECS[metric]
+        return {
+            "ylabel": spec.ylabel,
+            "source": spec.source,
+            "col_0based": spec.col_0based,
+            "col_1based": spec.col_1based,
         }
-
-        if metric not in metric_map:
-            raise ValueError(f"Unknown metric '{metric}'")
-
-        return metric_map[metric]
 
     def _column_index_0based(self, metric: str) -> int:
         info = self._metric_info(metric)
-        return int(info["col_1based"]) - 1
+        return int(info["col_0based"])
 
-    def _resolve_grid_index(self, block: np.ndarray, grid_index: int) -> int:
+    def _resolve_grid_index(self, block: np.ndarray, grid_index: Optional[int]) -> int:
         ngrid_local = block.shape[0]
+        if grid_index is None:
+            return ngrid_local // 2
+
         idx = grid_index if grid_index >= 0 else ngrid_local + grid_index
         if idx < 0 or idx >= ngrid_local:
             raise IndexError(f"grid_index {grid_index} out of range for block with {ngrid_local} grid points")
         return idx
 
-    def _breakthrough_component_series(
+    def _rows_at_grid(
         self,
+        blocks: List[np.ndarray],
+        grid_index: Optional[int],
         fileName: Union[str, Path],
-        grid_index: int = -1,
-    ) -> Dict[str, np.ndarray]:
-        blocks = self._read_component_blocks(fileName)
+        min_columns: int,
+    ) -> np.ndarray:
         if len(blocks) == 0:
             raise ValueError(f"No blocks found in {fileName}")
 
         rows = []
-        for block in blocks:
+        for block_index, block in enumerate(blocks):
+            if block.shape[1] < min_columns:
+                raise ValueError(
+                    f"Block {block_index} in {fileName} has {block.shape[1]} columns; "
+                    f"expected at least {min_columns}"
+                )
             idx = self._resolve_grid_index(block, grid_index)
             rows.append(block[idx, :])
 
-        data = np.asarray(rows, dtype=float)
+        return np.asarray(rows, dtype=float)
 
-        return {
-            "col_1": data[:, 0],  # dimensionless time
-            "col_2": data[:, 1],  # time [min]
-            "col_3": data[:, 9],  # normalized partial pressure [-]
-            "col_4": data[:, 7],  # partial pressure [Pa]
-            "col_5": data[:, 3],  # concentration [mol/m^3]
-            "col_6": data[:, 4],  # dc_i/dt [mol/m^3/s]
-            "col_7": data[:, 5],  # q_i [mol/kg]
-            "col_8": data[:, 6],  # dq_i/dt [mol/kg/s]
-            "col_9": data[:, 8],  # q_i^* [mol/kg]
-            "z": data[:, 2],      # selected z, usually constant across blocks
-        }
-
-    def _breakthrough_figure(
+    def _breakthrough_component_data(
         self,
-        x_col: str,
-        xaxis_title: str,
-        y_col: str = "col_3",
-        yaxis_title: str = "Concentration exit gas, c<sub>i</sub>/c<sub>i,0</sub> [-]",
-        mode: str = "Breakthrough",
+        fileName: Union[str, Path],
+        grid_index: Optional[int] = -1,
+    ) -> np.ndarray:
+        blocks = self._read_component_blocks(fileName)
+        return self._rows_at_grid(blocks, grid_index=grid_index, fileName=fileName, min_columns=10)
+
+    def _breakthrough_column_data(
+        self,
+        grid_index: Optional[int] = -1,
+        fileName: Union[str, Path] = "column.data",
+    ) -> np.ndarray:
+        blocks = self._read_column_data(fileName)
+        return self._rows_at_grid(blocks, grid_index=grid_index, fileName=fileName, min_columns=12)
+
+    def _x_values(self, data: np.ndarray, x_units: str) -> np.ndarray:
+        spec = BREAKTHROUGH_X_SPECS[x_units]
+        return data[:, spec.col_0based].astype(float) * spec.scale
+
+    def _y_values(
+        self,
+        data: np.ndarray,
+        y_units: str,
+        column_data: Optional[np.ndarray],
+    ) -> np.ndarray:
+        spec = BREAKTHROUGH_Y_SPECS[y_units]
+        if spec.component_col_0based is not None:
+            return data[:, spec.component_col_0based].astype(float)
+
+        if y_units != "molefraction":
+            raise ValueError(f"Unsupported derived breakthrough y-axis '{y_units}'")
+        if column_data is None:
+            raise ValueError("column.data is required to calculate mole fractions")
+        if column_data.shape[0] != data.shape[0]:
+            raise ValueError(
+                "Cannot calculate mole fraction: component and column files have different block counts "
+                f"({data.shape[0]} vs {column_data.shape[0]})"
+            )
+
+        p_i = data[:, COMPONENT_METRICS["P"].col_0based].astype(float)
+        p_t = column_data[:, COLUMN_METRICS["Pt"].col_0based].astype(float)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            return np.where(p_t != 0.0, p_i / p_t, np.nan)
+
+    def _temperature_values(self, values: np.ndarray, y_units: str) -> np.ndarray:
+        spec = TEMPERATURE_Y_SPECS[y_units]
+        return values.astype(float) * spec.scale + spec.offset
+
+    def breakthrough(
+        self,
+        x_units: str = "dimensionless",
+        y_units: str = "normalized concentration",
         include_carrier_gas: bool = True,
         show_markers: bool = True,
         grid_index: int = -1,
     ) -> go.Figure:
+        """
+        Plot breakthrough curves with explicit axis selections.
+
+        Parameters
+        ----------
+        x_units:
+            One of: "dimensionless", "min", "s".
+        y_units:
+            One of: "concentration", "normalized concentration",
+            "molefraction", "partial pressure".
+        include_carrier_gas:
+            If False, components marked as carrier gas are skipped.
+        show_markers:
+            If True, traces are rendered as lines plus markers.
+        grid_index:
+            Grid row to extract from each block. The default, -1, is the outlet.
+        """
+        x_key = _canonical_key(x_units, X_UNIT_ALIASES, "x_units")
+        y_key = _canonical_key(y_units, Y_UNIT_ALIASES, "y_units")
+        x_spec = BREAKTHROUGH_X_SPECS[x_key]
+        y_spec = BREAKTHROUGH_Y_SPECS[y_key]
+
+        column_data = self._breakthrough_column_data(grid_index=grid_index) if y_key == "molefraction" else None
+
         fig = go.Figure()
-        ymax = 0.0
-        ymin = np.inf
-        xmin = None
-        xmax = None
-        z_selected = None
+        x_values: List[np.ndarray] = []
+        y_values: List[np.ndarray] = []
+        z_selected: Optional[float] = None
 
         for comp in sorted(self.components, key=self._component_sort_key):
             if (not include_carrier_gas) and comp.isCarrierGas:
                 continue
 
             fileName = self._component_file_name(comp.index, comp.name)
-            series = self._breakthrough_component_series(fileName, grid_index=grid_index)
+            data = self._breakthrough_component_data(fileName, grid_index=grid_index)
 
-            x = np.asarray(series[x_col], dtype=float)
-            y = np.asarray(series[y_col], dtype=float)
+            x = self._x_values(data, x_key)
+            y = self._y_values(data, y_key, column_data)
+            x_values.append(x)
+            y_values.append(y)
 
-            if z_selected is None and "z" in series and len(series["z"]) > 0:
-                z_selected = float(series["z"][0])
-
-            if np.isfinite(x).any():
-                x_local_min = float(np.nanmin(x))
-                x_local_max = float(np.nanmax(x))
-                xmin = x_local_min if xmin is None else min(xmin, x_local_min)
-                xmax = x_local_max if xmax is None else max(xmax, x_local_max)
-
-            if np.isfinite(y).any():
-                ymax = max(ymax, float(np.nanmax(y)))
-                ymin = min(ymin, float(np.nanmin(y)))
+            if z_selected is None and data.shape[0] > 0:
+                z_selected = float(data[0, 2])
 
             line_width = 3.6 if comp.isCarrierGas else 3.2
             label = self._component_label(comp, include_yi=True)
-
             trace_kwargs = {
                 "x": x,
                 "y": y,
                 "mode": self._trace_mode(show_markers),
                 "name": label,
                 "line": dict(width=line_width),
-                "hovertemplate": (f"{label}<br>" + "x=%{x:.3f}<br>" + "y=%{y:.3f}<extra></extra>"),
+                "hovertemplate": (
+                    f"{label}<br>"
+                    f"{x_spec.title}=%{{x:.4g}}<br>"
+                    f"{y_spec.hover_label}=%{{y:.4g}}<extra></extra>"
+                ),
             }
             if show_markers:
                 trace_kwargs["marker"] = dict(symbol="circle", size=8, line=dict(width=1, color="Black"))
 
             fig.add_trace(go.Scatter(**trace_kwargs))
 
-        if xmax is None:
-            xmin = 0.0
-            xmax = 1.0
+        xmin, xmax = _finite_min_max(x_values)
+        ymin, ymax = _finite_min_max(y_values)
+        x_range = [0.0, 1.0] if xmin is None or xmax is None else [xmin, xmax]
+        y_range = _padded_y_range(ymin, ymax, normalized=y_spec.normalized)
 
-        if not np.isfinite(ymin):
-            ymin = 0.0
-        if not np.isfinite(ymax):
-            ymax = 1.0
-
-        if ymin >= 0.0:
-            y_lower = 0.0
-            y_upper = 1.05 if ymax <= 1.02 and y_col == "col_3" else (1.08 * ymax if ymax > 0.0 else 1.0)
-        else:
-            y_lower = 1.08 * ymin
-            y_upper = 1.08 * ymax if ymax > 0.0 else 1.0
-
-        title_text = self._plot_title(mode)
+        title_text = self._plot_title(y_spec.mode)
         if z_selected is not None:
             title_text += f"  z={z_selected:g} m"
 
-        fig = self._publication_layout(
+        return self._publication_layout(
             fig,
-            xaxis_title=xaxis_title,
-            yaxis_title=yaxis_title,
+            xaxis_title=x_spec.title,
+            yaxis_title=y_spec.title,
             title_text=title_text,
-            x_range=[xmin, xmax],
-            y_range=[y_lower, y_upper],
-        )
-        return fig
-
-    def breakthrough_dimensionless(
-        self,
-        include_carrier_gas: bool = True,
-        show_markers: bool = True,
-        grid_index: int = -1,
-    ) -> go.Figure:
-        return self._breakthrough_figure(
-            x_col="col_1",
-            xaxis_title="Dimensionless time, τ = tv/L [-]",
-            y_col="col_3",
-            yaxis_title="Concentration exit gas, c<sub>i</sub>/c<sub>i,0</sub> [-]",
-            mode="Breakthrough",
-            include_carrier_gas=include_carrier_gas,
-            show_markers=show_markers,
-            grid_index=grid_index,
-        )
-
-    def breakthrough_time(
-        self,
-        include_carrier_gas: bool = True,
-        show_markers: bool = True,
-        grid_index: int = -1,
-    ) -> go.Figure:
-        return self._breakthrough_figure(
-            x_col="col_2",
-            xaxis_title="Time, t [min]",
-            y_col="col_3",
-            yaxis_title="Concentration exit gas, c<sub>i</sub>/c<sub>i,0</sub> [-]",
-            mode="Breakthrough",
-            include_carrier_gas=include_carrier_gas,
-            show_markers=show_markers,
-            grid_index=grid_index,
-        )
-
-    def breakthrough_concentration_dimensionless(
-        self,
-        include_carrier_gas: bool = True,
-        show_markers: bool = True,
-        grid_index: int = -1,
-    ) -> go.Figure:
-        return self._breakthrough_figure(
-            x_col="col_1",
-            xaxis_title="Dimensionless time, τ = tv/L [-]",
-            y_col="col_5",
-            yaxis_title="Concentration, c<sub>i</sub> [mol/m³]",
-            mode="Breakthrough (concentration)",
-            include_carrier_gas=include_carrier_gas,
-            show_markers=show_markers,
-            grid_index=grid_index,
-        )
-
-    def breakthrough_concentration_time(
-        self,
-        include_carrier_gas: bool = True,
-        show_markers: bool = True,
-        grid_index: int = -1,
-    ) -> go.Figure:
-        return self._breakthrough_figure(
-            x_col="col_2",
-            xaxis_title="Time, t [min]",
-            y_col="col_5",
-            yaxis_title="Concentration, c<sub>i</sub> [mol/m³]",
-            mode="Breakthrough (concentration)",
-            include_carrier_gas=include_carrier_gas,
-            show_markers=show_markers,
-            grid_index=grid_index,
-        )
-
-    def breakthrough_partial_pressure_dimensionless(
-        self,
-        include_carrier_gas: bool = True,
-        show_markers: bool = True,
-        grid_index: int = -1,
-    ) -> go.Figure:
-        return self._breakthrough_figure(
-            x_col="col_1",
-            xaxis_title="Dimensionless time, τ = tv/L [-]",
-            y_col="col_4",
-            yaxis_title="Partial pressure, p<sub>i</sub> [Pa]",
-            mode="Breakthrough (partial pressure)",
-            include_carrier_gas=include_carrier_gas,
-            show_markers=show_markers,
-            grid_index=grid_index,
-        )
-
-    def breakthrough_partial_pressure_time(
-        self,
-        include_carrier_gas: bool = True,
-        show_markers: bool = True,
-        grid_index: int = -1,
-    ) -> go.Figure:
-        return self._breakthrough_figure(
-            x_col="col_2",
-            xaxis_title="Time, t [min]",
-            y_col="col_4",
-            yaxis_title="Partial pressure, p<sub>i</sub> [Pa]",
-            mode="Breakthrough (partial pressure)",
-            include_carrier_gas=include_carrier_gas,
-            show_markers=show_markers,
-            grid_index=grid_index,
+            x_range=x_range,
+            y_range=y_range,
         )
 
     def temperature_triplet_time(
         self,
-        grid_index: int = -1,
+        grid_index: Optional[int] = None,
+        x_units: str = "min",
+        y_units: str = "kelvin",
         show_markers: bool = True,
     ) -> go.Figure:
-        blocks = self._read_column_data("column.data")
-        if len(blocks) == 0:
-            raise ValueError("No blocks found in column.data")
+        """
+        Plot gas, solid, and wall temperature histories at a selected grid row.
 
-        rows = []
-        for block in blocks:
-            idx = self._resolve_grid_index(block, grid_index)
-            rows.append(block[idx, :])
+        Parameters
+        ----------
+        grid_index:
+            Grid row to extract from each block. The default, None, selects
+            the middle row of each block.
+        x_units:
+            One of: "dimensionless", "min", "s", "hr".
+        y_units:
+            One of: "kelvin", "celsius".
+        show_markers:
+            If True, traces are rendered as lines plus markers.
+        """
+        x_key = _canonical_key(x_units, X_UNIT_ALIASES, "x_units")
+        y_key = _canonical_key(y_units, TEMPERATURE_Y_UNIT_ALIASES, "y_units")
+        x_spec = BREAKTHROUGH_X_SPECS[x_key]
+        y_spec = TEMPERATURE_Y_SPECS[y_key]
 
-        data = np.asarray(rows, dtype=float)
+        data = self._breakthrough_column_data(grid_index=grid_index)
 
-        t = data[:, 1]  # time [min]
-        tg = data[:, 5]  # T_g [K]
-        ts = data[:, 7]  # T_s [K]
-        tw = data[:, 9]  # T_w [K]
+        x = self._x_values(data, x_key)
+        tg = self._temperature_values(data[:, COLUMN_METRICS["Tg"].col_0based], y_key)
+        ts = self._temperature_values(data[:, COLUMN_METRICS["Ts"].col_0based], y_key)
+        tw = self._temperature_values(data[:, COLUMN_METRICS["Tw"].col_0based], y_key)
         z_selected = float(data[0, 2]) if data.shape[0] > 0 else None
 
         fig = go.Figure()
-
-        trace_specs = [
+        y_values = [tg, ts, tw]
+        for label, y in [
             ("Gas temperature", tg),
             ("Solid temperature", ts),
             ("Wall temperature", tw),
-        ]
-
-        ymin = np.inf
-        ymax = -np.inf
-
-        for label, y in trace_specs:
-            if np.isfinite(y).any():
-                ymin = min(ymin, float(np.nanmin(y)))
-                ymax = max(ymax, float(np.nanmax(y)))
-
+        ]:
             trace_kwargs = {
-                "x": t,
+                "x": x,
                 "y": y,
                 "mode": self._trace_mode(show_markers),
                 "name": label,
                 "line": dict(width=3.2),
-                "hovertemplate": (f"{label}<br>" + "t=%{x:.3f} min<br>" + "T=%{y:.3f} K<extra></extra>"),
+                "hovertemplate": (
+                    f"{label}<br>"
+                    f"{x_spec.title}=%{{x:.4g}}<br>"
+                    f"T=%{{y:.4g}} {y_spec.hover_unit}<extra></extra>"
+                ),
             }
             if show_markers:
                 trace_kwargs["marker"] = dict(symbol="circle", size=8, line=dict(width=1, color="Black"))
-
             fig.add_trace(go.Scatter(**trace_kwargs))
 
-        if not np.isfinite(ymin):
-            ymin = 0.0
-        if not np.isfinite(ymax):
-            ymax = 1.0
-
-        if ymin >= 0.0:
-            y_lower = 0.0
-            y_upper = 1.08 * ymax if ymax > 0.0 else 1.0
-        else:
-            y_lower = 1.08 * ymin
-            y_upper = 1.08 * ymax if ymax > 0.0 else 1.0
-
-        x_min = float(np.nanmin(t)) if np.isfinite(t).any() else 0.0
-        x_max = float(np.nanmax(t)) if np.isfinite(t).any() else 1.0
-
+        xmin, xmax = _finite_min_max([x])
+        ymin, ymax = _finite_min_max(y_values)
         title_text = self._plot_title("Temperature history")
         if z_selected is not None:
             title_text += f"  z={z_selected:g} m"
 
-        fig = self._publication_layout(
+        return self._publication_layout(
             fig,
-            xaxis_title="Time, t [min]",
-            yaxis_title="Temperature [K]",
+            xaxis_title=x_spec.title,
+            yaxis_title=y_spec.title,
             title_text=title_text,
-            x_range=[x_min, x_max],
-            y_range=[y_lower, y_upper],
+            x_range=[0.0, 1.0] if xmin is None or xmax is None else [xmin, xmax],
+            y_range=_padded_y_range(ymin, ymax),
         )
-        return fig
 
     def column_snapshot(
         self,
@@ -438,7 +559,9 @@ class BreakthroughPlotly(BasePlotly):
         info = self._metric_info(metric)
         ylabel = str(info["ylabel"])
         source = str(info["source"])
+        col = int(info["col_0based"])
         fig = go.Figure()
+        y_values: List[np.ndarray] = []
 
         if source == "column":
             blocks = self._read_column_data("column.data")
@@ -447,29 +570,20 @@ class BreakthroughPlotly(BasePlotly):
 
             block = blocks[frame_index]
             z = block[:, 2]
-            col = self._column_index_0based(metric)
-
-            fig.add_trace(
-                go.Scatter(
-                    x=z,
-                    y=block[:, col],
-                    mode=self._trace_mode(show_markers),
-                    name=metric,
-                )
-            )
+            y = block[:, col]
+            y_values.append(y)
+            fig.add_trace(go.Scatter(x=z, y=y, mode=self._trace_mode(show_markers), name=metric))
         else:
-            for comp in self.components:
+            for comp in sorted(self.components, key=self._component_sort_key):
                 fileName = self._component_file_name(comp.index, comp.name)
                 blocks = self._read_component_blocks(fileName)
-
                 if frame_index < 0 or frame_index >= len(blocks):
                     raise IndexError(f"frame_index {frame_index} out of range for {fileName}")
 
                 block = blocks[frame_index]
                 z = block[:, 2]
-                col = self._column_index_0based(metric)
                 y = block[:, col]
-
+                y_values.append(y)
                 fig.add_trace(
                     go.Scatter(
                         x=z,
@@ -479,17 +593,13 @@ class BreakthroughPlotly(BasePlotly):
                     )
                 )
 
+        ymin, ymax = _finite_min_max(y_values)
         fig.update_layout(
             title=f"{self._plot_title()} — {metric} — frame {frame_index}",
             xaxis_title="Adsorber position [m]",
             yaxis_title=ylabel,
-            legend=dict(
-                orientation="h",
-                yanchor="top",
-                y=-0.18,
-                xanchor="center",
-                x=0.5,
-            ),
+            yaxis=dict(range=_padded_y_range(ymin, ymax)),
+            legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
             template="plotly_white",
             margin=dict(b=110),
         )
@@ -504,21 +614,21 @@ class BreakthroughPlotly(BasePlotly):
         info = self._metric_info(metric)
         ylabel = str(info["ylabel"])
         source = str(info["source"])
-
-        sampled_indices: List[int]
+        col = int(info["col_0based"])
+        every = max(1, int(every))
         fig = go.Figure()
 
         if source == "column":
             blocks = self._read_column_data("column.data")
-            sampled_indices = list(range(0, len(blocks), max(1, every)))
+            if len(blocks) == 0:
+                raise ValueError("No blocks found in column.data")
+
+            sampled_indices = list(range(0, len(blocks), every))
             sampled_blocks = [blocks[i] for i in sampled_indices]
-
-            x_min = min(block[:, 2].min() for block in sampled_blocks)
-            x_max = max(block[:, 2].max() for block in sampled_blocks)
-
-            col = self._column_index_0based(metric)
-            y_min = min(block[:, col].min() for block in sampled_blocks)
-            y_max = max(block[:, col].max() for block in sampled_blocks)
+            x_values = [block[:, 2] for block in sampled_blocks]
+            y_values = [block[:, col] for block in sampled_blocks]
+            x_min, x_max = _finite_min_max(x_values)
+            y_min, y_max = _finite_min_max(y_values)
 
             first_block = sampled_blocks[0]
             fig.add_trace(
@@ -530,26 +640,17 @@ class BreakthroughPlotly(BasePlotly):
                 )
             )
 
-            frames = []
-            for idx, block in zip(sampled_indices, sampled_blocks):
-                frames.append(
-                    go.Frame(
-                        name=str(idx),
-                        data=[
-                            go.Scatter(
-                                x=block[:, 2],
-                                y=block[:, col],
-                                mode=self._trace_mode(show_markers),
-                                name=metric,
-                            )
-                        ],
-                        layout=go.Layout(title_text=f"{self._plot_title()} — {metric} — frame {idx}"),
-                    )
+            frames = [
+                go.Frame(
+                    name=str(idx),
+                    data=[go.Scatter(x=block[:, 2], y=block[:, col], mode=self._trace_mode(show_markers), name=metric)],
+                    layout=go.Layout(title_text=f"{self._plot_title()} — {metric} — frame {idx}"),
                 )
+                for idx, block in zip(sampled_indices, sampled_blocks)
+            ]
         else:
             comp_blocks: Dict[int, List[np.ndarray]] = {}
-            nframes = None
-
+            nframes: Optional[int] = None
             for comp in self.components:
                 fileName = self._component_file_name(comp.index, comp.name)
                 blocks = self._read_component_blocks(fileName)
@@ -562,27 +663,20 @@ class BreakthroughPlotly(BasePlotly):
             if nframes is None or nframes == 0:
                 raise ValueError("No component blocks found")
 
-            sampled_indices = list(range(0, nframes, max(1, every)))
-
+            sampled_indices = list(range(0, nframes, every))
             x_values = []
             y_values = []
-            col = self._column_index_0based(metric)
-
             for comp in self.components:
                 for idx in sampled_indices:
                     block = comp_blocks[comp.index][idx]
                     x_values.append(block[:, 2])
                     y_values.append(block[:, col])
 
-            x_all = np.concatenate(x_values)
-            y_all = np.concatenate(y_values)
-            x_min = float(np.min(x_all))
-            x_max = float(np.max(x_all))
-            y_min = float(np.min(y_all))
-            y_max = float(np.max(y_all))
+            x_min, x_max = _finite_min_max(x_values)
+            y_min, y_max = _finite_min_max(y_values)
 
             first_idx = sampled_indices[0]
-            for comp in self.components:
+            for comp in sorted(self.components, key=self._component_sort_key):
                 block = comp_blocks[comp.index][first_idx]
                 fig.add_trace(
                     go.Scatter(
@@ -596,7 +690,7 @@ class BreakthroughPlotly(BasePlotly):
             frames = []
             for idx in sampled_indices:
                 data = []
-                for comp in self.components:
+                for comp in sorted(self.components, key=self._component_sort_key):
                     block = comp_blocks[comp.index][idx]
                     data.append(
                         go.Scatter(
@@ -606,7 +700,6 @@ class BreakthroughPlotly(BasePlotly):
                             name=self._component_label(comp, include_yi=True),
                         )
                     )
-
                 frames.append(
                     go.Frame(
                         name=str(idx),
@@ -615,28 +708,14 @@ class BreakthroughPlotly(BasePlotly):
                     )
                 )
 
-        if y_min >= 0.0:
-            y_min = 0.0
-            y_max = 1.1 * y_max if y_max > 0.0 else 1.0
-        else:
-            y_min = 1.1 * y_min
-            y_max = 1.1 * y_max
-
         fig.frames = frames
-
         fig.update_layout(
             title=f"{self._plot_title()} — {metric} — frame {sampled_indices[0]}",
             xaxis_title="Adsorber position [m]",
             yaxis_title=ylabel,
-            xaxis=dict(range=[x_min, x_max]),
-            yaxis=dict(range=[y_min, y_max]),
-            legend=dict(
-                orientation="h",
-                yanchor="top",
-                y=-0.18,
-                xanchor="center",
-                x=0.5,
-            ),
+            xaxis=dict(range=[0.0, 1.0] if x_min is None or x_max is None else [x_min, x_max]),
+            yaxis=dict(range=_padded_y_range(y_min, y_max)),
+            legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
             template="plotly_white",
             margin=dict(b=110),
             updatemenus=[
@@ -691,31 +770,10 @@ class BreakthroughPlotly(BasePlotly):
                 }
             ],
         )
-
         return fig
 
     def all_column_figures(self, every: int = 1, show_markers: bool = True) -> Dict[str, go.Figure]:
-        return {
-            metric: self.column_animation(metric, every=every, show_markers=show_markers)
-            for metric in [
-                "V",
-                "Pt",
-                "Tg",
-                "dTgdt",
-                "Ts",
-                "dTsdt",
-                "Tw",
-                "dTwdt",
-                "rho",
-                "C",
-                "Dcdt",
-                "Q",
-                "Dqdt",
-                "P",
-                "Qeq",
-                "Pnorm",
-            ]
-        }
+        return {metric: self.column_animation(metric, every=every, show_markers=show_markers) for metric in METRIC_SPECS}
 
     def explorer(
         self,
@@ -728,15 +786,12 @@ class BreakthroughPlotly(BasePlotly):
         if not legend_title:
             legend_title = self._plot_title()
 
-        dt_use = self.dt_guess(dt)
         return ColumnDataExplorer(
             data_dir=self.data_dir,
             components=self.components,
-            component_file_names={
-                comp.index: self._component_file_name(comp.index, comp.name) for comp in self.components
-            },
+            component_file_names={comp.index: self._component_file_name(comp.index, comp.name) for comp in self.components},
             column_file=column_file,
-            dt=dt_use,
+            dt=dt,
             time0=time0,
             legend_title=legend_title,
             carrierGasComponent=self.carrierGasComponent,
@@ -749,9 +804,7 @@ class BreakthroughPlotly(BasePlotly):
 
 class ColumnDataExplorer:
     """
-    Interactive explorer for the split file structure:
-      - column.data for column-level variables
-      - per-component files for component-level variables
+    Interactive explorer for split column/component data files.
     """
 
     def __init__(
@@ -795,37 +848,9 @@ class ColumnDataExplorer:
         self.zmin = float(np.nanmin(self.z_grid))
         self.zmax = float(np.nanmax(self.z_grid))
 
-        self.column_props = {
-            "V": {"ylabel": "Interstitial velocity, v [m/s]", "col_0based": 3, "source": "column"},
-            "Pt": {"ylabel": "Total pressure, p_t [Pa]", "col_0based": 4, "source": "column"},
-            "Tg": {"ylabel": "Gas temperature, T_g [K]", "col_0based": 5, "source": "column"},
-            "dTgdt": {"ylabel": "Gas temperature derivative, dT_g/dt [K/s]", "col_0based": 6, "source": "column"},
-            "Ts": {"ylabel": "Solid temperature, T_s [K]", "col_0based": 7, "source": "column"},
-            "dTsdt": {"ylabel": "Solid temperature derivative, dT_s/dt [K/s]", "col_0based": 8, "source": "column"},
-            "Tw": {"ylabel": "Wall temperature, T_w [K]", "col_0based": 9, "source": "column"},
-            "dTwdt": {"ylabel": "Wall temperature derivative, dT_w/dt [K/s]", "col_0based": 10, "source": "column"},
-            "rho": {"ylabel": "Gas density, ρ_g [kg/m³]", "col_0based": 11, "source": "column"},
-        }
-
-        self.component_props = {
-            "C": {"ylabel": "Concentration, c_i [mol/m³]", "col_0based": 3, "source": "component"},
-            "Dcdt": {
-                "ylabel": "Concentration derivative, dc_i/dt [mol/m³/s]",
-                "col_0based": 4,
-                "source": "component",
-            },
-            "Q": {"ylabel": "Adsorption, q_i [mol/kg]", "col_0based": 5, "source": "component"},
-            "Dqdt": {"ylabel": "Adsorption derivative, dq_i/dt [mol/kg/s]", "col_0based": 6, "source": "component"},
-            "P": {"ylabel": "Partial pressure, p_i [Pa]", "col_0based": 7, "source": "component"},
-            "Qeq": {"ylabel": "Equilibrium adsorption, q_i* [mol/kg]", "col_0based": 8, "source": "component"},
-            "Pnorm": {
-                "ylabel": "Normalized partial pressure, p_i/p_{t}y_{i,0} [-]",
-                "col_0based": 9,
-                "source": "component",
-            },
-        }
-
-        self.available_props = sorted(list(self.column_props.keys()) + list(self.component_props.keys()))
+        self.column_props = _props_from_specs(COLUMN_METRICS)
+        self.component_props = _props_from_specs(COMPONENT_METRICS)
+        self.available_props = sorted(METRIC_SPECS.keys())
 
         self._build_widgets()
         self._build_figure()
@@ -837,17 +862,11 @@ class ColumnDataExplorer:
     def _build_widgets(self):
         default_prop = "C" if "C" in self.available_props else self.available_props[0]
         self.w_prop = widgets.Dropdown(options=self.available_props, value=default_prop, description="y:")
-
-        self.w_xmode = widgets.Dropdown(
-            options=[("grid (z)", "grid"), ("time", "time")],
-            value="grid",
-            description="x:",
-        )
-
+        self.w_xmode = widgets.Dropdown(options=[("grid (z)", "grid"), ("time", "time")], value="grid", description="x:")
         self.w_block = widgets.IntSlider(value=0, min=0, max=len(self.column_blocks) - 1, step=1, description="block")
 
-        step = (self.zmax - self.zmin) / 200 if (self.zmax > self.zmin) else 1.0
-        if step <= 0 or not np.isfinite(step):
+        step = (self.zmax - self.zmin) / 200 if self.zmax > self.zmin else 1.0
+        if step <= 0.0 or not np.isfinite(step):
             step = 1.0
         self.w_z = widgets.FloatSlider(value=self.zmin, min=self.zmin, max=self.zmax, step=step, description="z@")
 
@@ -858,29 +877,10 @@ class ColumnDataExplorer:
             description="components",
             rows=min(8, max(3, len(comp_options))),
         )
-
-        self.w_show_carrier = widgets.Checkbox(
-            value=False,
-            description="show carrier gas",
-            indent=False,
-        )
-
-        self.w_show_markers = widgets.Checkbox(
-            value=self.show_markers,
-            description="show markers",
-            indent=False,
-        )
-
-        self.w_save_path = widgets.Text(
-            value="column_plot.pdf",
-            description="save as",
-            layout=widgets.Layout(width="420px"),
-        )
-        self.w_save_button = widgets.Button(
-            description="Save PDF",
-            tooltip="Save current figure to PDF",
-            button_style="",
-        )
+        self.w_show_carrier = widgets.Checkbox(value=False, description="show carrier gas", indent=False)
+        self.w_show_markers = widgets.Checkbox(value=self.show_markers, description="show markers", indent=False)
+        self.w_save_path = widgets.Text(value="column_plot.pdf", description="save as", layout=widgets.Layout(width="420px"))
+        self.w_save_button = widgets.Button(description="Save PDF", tooltip="Save current figure to PDF", button_style="")
         self.w_save_status = widgets.HTML(value="")
 
         self.w_save_button.on_click(self._save_current_pdf)
@@ -893,7 +893,6 @@ class ColumnDataExplorer:
         for w in [self.w_prop, self.w_xmode, self.w_block, self.w_z, self.w_comps, self.w_show_carrier]:
             w.observe(self._on_change, names="value")
         self.w_show_markers.observe(self._on_markers_change, names="value")
-
         self._sync_visibility()
 
     def _build_figure(self):
@@ -901,13 +900,7 @@ class ColumnDataExplorer:
         self.fig.update_layout(
             height=520,
             margin=dict(l=70, r=20, t=70, b=110),
-            legend=dict(
-                orientation="h",
-                yanchor="top",
-                y=-0.18,
-                xanchor="center",
-                x=0.5,
-            ),
+            legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5),
             template="plotly_white",
         )
 
@@ -933,11 +926,14 @@ class ColumnDataExplorer:
         self._render()
 
     def _time_axis(self) -> np.ndarray:
-        n = len(self.column_blocks)
-        idx = np.arange(n, dtype=float)
-        if self.dt is None:
-            return self.time0 + idx
-        return self.time0 + idx * float(self.dt)
+        if self.dt is not None:
+            idx = np.arange(len(self.column_blocks), dtype=float)
+            return self.time0 + idx * float(self.dt)
+
+        values = []
+        for block in self.column_blocks:
+            values.append(float(block[0, 1]) if block.shape[0] and block.shape[1] > 1 else np.nan)
+        return np.asarray(values, dtype=float)
 
     def _nearest_z_index(self, z_value: float) -> int:
         return int(np.nanargmin(np.abs(self.z_grid - z_value)))
@@ -955,14 +951,12 @@ class ColumnDataExplorer:
         prop = str(self.w_prop.value)
         if self.w_xmode.value == "grid":
             return f"{prop}_grid_block_{int(self.w_block.value)}.pdf"
-
         z_value = float(self.w_z.value)
         return f"{prop}_time_z_{z_value:.4g}.pdf"
 
     def _save_current_pdf(self, _button) -> None:
         out = self.w_save_path.value.strip() or self._default_pdf_name()
         path = Path(out)
-
         if path.suffix.lower() != ".pdf":
             path = path.with_suffix(".pdf")
 
@@ -978,10 +972,15 @@ class ColumnDataExplorer:
             return False
         return True
 
+    def _component_by_index(self, ci: int) -> ComponentInfo:
+        for comp in self.components:
+            if comp.index == ci:
+                return comp
+        raise KeyError(f"Unknown component index {ci}")
+
     def _render_grid(self, prop: str, block_index: int, comp_ids: List[int]):
         traces: List[go.Scatter] = []
-        ymin = np.inf
-        ymax = -np.inf
+        y_values: List[np.ndarray] = []
 
         if prop in self.column_props:
             info = self.column_props[prop]
@@ -989,156 +988,92 @@ class ColumnDataExplorer:
             z = block[:, 2].astype(float)
             col = int(info["col_0based"])
             y = block[:, col].astype(float)
-
-            if np.isfinite(y).any():
-                ymin = min(ymin, float(np.nanmin(y)))
-                ymax = max(ymax, float(np.nanmax(y)))
-
-            traces.append(
-                go.Scatter(
-                    x=z,
-                    y=y,
-                    mode=self._trace_mode(),
-                    name=prop,
-                )
-            )
-
+            y_values.append(y)
+            traces.append(go.Scatter(x=z, y=y, mode=self._trace_mode(), name=prop))
             ylabel = str(info["ylabel"])
         else:
             info = self.component_props[prop]
             col = int(info["col_0based"])
-
             for ci in comp_ids:
                 if not self._include_component(ci):
                     continue
-
                 blocks = self.component_blocks[ci]
+                if block_index < 0 or block_index >= len(blocks):
+                    raise IndexError(f"block_index {block_index} out of range for component {ci}")
+
                 block = blocks[block_index]
                 z = block[:, 2].astype(float)
                 y = block[:, col].astype(float)
-
-                if np.isfinite(y).any():
-                    ymin = min(ymin, float(np.nanmin(y)))
-                    ymax = max(ymax, float(np.nanmax(y)))
-
-                comp = next(comp for comp in self.components if comp.index == ci)
-                traces.append(
-                    go.Scatter(
-                        x=z,
-                        y=y,
-                        mode=self._trace_mode(),
-                        name=comp.name,
-                    )
-                )
-
+                y_values.append(y)
+                comp = self._component_by_index(ci)
+                traces.append(go.Scatter(x=z, y=y, mode=self._trace_mode(), name=comp.name))
             ylabel = str(info["ylabel"])
 
         self._replace_traces(traces)
-
         title = f"{prop} vs z (block {block_index})"
         if self.legend_title:
             title = f"{self.legend_title}<br>{title}"
 
+        ymin, ymax = _finite_min_max(y_values)
         with self.fig.batch_update():
             self.fig.update_layout(
                 title=dict(text=title),
-                xaxis=dict(
-                    title="Adsorber position [m]",
-                    range=[self.zmin, self.zmax],
-                    autorange=False,
-                ),
-                yaxis=dict(title=ylabel),
+                xaxis=dict(title="Adsorber position [m]", range=[self.zmin, self.zmax], autorange=False),
+                yaxis=dict(title=ylabel, range=_padded_y_range(ymin, ymax)),
             )
-
-            if np.isfinite(ymin) and np.isfinite(ymax):
-                if ymin >= 0.0 and ymax > 0.0:
-                    self.fig.update_yaxes(range=[0.0, 1.1 * ymax], autorange=False)
-                elif ymin < 0.0:
-                    self.fig.update_yaxes(range=[1.1 * ymin, 1.1 * ymax if ymax != 0 else 1.0], autorange=False)
-                else:
-                    self.fig.update_yaxes(autorange=True)
-            else:
-                self.fig.update_yaxes(autorange=True)
 
     def _render_time(self, prop: str, z_value: float, comp_ids: List[int]):
         t = self._time_axis()
         zi = self._nearest_z_index(z_value)
         z_used = float(self.z_grid[zi])
-
         traces: List[go.Scatter] = []
+        y_values: List[np.ndarray] = []
 
         if prop in self.column_props:
             info = self.column_props[prop]
             col = int(info["col_0based"])
-
             ys = []
             for block in self.column_blocks:
-                if zi < block.shape[0] and col < block.shape[1]:
-                    ys.append(float(block[zi, col]))
-                else:
-                    ys.append(np.nan)
+                ys.append(float(block[zi, col]) if zi < block.shape[0] and col < block.shape[1] else np.nan)
             ys = np.asarray(ys, dtype=float)
-
-            traces.append(
-                go.Scatter(
-                    x=t,
-                    y=ys,
-                    mode=self._trace_mode(),
-                    name=prop,
-                )
-            )
+            y_values.append(ys)
+            traces.append(go.Scatter(x=t, y=ys, mode=self._trace_mode(), name=prop))
             ylabel = str(info["ylabel"])
         else:
             info = self.component_props[prop]
             col = int(info["col_0based"])
-
             for ci in comp_ids:
                 if not self._include_component(ci):
                     continue
-
+                blocks = self.component_blocks[ci]
                 ys = []
-                for block in self.component_blocks[ci]:
-                    if zi < block.shape[0] and col < block.shape[1]:
-                        ys.append(float(block[zi, col]))
-                    else:
-                        ys.append(np.nan)
+                for block in blocks:
+                    ys.append(float(block[zi, col]) if zi < block.shape[0] and col < block.shape[1] else np.nan)
                 ys = np.asarray(ys, dtype=float)
-
-                comp = next(comp for comp in self.components if comp.index == ci)
-                traces.append(
-                    go.Scatter(
-                        x=t,
-                        y=ys,
-                        mode=self._trace_mode(),
-                        name=comp.name,
-                    )
-                )
+                y_values.append(ys)
+                comp = self._component_by_index(ci)
+                x = t[: ys.shape[0]] if t.shape[0] >= ys.shape[0] else np.arange(ys.shape[0], dtype=float)
+                traces.append(go.Scatter(x=x, y=ys, mode=self._trace_mode(), name=comp.name))
             ylabel = str(info["ylabel"])
 
         self._replace_traces(traces)
-
-        xlab = "time" if self.dt is not None else "timestep (block index)"
+        xlab = "Time, t [min]" if self.dt is None else "time"
         title = f"{prop} vs {xlab} (z≈{z_used:g} m)"
         if self.legend_title:
             title = f"{self.legend_title}<br>{title}"
 
+        ymin, ymax = _finite_min_max(y_values)
         with self.fig.batch_update():
             self.fig.update_layout(
                 title=dict(text=title),
-                xaxis=dict(
-                    title=xlab,
-                    autorange=True,
-                    range=None,
-                ),
-                yaxis=dict(title=ylabel),
+                xaxis=dict(title=xlab, autorange=True, range=None),
+                yaxis=dict(title=ylabel, range=_padded_y_range(ymin, ymax)),
             )
             self.fig.update_xaxes(autorange=True)
-            self.fig.update_yaxes(autorange=True)
 
     def _render(self):
         prop = str(self.w_prop.value)
         comp_ids = self._selected_components()
-
         if self.w_xmode.value == "grid":
             self._render_grid(prop=prop, block_index=int(self.w_block.value), comp_ids=comp_ids)
         else:

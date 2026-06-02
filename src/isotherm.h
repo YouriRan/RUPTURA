@@ -14,6 +14,7 @@
 
 #include "random_numbers.h"
 #include "special_functions.h"
+#include "utils.h"
 
 /**
  * \brief Maximum number of terms supported in the isotherm calculations.
@@ -67,8 +68,9 @@ struct Isotherm
    * \param type The type of the isotherm model.
    * \param values A vector of parameter values for the isotherm model.
    * \param numberOfValues The number of parameters.
+   * \param nonIsothermal Switches temperature dependence.
    */
-  Isotherm(Isotherm::Type type, const std::vector<double>& values, size_t numberOfValues);
+  Isotherm(Isotherm::Type type, const std::vector<double>& values, size_t numberOfValues, bool nonIsothermal);
 
   /**
    * \brief Constructs an Isotherm with specified type index and parameters.
@@ -78,12 +80,14 @@ struct Isotherm
    * \param t The index of the isotherm type.
    * \param values A vector of parameter values for the isotherm model.
    * \param numberOfValues The number of parameters.
+   * \param nonIsothermal Switches temperature dependence.
    */
-  Isotherm(size_t t, const std::vector<double>& values, size_t numberOfValues);
+  Isotherm(size_t t, const std::vector<double>& values, size_t numberOfValues, bool nonIsothermal);
 
   Isotherm::Type type;             ///< The type of the isotherm model.
   std::vector<double> parameters;  ///< Parameter values for the isotherm model.
   size_t numberOfParameters;       ///< The number of parameters for the isotherm model.
+  bool nonIsothermal;              ///< Switches whether we use temperature dependence in the isotherm.
 
   /**
    * \brief Prints a representation of the isotherm to standard output.
@@ -103,16 +107,17 @@ struct Isotherm
    * Calculates the adsorption loading based on the isotherm model and parameters for the specified pressure.
    *
    * \param pressure The pressure at which to evaluate the isotherm.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The adsorption amount at the given pressure.
    */
-  inline double value(double pressure) const
+  inline double value(double pressure, double scale) const
   {
     switch (type)
     {
       case Isotherm::Type::Langmuir:
       {
-        double temp = parameters[1] * pressure;
-        return parameters[0] * temp / (1.0 + temp);
+        double bp = scale * parameters[1] * pressure;
+        return parameters[0] * bp / (1.0 + bp);
       }
       case Isotherm::Type::Anti_Langmuir:
       {
@@ -133,13 +138,13 @@ struct Isotherm
       }
       case Isotherm::Type::Sips:
       {
-        double temp = std::pow(parameters[1] * pressure, 1.0 / parameters[2]);
+        double temp = std::pow(scale * parameters[1] * pressure, 1.0 / parameters[2]);
         return parameters[0] * temp / (1.0 + temp);
       }
       case Isotherm::Type::Langmuir_Freundlich:
       {
-        double temp = parameters[1] * std::pow(pressure, parameters[2]);
-        return parameters[0] * temp / (1.0 + temp);
+        double bp = scale * parameters[1] * std::pow(pressure, parameters[2]);
+        return parameters[0] * bp / (1.0 + bp);
       }
       case Isotherm::Type::Redlich_Peterson:
       {
@@ -153,7 +158,7 @@ struct Isotherm
       case Isotherm::Type::Unilan:
       {
         double temp1 = 1.0 + parameters[1] * std::exp(parameters[2]) * pressure;
-        double temp2 = 1.0 + parameters[1] * std::exp(-parameters[2]) * pressure;
+        double temp2 = 1.0 + parameters[1] * std::exp(parameters[2]) * pressure;
         return parameters[0] * (0.5 / parameters[2]) * std::log(temp1 / temp2);
       }
       case Isotherm::Type::OBrien_Myers:
@@ -191,15 +196,17 @@ struct Isotherm
    * Calculates the reduced grand potential psi based on the isotherm model and parameters for the specified pressure.
    *
    * \param pressure The pressure at which to evaluate the reduced grand potential.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The reduced grand potential psi at the given pressure.
    */
-  inline double psiForPressure(double pressure) const
+  inline double psiForPressure(double pressure, double scale) const
   {
     switch (type)
     {
       case Isotherm::Type::Langmuir:
       {
-        return parameters[0] * std::log(1.0 + parameters[1] * pressure);
+        double bp = scale * parameters[1] * pressure;
+        return parameters[0] * std::log(1.0 + bp);
       }
       case Isotherm::Type::Anti_Langmuir:
       {
@@ -222,11 +229,12 @@ struct Isotherm
       }
       case Isotherm::Type::Sips:
       {
-        return parameters[2] * parameters[0] * std::log(1.0 + std::pow(parameters[1] * pressure, 1.0 / parameters[2]));
+        return parameters[2] * parameters[0] * std::log(1.0 + std::pow(scale * parameters[1] * pressure, 1.0 / parameters[2]));
       }
       case Isotherm::Type::Langmuir_Freundlich:
       {
-        return (parameters[0] / parameters[2]) * std::log(1.0 + parameters[1] * std::pow(pressure, parameters[2]));
+        double bp = scale * parameters[1] * std::pow(pressure, parameters[2]);
+        return (parameters[0] / parameters[2]) * std::log(1.0 + bp);
       }
       case Isotherm::Type::Redlich_Peterson:
       {
@@ -274,7 +282,7 @@ struct Isotherm
       }
       case Isotherm::Type::Unilan:
       {
-        return (0.5 * parameters[0] / parameters[2]) * (li2(-parameters[1] * std::exp(-parameters[2]) * pressure) -
+        return (0.5 * parameters[0] / parameters[2]) * (li2(-parameters[1] * std::exp(parameters[2]) * pressure) -
                                                         li2(-parameters[1] * std::exp(parameters[2]) * pressure));
       }
       case Isotherm::Type::OBrien_Myers:
@@ -302,10 +310,10 @@ struct Isotherm
         double acc = 1e-6;
 
         // Romberg integration: https://en.wikipedia.org/wiki/Romberg%27s_method
-        std::vector<double> R1(max_steps), R2(max_steps);                       // buffers
-        double *Rp = &R1[0], *Rc = &R2[0];                                      // Rp is previous row, Rc is current row
-        double h = pressure - start;                                            // step size
-        Rp[0] = (value(start) / start + value(pressure) / pressure) * h * 0.5;  // first trapezoidal step
+        std::vector<double> R1(max_steps), R2(max_steps);  // buffers
+        double *Rp = &R1[0], *Rc = &R2[0];                 // Rp is previous row, Rc is current row
+        double h = pressure - start;                       // step size
+        Rp[0] = (value(start, scale) / start + value(pressure, scale) / pressure) * h * 0.5;  // first trapezoidal step
 
         for (size_t i = 1; i < max_steps; ++i)
         {
@@ -314,7 +322,8 @@ struct Isotherm
           size_t ep = size_t{1} << (i - 1);  // 2^(n-1)
           for (size_t j = 1; j <= ep; ++j)
           {
-            c += value(start + static_cast<double>(2 * j - 1) * h) / (start + static_cast<double>(2 * j - 1) * h);
+            c +=
+                value(start + static_cast<double>(2 * j - 1) * h, scale) / (start + static_cast<double>(2 * j - 1) * h);
           }
           Rc[0] = h * c + 0.5 * Rp[0];  // R(i,0)
 
@@ -348,20 +357,22 @@ struct Isotherm
    *
    * \param reduced_grand_potential The reduced grand potential psi.
    * \param cachedP0 A reference to a cached pressure value used to initialize the calculation.
+   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The inverse of the pressure corresponding to the given psi.
    */
-  inline double inversePressureForPsi(double reduced_grand_potential, double& cachedP0) const
+  inline double inversePressureForPsi(double reduced_grand_potential, double& cachedP0, double scale) const
   {
     switch (type)
     {
       case Isotherm::Type::Langmuir:
       {
         double denominator = std::exp(reduced_grand_potential / parameters[0]) - 1.0;
-        return parameters[1] / denominator;
+        double b = scale * parameters[1];
+        return b / denominator;
       }
       case Isotherm::Type::Anti_Langmuir:
       {
-        double denominator = 1.0 - std::exp(-parameters[1] * reduced_grand_potential / parameters[0]);
+        double denominator = 1.0 - std::exp(parameters[1] * reduced_grand_potential / parameters[0]);
         return parameters[1] / denominator;
       }
       case Isotherm::Type::Henry:
@@ -374,13 +385,14 @@ struct Isotherm
       }
       case Isotherm::Type::Sips:
       {
-        return parameters[1] /
+        return scale * parameters[1] /
                std::pow((std::exp(reduced_grand_potential / (parameters[2] * parameters[0])) - 1.0), parameters[2]);
       }
       case Isotherm::Type::Langmuir_Freundlich:
       {
         double denominator = std::exp(reduced_grand_potential * parameters[2] / parameters[0]) - 1.0;
-        return std::pow(parameters[1] / denominator, 1.0 / parameters[2]);
+        double b = scale * parameters[1];
+        return std::pow(b / denominator, 1.0 / parameters[2]);
       }
       default:
       {
@@ -399,7 +411,7 @@ struct Isotherm
         }
 
         // use bisection algorithm
-        double s = psiForPressure(p_start);
+        double s = psiForPressure(p_start, scale);
 
         size_t nr_steps = 0;
         double left_bracket = p_start;
@@ -411,7 +423,7 @@ struct Isotherm
           do
           {
             right_bracket *= 2.0;
-            s = psiForPressure(right_bracket);
+            s = psiForPressure(right_bracket, scale);
 
             ++nr_steps;
             if (nr_steps > 100000)
@@ -432,7 +444,7 @@ struct Isotherm
           do
           {
             left_bracket *= 0.5;
-            s = psiForPressure(left_bracket);
+            s = psiForPressure(left_bracket, scale);
 
             ++nr_steps;
             if (nr_steps > 100000)
@@ -451,7 +463,7 @@ struct Isotherm
         do
         {
           double middle = 0.5 * (left_bracket + right_bracket);
-          s = psiForPressure(middle);
+          s = psiForPressure(middle, scale);
 
           if (s > reduced_grand_potential)
             right_bracket = middle;
@@ -495,16 +507,4 @@ struct Isotherm
    * \return True if the parameters are unphysical; false otherwise.
    */
   bool isUnphysical() const;
-
-  /**
-   * \brief Generates a Gnuplot-compatible function string for the isotherm.
-   *
-   * Creates a string representing the isotherm function that can be used in Gnuplot scripts,
-   * using the specified character and index for parameter substitution.
-   *
-   * \param s The character representing the parameter array in Gnuplot (e.g., 'c' or 'p').
-   * \param i The starting index for the parameters.
-   * \return A string representing the isotherm function for Gnuplot.
-   */
-  std::string gnuplotFunctionString(char s, size_t i) const;
 };
