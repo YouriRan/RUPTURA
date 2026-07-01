@@ -6,8 +6,14 @@
 
 // https://stackoverflow.com/questions/35985960/c-why-is-boosthash-combine-the-best-way-to-combine-hash-values/50978188
 
+/**
+ * \brief Terminates recursive hash combination.
+ */
 inline void hash_combine([[maybe_unused]] std::size_t& seed) {}
 
+/**
+ * \brief Combines one or more values into an existing hash seed.
+ */
 template <typename T, typename... Rest>
 inline void hash_combine(std::size_t& seed, const T& v, Rest... rest)
 {

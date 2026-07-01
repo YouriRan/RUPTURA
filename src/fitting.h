@@ -10,12 +10,6 @@
 #include "inputreader.h"
 #include "multi_site_isotherm.h"
 
-#ifdef PYBUILD
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-#endif  // PYBUILD
-
 /**
  * \brief Class for fitting isotherm models to adsorption data.
  *
@@ -39,6 +33,10 @@ struct Fitting
         : genotype(g), phenotype(p), fitness(f), hash(std::hash<std::string>{}(g))
     {
     }
+
+    /**
+     * \brief Constructs an empty DNA object.
+     */
     DNA() noexcept = default;
 
     std::string genotype;         ///< Genotype represented as a bitstring.
@@ -79,6 +77,12 @@ struct Fitting
    */
   void run();
 
+  /**
+   * \brief Writes the fitted component definitions to a JSON file.
+   * \param path Output JSON path.
+   */
+  void writeComponentsJson(const std::string& path) const;
+
   // /**
   //  * \brief Creates plot scripts for a specific component.
   //  * \param citizen DNA of the optimized individual.
@@ -90,39 +94,6 @@ struct Fitting
   //  * \brief Creates a master plot script.
   //  */
   // void createPlotScript();
-
-#ifdef PYBUILD
-  /**
-   * \brief Constructs a Fitting object for Python integration.
-   * \param _displayName Display name of the fitting session.
-   * \param _components Vector of components to fit.
-   * \param _fullData Full dataset for all components.
-   * \param _pressureScale Pressure scale type.
-   */
-  Fitting(std::string _displayName, std::vector<Component> _components, std::vector<std::vector<double>> _fullData,
-          size_t _pressureScale);
-
-  /**
-   * \brief Extracts data slices for a specific component.
-   * \param ID Index of the component.
-   */
-  void sliceData(size_t ID);
-
-  std::vector<std::vector<double>> fullData;  ///< Full dataset for all components.
-
-  /**
-   * \brief Computes the fitting parameters.
-   * \return Vector of optimized parameters.
-   */
-  std::vector<double> compute();
-
-  /**
-   * \brief Evaluates the fitted isotherm models.
-   * \return NumPy array of evaluated values.
-   */
-  py::array_t<double> evaluate();
-
-#endif  // PYBUILD
 
   /**
    * \brief Generates a new individual for the genetic algorithm.
@@ -234,7 +205,7 @@ struct Fitting
    */
   const DNA simplex(DNA citizen, double scale);
 
-  size_t Ncomp;                                     ///< Number of components.
+  size_t numberOfComponents;                        ///< Number of components.
   std::vector<Component> components;                ///< Components involved in fitting.
   std::string displayName;                          ///< Display name for the fitting session.
   std::vector<std::string> componentName;           ///< Names of the components.
@@ -243,11 +214,11 @@ struct Fitting
   size_t columnPressure{0};                         ///< Column index for pressure data.
   size_t columnLoading{1};                          ///< Column index for loading data.
   size_t columnError{2};                            ///< Column index for error data.
-  double maximumLoading{0.0};                       ///< Maximum loading observed.
-  double externalTemperature{298.0};                ///< Temperature for the fitting, currently unused.
+  double maximumLoading{0.0};                       ///< Maximum loading observed in mol/kg.
+  double externalTemperature{298.0};                ///< Temperature for the fitting in K, currently unused.
   PressureScale pressureScale{PressureScale::Log};  ///< Pressure scale type.
 
-  std::vector<std::pair<double, double>> rawData;  ///< Raw data points (pressure, loading).
+  std::vector<std::pair<double, double>> rawData;  ///< Raw data points (pressure in Pa, loading in mol/kg).
 
   bool fittingFlag{false};             ///< Flag indicating if fitting is active.
   bool physicalConstrainsFlag{false};  ///< Flag for physical constraints.
@@ -255,19 +226,19 @@ struct Fitting
   bool pressureRangeFlag{false};       ///< Flag for pressure range usage.
   bool refittingFlag{false};           ///< Flag for refitting.
 
-  std::pair<double, double> pressureRange;     ///< Range of pressures.
+  std::pair<double, double> pressureRange;     ///< Range of pressures in Pa.
   std::pair<double, double> logPressureRange;  ///< Logarithmic pressure range.
 
-  size_t GA_Size;             ///< Genetic algorithm population size.
-  double GA_MutationRate;     ///< Mutation rate in genetic algorithm.
-  double GA_EliteRate;        ///< Proportion of elite individuals.
-  double GA_MotleyCrowdRate;  ///< Proportion of diverse individuals.
-  double GA_DisasterRate;     ///< Rate of introducing new genetic material.
-  size_t GA_Elitists;         ///< Number of elite individuals.
-  size_t GA_Motleists;        ///< Number of diverse individuals.
+  size_t geneticAlgorithmSize;             ///< Genetic algorithm population size.
+  double geneticAlgorithmMutationRate;     ///< Mutation rate in genetic algorithm.
+  double geneticAlgorithmEliteRate;        ///< Proportion of elite individuals.
+  double geneticAlgorithmMotleyCrowdRate;  ///< Proportion of diverse individuals.
+  double geneticAlgorithmDisasterRate;     ///< Rate of introducing new genetic material.
+  size_t geneticAlgorithmElitists;         ///< Number of elite individuals.
+  size_t geneticAlgorithmMotleists;        ///< Number of diverse individuals.
 
-  std::vector<DNA> popAlpha;   ///< First population buffer.
-  std::vector<DNA> popBeta;    ///< Second population buffer.
-  std::vector<DNA>& parents;   ///< Reference to current parent population.
-  std::vector<DNA>& children;  ///< Reference to current child population.
+  std::vector<DNA> alphaPopulation;  ///< First population buffer.
+  std::vector<DNA> betaPopulation;   ///< Second population buffer.
+  std::vector<DNA>& parents;         ///< Reference to current parent population.
+  std::vector<DNA>& children;        ///< Reference to current child population.
 };

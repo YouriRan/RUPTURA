@@ -10,6 +10,7 @@
 #include <cmath>
 #endif
 #include <iostream>
+#include <print>
 #include <string>
 
 #include "random_numbers.h"
@@ -67,10 +68,9 @@ struct Isotherm
    *
    * \param type The type of the isotherm model.
    * \param values A vector of parameter values for the isotherm model.
-   * \param numberOfValues The number of parameters.
    * \param nonIsothermal Switches temperature dependence.
    */
-  Isotherm(Isotherm::Type type, const std::vector<double>& values, size_t numberOfValues, bool nonIsothermal);
+  Isotherm(Isotherm::Type type, const std::vector<double>& values, bool nonIsothermal);
 
   /**
    * \brief Constructs an Isotherm with specified type index and parameters.
@@ -79,15 +79,14 @@ struct Isotherm
    *
    * \param t The index of the isotherm type.
    * \param values A vector of parameter values for the isotherm model.
-   * \param numberOfValues The number of parameters.
    * \param nonIsothermal Switches temperature dependence.
    */
-  Isotherm(size_t t, const std::vector<double>& values, size_t numberOfValues, bool nonIsothermal);
+  Isotherm(size_t t, const std::vector<double>& parameters, bool nonIsothermal);
 
   Isotherm::Type type;             ///< The type of the isotherm model.
-  std::vector<double> parameters;  ///< Parameter values for the isotherm model.
-  size_t numberOfParameters;       ///< The number of parameters for the isotherm model.
-  bool nonIsothermal;              ///< Switches whether we use temperature dependence in the isotherm.
+  std::vector<double> parameters;  ///< Parameter values for the isotherm model; units depend on isotherm type.
+  size_t numberOfParameters;       ///< Number of active parameters in the isotherm.
+  bool nonIsothermal;              ///< Switches whether temperature dependence is used in the isotherm.
 
   /**
    * \brief Prints a representation of the isotherm to standard output.
@@ -193,11 +192,12 @@ struct Isotherm
   /**
    * \brief Computes the reduced grand potential (spreading pressure) at a given pressure.
    *
-   * Calculates the reduced grand potential psi based on the isotherm model and parameters for the specified pressure.
+   * Calculates the reduced grand potential reducedGrandPotential based on the isotherm model and parameters for the
+   * specified pressure.
    *
    * \param pressure The pressure at which to evaluate the reduced grand potential.
    * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
-   * \return The reduced grand potential psi at the given pressure.
+   * \return The reduced grand potential reducedGrandPotential at the given pressure.
    */
   inline double psiForPressure(double pressure, double scale) const
   {
@@ -229,7 +229,8 @@ struct Isotherm
       }
       case Isotherm::Type::Sips:
       {
-        return parameters[2] * parameters[0] * std::log(1.0 + std::pow(scale * parameters[1] * pressure, 1.0 / parameters[2]));
+        return parameters[2] * parameters[0] *
+               std::log(1.0 + std::pow(scale * parameters[1] * pressure, 1.0 / parameters[2]));
       }
       case Isotherm::Type::Langmuir_Freundlich:
       {
@@ -266,7 +267,7 @@ struct Isotherm
         double temp = parameters[1] * pressure;
         double theta = temp / std::pow(1.0 + std::pow(temp, parameters[2]), 1.0 / parameters[2]);
         double theta_pow = std::pow(theta, parameters[2]);
-        double psi = parameters[0] * (theta - (theta / parameters[2]) * std::log(1.0 - theta_pow));
+        double reducedGrandPotential = parameters[0] * (theta - (theta / parameters[2]) * std::log(1.0 - theta_pow));
 
         // use the first 100 terms of the sum
         double temp1 = parameters[0] * theta;
@@ -275,10 +276,10 @@ struct Isotherm
         {
           temp1 *= theta_pow;
           temp2 += parameters[2];
-          psi -= temp1 / (temp2 * (temp2 + 1.0));
+          reducedGrandPotential -= temp1 / (temp2 * (temp2 + 1.0));
         }
 
-        return psi;
+        return reducedGrandPotential;
       }
       case Isotherm::Type::Unilan:
       {
@@ -350,15 +351,15 @@ struct Isotherm
   }
 
   /**
-   * \brief Computes the inverse pressure corresponding to a given reduced grand potential psi.
+   * \brief Computes the inverse pressure corresponding to a given reduced grand potential reducedGrandPotential.
    *
-   * Calculates the pressure that corresponds to the specified reduced grand potential psi using the isotherm model.
-   * This function may cache intermediate results to improve performance in repeated calculations.
+   * Calculates the pressure that corresponds to the specified reduced grand potential reducedGrandPotential using the
+   * isotherm model. This function may cache intermediate results to improve performance in repeated calculations.
    *
-   * \param reduced_grand_potential The reduced grand potential psi.
+   * \param reduced_grand_potential The reduced grand potential reducedGrandPotential.
    * \param cachedP0 A reference to a cached pressure value used to initialize the calculation.
    * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
-   * \return The inverse of the pressure corresponding to the given psi.
+   * \return The inverse of the pressure corresponding to the given reducedGrandPotential.
    */
   inline double inversePressureForPsi(double reduced_grand_potential, double& cachedP0, double scale) const
   {
@@ -428,11 +429,11 @@ struct Isotherm
             ++nr_steps;
             if (nr_steps > 100000)
             {
-              std::cout << "reduced_grand_potential: " << reduced_grand_potential << std::endl;
-              std::cout << "psi: " << s << std::endl;
-              std::cout << "p_start: " << p_start << std::endl;
-              std::cout << "Left bracket: " << left_bracket << std::endl;
-              std::cout << "Right bracket: " << right_bracket << std::endl;
+              std::print("reduced_grand_potential: {}\n", reduced_grand_potential);
+              std::print("reducedGrandPotential: {}\n", s);
+              std::print("p_start: {}\n", p_start);
+              std::print("Left bracket: {}\n", left_bracket);
+              std::print("Right bracket: {}\n", right_bracket);
               throw std::runtime_error(
                   "Error (Inverse bisection): initial bracketing (for sum < 1) does NOT converge\n");
             }
@@ -449,11 +450,11 @@ struct Isotherm
             ++nr_steps;
             if (nr_steps > 100000)
             {
-              std::cout << "reduced_grand_potential: " << reduced_grand_potential << std::endl;
-              std::cout << "psi: " << s << std::endl;
-              std::cout << "p_start: " << p_start << std::endl;
-              std::cout << "Left bracket: " << left_bracket << std::endl;
-              std::cout << "Right bracket: " << right_bracket << std::endl;
+              std::print("reduced_grand_potential: {}\n", reduced_grand_potential);
+              std::print("reducedGrandPotential: {}\n", s);
+              std::print("p_start: {}\n", p_start);
+              std::print("Left bracket: {}\n", left_bracket);
+              std::print("Right bracket: {}\n", right_bracket);
               throw std::runtime_error(
                   "Error (Inverse bisection): initial bracketing (for sum > 1) does NOT converge\n");
             }
@@ -473,8 +474,8 @@ struct Isotherm
           ++nr_steps;
           if (nr_steps > 100000)
           {
-            std::cout << "Left bracket: " << left_bracket << std::endl;
-            std::cout << "Right bracket: " << right_bracket << std::endl;
+            std::print("Left bracket: {}\n", left_bracket);
+            std::print("Right bracket: {}\n", right_bracket);
             throw std::runtime_error("Error (Inverse bisection): initial bracketing (for sum < 1) does NOT converge\n");
           }
         } while (std::abs(left_bracket - right_bracket) / std::abs(left_bracket + right_bracket) > tiny);

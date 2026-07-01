@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 4.3)
 project(ruptura LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
@@ -7,9 +7,18 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(LAPACK)
 
 option(BUILD_SUNDIALS "Build with SUNDIALS-based CVODE integrator support" ON)
+option(BUILD_PYTHON "Build nanobind-based Python module" OFF)
 
 set(SUNDIALS_ROOT "" CACHE PATH
   "Prefix of a preinstalled SUNDIALS (expects include/ and lib/ under this directory)"
+)
+
+set(NANOBIND_SOURCE_DIR "" CACHE PATH
+  "Path to a nanobind source checkout. Leave empty to use find_package()/pip-installed nanobind."
+)
+
+set(RUPTURA_PYTHON_MODULE_NAME "_ruptura" CACHE STRING
+  "Python import name for the nanobind module"
 )
 
 if(SUNDIALS_ROOT)
@@ -95,9 +104,59 @@ if(BUILD_SUNDIALS)
 
 endif()
 
-include_directories(src)
+if(BUILD_PYTHON)
+  set(DEV_MODULE Development.Module)
 
-set(SOURCES
+  set(RUPTURA_PYTHON_EXECUTABLE "" CACHE FILEPATH
+    "Exact Python interpreter to use for the Python module"
+  )
+
+  # Prefer the active virtualenv/conda environment when one is activated.
+  # Use ONLY instead of FIRST if you want configuration to fail rather than
+  # silently fall back to a system Python.
+  set(Python_FIND_VIRTUALENV FIRST)
+  set(Python_FIND_STRATEGY LOCATION)
+
+  if(RUPTURA_PYTHON_EXECUTABLE)
+    set(Python_EXECUTABLE "${RUPTURA_PYTHON_EXECUTABLE}" CACHE FILEPATH "" FORCE)
+  endif()
+
+  find_package(Python 3.12 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
+
+  message(STATUS "Using Python executable: ${Python_EXECUTABLE}")
+  message(STATUS "Using Python version: ${Python_VERSION}")
+
+  if(NANOBIND_SOURCE_DIR)
+    add_subdirectory("${NANOBIND_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/nanobind")
+  endif()
+
+  if(NOT COMMAND nanobind_add_module)
+    execute_process(
+      COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir
+      OUTPUT_VARIABLE nanobind_ROOT
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET
+    )
+
+    if(nanobind_ROOT)
+      list(APPEND CMAKE_PREFIX_PATH "${nanobind_ROOT}")
+      find_package(nanobind CONFIG QUIET)
+    endif()
+  endif()
+
+  if(NOT COMMAND nanobind_add_module)
+    find_package(nanobind CONFIG QUIET)
+  endif()
+
+  if(NOT COMMAND nanobind_add_module)
+    message(FATAL_ERROR
+      "Could not find nanobind. Install it with Python/pip, or configure with "
+      "-DNANOBIND_SOURCE_DIR=/path/to/nanobind."
+    )
+  endif()
+endif()
+
+set(RUPTURA_SOURCES
   src/breakthrough.cpp
   src/column.cpp
   src/component.cpp
@@ -115,31 +174,70 @@ set(SOURCES
   src/integrators/compute.cpp
 )
 
-add_executable(ruptura src/main.cpp ${SOURCES})
-
-target_compile_options(ruptura PRIVATE
+set(RUPTURA_COMPILE_OPTIONS
   -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
   -Woverloaded-virtual -Wpedantic -Wconversion -Wsign-conversion -Wno-reorder-ctor
   -Wnull-dereference -Wdouble-promotion -Wformat=2
   -O3 -march=native -ffast-math -fomit-frame-pointer -ftree-vectorize -funroll-loops
 )
 
-target_compile_definitions(ruptura PRIVATE
-  BUILD_SUNDIALS=$<BOOL:${BUILD_SUNDIALS}>
-)
-
-target_include_directories(ruptura PRIVATE
+set(RUPTURA_INCLUDE_DIRS
   src
   src/integrators
   $<$<BOOL:${BUILD_SUNDIALS}>:${KLU_INCLUDE_DIR}>
 )
 
-target_link_libraries(ruptura PRIVATE
+set(RUPTURA_LINK_LIBRARIES
   ${LAPACK_LIBRARIES}
   $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::cvode>
   $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::nvecserial>
   $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::sunlinsolklu>
   $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::sunmatrixsparse>
 )
+
+# ---------------------------------------------------------------------------
+# Stage 1: build the reusable core library.
+#
+# Keep this target free of BUILD_PYTHON so it remains a normal C++ library that can
+# be linked into both the executable and the Python module. Python-specific
+# wrappers should live in ruptura/pybindings.cpp.
+# ---------------------------------------------------------------------------
+add_library(rupturalib STATIC
+  ${RUPTURA_SOURCES}
+)
+
+set_target_properties(rupturalib PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+)
+
+target_compile_options(rupturalib PRIVATE
+  ${RUPTURA_COMPILE_OPTIONS}
+)
+
+target_compile_definitions(rupturalib PUBLIC
+  BUILD_SUNDIALS=$<BOOL:${BUILD_SUNDIALS}>
+)
+
+target_include_directories(rupturalib PUBLIC
+  ${RUPTURA_INCLUDE_DIRS}
+)
+
+target_link_libraries(rupturalib PUBLIC
+  ${RUPTURA_LINK_LIBRARIES}
+)
+
+
+# ---------------------------------------------------------------------------
+# Stage 2: app and pybuild
+# ---------------------------------------------------------------------------
+option(BUILD_APP "Build Ruptura command-line executable" ON)
+
+if(BUILD_APP)
+  add_subdirectory(app)
+endif()
+
+if(BUILD_PYTHON)
+  add_subdirectory(ruptura)
+endif()
 
 add_subdirectory(docs)
