@@ -1,5 +1,3 @@
-#include "column.h"
-
 #include <algorithm>
 #include <cmath>
 #include <format>
@@ -14,6 +12,7 @@
 #include <vector>
 
 #include "breakthrough.h"
+#include "column.h"
 #include "component.h"
 #include "inputreader.h"
 #include "json.h"

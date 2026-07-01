@@ -50,7 +50,7 @@ struct Column
    *
    * Allocates grid, component, cache, scratch, and ODE-state arrays.
    */
-  Column(MixturePrediction mixture, std::vector<Component> components, VelocityProfile velocityProfile,
+  Column(std::vector<MixturePrediction> mixture, std::vector<Component> components, VelocityProfile velocityProfile,
          BoundaryCondition boundaryCondition, bool energyBalance, size_t numberOfGridPoints, size_t maxIsothermTerms,
          size_t carrierGasComponent, double temperature, double inletPressure, double outletPressure,
          double pressureGradient, double columnVoidFraction, double particleDensity, double columnEntranceVelocity,
@@ -65,6 +65,7 @@ struct Column
         energyBalance(energyBalance),
         numberOfGridPoints(numberOfGridPoints),
         numberOfComponents(this->components.size()),
+        numberOfAdsorbents(mixture.size()),
         maxIsothermTerms(maxIsothermTerms),
         numberOfCalls(0),
         carrierGasComponent(carrierGasComponent),
@@ -72,7 +73,6 @@ struct Column
         inletPressure(inletPressure),
         outletPressure(outletPressure),
         pressureGradient(pressureGradient),
-        voidFraction(columnVoidFraction),
         particleDensity(particleDensity),
         columnEntranceVelocity(columnEntranceVelocity),
         columnLength(columnLength),
@@ -100,9 +100,12 @@ struct Column
         gasDensity(this->numberOfGridPoints + 1),
         totalConcentration(this->numberOfGridPoints + 1),
         totalPressure(this->numberOfGridPoints + 1),
+        voidFraction(this->numberOfGridPoints + 1),
         concentration((this->numberOfGridPoints + 1) * this->numberOfComponents),
         partialPressure((this->numberOfGridPoints + 1) * this->numberOfComponents),
         equilibriumAdsorption((this->numberOfGridPoints + 1) * this->numberOfComponents),
+        fractionOfAdsorbent((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
+        hasAdsorbentOfType((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
         cachedPressure((this->numberOfGridPoints + 1) * this->numberOfComponents * this->maxIsothermTerms),
         cachedGrandPotential((this->numberOfGridPoints + 1) * this->maxIsothermTerms),
         coeffGasGas(this->numberOfGridPoints + 1),
@@ -156,6 +159,7 @@ struct Column
   // Dimensions and counters.
   size_t numberOfGridPoints;   ///< Number of spatial grid intervals; node count is numberOfGridPoints + 1.
   size_t numberOfComponents;   ///< Number of gas components.
+  size_t numberOfAdsorbents;   ///< Number of adsorbents.
   size_t maxIsothermTerms;     ///< Maximum number of isotherm sites across all components.
   size_t numberOfCalls;        ///< Counter for model/evaluation calls.
   size_t carrierGasComponent;  ///< Index of the carrier-gas component.
@@ -165,7 +169,6 @@ struct Column
   double inletPressure;           ///< Inlet pressure, P_in, in Pa.
   double outletPressure;          ///< Outlet pressure, P_out, in Pa.
   double pressureGradient;        ///< Input pressure-gradient parameter in Pa/m.
-  double voidFraction;            ///< Packed-bed void fraction, epsilon.
   double particleDensity;         ///< Particle density in kg/m^3.
   double columnEntranceVelocity;  ///< Inlet/interstitial velocity, v_in, in m/s.
   double columnLength;            ///< Column length, L, in m.
@@ -203,12 +206,17 @@ struct Column
   std::vector<double> gasDensity;               ///< Gas density at each grid node in kg/m^3.
   std::vector<double> totalConcentration;       ///< Total gas concentration at each grid node in mol/m^3.
   std::vector<double> totalPressure;            ///< Total pressure at each grid node in Pa.
+  std::vector<double> voidFraction;             ///< Packed-bed void fraction, epsilon.
 
   // Size (numberOfGridPoints + 1) * numberOfComponents. Grid-major index: grid * numberOfComponents + comp.
   std::vector<double> concentration;          ///< Derived gas concentration in mol/m^3; size (numberOfGridPoints + 1) *
                                               ///< numberOfComponents.
   std::vector<double> partialPressure;        ///< Component partial pressure at each grid node in Pa.
   std::vector<double> equilibriumAdsorption;  ///< Component equilibrium loading at each grid node in mol/kg.
+
+  // Size (numberOfGridPoints + 1) * numberOfAdsorbents
+  std::vector<double> fractionOfAdsorbent;  ///< Fraction of the column that has this adsorbent [-].
+  std::vector<bool> hasAdsorbentOfType;     ///< Boolean switch to determine if this adsorbent is here.
 
   // Mixture-prediction cache arrays.
   // cachedPressure: (numberOfGridPoints + 1) * numberOfComponents * maxIsothermTerms; cachedGrandPotential:

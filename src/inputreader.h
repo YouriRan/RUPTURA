@@ -7,7 +7,14 @@
 
 #include "component.h"
 
+/**
+ * \brief Returns true when a string starts with the supplied prefix.
+ */
 extern bool startsWith(const std::string& str, const std::string& prefix);
+
+/**
+ * \brief Removes leading and trailing whitespace from a string.
+ */
 extern std::string trim(const std::string& s);
 
 /**
@@ -50,41 +57,41 @@ struct InputReader
   size_t boundaryCondition{0};                                  ///< The breakthrough boundary condition.
   std::string displayName{"Column"};                            ///< The display name for the simulation.
 
-  double temperature{433.0};            ///< The simulation temperature in Kelvin.
+  double temperature{433.0};            ///< The simulation temperature in K.
   double columnVoidFraction{0.4};       ///< The void fraction of the packed column.
-  double dynamicViscosity{1e-5};        ///< Dynamic viscosity of the gas phase.
-  double particleDiameter{1e-3};        ///< Diameter of the packed particles.
+  double dynamicViscosity{1e-5};        ///< Dynamic viscosity of the gas phase in Pa s.
+  double particleDiameter{1e-3};        ///< Diameter of the packed particles in m.
   double particleDensity{1000.0};       ///< Particle density in kg/m^3.
   double inletPressure{-1.0};           ///< Inlet pressure, P_in, in Pa.
   double outletPressure{-1.0};          ///< Outlet pressure, P_out, in Pa.
-  double pressureGradient{0.0};         ///< Pressure-gradient parameter used by FixedPressureGradient.
+  double pressureGradient{0.0};         ///< Pressure-gradient parameter used by FixedPressureGradient in Pa/m.
   double columnEntranceVelocity{-1.0};  ///< Inlet velocity, v_in, in m/s.
-  double columnLength{0.3};             ///< Column length in meters.
+  double columnLength{0.3};             ///< Column length in m.
 
-  double influxTemperature;
-  double internalDiameter;
-  double outerDiameter;
-  double wallDensity;
-  double gasThermalConductivity;
-  double wallThermalConductivity;
-  double heatTransferGasSolid;
-  double heatTransferGasWall;
-  double heatTransferWallExternal;
-  double heatCapacityGas;
-  double heatCapacitySolid;
-  double heatCapacityWall;
-  bool energyBalance;
+  double influxTemperature;         ///< Feed/influx gas temperature in K.
+  double internalDiameter;          ///< Column internal diameter in m.
+  double outerDiameter;             ///< Column outer diameter in m.
+  double wallDensity;               ///< Wall density in kg/m^3.
+  double gasThermalConductivity;    ///< Gas thermal conductivity in W/(m K).
+  double wallThermalConductivity;   ///< Wall thermal conductivity in W/(m K).
+  double heatTransferGasSolid;      ///< Gas-solid heat-transfer coefficient in W/(m^2 K).
+  double heatTransferGasWall;       ///< Gas-wall heat-transfer coefficient in W/(m^2 K).
+  double heatTransferWallExternal;  ///< Wall-external heat-transfer coefficient in W/(m^2 K).
+  double heatCapacityGas;           ///< Gas heat capacity in J/(kg K).
+  double heatCapacitySolid;         ///< Solid heat capacity in J/(kg K).
+  double heatCapacityWall;          ///< Wall heat capacity in J/(kg K).
+  bool energyBalance;               ///< Enables gas/solid/wall temperature dynamics when true.
 
   size_t numberOfTimeSteps{0};       ///< The number of time steps in the simulation.
   size_t numberOfInitTimeSteps{0};   ///< The number of initialization time steps.
   bool autoNumberOfTimeSteps{true};  ///< Whether to automatically determine the number of time steps.
-  double timeStep{0.0005};           ///< The time step size in seconds.
+  double timeStep{0.0005};           ///< The time step size in s.
   size_t printEvery{10000};          ///< The interval at which to print output.
   size_t writeEvery{10000};          ///< The interval at which to write output.
   size_t numberOfGridPoints{100};    ///< The number of grid points in the column.
 
-  double pressureStart{-1.0};          ///< The starting pressure for isotherm calculations.
-  double pressureEnd{-1.0};            ///< The ending pressure for isotherm calculations.
+  double pressureStart{-1.0};          ///< The starting pressure for isotherm calculations in Pa.
+  double pressureEnd{-1.0};            ///< The ending pressure for isotherm calculations in Pa.
   size_t numberOfPressurePoints{100};  ///< The number of pressure points to calculate.
   size_t pressureScale{0};             ///< The pressure scale: 0 = log, 1 = linear.
 
@@ -92,9 +99,9 @@ struct InputReader
   size_t columnLoading{1};   ///< The index of the column for loading data.
   size_t columnError{2};     ///< The index of the column for error data.
 
-  std::vector<double> swingTemperatures;
-  std::vector<double> swingPressures;
-  std::vector<size_t> swingSteps;
+  std::vector<double> swingTemperatures;  ///< Swing-stage temperatures in K.
+  std::vector<double> swingPressures;     ///< Swing-stage pressures in Pa.
+  std::vector<size_t> swingSteps;         ///< Swing-stage step counts.
 
-  std::optional<std::string> readColumnFile;
+  std::optional<std::string> readColumnFile;  ///< Optional JSON file used to initialize column state.
 };

@@ -105,8 +105,14 @@
 #define INCLUDE_NLOHMANN_JSON_HPP_
 
 //// ADDED: David Dubbeldam
+/**
+ * \brief Case-insensitive comparator used for RASPA JSON keys.
+ */
 struct RASPAComparator
 {
+  /**
+   * \brief Returns true when two strings are equal ignoring character case.
+   */
   bool operator()(const std::string& str1, const std::string& str2) const
   {
     return str1.size() == str2.size() && std::equal(str1.begin(), str1.end(), str2.begin(),

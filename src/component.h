@@ -1,8 +1,14 @@
 #pragma once
 
-#include <iostream>
+#include <cmath>
+#include <cstddef>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "multi_site_isotherm.h"
+#include "utils.h"
+
 /**
  * \brief Represents a chemical component in the simulation.
  *
@@ -15,60 +21,59 @@ struct Component
    * \brief Constructs a Component with an id and name.
    *
    * Initializes a Component using the provided identifier and name.
-   *
-   * \param i Identifier for the component.
-   * \param n Name of the component.
    */
-  Component(size_t i, std::string n) : id(i), name(n) {}
+  Component(size_t id, std::string name);
 
   /**
-   * \brief Constructs a Component with specified parameters.
+   * \brief Constructs a Component with a vector of single-site isotherms.
    *
-   * Initializes a Component with the provided id, name, isotherms, initial mol-fraction, mass transfer coefficient,
-   * diffusion coefficient, and an optional flag indicating if it is a carrier gas.
-   *
-   * \param _id Identifier for the component.
-   * \param _name Name of the component.
-   * \param _isotherms Vector of Isotherm objects associated with the component.
-   * \param _Yi0 Initial gas phase mol-fraction [-].
-   * \param _Kl Mass transfer coefficient [1/s].
-   * \param _D Axial dispersion coefficient [m^2/s].
-   * \param _isCarrierGas Optional flag indicating if this is the carrier gas (default is false).
+   * Initializes the component and constructs its MultiSiteIsotherm from the supplied isotherm sites.
    */
-  Component(size_t _id, std::string _name, std::vector<Isotherm> _isotherms, double _Yi0, double _Kl, double _D,
-            bool _isCarrierGas = false, double molecularWeight = 1.0, double heatOfAdsorption = 0.0);
+  Component(size_t id, std::string name, std::vector<Isotherm> isotherms, double initialGasMoleFraction,
+            double massTransferCoefficient, double axialDispersionCoefficient, bool isCarrierGas = false,
+            double molecularWeight = 1.0, double heatOfAdsorption = 0.0);
 
-  size_t id;                   ///< Identifier of the component.
-  std::string name{};          ///< Name of the component.
-  std::string filename{};      ///< Filename associated with the component data.
-  MultiSiteIsotherm isotherm;  ///< Isotherm information for the component.
-  double Yi0;                  ///< Gas phase mol-fraction [-].
-  double Kl;                   ///< Mass transfer coefficient [1/s].
-  double D;                    ///< Axial dispersion coefficient [m^2/s].
-  double heatOfAdsorption;     ///< Heat of adsorption in [K].
-  bool isCarrierGas{false};    ///< Flag indicating if this is the carrier gas.
-  double molecularWeight;
-  bool nonIsothermal{false};
-  std::optional<double> referenceTemperature{std::nullopt};
+  /**
+   * \brief Constructs a Component with an already-constructed multi-site isotherm.
+   *
+   * This overload is convenient from Python after constructing a MultiSiteIsotherm directly.
+   */
+  Component(size_t id, std::string name, MultiSiteIsotherm isotherm, double initialGasMoleFraction,
+            double massTransferCoefficient, double axialDispersionCoefficient, bool isCarrierGas = false,
+            double molecularWeight = 1.0, double heatOfAdsorption = 0.0);
+
+  size_t id{0};                                              ///< Identifier of the component.
+  std::string name{};                                        ///< Name of the component.
+  std::string filename{};                                    ///< Filename associated with the component data.
+  MultiSiteIsotherm isotherm;                                ///< Isotherm information for the component.
+  double initialGasMoleFraction{0.0};                        ///< Gas-phase mole fraction [-].
+  double massTransferCoefficient{0.0};                       ///< Mass transfer coefficient in 1/s.
+  double axialDispersionCoefficient{0.0};                    ///< Axial dispersion coefficient in m^2/s.
+  double heatOfAdsorption{0.0};                              ///< Heat of adsorption in J/mol.
+  bool isCarrierGas{false};                                  ///< Flag indicating if this is the carrier gas.
+  double molecularWeight{1.0};                               ///< Molecular weight in kg/mol.
+  bool nonIsothermal{false};                                 ///< Enables temperature scaling when true.
+  std::optional<double> referenceTemperature{std::nullopt};  ///< Reference temperature in K.
 
   /**
    * \brief Prints the component information to the console.
-   *
-   * Outputs a string representation of the component to the standard output.
    */
   void print() const;
 
   /**
    * \brief Returns a string representation of the Component.
-   *
-   * Generates a string that includes the component's properties and parameters.
-   *
-   * \return A string representing the Component.
    */
   std::string repr() const;
 
-  inline double scale(double& temperature) const
+  /**
+   * \brief Returns the isotherm scaling factor at a gas temperature.
+   */
+  inline double scale(double temperature) const
   {
-    return nonIsothermal ? std::exp((heatOfAdsorption / R) * ((1.0 / temperature) - (1.0 / referenceTemperature.value_or(1.0)))) : 1.0;
+    if (!nonIsothermal) return 1.0;
+
+    const double beta = 1.0 / (R * temperature);
+    const double betaReference = referenceTemperature.has_value() ? 1.0 / (R * referenceTemperature.value()) : 0.0;
+    return std::exp((beta - betaReference) * heatOfAdsorption);
   }
 };

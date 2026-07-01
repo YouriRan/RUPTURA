@@ -4,12 +4,6 @@
 #include <tuple>
 #include <vector>
 
-#ifdef PYBUILD
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-#endif  // PYBUILD
-
 #include "component.h"
 #include "inputreader.h"
 
@@ -20,9 +14,8 @@ namespace py = pybind11;
  * SIAST, and explicit isotherm models. It handles the computation of adsorbed phase mole fractions and loadings based
  * on gas phase compositions and pressure.
  */
-class MixturePrediction
+struct MixturePrediction
 {
- public:
   /**
    * \brief Enum class for prediction methods.
    *
@@ -99,46 +92,6 @@ class MixturePrediction
    */
   void run();
 
-#ifdef PYBUILD
-  /**
-   * \brief Computes the mixture prediction.
-   *
-   * Performs the mixture prediction calculations and returns the results as a NumPy array.
-   *
-   * \return A NumPy array containing the mixture prediction results.
-   */
-  py::array_t<double> compute();
-
-  /**
-   * \brief Sets the pressure range for the simulation.
-   *
-   * Updates the starting and ending pressures for the simulation.
-   *
-   * \param _pressureStart The new starting pressure.
-   * \param _pressureEnd The new ending pressure.
-   */
-  void setPressure(double _pressureStart, double _pressureEnd);
-
-  /**
-   * \brief Sets the components' parameters.
-   *
-   * Updates the molar fractions and isotherm parameters of the components.
-   *
-   * \param molfracs A vector of molar fractions for each component.
-   * \param params A vector of isotherm parameters for the components.
-   */
-  void setComponentsParameters(std::vector<double> molfracs, std::vector<double> params);
-
-  /**
-   * \brief Gets the components' parameters.
-   *
-   * Retrieves the isotherm parameters of the components.
-   *
-   * \return A vector containing the isotherm parameters of the components.
-   */
-  std::vector<double> getComponentsParameters();
-#endif  // PYBUILD
-
   /**
    * \brief Gets the maximum number of isotherm terms.
    *
@@ -156,7 +109,7 @@ class MixturePrediction
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \param cachedPressure An array to cache intermediate pressure calculations.
-   * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \param gasTemperature Temperature of the gas.
    * \return A pair containing the number of IAST steps and a status code.
    */
@@ -165,12 +118,11 @@ class MixturePrediction
                                            double* cachedPressure, double* cachedGrandPotential,
                                            double& gasTemperature);
 
- private:
   std::string displayName;                  ///< The display name for the simulation.
   std::vector<Component> components;        ///< The vector of components in the mixture.
   std::vector<Component> sortedComponents;  ///< Components sorted according to specific criteria.
-  size_t Ncomp;                             ///< The total number of components.
-  size_t Nsorted;                           ///< The number of sorted components.
+  size_t numberOfComponents;                ///< The total number of components.
+  size_t numberOfSortedComponents;          ///< The number of sorted components.
   size_t numberOfCarrierGases;              ///< The number of carrier gases in the mixture.
   size_t carrierGasComponent;               ///< The index of the carrier gas component.
   PredictionMethod predictionMethod;        ///< The method used for predicting mixture adsorption isotherms.
@@ -179,16 +131,16 @@ class MixturePrediction
   std::vector<std::vector<Component>>
       segregatedSortedComponents;  ///< Segregated and sorted components for SIAST/SEI methods.
 
-  std::vector<double> alpha1;      ///< Intermediate calculation vector for explicit isotherms.
-  std::vector<double> alpha2;      ///< Intermediate calculation vector for explicit isotherms.
-  std::vector<double> alpha_prod;  ///< Product of alpha values for explicit isotherms.
-  std::vector<double> x;           ///< Intermediate calculation vector.
+  std::vector<double> firstExplicitIsothermAlpha;    ///< Intermediate calculation vector for explicit isotherms.
+  std::vector<double> secondExplicitIsothermAlpha;   ///< Intermediate calculation vector for explicit isotherms.
+  std::vector<double> explicitIsothermAlphaProduct;  ///< Product of alpha values for explicit isotherms.
+  std::vector<double> adsorbedMoleFractionsScratch;  ///< Intermediate calculation vector.
 
-  std::vector<double> pstar;  ///< Hypothetical pressures in IAST calculations.
-  std::vector<double> psi;    ///< Reduced grand potential values.
-  std::vector<double> G;      ///< Intermediate calculation vector in IAST.
-  std::vector<double> delta;  ///< Correction vector in IAST.
-  std::vector<double> Phi;    ///< Jacobian matrix in IAST calculations.
+  std::vector<double> hypotheticalPressure;   ///< Hypothetical pressures in IAST calculations in Pa.
+  std::vector<double> reducedGrandPotential;  ///< Reduced grand potential values.
+  std::vector<double> residualVector;         ///< Intermediate calculation vector in IAST.
+  std::vector<double> correctionVector;       ///< Correction vector in IAST.
+  std::vector<double> jacobianMatrix;         ///< Jacobian matrix in IAST calculations.
 
   /**
    * \brief Enum class for pressure scales.
@@ -200,9 +152,9 @@ class MixturePrediction
     Log = 0,    ///< Logarithmic pressure scale
     Normal = 1  ///< Linear pressure scale
   };
-  double temperature{300.0};                        ///< The temperature of the system.
-  double pressureStart{1e3};                        ///< The starting pressure for the simulation.
-  double pressureEnd{1e8};                          ///< The ending pressure for the simulation.
+  double temperature{300.0};                        ///< The temperature of the system in K.
+  double pressureStart{1e3};                        ///< The starting pressure for the simulation in Pa.
+  double pressureEnd{1e8};                          ///< The ending pressure for the simulation in Pa.
   size_t numberOfPressurePoints{100};               ///< The number of pressure points in the simulation.
   PressureScale pressureScale{PressureScale::Log};  ///< The pressure scale to use.
 
@@ -230,7 +182,7 @@ class MixturePrediction
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \param cachedPressure An array to cache intermediate pressure calculations.
-   * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \return A pair containing the number of IAST steps and a status code.a
    */
   std::pair<size_t, size_t> computeFastIAST(std::span<const double> idealGasMolFractions,
@@ -246,7 +198,7 @@ class MixturePrediction
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \param cachedPressure An array to cache intermediate pressure calculations.
-   * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeFastSIAST(std::span<const double> idealGasMolFractions,
@@ -263,7 +215,7 @@ class MixturePrediction
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \param cachedPressure An array to cache intermediate pressure calculations.
-   * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeFastSIAST(size_t term, std::span<const double> idealGasMolFractions,
@@ -279,7 +231,7 @@ class MixturePrediction
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \param cachedPressure An array to cache intermediate pressure calculations.
-   * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeIASTNestedLoopBisection(std::span<const double> idealGasMolFractions,
@@ -296,7 +248,7 @@ class MixturePrediction
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \param cachedPressure An array to cache intermediate pressure calculations.
-   * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeSIASTNestedLoopBisection(std::span<const double> idealGasMolFractions,
@@ -314,7 +266,7 @@ class MixturePrediction
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \param cachedPressure An array to cache intermediate pressure calculations.
-   * \param cachedGrandPotential An array to cache intermediate psi calculations.
+   * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
   std::pair<size_t, size_t> computeSIASTNestedLoopBisection(size_t term, std::span<const double> idealGasMolFractions,
@@ -373,12 +325,12 @@ class MixturePrediction
    *
    * Outputs the current state of variables when an error occurs in IAST calculations.
    *
-   * \param psi The current psi value.
+   * \param reducedGrandPotential The current reducedGrandPotential value.
    * \param sum The current sum of mole fractions.
    * \param P The total pressure.
    * \param idealGasMolFractions The gas phase mole fractions.
    * \param cachedPressure An array of cached pressure values.
    */
-  void printErrorStatus(double psi, double sum, double P, std::span<const double> idealGasMolFractions,
-                        double cachedPressure[], double gasTemperature);
+  void printErrorStatus(double reducedGrandPotential, double sum, double P,
+                        std::span<const double> idealGasMolFractions, double cachedPressure[], double gasTemperature);
 };

@@ -88,9 +88,43 @@ Input
 =====
 See the cited article.
 
-Python Installation
+Python Usage
 ======
-Ruptura can be used of python through `src/ruptura.py`, examples can be found in the examples directory.
+Ruptura can be used from Python through the `ruptura` package. The compiled
+extension is imported as `ruptura._ruptura`, while the public `ruptura` package
+exposes the simulation objects and convenience helpers.
+
+Build the Python extension with:
+
+```
+cmake . -B build -DBUILD_PYTHON=ON -DRUPTURA_PYTHON_MODULE_NAME=_ruptura
+cmake --build build
+```
+
+Start a simulation from Python with a JSON input file:
+
+```python
+import numpy as np
+import ruptura
+
+simulation = ruptura.load_simulation("simulation.json")
+result = ruptura.compute(simulation)
+
+data = np.asarray(result)
+print(data.shape)
+print(result.columns)
+```
+
+For a one-line in-memory run:
+
+```python
+result = ruptura.run("simulation.json")
+```
+
+All bound C++ objects, such as `InputReader`, `Component`, `Isotherm`,
+`MixturePrediction`, `Column`, `Breakthrough`, `Fitting`, and
+`SwingAdsorption`, are available from the top-level `ruptura` namespace.
+
 The python package can be installed with:
 
 ```
@@ -100,4 +134,3 @@ or
 ```
 conda install ruptura
 ```
-

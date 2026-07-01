@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "hash_combine.h"
@@ -21,6 +22,16 @@
  */
 struct MultiSiteIsotherm
 {
+  /**
+   * \brief Constructs an empty multi-site isotherm.
+   */
+  MultiSiteIsotherm() noexcept = default;
+
+  /**
+   * \brief Constructs a multi-site isotherm from the supplied site list.
+   */
+  MultiSiteIsotherm(std::vector<Isotherm> sites);
+
   size_t numberOfSites{0};        ///< The number of isotherm sites included in the model.
   std::vector<Isotherm> sites{};  ///< A vector containing the individual isotherm site objects.
 
@@ -243,9 +254,15 @@ struct MultiSiteIsotherm
 
 namespace std
 {
+/**
+ * \brief Hash functor for MultiSiteIsotherm parameter values.
+ */
 template <>
 struct hash<MultiSiteIsotherm>
 {
+  /**
+   * \brief Computes a hash from all isotherm site parameters.
+   */
   size_t operator()(const MultiSiteIsotherm& k) const
   {
     std::size_t h = 0;

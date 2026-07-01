@@ -105,21 +105,21 @@ double hypergeometric(double a, double b, double c, double x)
 int areClose(const double x1, const double x2, const double epsilon)
 {
   int exponent;
-  double delta, difference, maxXY;
+  double correctionVector, difference, maxXY;
 
   /* Find exponent of largest absolute value */
   maxXY = (std::abs(x1) > std::abs(x2)) ? x1 : x2;
   std::frexp(maxXY, &exponent);
 
-  /* Form a neighborhood of size  2 * delta */
-  delta = std::ldexp(epsilon, exponent);
+  /* Form a neighborhood of size  2 * correctionVector */
+  correctionVector = std::ldexp(epsilon, exponent);
   difference = x1 - x2;
 
-  if (difference > delta) /* x1 > x2 */
+  if (difference > correctionVector) /* x1 > x2 */
     return 0;
-  else if (difference < -delta) /* x1 < x2 */
+  else if (difference < -correctionVector) /* x1 < x2 */
     return 0;
-  else        /* -delta <= difference <= delta */
+  else        /* -correctionVector <= difference <= correctionVector */
     return 1; /* x1 ~=~ x2 */
 }
 

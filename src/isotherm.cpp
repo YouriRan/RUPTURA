@@ -1,17 +1,22 @@
 #include "isotherm.h"
 
 #include <cstdlib>
+#include <print>
+#include <utility>
 
-Isotherm::Isotherm(Isotherm::Type t, const std::vector<double>& values, size_t numberOfValues, bool nonIsothermal)
-    : type(t), parameters(values), numberOfParameters(numberOfValues), nonIsothermal(nonIsothermal)
+Isotherm::Isotherm(Isotherm::Type t, const std::vector<double>& parameters, bool nonIsothermal)
+    : type(t), parameters(std::move(parameters)), numberOfParameters(parameters.size()), nonIsothermal(nonIsothermal)
 {
 }
-Isotherm::Isotherm(size_t t, const std::vector<double>& values, size_t numberOfValues, bool nonIsothermal)
-    : type(Isotherm::Type(t)), parameters(values), numberOfParameters(numberOfValues), nonIsothermal(nonIsothermal)
+Isotherm::Isotherm(size_t t, const std::vector<double>& parameters, bool nonIsothermal)
+    : type(Isotherm::Type(t)),
+      parameters(std::move(parameters)),
+      numberOfParameters(parameters.size()),
+      nonIsothermal(nonIsothermal)
 {
 }
 
-void Isotherm::print() const { std::cout << repr(); }
+void Isotherm::print() const { std::print("{}", repr()); }
 
 std::string Isotherm::repr() const
 {
@@ -25,10 +30,9 @@ std::string Isotherm::repr() const
   {
     case Isotherm::Type::Langmuir:
     {
-      s += nonIsothermal ? "    Langmuir isotherm (non-isothermal)\n" : "    Langmuir isotherm\n";
+      s += nonIsothermal ? "    Langmuir isotherm (temperature-scaled)\n" : "    Langmuir isotherm\n";
       appendParameter("q_sat:", parameters[0]);
       appendParameter(nonIsothermal ? "b_0:" : "b:", parameters[1]);
-      if (nonIsothermal) appendParameter("ΔH:", parameters[2]);
       break;
     }
     case Isotherm::Type::Anti_Langmuir:
@@ -61,20 +65,19 @@ std::string Isotherm::repr() const
     }
     case Isotherm::Type::Sips:
     {
-      s += nonIsothermal ? "    Sips isotherm (non-isothermal)\n" : "    Sips isotherm\n";
+      s += nonIsothermal ? "    Sips isotherm (temperature-scaled)\n" : "    Sips isotherm\n";
       appendParameter("q_sat:", parameters[0]);
-      appendParameter("b:", parameters[1]);
+      appendParameter(nonIsothermal ? "b_0:" : "b:", parameters[1]);
       appendParameter("nu:", parameters[2]);
-      if (nonIsothermal) appendParameter("ΔH:", parameters[3]);
       break;
     }
     case Isotherm::Type::Langmuir_Freundlich:
     {
-      s += nonIsothermal ? "    Langmuir-Freundlich isotherm (non-isothermal)\n" : "    Langmuir-Freundlich isotherm\n";
+      s += nonIsothermal ? "    Langmuir-Freundlich isotherm (temperature-scaled)\n"
+                         : "    Langmuir-Freundlich isotherm\n";
       appendParameter("q_sat:", parameters[0]);
       appendParameter(nonIsothermal ? "b_0:" : "b:", parameters[1]);
       appendParameter("nu:", parameters[2]);
-      if (nonIsothermal) appendParameter("ΔH:", parameters[3]);
       break;
     }
     case Isotherm::Type::Redlich_Peterson:

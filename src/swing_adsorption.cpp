@@ -1,6 +1,7 @@
 #include "swing_adsorption.h"
 
 #include <cstddef>
+#include <cstdio>
 #include <stdexcept>
 #include <utility>
 #include <vector>
@@ -65,7 +66,7 @@ void SwingAdsorption::run()
 
   // create the output files
   std::vector<std::ofstream> streams;
-  for (size_t i = 0; i < breakthrough.Ncomp; i++)
+  for (size_t i = 0; i < breakthrough.numberOfComponents; i++)
   {
     std::string fileName = "component_" + std::to_string(i) + "_" + column.components[i].name + ".data";
     streams.emplace_back(std::ofstream{fileName, std::ios_base::app});
@@ -93,19 +94,19 @@ void SwingAdsorption::run()
       {
         case Breakthrough::IntegrationScheme::SSP_RK:
         {
-          finished = breakthrough.rk3.propagate(column, step);
+          finished = breakthrough.rk3.propagate(column, step, timings);
           realTime += breakthrough.rk3.timeStep;
           break;
         }
         case Breakthrough::IntegrationScheme::CVODE:
         {
-          finished = breakthrough.cvode.propagate(column, step);
+          finished = breakthrough.cvode.propagate(column, step, timings);
           realTime += breakthrough.cvode.timeStep;
           break;
         }
         case Breakthrough::IntegrationScheme::SIRK3:
         {
-          finished = breakthrough.sirk3.propagate(column, step);
+          finished = breakthrough.sirk3.propagate(column, step, timings);
           realTime += breakthrough.sirk3.timeStep;
           break;
         }
@@ -123,7 +124,7 @@ void SwingAdsorption::run()
         std::print(
             "    Average number of mixture-prediction steps: {:6.5f}\n",
             static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second));
-        std::cout << std::flush;
+        std::fflush(stdout);
       }
       step++;
     }

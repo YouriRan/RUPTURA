@@ -66,13 +66,15 @@ COLUMN_METRICS: Dict[str, MetricSpec] = {
 }
 
 COMPONENT_METRICS: Dict[str, MetricSpec] = {
-    "C": MetricSpec("Concentration, c<sub>i</sub> [mol/m³]", "component", 3),
-    "Dcdt": MetricSpec("Concentration derivative, dc<sub>i</sub>/dt [mol/m³/s]", "component", 4),
-    "Q": MetricSpec("Adsorption, q<sub>i</sub> [mol/kg]", "component", 5),
-    "Dqdt": MetricSpec("Adsorption derivative, dq<sub>i</sub>/dt [mol/kg/s]", "component", 6),
-    "P": MetricSpec("Partial pressure, p<sub>i</sub> [Pa]", "component", 7),
-    "Qeq": MetricSpec("Equilibrium adsorption, q<sub>i</sub>* [mol/kg]", "component", 8),
-    "Pnorm": MetricSpec("Normalized partial pressure, p<sub>i</sub>/(p<sub>t</sub>y<sub>i,0</sub>) [-]", "component", 9),
+    "Y": MetricSpec("Mole fraction, y<sub>i</sub> [-]", "component", 3),
+    "Ydot": MetricSpec("Mole fraction derivative, dy<sub>i</sub>/dt [1/s]", "component", 4),
+    "Dydt": MetricSpec("Mole fraction derivative, dy<sub>i</sub>/dt [1/s]", "component", 4),
+    "C": MetricSpec("Concentration, c<sub>i</sub> [mol/m³]", "component", 5),
+    "Q": MetricSpec("Adsorption, q<sub>i</sub> [mol/kg]", "component", 6),
+    "Dqdt": MetricSpec("Adsorption derivative, dq<sub>i</sub>/dt [mol/kg/s]", "component", 7),
+    "P": MetricSpec("Partial pressure, p<sub>i</sub> [Pa]", "component", 8),
+    "Qeq": MetricSpec("Equilibrium adsorption, q<sub>i</sub>* [mol/kg]", "component", 9),
+    "Pnorm": MetricSpec("Normalized partial pressure, p<sub>i</sub>/(p<sub>t</sub>y<sub>i,0</sub>) [-]", "component", 10),
 }
 
 METRIC_SPECS: Dict[str, MetricSpec] = {**COLUMN_METRICS, **COMPONENT_METRICS}
@@ -101,7 +103,7 @@ BREAKTHROUGH_Y_SPECS: Dict[str, BreakthroughYSpec] = {
     "molefraction": BreakthroughYSpec(
         title="Mole fraction, y<sub>i</sub> [-]",
         mode="Breakthrough (mole fraction)",
-        component_col_0based=None,
+        component_col_0based=COMPONENT_METRICS["Y"].col_0based,
         hover_label="y<sub>i</sub>",
         normalized=True,
     ),
@@ -272,7 +274,7 @@ class BreakthroughPlotly(BasePlotly):
         )
 
     def _read_component_data(self, fileName: Union[str, Path]):
-        return super()._read_component_data(fileName, min_columns=10)
+        return super()._read_component_data(fileName, min_columns=11)
 
     def _read_component_blocks(self, fileName: Union[str, Path]) -> List[np.ndarray]:
         return read_blocks(self.data_dir / fileName)
@@ -345,7 +347,7 @@ class BreakthroughPlotly(BasePlotly):
         grid_index: Optional[int] = -1,
     ) -> np.ndarray:
         blocks = self._read_component_blocks(fileName)
-        return self._rows_at_grid(blocks, grid_index=grid_index, fileName=fileName, min_columns=10)
+        return self._rows_at_grid(blocks, grid_index=grid_index, fileName=fileName, min_columns=11)
 
     def _breakthrough_column_data(
         self,
@@ -418,7 +420,7 @@ class BreakthroughPlotly(BasePlotly):
         x_spec = BREAKTHROUGH_X_SPECS[x_key]
         y_spec = BREAKTHROUGH_Y_SPECS[y_key]
 
-        column_data = self._breakthrough_column_data(grid_index=grid_index) if y_key == "molefraction" else None
+        column_data = None
 
         fig = go.Figure()
         x_values: List[np.ndarray] = []

@@ -8,11 +8,14 @@
 #include <cstring>
 #include <exception>
 #include <fstream>
+#include <iomanip>
 #include <iterator>
 #include <map>
+#include <print>
 #include <sstream>
 #include <unordered_set>
 
+#include "json.h"
 #include "random_numbers.h"
 #include "special_functions.h"
 #if __cplusplus >= 201703L && __has_include(<filesystem>)
@@ -23,36 +26,32 @@
 #include <sys/stat.h>
 #endif
 
-#ifdef PYBUILD
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-#endif  // PYBUILD
-
 Fitting::Fitting(const InputReader& inputreader)
-    : Ncomp(inputreader.components.size()),
+    : numberOfComponents(inputreader.components.size()),
       components(inputreader.components),
       displayName(inputreader.displayName),
-      componentName(Ncomp),
-      filename(Ncomp),
-      isotherms(Ncomp),
+      componentName(numberOfComponents),
+      filename(numberOfComponents),
+      isotherms(numberOfComponents),
       columnPressure(inputreader.columnPressure - 1),
       columnLoading(inputreader.columnLoading - 1),
       columnError(inputreader.columnError - 1),
       pressureScale(PressureScale(inputreader.pressureScale)),
-      GA_Size(static_cast<size_t>(std::pow(2.0, 12.0))),
-      GA_MutationRate(1.0 / 3.0),
-      GA_EliteRate(0.15),
-      GA_MotleyCrowdRate(0.25),
-      GA_DisasterRate(0.001),
-      GA_Elitists(static_cast<size_t>(static_cast<double>(GA_Size) * GA_EliteRate)),
-      GA_Motleists(static_cast<size_t>(static_cast<double>(GA_Size) * (1.0 - GA_MotleyCrowdRate))),
-      popAlpha(static_cast<size_t>(std::pow(2.0, 12.0))),
-      popBeta(static_cast<size_t>(std::pow(2.0, 12.0))),
-      parents(popAlpha),
-      children(popBeta)
+      geneticAlgorithmSize(static_cast<size_t>(std::pow(2.0, 12.0))),
+      geneticAlgorithmMutationRate(1.0 / 3.0),
+      geneticAlgorithmEliteRate(0.15),
+      geneticAlgorithmMotleyCrowdRate(0.25),
+      geneticAlgorithmDisasterRate(0.001),
+      geneticAlgorithmElitists(
+          static_cast<size_t>(static_cast<double>(geneticAlgorithmSize) * geneticAlgorithmEliteRate)),
+      geneticAlgorithmMotleists(
+          static_cast<size_t>(static_cast<double>(geneticAlgorithmSize) * (1.0 - geneticAlgorithmMotleyCrowdRate))),
+      alphaPopulation(static_cast<size_t>(std::pow(2.0, 12.0))),
+      betaPopulation(static_cast<size_t>(std::pow(2.0, 12.0))),
+      parents(alphaPopulation),
+      children(betaPopulation)
 {
-  for (size_t i = 0; i < Ncomp; ++i)
+  for (size_t i = 0; i < numberOfComponents; ++i)
   {
     componentName[i] = inputreader.components[i].name;
     filename[i] = inputreader.components[i].filename;
@@ -82,13 +81,53 @@ std::string trim(const std::string& s)
   return std::string(start, end + 1);
 }
 
+namespace
+{
+std::string isothermTypeName(Isotherm::Type type)
+{
+  switch (type)
+  {
+    case Isotherm::Type::Langmuir:
+      return "Langmuir";
+    case Isotherm::Type::Anti_Langmuir:
+      return "Anti-Langmuir";
+    case Isotherm::Type::BET:
+      return "BET";
+    case Isotherm::Type::Henry:
+      return "Henry";
+    case Isotherm::Type::Freundlich:
+      return "Freundlich";
+    case Isotherm::Type::Sips:
+      return "Sips";
+    case Isotherm::Type::Langmuir_Freundlich:
+      return "Langmuir-Freundlich";
+    case Isotherm::Type::Redlich_Peterson:
+      return "Redlich-Peterson";
+    case Isotherm::Type::Toth:
+      return "Toth";
+    case Isotherm::Type::Unilan:
+      return "Unilan";
+    case Isotherm::Type::OBrien_Myers:
+      return "O'Brien & Myers";
+    case Isotherm::Type::Quadratic:
+      return "Quadratic";
+    case Isotherm::Type::Temkin:
+      return "Temkin";
+    case Isotherm::Type::BingelWalton:
+      return "Bingel&Walton";
+    default:
+      throw std::runtime_error("Error: unknown isotherm type");
+  }
+}
+}  // namespace
+
 void Fitting::readData(size_t ID)
 {
   std::ifstream fileInput{filename[ID]};
   std::string errorOpeningFile = "File '" + filename[ID] + "' exists, but error opening file";
   if (!fileInput) throw std::runtime_error(errorOpeningFile);
 
-  std::cout << "Reading: " << filename[ID] << "\n";
+  std::print("Reading: {}\n", filename[ID]);
 
   std::string line{};
 
@@ -134,143 +173,112 @@ void Fitting::readData(size_t ID)
   pressureRange = std::make_pair(rawData.front().first, rawData.back().first);
   logPressureRange = std::make_pair(std::log(pressureRange.first), std::log(pressureRange.second));
 
-  std::cout << "Found " << rawData.size() << " data points\n";
+  std::print("Found {} data points\n", rawData.size());
   for (const std::pair<double, double>& data : rawData)
   {
-    std::cout << data.first << " " << data.second << std::endl;
+    std::print("{} {}\n", data.first, data.second);
   }
-  std::cout << "\n";
-  std::cout << "Lowest pressure: " << pressureRange.first << std::endl;
-  std::cout << "Highest pressure: " << pressureRange.second << std::endl;
-  std::cout << "Log lowest pressure: " << logPressureRange.first << std::endl;
-  std::cout << "Log highest pressure: " << logPressureRange.second << std::endl;
+  std::print("\n");
+  std::print("Lowest pressure: {}\n", pressureRange.first);
+  std::print("Highest pressure: {}\n", pressureRange.second);
+  std::print("Log lowest pressure: {}\n", logPressureRange.first);
+  std::print("Log highest pressure: {}\n", logPressureRange.second);
 
-  for (size_t i = 0; i < Ncomp; ++i)
+  for (size_t i = 0; i < numberOfComponents; ++i)
   {
-    std::cout << "Number of isotherm parameters: " << isotherms[i].numberOfParameters << std::endl;
+    std::print("Number of isotherm parameters: {}\n", isotherms[i].numberOfParameters);
     isotherms[i].print();
   }
 }
 
+void Fitting::writeComponentsJson(const std::string& path) const
+{
+  using nlohmann::ordered_json;
+
+  ordered_json outputJson;
+  outputJson["Components"] = ordered_json::array();
+
+  for (size_t i = 0; i < numberOfComponents; ++i)
+  {
+    const Component& component = components[i];
+    const MultiSiteIsotherm& isotherm = isotherms[i];
+
+    ordered_json componentJson;
+    componentJson["Name"] = component.name;
+    componentJson["GasPhaseMolFraction"] = component.initialGasMoleFraction;
+
+    if (component.isCarrierGas)
+    {
+      componentJson["CarrierGas"] = true;
+    }
+    else
+    {
+      componentJson["MassTransferCoefficient"] = component.massTransferCoefficient;
+      componentJson["AxialDispersionCoefficient"] = component.axialDispersionCoefficient;
+      componentJson["NumberOfIsothermSites"] = isotherm.numberOfSites;
+      componentJson["IsothermSites"] = ordered_json::array();
+
+      for (size_t siteIndex = 0; siteIndex < isotherm.numberOfSites; ++siteIndex)
+      {
+        const Isotherm& site = isotherm.sites[siteIndex];
+
+        ordered_json siteJson;
+        siteJson["Type"] = isothermTypeName(site.type);
+        siteJson["Parameters"] = ordered_json::array();
+
+        for (size_t parameterIndex = 0; parameterIndex < site.numberOfParameters; ++parameterIndex)
+        {
+          siteJson["Parameters"].push_back(site.parameters[parameterIndex]);
+        }
+
+        componentJson["IsothermSites"].push_back(siteJson);
+      }
+    }
+
+    outputJson["Components"].push_back(componentJson);
+  }
+
+  std::ofstream output(path);
+  if (!output)
+  {
+    throw std::runtime_error("Error: could not open JSON output file '" + path + "'");
+  }
+
+  std::print(output, "{}\n", outputJson.dump(2));
+
+  std::print("Wrote fitted components JSON: {}\n", path);
+}
+
 void Fitting::run()
 {
-  std::cout << "STARTING FITTING\n";
-  for (size_t i = 0; i < Ncomp; ++i)
+  std::print("STARTING FITTING\n");
+
+  for (size_t i = 0; i < numberOfComponents; ++i)
   {
+    if (components[i].isCarrierGas)
+    {
+      continue;
+    }
+
     readData(i);
+
     const DNA bestCitizen = fit(i);
     const DNA optimizedBestCitizen = simplex(bestCitizen, 1.0);
+
     optimizedBestCitizen.phenotype.print();
+
+    isotherms[i] = optimizedBestCitizen.phenotype;
+    components[i].isotherm = optimizedBestCitizen.phenotype;
+
     // createPlotScripts(optimizedBestCitizen, i);
   }
+
+  const std::string outputFilename = displayName.empty() ? "fitted.json" : displayName + "_fitted.json";
+
+  writeComponentsJson(outputFilename);
+
   // createPlotScript();
 }
-
-#ifdef PYBUILD
-Fitting::Fitting(std::string _displayName, std::vector<Component> _components,
-                 std::vector<std::vector<double>> _fullData, size_t _pressureScale)
-    : Ncomp(_components.size()),
-      components(_components),
-      displayName(_displayName),
-      componentName(Ncomp),
-      isotherms(Ncomp),
-      pressureScale(PressureScale(_pressureScale)),
-      fullData(_fullData),
-      GA_Size(static_cast<size_t>(std::pow(2.0, 12.0))),
-      GA_MutationRate(1.0 / 3.0),
-      GA_EliteRate(0.15),
-      GA_MotleyCrowdRate(0.25),
-      GA_DisasterRate(0.001),
-      GA_Elitists(static_cast<size_t>(static_cast<double>(GA_Size) * GA_EliteRate)),
-      GA_Motleists(static_cast<size_t>(static_cast<double>(GA_Size) * (1.0 - GA_MotleyCrowdRate))),
-      popAlpha(static_cast<size_t>(std::pow(2.0, 12.0))),
-      popBeta(static_cast<size_t>(std::pow(2.0, 12.0))),
-      parents(popAlpha),
-      children(popBeta)
-{
-  for (size_t i = 0; i < Ncomp; ++i)
-  {
-    componentName[i] = _components[i].name;
-    isotherms[i] = _components[i].isotherm;
-  }
-}
-
-void Fitting::sliceData(size_t ID)
-{
-  // data shaped as (Npress, Ncomp)
-  rawData.clear();
-  for (const auto& pressPoint : fullData)
-  {
-    rawData.push_back(std::pair<double, double>(pressPoint[0], pressPoint[ID + 1]));
-  }
-
-  // get pressure range
-  std::sort(rawData.begin(), rawData.end());
-  pressureRange = std::make_pair(rawData.front().first, rawData.back().first);
-  logPressureRange = std::make_pair(std::log(pressureRange.first), std::log(pressureRange.second));
-
-  maximumLoading = 0.0;
-  for (const auto& pair : rawData)
-  {
-    if (pair.second > maximumLoading)
-    {
-      maximumLoading = pair.second;
-    }
-  }
-}
-
-std::vector<double> Fitting::compute()
-{
-  std::vector<double> output;
-  std::cout << "STARTING FITTING\n";
-  for (size_t i = 0; i < Ncomp; ++i)
-  {
-    // check for error from python side (keyboard interrupt)
-    if (PyErr_CheckSignals() != 0)
-    {
-      throw py::error_already_set();
-    }
-
-    // run algorithm
-    sliceData(i);
-    for (const auto& pair : rawData)
-    {
-      std::cout << "(" << pair.first << ", " << pair.second << ") ";
-    }
-
-    const DNA bestCitizen = fit(i);
-    DNA optimizedBestCitizen = simplex(bestCitizen, 1.0);
-
-    // save optimized params to component, insert in output array
-    std::vector<double> compParams = optimizedBestCitizen.phenotype.getParameters();
-    components[i].isotherm.setParameters(compParams);
-    output.insert(output.end(), compParams.begin(), compParams.end());
-
-    optimizedBestCitizen.phenotype.print();
-  }
-  return output;
-}
-
-py::array_t<double> Fitting::evaluate()
-{
-  // initialize numpy array
-  size_t Npress = rawData.size();
-  std::array<size_t, 2> shape{{Npress, Ncomp}};
-  py::array_t<double> output(shape);
-  double* data = output.mutable_data();
-
-  // add datapoints
-  for (size_t i = 0; i < Npress; i++)
-  {
-    for (size_t j = 0; j < Ncomp; j++)
-    {
-      data[i * Ncomp + j] = components[j].isotherm.value(rawData[i].first, externalTemperature);
-    }
-  }
-  return output;
-}
-
-#endif  // PYBUILD
 
 // create a new citizen in the Ensemble
 Fitting::DNA Fitting::newCitizen(size_t ID)
@@ -321,7 +329,7 @@ double Fitting::fitness(const MultiSiteIsotherm& phenotype)
   {
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
-    double difference = loading - phenotype.value(pressure, externalTemperature);
+    double difference = loading - phenotype.value(pressure, 1.0);
     // double weight = 1.0/(1.0+loading);
     double weight = 1.0;
     fitnessValue += weight * difference * difference;
@@ -349,17 +357,16 @@ double Fitting::RCorrelation(const MultiSiteIsotherm& phenotype)
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
     loading_avg_o += loading / static_cast<double>(m);
-    loading_avg_e += phenotype.value(pressure, externalTemperature) / static_cast<double>(m);
+    loading_avg_e += phenotype.value(pressure, 1.0) / static_cast<double>(m);
   }
 
   for (std::pair<double, double> dataPoint : rawData)
   {
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
-    tmp1 += (loading - loading_avg_o) * (phenotype.value(pressure, externalTemperature) - loading_avg_e);
+    tmp1 += (loading - loading_avg_o) * (phenotype.value(pressure, 1.0) - loading_avg_e);
     tmp2 += (loading - loading_avg_o) * (loading - loading_avg_o);
-    tmp3 += (phenotype.value(pressure, externalTemperature) - loading_avg_e) *
-            (phenotype.value(pressure, externalTemperature) - loading_avg_e);
+    tmp3 += (phenotype.value(pressure, 1.0) - loading_avg_e) * (phenotype.value(pressure, 1.0) - loading_avg_e);
   }
   RCorrelationValue = tmp1 / sqrt(tmp2 * tmp3);
 
@@ -402,7 +409,7 @@ void Fitting::nuclearDisaster(size_t ID)
 
 void Fitting::elitism()
 {
-  std::copy(parents.begin(), parents.begin() + static_cast<std::vector<DNA>::difference_type>(GA_Elitists),
+  std::copy(parents.begin(), parents.begin() + static_cast<std::vector<DNA>::difference_type>(geneticAlgorithmElitists),
             children.begin());
 }
 
@@ -568,30 +575,34 @@ void Fitting::mate(size_t ID)
   // retain the first 25% of the children
   elitism();
 
-  // mates from GA_Elitists to (GA_Size - GA_Elitists)
-  crossover(ID, GA_Elitists, GA_Elitists + static_cast<size_t>(static_cast<double>(GA_Motleists) * 0.5), 0, GA_Elitists,
-            0, GA_Elitists);
-  crossover(ID, GA_Elitists + static_cast<size_t>(static_cast<double>(GA_Motleists) * 0.5) + 1, GA_Size - GA_Elitists,
-            0, GA_Elitists, GA_Elitists, GA_Size - 1);
+  // mates from geneticAlgorithmElitists to (geneticAlgorithmSize - geneticAlgorithmElitists)
+  crossover(ID, geneticAlgorithmElitists,
+            geneticAlgorithmElitists + static_cast<size_t>(static_cast<double>(geneticAlgorithmMotleists) * 0.5), 0,
+            geneticAlgorithmElitists, 0, geneticAlgorithmElitists);
+  crossover(ID,
+            geneticAlgorithmElitists + static_cast<size_t>(static_cast<double>(geneticAlgorithmMotleists) * 0.5) + 1,
+            geneticAlgorithmSize - geneticAlgorithmElitists, 0, geneticAlgorithmElitists, geneticAlgorithmElitists,
+            geneticAlgorithmSize - 1);
 
-  // mutation from GA_Elitists to (GA_Size - GA_Elitists) with "GA_MutationRate" probability
-  for (size_t i = GA_Elitists; i < GA_Size - GA_Elitists; ++i)
+  // mutation from geneticAlgorithmElitists to (geneticAlgorithmSize - geneticAlgorithmElitists) with
+  // "geneticAlgorithmMutationRate" probability
+  for (size_t i = geneticAlgorithmElitists; i < geneticAlgorithmSize - geneticAlgorithmElitists; ++i)
   {
-    if (RandomNumber::Uniform() < GA_MutationRate)
+    if (RandomNumber::Uniform() < geneticAlgorithmMutationRate)
     {
       mutate(children[i]);
     }
     updateCitizen(children[i]);
   }
 
-  // replace the last GA_Elitists (the worst) of the children by new children
-  for (size_t i = GA_Size - GA_Elitists; i < GA_Size; ++i)
+  // replace the last geneticAlgorithmElitists (the worst) of the children by new children
+  for (size_t i = geneticAlgorithmSize - geneticAlgorithmElitists; i < geneticAlgorithmSize; ++i)
   {
     children[i] = newCitizen(ID);
   }
 
-  // replace the last (GA_Size - 1) children by new children
-  if (RandomNumber::Uniform() < GA_DisasterRate)
+  // replace the last (geneticAlgorithmSize - 1) children by new children
+  if (RandomNumber::Uniform() < geneticAlgorithmDisasterRate)
   {
     nuclearDisaster(ID);
   }
@@ -608,22 +619,22 @@ void Fitting::writeCitizen(size_t citizen, size_t id, size_t step, size_t variet
   {
     snprintf(info, 256,
              "mol: %2ld  step: %5ld  Fitness: %10.6lf R^2: %10.6lf Similarity: %5ld/%-5ld Finishing: %3ld/%-3d\n", id,
-             step, parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety, GA_Size,
-             fullfilledCondition, 100);
+             step, parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety,
+             geneticAlgorithmSize, fullfilledCondition, 100);
   }
   else
   {
     snprintf(info, 256, "mol: %2ld  step: %5ld  Fitness: %10.6lf R^2: %10.6lf Similarity: %5ld/%-5ld\n", id, step,
-             parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety, GA_Size);
+             parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety, geneticAlgorithmSize);
   }
-  std::cout << info;
-  std::cout << "number of parameters: " << parents[citizen].phenotype.numberOfParameters << std::endl;
+  std::print("{}", info);
+  std::print("number of parameters: {}\n", parents[citizen].phenotype.numberOfParameters);
   for (size_t i = 0; i < parents[citizen].phenotype.numberOfParameters; ++i)
   {
-    std::cout << "      genotype: " << parents[citizen].genotype.substr(64 * i, 64)
-              << " parameter: " << parents[citizen].phenotype.parameters(i) << "\n";
+    std::print("      genotype: {} parameter: {}\n", parents[citizen].genotype.substr(64 * i, 64),
+               parents[citizen].phenotype.parameters(i));
   }
-  std::cout << std::endl;
+  std::print("\n");
 }
 
 Fitting::DNA Fitting::fit(size_t ID)
@@ -641,14 +652,14 @@ Fitting::DNA Fitting::fit(size_t ID)
   fullFilledConditionStep = 0;
   optimisationStep = 0;
 
-  for (size_t i = 0; i < popAlpha.size(); ++i)
+  for (size_t i = 0; i < alphaPopulation.size(); ++i)
   {
-    popAlpha[i] = newCitizen(ID);
-    popBeta[i] = newCitizen(ID);
+    alphaPopulation[i] = newCitizen(ID);
+    betaPopulation[i] = newCitizen(ID);
   }
 
-  parents = popAlpha;
-  children = popBeta;
+  parents = alphaPopulation;
+  children = betaPopulation;
 
   sortByFitness();
 
@@ -657,7 +668,7 @@ Fitting::DNA Fitting::fit(size_t ID)
 
   if (refittingFlag)
   {
-    std::cout << "Refitting activated\n";
+    std::print("Refitting activated\n");
     for (size_t citizen = 0; citizen < 2; ++citizen)
     {
       parents[citizen].genotype.clear();
@@ -686,7 +697,7 @@ Fitting::DNA Fitting::fit(size_t ID)
 
   isotherms[ID] = parents[0].phenotype;
 
-  std::cout << "Starting Genetic Algorithm optimization\n";
+  std::print("Starting Genetic Algorithm optimization\n");
 
   bool continueCondition = true;
   do
@@ -762,7 +773,7 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
   double BETA = 0.5;
   double GAMMA = 2.0;
 
-  std::cout << "\nMinimising the cost function using the Nelder-Mead SIMPLEX method:\n\n";
+  std::print("\nMinimising the cost function using the Nelder-Mead SIMPLEX method:\n\n");
 
   for (size_t i = 0; i < n; ++i)
   {
@@ -811,13 +822,13 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
       }
     }
 
-    std::cout << "Initial Values from genetic algorithm:\n";
+    std::print("Initial Values from genetic algorithm:\n");
 
     for (size_t j = 0; j < n; ++j)
     {
-      std::cout << v[vs][j] << " ";
+      std::print("{} ", v[vs][j]);
     }
-    std::cout << "Fit: " << f[vs] << "\n\n";
+    std::print("Fit: {}\n\n", f[vs]);
   }
 
   for (size_t itr = 1; itr <= MAX_IT; ++itr)
@@ -959,11 +970,11 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
 
       if (itr != MAX_IT)
       {
-        std::cout << "Nelder-Mead has converged: " << favg << " < " << EPSILON << "\n\n";
+        std::print("Nelder-Mead has converged: {} < {}\n\n", favg, EPSILON);
       }
       else
       {
-        std::cout << "Reached maximum number of steps: " << itr << " = " << MAX_IT << "\n\n";
+        std::print("Reached maximum number of steps: {} = {}\n\n", itr, MAX_IT);
       }
 
       // find the index of the smallest value
@@ -975,12 +986,12 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
       }
       double min = fitness(citizen.phenotype);
 
-      std::cout << "Final Values: " << std::endl;
+      std::print("Final Values: \n");
       for (size_t j = 0; j < n; ++j)
       {
-        std::cout << v[vs][j] << " ";
+        std::print("{} ", v[vs][j]);
       }
-      std::cout << "Fit: " << min << " R2: " << pow(RCorrelation(citizen.phenotype), 2) << "\n\n";
+      std::print("Fit: {} R2: {}\n\n", min, pow(RCorrelation(citizen.phenotype), 2));
 
       return citizen;
     }
@@ -988,83 +999,3 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
 
   return citizen;
 }
-
-// void Fitting::createPlotScripts(const DNA& citizen, size_t ID)
-// {
-//   std::string plotFileName = "plot_fit_component_" + std::to_string(ID) + "_" + componentName[ID];
-//   std::ofstream stream(plotFileName);
-
-//   stream << "set encoding utf8\n";
-//   stream << "set xlabel 'Pressure, {/Helvetica-Italic p} / [Pa]' font \"Helvetica,18\"\n";
-//   stream << "set ylabel 'Absolute loading, {/Helvetica-Italic q} / [mol/kg]' offset 0.0,0 font \"Helvetica,18\"\n";
-//   stream << "set bmargin 4\n";
-//   stream << "set yrange[0:]\n";
-//   if (pressureScale == PressureScale::Log)
-//   {
-//     stream << "set log x\n";
-//   }
-
-//   stream << "set key  right bottom vertical samplen 2.5 height 0.5 spacing 1.5 font 'Helvetica, 10'\n";
-//   stream << "set key title '" << componentName[ID] << "'\n";
-
-//   stream << "set output 'isotherms_fit_" << componentName[ID] << ".pdf'\n";
-//   stream << "set term pdf color solid\n";
-
-//   // colorscheme from book 'gnuplot in action', listing 12.7
-//   stream << "set linetype 1 pt 5 ps 0.5 lw 2 lc rgb '0xee0000'\n";
-//   stream << "set linetype 2 pt 7 ps 0.5 lw 2 lc rgb '0x008b00'\n";
-//   stream << "set linetype 3 pt 9 ps 0.5 lw 2 lc rgb '0x0000cd'\n";
-//   stream << "set linetype 4 pt 11 ps 0.5 lw 2 lc rgb '0xff3fb3'\n";
-//   stream << "set linetype 5 pt 13 ps 0.5 lw 2 lc rgb '0x00cdcd'\n";
-//   stream << "set linetype 6 pt 15 ps 0.5 lw 2 lc rgb '0xcd9b1d'\n";
-//   stream << "set linetype 7 pt  4 ps 0.5 lw 2 lc rgb '0x8968ed'\n";
-//   stream << "set linetype 8 pt  6 ps 0.5 lw 2 lc rgb '0x8b8b83'\n";
-//   stream << "set linetype 9 pt  8 ps 0.5 lw 2 lc rgb '0x00bb00'\n";
-//   stream << "set linetype 10 pt 10 ps 0.5 lw 2 lc rgb '0x1e90ff'\n";
-//   stream << "set linetype 11 pt 12 ps 0.5 lw 2 lc rgb '0x8b2500'\n";
-//   stream << "set linetype 12 pt 14 ps 0.5 lw 2 lc rgb '0x000000'\n";
-
-//   stream << "array s[" << isotherms[ID].numberOfParameters << "]\n";
-//   for (size_t i = 0; i < isotherms[ID].numberOfParameters; ++i)
-//   {
-//     stream << "s[" << i + 1 << "]=" << isotherms[ID].parameters(i) << "\n";
-//   }
-//   stream << "array p[" << citizen.phenotype.numberOfParameters << "]\n";
-//   for (size_t i = 0; i < citizen.phenotype.numberOfParameters; ++i)
-//   {
-//     stream << "p[" << i + 1 << "]=" << citizen.phenotype.parameters(i) << "\n";
-//   }
-//   stream << "plot \\\n"
-//          << isotherms[ID].gnuplotFunctionString('s') << " title 'start f(x)' with li dt 2 lw 2,\\\n"
-//          << citizen.phenotype.gnuplotFunctionString('p') << " title 'fit f(x)' with li lw 2,\\\n";
-//   stream << "'" << filename[ID] << "' us " << columnPressure + 1 << ":" << columnLoading + 1
-//          << " title 'raw data' with po pt 5 ps 0.5\n";
-// }
-
-// void Fitting::createPlotScript()
-// {
-// #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
-//   std::ofstream stream_graphs("make_graphs.bat");
-//   stream_graphs << "set PATH=%PATH%;C:\\Program Files\\gnuplot\\bin;C:\\Program "
-//                    "Files\\ffmpeg-master-latest-win64-gpl\\bin;C:\\Program Files\\ffmpeg\\bin\n";
-//   for (size_t i = 0; i < Ncomp; ++i)
-//   {
-//     std::string plotFileName = "plot_fit_component_" + std::to_string(i) + "_" + componentName[i];
-//     stream_graphs << "gnuplot.exe " << plotFileName << "\n";
-//   }
-// #else
-//   std::ofstream stream_graphs("make_graphs");
-//   for (size_t i = 0; i < Ncomp; ++i)
-//   {
-//     std::string plotFileName = "plot_fit_component_" + std::to_string(i) + "_" + componentName[i];
-//     stream_graphs << "gnuplot " << plotFileName << "\n";
-//   }
-// #endif
-
-// #if (__cplusplus >= 201703L)
-//   std::filesystem::path path{"make_graphs"};
-//   std::filesystem::permissions(path, std::filesystem::perms::owner_exec, std::filesystem::perm_options::add);
-// #else
-//   chmod("make_graphs", S_IRWXU);
-// #endif
-// }

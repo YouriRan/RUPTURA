@@ -5,6 +5,9 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ruptura"
 version = "2.0.0"
+dependencies = [
+  "numpy",
+]
 authors = [
   { name = "Shrinjay Sharma" },
   { name = "Salvador R.G. Balestra" },

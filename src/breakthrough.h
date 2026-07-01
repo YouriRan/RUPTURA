@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
+#include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "column.h"
@@ -11,12 +14,7 @@
 #include "mixture_prediction.h"
 #include "rk3.h"
 #include "rk3_si.h"
-
-#ifdef PYBUILD
-#include <pybind11/numpy.h>
-#include <pybind11/pybind11.h>
-namespace py = pybind11;
-#endif  // PYBUILD
+#include "timing.h"
 
 /**
  * \brief Simulates a breakthrough process in an adsorption column.
@@ -28,13 +26,27 @@ namespace py = pybind11;
  */
 struct Breakthrough
 {
+  /**
+   * \brief Time-integration scheme used for breakthrough propagation.
+   */
   enum class IntegrationScheme
   {
     SSP_RK = 0,     ///< Strong Stability Preserving Runge-Kutta method.
-    CVODE = 1,      ///< CVODE integration
+    CVODE = 1,      ///< CVODE integration.
     Iterative = 2,  ///< Iterative integration scheme.
-    SIRK3 = 3,
+    SIRK3 = 3,      ///< Semi-implicit third-order Runge-Kutta method.
   };
+
+  /**
+   * \brief Constructs a Breakthrough simulation from explicit simulation objects and settings.
+   *
+   * This constructor is the argument-based alternative to constructing from an InputReader.
+   */
+  Breakthrough(std::string displayName, size_t carrierGasComponent, size_t numberOfComponents,
+               size_t numberOfGridPoints, size_t printEvery, size_t writeEvery, double timeStep,
+               size_t numberOfInitTimeSteps, size_t numberOfTimeSteps, bool autoNumberOfTimeSteps,
+               size_t maxIsothermTerms, Column column, RungeKutta3 rk3, SemiImplicitRungeKutta3 sirk3, CVODE cvode,
+               IntegrationScheme integrationScheme, std::optional<std::string> readColumnFile = std::nullopt);
 
   /**
    * \brief Constructs a Breakthrough simulation using an InputReader.
@@ -75,21 +87,22 @@ struct Breakthrough
 
   const std::string displayName;  ///< Name of the simulation for display purposes.
   size_t carrierGasComponent{0};  ///< Index of the carrier gas component.
-  size_t Ncomp;                   ///< Number of components.
-  size_t Ngrid;                   ///< Number of grid points.
+  size_t numberOfComponents;      ///< Number of components.
+  size_t numberOfGridPoints;      ///< Number of grid intervals; node count is numberOfGridPoints + 1.
 
   size_t printEvery;  ///< Frequency of printing time steps to the screen.
   size_t writeEvery;  ///< Frequency of writing data to files.
 
-  double dt;                     ///< Time step for integration.
-  size_t numberOfInitTimeSteps;  ///< Ramping up the timestep.
-  size_t Nsteps;                 ///< Total number of steps.
-  bool autoSteps;                ///< Flag to use automatic number of steps.
+  double timeStep;               ///< Time step for integration in s.
+  size_t numberOfInitTimeSteps;  ///< Number of initial ramp-up steps.
+  size_t numberOfSteps;          ///< Total number of steps.
+  bool autoNumberOfSteps;        ///< Flag to use automatic number of steps.
   size_t maxIsothermTerms;       ///< Maximum number of isotherm terms.
 
-  Column column;
-  RungeKutta3 rk3;
-  SemiImplicitRungeKutta3 sirk3;
-  CVODE cvode;
-  IntegrationScheme integrationScheme;
+  Column column;                        ///< Column model advanced by the simulation.
+  RungeKutta3 rk3;                      ///< Explicit RK3 integrator instance.
+  SemiImplicitRungeKutta3 sirk3;        ///< Semi-implicit RK3 integrator instance.
+  CVODE cvode;                          ///< CVODE integrator instance.
+  IntegrationScheme integrationScheme;  ///< Selected integration scheme.
+  Timing timings;                       ///< Accumulated timing diagnostics.
 };

@@ -16,7 +16,7 @@ import numpy as np
 class ComponentInfo:
     index: int
     name: str
-    Yi0: Optional[float] = None
+    initialGasMoleFraction: Optional[float] = None
     isCarrierGas: bool = False
 
 
@@ -37,7 +37,7 @@ def load_simulation_metadata(simulation_json: Union[str, Path]) -> Dict[str, obj
             ComponentInfo(
                 index=i,
                 name=comp.get("Name", f"component {i}"),
-                Yi0=comp.get("GasPhaseMolFraction"),
+                initialGasMoleFraction=comp.get("GasPhaseMolFraction"),
             )
         )
 

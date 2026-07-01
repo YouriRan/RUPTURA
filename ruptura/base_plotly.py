@@ -25,7 +25,7 @@ class BasePlotly:
     ) -> None:
         self.displayName = displayName
         self.components = components
-        self.Ncomp = len(components)
+        self.numberOfComponents = len(components)
         self.data_dir = Path(data_dir)
         self.carrierGasComponent = carrierGasComponent
         self.showMarkers = showMarkers
@@ -41,8 +41,8 @@ class BasePlotly:
         return (0 if comp.isCarrierGas else 1, comp.index)
 
     def _component_label(self, comp: ComponentInfo, include_yi: bool = True) -> str:
-        if include_yi and comp.Yi0 is not None:
-            return f"{comp.name} (y_i={comp.Yi0:g})"
+        if include_yi and comp.initialGasMoleFraction is not None:
+            return f"{comp.name} (y_i={comp.initialGasMoleFraction:g})"
         return comp.name
 
     def _read_component_data(

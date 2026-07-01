@@ -7,6 +7,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <print>
 #include <sstream>
 #include <stdexcept>
 #include <string_view>
@@ -24,7 +25,7 @@ nlohmann::json readJson(std::ifstream& fileInput)
   }
   catch (const nlohmann::json::parse_error& ex)
   {
-    std::cerr << "parse error at byte " << ex.byte << std::endl;
+    std::print(stderr, "parse error at byte {}\n", ex.byte);
     throw;
   }
 }
@@ -174,7 +175,6 @@ static void readOptionalNumber(const nlohmann::json& object, const std::string& 
   }
 }
 
-
 template <typename T>
 static void readOptionalNumber(const nlohmann::json& object, const std::string& key, std::optional<T>& target)
 {
@@ -314,10 +314,9 @@ static void addIsothermSiteFromJson(Component& component, const std::string& typ
     {
       throw std::logic_error("Error: nonIsothermal not implemented for " + typeString);
     }
-    values.push_back(component.heatOfAdsorption);
   }
 
-  component.isotherm.add(Isotherm(spec->type, values, spec->parameterCount, component.nonIsothermal));
+  component.isotherm.add(Isotherm(spec->type, values, component.nonIsothermal));
 }
 
 static void requireConfigured(bool condition, const std::string& message)
@@ -499,9 +498,9 @@ InputReader::InputReader(const std::string fileName) : components()
 
       readOptionalString(item, "FileName", comp.filename);
       readOptionalBool(item, "CarrierGas", comp.isCarrierGas);
-      readOptionalNumber<double>(item, "GasPhaseMolFraction", comp.Yi0);
-      readOptionalNumber<double>(item, "MassTransferCoefficient", comp.Kl);
-      readOptionalNumber<double>(item, "AxialDispersionCoefficient", comp.D);
+      readOptionalNumber<double>(item, "GasPhaseMolFraction", comp.initialGasMoleFraction);
+      readOptionalNumber<double>(item, "MassTransferCoefficient", comp.massTransferCoefficient);
+      readOptionalNumber<double>(item, "AxialDispersionCoefficient", comp.axialDispersionCoefficient);
       readOptionalNumber<double>(item, "MolecularWeight", comp.molecularWeight);
       readOptionalNumber<double>(item, "HeatOfAdsorption", comp.heatOfAdsorption);
       readOptionalNumber<size_t>(item, "NumberOfIsothermSites", comp.isotherm.numberOfSites);
@@ -593,14 +592,14 @@ InputReader::InputReader(const std::string fileName) : components()
     double sum = 0.0;
     for (size_t j = 0; j < components.size(); ++j)
     {
-      sum += components[j].Yi0;
+      sum += components[j].initialGasMoleFraction;
     }
     if (std::abs(sum - 1.0) > 1e-15)
     {
-      std::cout << "Normalizing: Gas-phase molfractions did not sum exactly to unity!\n\n";
+      std::print("Normalizing: Gas-phase molfractions did not sum exactly to unity!\n\n");
       for (size_t j = 0; j < components.size(); ++j)
       {
-        components[j].Yi0 /= sum;
+        components[j].initialGasMoleFraction /= sum;
       }
     }
   }
@@ -613,7 +612,7 @@ InputReader::InputReader(const std::string fileName) : components()
     {
       carrierGasComponent = j;
       std::vector<double> values{1.0, 0.0};
-      Isotherm isotherm = Isotherm(Isotherm::Type::Langmuir, values, 2, false);
+      Isotherm isotherm = Isotherm(Isotherm::Type::Langmuir, values, false);
       components[carrierGasComponent].isotherm.add(isotherm);
       components[carrierGasComponent].isotherm.numberOfSites = 1;
 
@@ -711,7 +710,7 @@ InputReader::InputReader(const std::string fileName) : components()
 
     if (velocityProfile == ergun && hasPressureGradient)
     {
-      std::cerr << "Warning: PressureGradient is ignored when VelocityProfile is Ergun" << std::endl;
+      std::print(stderr, "Warning: PressureGradient is ignored when VelocityProfile is Ergun\n");
     }
   }
 }
