@@ -3,6 +3,7 @@
 #include "column.h"
 #include "compute.h"
 #include "timing.h"
+#include "sorption.h"
 
 /**
  * \brief Third-order strong-stability-preserving Runge-Kutta integrator.

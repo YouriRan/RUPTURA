@@ -18,9 +18,8 @@ struct Timing
   using Clock = std::chrono::steady_clock;
 
   double total = 0.0;                       ///< Total elapsed time in s.
-  double computePressure = 0.0;             ///< Time spent computing pressure fields in s.
+  double updateVelocityAndPressure = 0.0;   ///< Time spent updating velocity and pressure fields in s.
   double computeEquilibriumLoadings = 0.0;  ///< Time spent computing equilibrium loadings in s.
-  double computeVelocity = 0.0;             ///< Time spent computing velocity fields in s.
   double computeDerivatives = 0.0;          ///< Time spent computing derivatives in s.
 
   /**
@@ -82,9 +81,8 @@ struct Timing
   void clear()
   {
     total = 0.0;
-    computePressure = 0.0;
+    updateVelocityAndPressure = 0.0;
     computeEquilibriumLoadings = 0.0;
-    computeVelocity = 0.0;
     computeDerivatives = 0.0;
   }
 
@@ -118,9 +116,8 @@ struct Timing
   void print(std::FILE* output = stdout) const
   {
     std::print(output, "Total time:                    {:.6f} s\n", total);
-    std::print(output, "  computePressure:             {:.6f} s\n", computePressure);
+    std::print(output, "  updateVelocityAndPressure:   {:.6f} s\n", updateVelocityAndPressure);
     std::print(output, "  computeEquilibriumLoadings:  {:.6f} s\n", computeEquilibriumLoadings);
-    std::print(output, "  computeVelocity:             {:.6f} s\n", computeVelocity);
     std::print(output, "  computeDerivatives:          {:.6f} s\n", computeDerivatives);
   }
 };

@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "multi_site_chemisorption.h"
 #include "multi_site_isotherm.h"
 #include "utils.h"
 
@@ -50,6 +51,7 @@ struct Component
   double massTransferCoefficient{0.0};                       ///< Mass transfer coefficient in 1/s.
   double axialDispersionCoefficient{0.0};                    ///< Axial dispersion coefficient in m^2/s.
   double heatOfAdsorption{0.0};                              ///< Heat of adsorption in J/mol.
+  MultiSiteChemisorption chemisorption;                      ///< Chemisorption kinetic sites.
   bool isCarrierGas{false};                                  ///< Flag indicating if this is the carrier gas.
   double molecularWeight{1.0};                               ///< Molecular weight in kg/mol.
   bool nonIsothermal{false};                                 ///< Enables temperature scaling when true.
@@ -72,8 +74,6 @@ struct Component
   {
     if (!nonIsothermal) return 1.0;
 
-    const double beta = 1.0 / (R * temperature);
-    const double betaReference = referenceTemperature.has_value() ? 1.0 / (R * referenceTemperature.value()) : 0.0;
-    return std::exp((beta - betaReference) * heatOfAdsorption);
+    return arrhenius(1.0, -heatOfAdsorption, temperature, referenceTemperature);
   }
 };

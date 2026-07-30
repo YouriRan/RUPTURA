@@ -80,5 +80,9 @@ std::string Component::repr() const
     appendThermalScaling();
     s += isotherm.repr();
   }
+  if (chemisorption.enabled())
+  {
+    s += chemisorption.repr();
+  }
   return s;
 }

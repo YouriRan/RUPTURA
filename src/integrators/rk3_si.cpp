@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "compute.h"
+#include "sorption.h"
 #include "utils.h"
 
 extern "C"
@@ -17,13 +18,33 @@ extern "C"
   void dgbsv_(int* n, int* kl, int* ku, int* nrhs, double* ab, int* ldab, int* ipiv, double* b, int* ldb, int* info);
 }
 
+namespace
+{
+double sorptionDotAt(const Column& column, size_t index)
+{
+  double sorptionDot = column.physisorptionDot[index];
+  const size_t componentBlockSize = column.physisorptionDot.size();
+  for (size_t site = 0; site < column.maxChemisorptionSites; ++site)
+  {
+    sorptionDot += column.chemisorptionDot[site * componentBlockSize + index];
+  }
+  return sorptionDot;
+}
+}  // namespace
+
 bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& timings)
 {
+  if (column.surfacePoreTransportEnabled)
+  {
+    throw std::runtime_error(
+        "SemiImplicitRungeKutta3 is deprecated for General chemisorption; use RungeKutta3 or CVODE");
+  }
+
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
   Column newColumn(column);
 
-  std::vector<double> solved(column.moleFraction.size());
+  std::vector<double> solved(column.concentration.size());
 
   std::vector<double> implicitInvKLs(numberOfComponents);
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
@@ -36,9 +57,11 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double tolerance = 0.0;
     for (size_t j = 0; j < numberOfComponents; ++j)
     {
-      tolerance = std::max(tolerance, std::abs((column.moleFraction[numberOfGridPoints * numberOfComponents + j] /
-                                                column.components[j].initialGasMoleFraction) -
-                                               1.0));
+      if (column.components[j].initialGasMoleFraction <= 0.0) continue;
+
+      const size_t outlet = numberOfGridPoints * numberOfComponents + j;
+      const double feed = column.components[j].initialGasMoleFraction;
+      tolerance = std::max(tolerance, std::abs((column.moleFraction[outlet] / feed) - 1.0));
     }
 
     if (tolerance < 0.01)
@@ -50,125 +73,155 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
   }
 
   // SSP-RK Step 1
-  for (size_t i = 0; i < column.adsorption.size(); ++i)
+  for (size_t i = 0; i < column.physisorption.size(); ++i)
   {
     size_t comp = i % numberOfComponents;
     double kl = column.components[comp].massTransferCoefficient;
-    newColumn.adsorption[i] =
-        (column.adsorption[i] + timeStep * kl * column.equilibriumAdsorption[i]) * implicitInvKLs[comp];
+    newColumn.physisorption[i] =
+        (column.physisorption[i] + timeStep * kl * column.equilibriumAdsorption[i]) * implicitInvKLs[comp];
   }
 
   if (newColumn.energyBalance)
   {
     timings.measure(timings.computeDerivatives,
-                    [&] { computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved); });
+                    [&]
+                    {
+                      computeSorptionDerivatives(newColumn);
+                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
+                    });
   }
   else
   {
-    timings.measure(timings.computeDerivatives, [&] { computeConcentrationUpdateMatrix(newColumn, timeStep, solved); });
+    timings.measure(timings.computeDerivatives,
+                    [&]
+                    {
+                      computeSorptionDerivatives(newColumn);
+                      computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
+                    });
   }
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newColumn.moleFraction[i] = solved[i];
+    newColumn.concentration[i] = solved[i];
   }
 
-  timings.measure(timings.computePressure, [&] { computePressure(newColumn); });
+  timings.measure(timings.updateVelocityAndPressure, [&] { updateVelocityAndPressure(newColumn); });
   timings.measure(timings.computeEquilibriumLoadings, [&] { computeEquilibriumLoadings(newColumn); });
-  timings.measure(timings.computeVelocity, [&] { computeVelocity(newColumn); });
 
   // SSP-RK Step 2
-  for (size_t i = 0; i < column.adsorption.size(); ++i)
+  for (size_t i = 0; i < column.physisorption.size(); ++i)
   {
     size_t comp = i % numberOfComponents;
     double kl = column.components[comp].massTransferCoefficient;
-    newColumn.adsorption[i] =
-        0.75 * column.adsorption[i] +
-        0.25 * (newColumn.adsorption[i] + timeStep * kl * newColumn.equilibriumAdsorption[i]) * implicitInvKLs[comp];
+    newColumn.physisorption[i] =
+        0.75 * column.physisorption[i] +
+        0.25 * (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumAdsorption[i]) * implicitInvKLs[comp];
   }
 
   if (newColumn.energyBalance)
   {
     timings.measure(timings.computeDerivatives,
-                    [&] { computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved); });
+                    [&]
+                    {
+                      computeSorptionDerivatives(newColumn);
+                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
+                    });
   }
   else
   {
-    timings.measure(timings.computeDerivatives, [&] { computeConcentrationUpdateMatrix(newColumn, timeStep, solved); });
+    timings.measure(timings.computeDerivatives,
+                    [&]
+                    {
+                      computeSorptionDerivatives(newColumn);
+                      computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
+                    });
   }
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newColumn.moleFraction[i] = 0.75 * column.moleFraction[i] + 0.25 * solved[i];
+    newColumn.concentration[i] = 0.75 * column.concentration[i] + 0.25 * solved[i];
   }
 
-  timings.measure(timings.computePressure, [&] { computePressure(newColumn); });
+  timings.measure(timings.updateVelocityAndPressure, [&] { updateVelocityAndPressure(newColumn); });
   timings.measure(timings.computeEquilibriumLoadings, [&] { computeEquilibriumLoadings(newColumn); });
-  timings.measure(timings.computeVelocity, [&] { computeVelocity(newColumn); });
 
   // SSP-RK Step 3
-  for (size_t i = 0; i < column.adsorption.size(); ++i)
+  for (size_t i = 0; i < column.physisorption.size(); ++i)
   {
     size_t comp = i % numberOfComponents;
     double kl = column.components[comp].massTransferCoefficient;
-    newColumn.adsorption[i] = (1.0 / 3.0) * column.adsorption[i] +
+    newColumn.physisorption[i] = (1.0 / 3.0) * column.physisorption[i] +
                               (2.0 / 3.0) *
-                                  (newColumn.adsorption[i] + timeStep * kl * newColumn.equilibriumAdsorption[i]) *
+                                  (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumAdsorption[i]) *
                                   implicitInvKLs[comp];
   }
 
   if (newColumn.energyBalance)
   {
     timings.measure(timings.computeDerivatives,
-                    [&] { computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved); });
+                    [&]
+                    {
+                      computeSorptionDerivatives(newColumn);
+                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
+                    });
   }
   else
   {
-    timings.measure(timings.computeDerivatives, [&] { computeConcentrationUpdateMatrix(newColumn, timeStep, solved); });
+    timings.measure(timings.computeDerivatives,
+                    [&]
+                    {
+                      computeSorptionDerivatives(newColumn);
+                      computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
+                    });
   }
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newColumn.moleFraction[i] = (1.0 / 3.0) * column.moleFraction[i] + (2.0 / 3.0) * solved[i];
+    newColumn.concentration[i] = (1.0 / 3.0) * column.concentration[i] + (2.0 / 3.0) * solved[i];
   }
 
-  timings.measure(timings.computePressure, [&] { computePressure(newColumn); });
+  timings.measure(timings.updateVelocityAndPressure, [&] { updateVelocityAndPressure(newColumn); });
   timings.measure(timings.computeEquilibriumLoadings, [&] { computeEquilibriumLoadings(newColumn); });
-  timings.measure(timings.computeVelocity, [&] { computeVelocity(newColumn); });
 
-  // final implicit adsorption update
-  for (size_t i = 0; i < column.adsorption.size(); ++i)
+  // final implicit physisorption update
+  for (size_t i = 0; i < column.physisorption.size(); ++i)
   {
     size_t comp = i % numberOfComponents;
     double kl = column.components[comp].massTransferCoefficient;
 
-    newColumn.adsorption[i] =
-        (newColumn.adsorption[i] + timeStep * timeStep * kl * kl * newColumn.equilibriumAdsorption[i]) /
+    newColumn.physisorption[i] =
+        (newColumn.physisorption[i] + timeStep * timeStep * kl * kl * newColumn.equilibriumAdsorption[i]) /
         (1.0 + timeStep * timeStep * kl * kl);
   }
 
   if (newColumn.energyBalance)
   {
     timings.measure(timings.computeDerivatives,
-                    [&] { computeConcentrationUpdateMatrixEnergyBalanceFinal(newColumn, timeStep, solved); });
+                    [&]
+                    {
+                      computeSorptionDerivatives(newColumn);
+                      computeConcentrationUpdateMatrixEnergyBalanceFinal(newColumn, timeStep, solved);
+                    });
   }
   else
   {
     timings.measure(timings.computeDerivatives,
-                    [&] { computeConcentrationUpdateMatrixFinal(newColumn, timeStep, solved); });
+                    [&]
+                    {
+                      computeSorptionDerivatives(newColumn);
+                      computeConcentrationUpdateMatrixFinal(newColumn, timeStep, solved);
+                    });
   }
 
   for (size_t i = 0; i < solved.size(); ++i)
   {
-    newColumn.moleFraction[i] = solved[i];
+    newColumn.concentration[i] = solved[i];
   }
 
-  timings.measure(timings.computePressure, [&] { computePressure(newColumn); });
+  timings.measure(timings.updateVelocityAndPressure, [&] { updateVelocityAndPressure(newColumn); });
   timings.measure(timings.computeEquilibriumLoadings, [&] { computeEquilibriumLoadings(newColumn); });
-  timings.measure(timings.computeVelocity, [&] { computeVelocity(newColumn); });
 
   column = newColumn;
-  enforceBoundaryCondition(column);
   return (!autoNumberOfSteps && step >= numberOfSteps - 1);
 }
 
@@ -178,6 +231,7 @@ void computeConcentrationUpdateMatrix(Column& column, double timeStep, std::vect
   double idx2 = idx * idx;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
+  const double adsorptionPrefactor = ((1.0 - column.voidFraction) / column.voidFraction) * column.particleDensity;
 
   int n = static_cast<int>(numberOfGridPoints + 1);
   int nrhs = 1;
@@ -192,40 +246,26 @@ void computeConcentrationUpdateMatrix(Column& column, double timeStep, std::vect
     int info = 0;
 
     double axialDispersionCoefficient = column.components[comp].axialDispersionCoefficient;
-    double b = column.prefactorMassTransfer[comp];
 
     std::fill(lower.begin(), lower.end(), 0.0);
     std::fill(upper.begin(), upper.end(), 0.0);
 
     for (size_t i = 0; i < numberOfGridPoints + 1; ++i)
     {
-      const double invCT = 1.0 / std::max(1e-10, column.totalConcentration[i]);
-      const double dctDz = i == 0 ? 0.0 : (column.totalConcentration[i] - column.totalConcentration[i - 1]) * idx;
-      const double d2ctDz2 =
-          i == 0 ? 0.0
-          : i < numberOfGridPoints
-              ? (column.totalConcentration[i + 1] - 2.0 * column.totalConcentration[i] +
-                 column.totalConcentration[i - 1]) *
-                    idx2
-              : (column.totalConcentration[numberOfGridPoints - 1] - column.totalConcentration[numberOfGridPoints]) *
-                    idx2;
-      const double lowerOp = i == 0 ? 0.0
-                                    : column.interstitialGasVelocity[i] * idx +
-                                          axialDispersionCoefficient * (idx2 - 2.0 * dctDz * invCT * idx);
+      const double lowerOp = i == 0 ? 0.0 : column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * idx2;
       const double upperOp = (i > 0 && i < numberOfGridPoints) ? axialDispersionCoefficient * idx2 : 0.0;
-      const double diagOp = -column.interstitialGasVelocity[i] * idx +
-                            axialDispersionCoefficient * (2.0 * dctDz * invCT * idx - 2.0 * idx2 + d2ctDz2 * invCT);
-      const double adsorptionSource = -b * (column.equilibriumAdsorption[i * numberOfComponents + comp] -
-                                            column.adsorption[i * numberOfComponents + comp]);
+      const double diagOp =
+          -column.interstitialGasVelocity[i] * idx - axialDispersionCoefficient * (i < numberOfGridPoints ? 2.0 : 1.0) * idx2;
+      const double adsorptionSource = -adsorptionPrefactor * sorptionDotAt(column, i * numberOfComponents + comp);
       diag[i] = 1.0 - timeStep * diagOp;
-      rhs[i] = column.moleFraction[i * numberOfComponents + comp] + timeStep * adsorptionSource * invCT;
+      rhs[i] = column.concentration[i * numberOfComponents + comp] + timeStep * adsorptionSource;
       if (i > 0) lower[i - 1] = -timeStep * lowerOp;
       if (i < numberOfGridPoints) upper[i] = -timeStep * upperOp;
     }
 
     diag[0] = 1.0;
     upper[0] = 0.0;
-    rhs[0] = column.moleFraction[comp];
+    rhs[0] = column.concentration[comp];
 
     dgtsv_(&n, &nrhs, lower.data(), diag.data(), upper.data(), rhs.data(), &n, &info);
     if (info != 0)
@@ -246,6 +286,7 @@ void computeConcentrationUpdateMatrixEnergyBalance(Column& column, double timeSt
   double idx2 = idx * idx;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
+  const double adsorptionPrefactor = ((1.0 - column.voidFraction) / column.voidFraction) * column.particleDensity;
 
   int n = static_cast<int>(numberOfGridPoints + 1);
   int nrhs = 1;
@@ -265,55 +306,40 @@ void computeConcentrationUpdateMatrixEnergyBalance(Column& column, double timeSt
     int info = 0;
 
     double axialDispersionCoefficient = column.components[comp].axialDispersionCoefficient;
-    double b = column.prefactorMassTransfer[comp];
 
     std::fill(lower.begin(), lower.end(), 0.0);
     std::fill(upper.begin(), upper.end(), 0.0);
 
     for (size_t i = 1; i < numberOfGridPoints; ++i)
     {
-      double invGasTemperature = 1.0 / std::max(1e-10, column.gasTemperature[i]);
-      double invTotalConcentration = 1.0 / std::max(1e-10, column.totalConcentration[i]);
-      double dctDz = (column.totalConcentration[i] - column.totalConcentration[i - 1]) * idx;
-      double dTgDz = (column.gasTemperature[i] - column.gasTemperature[i - 1]) * idx;
-      double gamma = invTotalConcentration * dctDz + invGasTemperature * dTgDz;
-
-      double lowerOp = column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * (idx2 - gamma * idx);
-      double diagOp =
-          -column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * (gamma * idx - 2.0 * idx2);
+      double lowerOp = column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * idx2;
+      double diagOp = -column.interstitialGasVelocity[i] * idx - 2.0 * axialDispersionCoefficient * idx2;
       double upperOp = axialDispersionCoefficient * idx2;
-      double adsorptionSource = -b * (column.equilibriumAdsorption[i * numberOfComponents + comp] -
-                                      column.adsorption[i * numberOfComponents + comp]);
+      double adsorptionSource = -adsorptionPrefactor * sorptionDotAt(column, i * numberOfComponents + comp);
 
       lower[i - 1] = -timeStep * lowerOp;
       diag[i] = 1.0 - timeStep * diagOp;
       upper[i] = -timeStep * upperOp;
-      rhs[i] = column.moleFraction[i * numberOfComponents + comp] + timeStep * adsorptionSource * invTotalConcentration;
+      rhs[i] = column.concentration[i * numberOfComponents + comp] + timeStep * adsorptionSource;
     }
 
     {
-      double invGasTemperature = 1.0 / std::max(1e-10, column.gasTemperature[numberOfGridPoints]);
-      double invTotalConcentration = 1.0 / std::max(1e-10, column.totalConcentration[numberOfGridPoints]);
-      double dctDz =
-          (column.totalConcentration[numberOfGridPoints] - column.totalConcentration[numberOfGridPoints - 1]) * idx;
-      double dTgDz = (column.gasTemperature[numberOfGridPoints] - column.gasTemperature[numberOfGridPoints - 1]) * idx;
-      double gamma = invTotalConcentration * dctDz + invGasTemperature * dTgDz;
       double lowerOp =
-          column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * (idx2 - gamma * idx);
+          column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * idx2;
       double diagOp =
-          -column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * (gamma * idx - idx2);
-      double adsorptionSource = -b * (column.equilibriumAdsorption[numberOfGridPoints * numberOfComponents + comp] -
-                                      column.adsorption[numberOfGridPoints * numberOfComponents + comp]);
+          -column.interstitialGasVelocity[numberOfGridPoints] * idx - axialDispersionCoefficient * idx2;
+      double adsorptionSource =
+          -adsorptionPrefactor * sorptionDotAt(column, numberOfGridPoints * numberOfComponents + comp);
 
       lower[numberOfGridPoints - 1] = -timeStep * lowerOp;
       diag[numberOfGridPoints] = 1.0 - timeStep * diagOp;
-      rhs[numberOfGridPoints] = column.moleFraction[numberOfGridPoints * numberOfComponents + comp] +
-                                timeStep * adsorptionSource * invTotalConcentration;
+      rhs[numberOfGridPoints] = column.concentration[numberOfGridPoints * numberOfComponents + comp] +
+                                timeStep * adsorptionSource;
     }
 
     diag[0] = 1.0;
     upper[0] = 0.0;
-    rhs[0] = column.moleFraction[comp];
+    rhs[0] = column.concentration[comp];
 
     dgtsv_(&n, &nrhs, lower.data(), diag.data(), upper.data(), rhs.data(), &n, &info);
     if (info != 0)
@@ -335,6 +361,7 @@ void computeConcentrationUpdateMatrixFinal(Column& column, double timeStep, std:
   double dt2 = timeStep * timeStep;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
+  const double adsorptionPrefactor = ((1.0 - column.voidFraction) / column.voidFraction) * column.particleDensity;
 
   std::vector<double> upper(numberOfGridPoints);
   std::vector<double> lower(numberOfGridPoints);
@@ -359,7 +386,6 @@ void computeConcentrationUpdateMatrixFinal(Column& column, double timeStep, std:
     std::fill(ab.begin(), ab.end(), 0.0);
 
     double axialDispersionCoefficient = column.components[comp].axialDispersionCoefficient;
-    double b = column.prefactorMassTransfer[comp];
 
     for (size_t i = 0; i < numberOfGridPoints; ++i)
     {
@@ -373,36 +399,19 @@ void computeConcentrationUpdateMatrixFinal(Column& column, double timeStep, std:
 
     for (size_t i = 1; i < numberOfGridPoints; ++i)
     {
-      const double invCT = 1.0 / std::max(1e-10, column.totalConcentration[i]);
-      const double dctDz = (column.totalConcentration[i] - column.totalConcentration[i - 1]) * idx;
-      const double d2ctDz2 =
-          (column.totalConcentration[i + 1] - 2.0 * column.totalConcentration[i] + column.totalConcentration[i - 1]) *
-          idx2;
-      lower[i - 1] =
-          column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * (idx2 - 2.0 * dctDz * invCT * idx);
+      lower[i - 1] = column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * idx2;
       upper[i] = axialDispersionCoefficient * idx2;
-      diag[i] = -column.interstitialGasVelocity[i] * idx +
-                axialDispersionCoefficient * (2.0 * dctDz * invCT * idx - 2.0 * idx2 + d2ctDz2 * invCT);
-      preRHS[i] = -b *
-                  (column.equilibriumAdsorption[i * numberOfComponents + comp] -
-                   column.adsorption[i * numberOfComponents + comp]) *
-                  invCT;
+      diag[i] = -column.interstitialGasVelocity[i] * idx - 2.0 * axialDispersionCoefficient * idx2;
+      preRHS[i] = -adsorptionPrefactor * sorptionDotAt(column, i * numberOfComponents + comp);
     }
 
     {
-      const double invCT = 1.0 / std::max(1e-10, column.totalConcentration[numberOfGridPoints]);
-      const double dctDz =
-          (column.totalConcentration[numberOfGridPoints] - column.totalConcentration[numberOfGridPoints - 1]) * idx;
-      const double d2ctDz2 =
-          (column.totalConcentration[numberOfGridPoints - 1] - column.totalConcentration[numberOfGridPoints]) * idx2;
       lower[numberOfGridPoints - 1] = column.interstitialGasVelocity[numberOfGridPoints] * idx +
-                                      axialDispersionCoefficient * (idx2 - 2.0 * dctDz * invCT * idx);
+                                      axialDispersionCoefficient * idx2;
       diag[numberOfGridPoints] = -column.interstitialGasVelocity[numberOfGridPoints] * idx +
-                                 axialDispersionCoefficient * (2.0 * dctDz * invCT * idx - idx2 + d2ctDz2 * invCT);
-      preRHS[numberOfGridPoints] = -b *
-                                   (column.equilibriumAdsorption[numberOfGridPoints * numberOfComponents + comp] -
-                                    column.adsorption[numberOfGridPoints * numberOfComponents + comp]) *
-                                   invCT;
+                                 -axialDispersionCoefficient * idx2;
+      preRHS[numberOfGridPoints] =
+          -adsorptionPrefactor * sorptionDotAt(column, numberOfGridPoints * numberOfComponents + comp);
     }
 
     for (size_t i = 0; i + 1 < numberOfGridPoints; ++i)
@@ -420,18 +429,18 @@ void computeConcentrationUpdateMatrixFinal(Column& column, double timeStep, std:
     for (size_t i = 1; i < numberOfGridPoints; ++i)
     {
       abS[4, i] = 1.0 + dt2 * (lower[i - 1] * upper[i - 1] + diag[i] * diag[i] + lower[i] * upper[i]);
-      rhs[i] = column.moleFraction[i * numberOfComponents + comp] -
+      rhs[i] = column.concentration[i * numberOfComponents + comp] -
                dt2 * (lower[i - 1] * preRHS[i - 1] + diag[i] * preRHS[i] + upper[i] * preRHS[i + 1]);
     }
 
     abS[4, numberOfGridPoints] = 1.0 + dt2 * (lower[numberOfGridPoints - 1] * upper[numberOfGridPoints - 1] +
                                               diag[numberOfGridPoints] * diag[numberOfGridPoints]);
-    rhs[numberOfGridPoints] = column.moleFraction[numberOfGridPoints * numberOfComponents + comp] -
+    rhs[numberOfGridPoints] = column.concentration[numberOfGridPoints * numberOfComponents + comp] -
                               dt2 * (lower[numberOfGridPoints - 1] * preRHS[numberOfGridPoints - 1] +
                                      diag[numberOfGridPoints] * preRHS[numberOfGridPoints]);
 
     abS[4, 0] = 1.0;
-    rhs[0] = column.moleFraction[comp];
+    rhs[0] = column.concentration[comp];
 
     dgbsv_(&n, &kl, &ku, &nrhs, ab.data(), &ldab, ipiv.data(), rhs.data(), &n, &info);
     if (info != 0)
@@ -453,6 +462,7 @@ void computeConcentrationUpdateMatrixEnergyBalanceFinal(Column& column, double t
   double dt2 = timeStep * timeStep;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
+  const double adsorptionPrefactor = ((1.0 - column.voidFraction) / column.voidFraction) * column.particleDensity;
 
   std::vector<double> upper(numberOfGridPoints);
   std::vector<double> lower(numberOfGridPoints);
@@ -482,7 +492,6 @@ void computeConcentrationUpdateMatrixEnergyBalanceFinal(Column& column, double t
     std::fill(ab.begin(), ab.end(), 0.0);
 
     double axialDispersionCoefficient = column.components[comp].axialDispersionCoefficient;
-    double b = column.prefactorMassTransfer[comp];
 
     for (size_t i = 0; i < numberOfGridPoints; ++i)
     {
@@ -496,39 +505,21 @@ void computeConcentrationUpdateMatrixEnergyBalanceFinal(Column& column, double t
 
     for (size_t i = 1; i < numberOfGridPoints; ++i)
     {
-      double invGasTemperature = 1.0 / std::max(1e-10, column.gasTemperature[i]);
-      double invTotalConcentration = 1.0 / std::max(1e-10, column.totalConcentration[i]);
-      double dctDz = (column.totalConcentration[i] - column.totalConcentration[i - 1]) * idx;
-      double dTgDz = (column.gasTemperature[i] - column.gasTemperature[i - 1]) * idx;
-      double gamma = invTotalConcentration * dctDz + invGasTemperature * dTgDz;
-
-      lower[i - 1] = column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * (idx2 - gamma * idx);
-      diag[i] = -column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * (gamma * idx - 2.0 * idx2);
+      lower[i - 1] = column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * idx2;
+      diag[i] = -column.interstitialGasVelocity[i] * idx - 2.0 * axialDispersionCoefficient * idx2;
       upper[i] = axialDispersionCoefficient * idx2;
 
-      preRHS[i] = -b *
-                  (column.equilibriumAdsorption[i * numberOfComponents + comp] -
-                   column.adsorption[i * numberOfComponents + comp]) *
-                  invTotalConcentration;
+      preRHS[i] = -adsorptionPrefactor * sorptionDotAt(column, i * numberOfComponents + comp);
     }
 
     {
-      double invGasTemperature = 1.0 / std::max(1e-10, column.gasTemperature[numberOfGridPoints]);
-      double invTotalConcentration = 1.0 / std::max(1e-10, column.totalConcentration[numberOfGridPoints]);
-      double dctDz =
-          (column.totalConcentration[numberOfGridPoints] - column.totalConcentration[numberOfGridPoints - 1]) * idx;
-      double dTgDz = (column.gasTemperature[numberOfGridPoints] - column.gasTemperature[numberOfGridPoints - 1]) * idx;
-      double gamma = invTotalConcentration * dctDz + invGasTemperature * dTgDz;
-
       lower[numberOfGridPoints - 1] =
-          column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * (idx2 - gamma * idx);
+          column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * idx2;
       diag[numberOfGridPoints] =
-          -column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * (gamma * idx - idx2);
+          -column.interstitialGasVelocity[numberOfGridPoints] * idx - axialDispersionCoefficient * idx2;
 
-      preRHS[numberOfGridPoints] = -b *
-                                   (column.equilibriumAdsorption[numberOfGridPoints * numberOfComponents + comp] -
-                                    column.adsorption[numberOfGridPoints * numberOfComponents + comp]) *
-                                   invTotalConcentration;
+      preRHS[numberOfGridPoints] =
+          -adsorptionPrefactor * sorptionDotAt(column, numberOfGridPoints * numberOfComponents + comp);
     }
 
     for (size_t i = 0; i + 1 < numberOfGridPoints; ++i)
@@ -546,18 +537,18 @@ void computeConcentrationUpdateMatrixEnergyBalanceFinal(Column& column, double t
     for (size_t i = 1; i < numberOfGridPoints; ++i)
     {
       abS[4, i] = 1.0 + dt2 * (lower[i - 1] * upper[i - 1] + diag[i] * diag[i] + lower[i] * upper[i]);
-      rhs[i] = column.moleFraction[i * numberOfComponents + comp] -
+      rhs[i] = column.concentration[i * numberOfComponents + comp] -
                dt2 * (lower[i - 1] * preRHS[i - 1] + diag[i] * preRHS[i] + upper[i] * preRHS[i + 1]);
     }
 
     abS[4, numberOfGridPoints] = 1.0 + dt2 * (lower[numberOfGridPoints - 1] * upper[numberOfGridPoints - 1] +
                                               diag[numberOfGridPoints] * diag[numberOfGridPoints]);
-    rhs[numberOfGridPoints] = column.moleFraction[numberOfGridPoints * numberOfComponents + comp] -
+    rhs[numberOfGridPoints] = column.concentration[numberOfGridPoints * numberOfComponents + comp] -
                               dt2 * (lower[numberOfGridPoints - 1] * preRHS[numberOfGridPoints - 1] +
                                      diag[numberOfGridPoints] * preRHS[numberOfGridPoints]);
 
     abS[4, 0] = 1.0;
-    rhs[0] = column.moleFraction[comp];
+    rhs[0] = column.concentration[comp];
 
     dgbsv_(&n, &kl, &ku, &nrhs, ab.data(), &ldab, ipiv.data(), rhs.data(), &n, &info);
     if (info != 0)

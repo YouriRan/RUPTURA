@@ -5,6 +5,9 @@
 #include <cmath>
 #include <iostream>
 #include <print>
+#include <type_traits>
+
+#include "transport.h"
 
 #if BUILD_SUNDIALS
 
@@ -20,50 +23,73 @@ CVODE::~CVODE()
   if (sunContext) SUNContext_Free(&sunContext);
 }
 
-inline std::span<double> getMoleFractionSpan(N_Vector v, size_t numberOfGridPoints, size_t numberOfComponents)
+bool projectState(Column& column)
 {
-  double* base = static_cast<double*>(N_VGetArrayPointer(v));
-  const size_t small = numberOfGridPoints + 1;
-  const size_t big = small * numberOfComponents;
-  return {base, big};
-}
+  bool changed = false;
 
-inline std::span<double> getAdsorptionSpan(N_Vector v, size_t numberOfGridPoints, size_t numberOfComponents)
-{
-  double* base = static_cast<double*>(N_VGetArrayPointer(v));
-  const size_t small = numberOfGridPoints + 1;
-  const size_t big = small * numberOfComponents;
-  return {base + big, big};
-}
+  for (double& concentration : column.concentration)
+  {
+    const double projected = std::max(0.0, concentration);
+    changed = changed || projected != concentration;
+    concentration = projected;
+  }
 
-inline std::span<double> getGasTemperatureSpan(N_Vector v, size_t numberOfGridPoints, size_t numberOfComponents)
-{
-  double* base = static_cast<double*>(N_VGetArrayPointer(v));
-  const size_t small = numberOfGridPoints + 1;
-  const size_t big = small * numberOfComponents;
-  return {base + 2 * big, small};
-}
+  for (double& loading : column.physisorption)
+  {
+    const double projected = std::max(0.0, loading);
+    changed = changed || projected != loading;
+    loading = projected;
+  }
 
-inline std::span<double> getSolidTemperatureSpan(N_Vector v, size_t numberOfGridPoints, size_t numberOfComponents)
-{
-  double* base = static_cast<double*>(N_VGetArrayPointer(v));
-  const size_t small = numberOfGridPoints + 1;
-  const size_t big = small * numberOfComponents;
-  return {base + 2 * big + small, small};
-}
+  for (double& loading : column.chemisorption)
+  {
+    const double projected = std::max(0.0, loading);
+    changed = changed || projected != loading;
+    loading = projected;
+  }
 
-inline std::span<double> getWallTemperatureSpan(N_Vector v, size_t numberOfGridPoints, size_t numberOfComponents)
-{
-  double* base = static_cast<double*>(N_VGetArrayPointer(v));
-  const size_t small = numberOfGridPoints + 1;
-  const size_t big = small * numberOfComponents;
-  return {base + 2 * big + 2 * small, small};
+  for (double& concentration : column.surfaceConcentration)
+  {
+    const double projected = std::max(0.0, concentration);
+    changed = changed || projected != concentration;
+    concentration = projected;
+  }
+
+  for (double& concentration : column.poreConcentration)
+  {
+    const double projected = std::max(0.0, concentration);
+    changed = changed || projected != concentration;
+    concentration = projected;
+  }
+
+  if (column.energyBalance)
+  {
+    for (double& temperature : column.gasTemperature)
+    {
+      const double projected = std::max(1e-10, temperature);
+      changed = changed || projected != temperature;
+      temperature = projected;
+    }
+    for (double& temperature : column.solidTemperature)
+    {
+      const double projected = std::max(1e-10, temperature);
+      changed = changed || projected != temperature;
+      temperature = projected;
+    }
+    for (double& temperature : column.wallTemperature)
+    {
+      const double projected = std::max(1e-10, temperature);
+      changed = changed || projected != temperature;
+      temperature = projected;
+    }
+  }
+
+  return changed;
 }
 
 bool CVODE::propagate(Column& column, size_t step, Timing& timings)
 {
-  double t = static_cast<double>(step) * timeStep;
-  double tNext = static_cast<double>(step + 1) * timeStep;
+  double tNext = currentTime + timeStep;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
 
@@ -73,9 +99,11 @@ bool CVODE::propagate(Column& column, size_t step, Timing& timings)
 
     for (size_t j = 0; j < numberOfComponents; ++j)
     {
-      tolerance = std::max(tolerance, std::abs((column.moleFraction[numberOfGridPoints * numberOfComponents + j] /
-                                                column.components[j].initialGasMoleFraction) -
-                                               1.0));
+      if (column.components[j].initialGasMoleFraction <= 0.0) continue;
+
+      const size_t outlet = numberOfGridPoints * numberOfComponents + j;
+      const double feed = column.components[j].initialGasMoleFraction;
+      tolerance = std::max(tolerance, std::abs((column.moleFraction[outlet] / feed) - 1.0));
     }
 
     if (tolerance < 0.01)
@@ -86,7 +114,7 @@ bool CVODE::propagate(Column& column, size_t step, Timing& timings)
     }
   }
 
-  sunrealtype tReturn = t;
+  sunrealtype tReturn = currentTime;
 
   auto timer = timings.scoped(timings.total);
 
@@ -95,6 +123,7 @@ bool CVODE::propagate(Column& column, size_t step, Timing& timings)
   {
     throw std::runtime_error("CVode failed during propagation");
   }
+  currentTime = tReturn;
 
   // Refresh derived quantities and stateDot at the accepted state.
   flag = CVODE::evaluateDerivatives(tReturn, stateVector, stateDerivativeVector, &column);
@@ -108,6 +137,8 @@ bool CVODE::propagate(Column& column, size_t step, Timing& timings)
 
 void CVODE::initialize(Column& column)
 {
+  static_assert(std::is_same_v<sunrealtype, double>, "CVODE currently requires SUNDIALS sunrealtype to be double");
+
   SUNContext_Create(SUN_COMM_NULL, &sunContext);
   SUNLogger_Create(SUN_COMM_NULL, 0, &sunLogger);
   SUNContext_SetLogger(sunContext, sunLogger);
@@ -143,95 +174,87 @@ void CVODE::initialize(Column& column)
 int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector stateDerivativeVector, void* user_data)
 {
   auto* column = static_cast<Column*>(user_data);
+  N_VConst(0.0, stateDerivativeVector);
 
-  auto spanMoleFraction = getMoleFractionSpan(stateVector, column->numberOfGridPoints, column->numberOfComponents);
-  auto spanAdsorption = getAdsorptionSpan(stateVector, column->numberOfGridPoints, column->numberOfComponents);
+  const ColumnStateLayout layout = column->stateLayout();
+  double* stateBase = static_cast<double*>(N_VGetArrayPointer(stateVector));
+  double* derivativeBase = static_cast<double*>(N_VGetArrayPointer(stateDerivativeVector));
 
-  auto spanMoleFractionDot =
-      getMoleFractionSpan(stateDerivativeVector, column->numberOfGridPoints, column->numberOfComponents);
-  auto spanAdsorptionDot =
-      getAdsorptionSpan(stateDerivativeVector, column->numberOfGridPoints, column->numberOfComponents);
+  auto spanConcentration = layout.concentration(stateBase);
+  auto spanPhysisorption = layout.physisorption(stateBase);
+  auto spanChemisorption = layout.chemisorption(stateBase);
+  const bool usePoreSurfaceTransport = column->surfacePoreTransportEnabled;
+  auto spanSurfaceConcentration =
+      usePoreSurfaceTransport ? layout.surfaceConcentration(stateBase) : column->surfaceConcentration;
+  auto spanPoreConcentration =
+      usePoreSurfaceTransport ? layout.poreConcentration(stateBase) : column->poreConcentration;
 
-  auto spanGasTemperature = (column->energyBalance) ? getGasTemperatureSpan(stateVector, column->numberOfGridPoints,
-                                                                            column->numberOfComponents)
-                                                    : column->gasTemperature;
-  auto spanSolidTemperature = (column->energyBalance) ? getSolidTemperatureSpan(stateVector, column->numberOfGridPoints,
-                                                                                column->numberOfComponents)
-                                                      : column->solidTemperature;
-  auto spanWallTemperature = (column->energyBalance) ? getWallTemperatureSpan(stateVector, column->numberOfGridPoints,
-                                                                              column->numberOfComponents)
-                                                     : column->wallTemperature;
+  auto spanConcentrationDot = layout.concentration(derivativeBase);
+  auto spanPhysisorptionDot = layout.physisorption(derivativeBase);
+  auto spanChemisorptionDot = layout.chemisorption(derivativeBase);
+  auto spanSurfaceConcentrationDot =
+      usePoreSurfaceTransport ? layout.surfaceConcentration(derivativeBase) : column->surfaceConcentrationDot;
+  auto spanPoreConcentrationDot =
+      usePoreSurfaceTransport ? layout.poreConcentration(derivativeBase) : column->poreConcentrationDot;
+
+  auto spanGasTemperature = (column->energyBalance) ? layout.gasTemperature(stateBase) : column->gasTemperature;
+  auto spanSolidTemperature = (column->energyBalance) ? layout.solidTemperature(stateBase) : column->solidTemperature;
+  auto spanWallTemperature = (column->energyBalance) ? layout.wallTemperature(stateBase) : column->wallTemperature;
   auto spanGasTemperatureDot =
-      (column->energyBalance)
-          ? getGasTemperatureSpan(stateDerivativeVector, column->numberOfGridPoints, column->numberOfComponents)
-          : column->gasTemperatureDot;
+      (column->energyBalance) ? layout.gasTemperature(derivativeBase) : column->gasTemperatureDot;
   auto spanSolidTemperatureDot =
-      (column->energyBalance)
-          ? getSolidTemperatureSpan(stateDerivativeVector, column->numberOfGridPoints, column->numberOfComponents)
-          : column->solidTemperatureDot;
+      (column->energyBalance) ? layout.solidTemperature(derivativeBase) : column->solidTemperatureDot;
   auto spanWallTemperatureDot =
-      (column->energyBalance)
-          ? getWallTemperatureSpan(stateDerivativeVector, column->numberOfGridPoints, column->numberOfComponents)
-          : column->wallTemperatureDot;
+      (column->energyBalance) ? layout.wallTemperature(derivativeBase) : column->wallTemperatureDot;
 
-  computePressure(column->components, column->velocityProfile, column->boundaryCondition, column->numberOfGridPoints,
-                  column->numberOfComponents, column->inletPressure, column->outletPressure, column->voidFraction,
-                  column->dynamicViscosity, column->particleDiameter, column->resolution,
-                  column->interstitialGasVelocity, column->gasDensity, column->totalConcentration,
-                  column->totalPressure, column->concentration, column->partialPressure, spanMoleFraction,
-                  spanGasTemperature);
-
-  computeEquilibriumLoadings(column->mixture, column->numberOfGridPoints, column->numberOfComponents,
-                             column->maxIsothermTerms, column->iastPerformance, column->idealGasMolFractions,
-                             column->adsorbedMolFractions, column->numberOfMolecules, column->totalPressure,
-                             column->equilibriumAdsorption, column->cachedPressure, column->cachedGrandPotential,
-                             spanMoleFraction, spanGasTemperature);
-
-  switch (column->velocityProfile)
+  for (size_t iteration = 0; iteration < 2; ++iteration)
   {
-    case Column::VelocityProfile::FixedPressureGradient:
-    {
-      computeVelocityFixedGradient(column->boundaryCondition, column->components, column->numberOfGridPoints,
-                                   column->numberOfComponents, column->pressureGradient, column->columnEntranceVelocity,
-                                   column->resolution, column->prefactorMassTransfer, column->interstitialGasVelocity,
-                                   column->totalConcentration, column->totalPressure, column->equilibriumAdsorption,
-                                   spanMoleFraction, spanAdsorption);
-      break;
-    }
-    case Column::VelocityProfile::Ergun:
-    {
-      computeVelocityErgun(column->boundaryCondition, column->numberOfGridPoints, column->voidFraction,
-                           column->columnEntranceVelocity, column->columnLength, column->dynamicViscosity,
-                           column->particleDiameter, column->resolution, column->interstitialGasVelocity,
-                           column->gasDensity, column->totalPressure);
-      break;
-    }
-    case Column::VelocityProfile::FixedVelocity:
-      break;
-    default:
-      break;
+    computeBulkSpeciesSink(
+        column->components, column->numberOfGridPoints, column->numberOfComponents,
+        column->maxChemisorptionSites, column->voidFraction, column->particleDensity,
+        column->particleDiameter, spanConcentration, spanPhysisorptionDot, spanChemisorptionDot,
+        spanSurfaceConcentration, column->bulkSpeciesSink);
+
+    updateVelocityAndPressure(
+        column->components, column->boundaryCondition, column->numberOfGridPoints, column->numberOfComponents,
+        column->inletPressure, column->outletPressure, column->pressureGradient, column->columnLength,
+        column->voidFraction, column->particleDensity, column->columnEntranceVelocity, column->dynamicViscosity,
+        column->particleDiameter, column->resolution,
+        column->interstitialGasVelocity, column->gasDensity, column->totalConcentration, column->totalPressure,
+        spanConcentration, column->partialPressure, column->moleFraction, column->bulkSpeciesSink,
+        spanGasTemperature);
+
+    computeEquilibriumLoadings(column->mixture, column->numberOfGridPoints, column->numberOfComponents,
+                               column->maxIsothermTerms, column->iastPerformance, column->idealGasMolFractions,
+                               column->adsorbedMolFractions, column->numberOfMolecules, column->totalPressure,
+                               column->equilibriumAdsorption, column->cachedPressure, column->cachedGrandPotential,
+                               column->moleFraction, spanGasTemperature);
+
+    computeSorptionDerivatives(
+        column->components, column->numberOfGridPoints, column->numberOfComponents,
+        column->maxChemisorptionSites, column->externalTemperature, column->voidFraction,
+        column->particleDensity, column->particleDiameter, column->equilibriumAdsorption, spanConcentration,
+        spanPhysisorption, spanPhysisorptionDot, spanChemisorption, spanChemisorptionDot,
+        spanSurfaceConcentration, spanSurfaceConcentrationDot, spanPoreConcentration,
+        spanPoreConcentrationDot, spanSolidTemperature, column->bulkSpeciesSink);
   }
+
+  computeMassDerivatives(column->components, column->numberOfGridPoints, column->numberOfComponents,
+                         column->resolution, column->interstitialGasVelocity, spanConcentration, spanConcentrationDot,
+                         column->bulkSpeciesSink);
 
   if (column->energyBalance)
   {
-    computeDerivativesEnergyBalance(
-        column->components, column->numberOfGridPoints, column->numberOfComponents, column->externalTemperature,
-        column->voidFraction, column->particleDensity, column->particleDiameter, column->internalDiameter,
-        column->outerDiameter, column->wallDensity, column->gasThermalConductivity, column->wallThermalConductivity,
+    computeEnergyDerivatives(
+        column->components, column->numberOfGridPoints, column->numberOfComponents,
+        column->maxChemisorptionSites, column->externalTemperature, column->voidFraction,
+        column->particleDensity, column->particleDiameter, column->internalDiameter, column->outerDiameter,
+        column->wallDensity, column->gasThermalConductivity, column->wallThermalConductivity,
         column->heatTransferGasSolid, column->heatTransferGasWall, column->heatTransferWallExternal,
         column->heatCapacityGas, column->heatCapacitySolid, column->heatCapacityWall, column->resolution,
-        column->prefactorMassTransfer, column->interstitialGasVelocity, column->gasDensity, column->totalConcentration,
-        column->equilibriumAdsorption, column->coeffGasGas, column->coeffGasSolid, column->coeffGasWall,
-        column->coeffDiffusion, spanMoleFraction, spanMoleFractionDot, spanAdsorption, spanAdsorptionDot,
-        spanGasTemperature, spanGasTemperatureDot, spanSolidTemperature, spanSolidTemperatureDot, spanWallTemperature,
-        spanWallTemperatureDot);
-  }
-  else
-  {
-    computeDerivatives(column->components, column->numberOfGridPoints, column->numberOfComponents, column->resolution,
-                       column->prefactorMassTransfer, column->interstitialGasVelocity, column->totalConcentration,
-                       column->equilibriumAdsorption, spanMoleFraction, spanMoleFractionDot, spanAdsorption,
-                       spanAdsorptionDot);
+        column->interstitialGasVelocity, column->gasDensity, column->coeffDiffusion, spanPhysisorptionDot,
+        spanChemisorptionDot, spanGasTemperature, spanGasTemperatureDot, spanSolidTemperature,
+        spanSolidTemperatureDot, spanWallTemperature, spanWallTemperatureDot);
   }
 
   return 0;
