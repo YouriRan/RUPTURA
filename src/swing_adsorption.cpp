@@ -84,6 +84,8 @@ void SwingAdsorption::run()
 
     for (size_t subStep = 0; subStep < stage.numberOfSteps; subStep++)
     {
+      const double stepTime = realTime;
+
       if (step % breakthrough.writeEvery == 0)
       {
         const std::string outputFile = std::format("column.json", step);
@@ -116,11 +118,11 @@ void SwingAdsorption::run()
 
       if (step % breakthrough.writeEvery == 0)
       {
-        column.writeOutput(streams, movieStream, realTime);
+        column.writeOutput(streams, movieStream, stepTime);
       }
       if (step % breakthrough.printEvery == 0)
       {
-        std::print("Timestep {}, time: {:6.5f} [s]\n", step, realTime);
+        std::print("Timestep {}, time: {:6.5f} [s]\n", step, stepTime);
         std::print(
             "    Average number of mixture-prediction steps: {:6.5f}\n",
             static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second));

@@ -91,6 +91,8 @@ void Breakthrough::run()
   {
     while (!finished)
     {
+      const double stepTime = realTime;
+
       if (step % writeEvery == 0)
       {
         const std::string outputFile = std::format("column.json", step);
@@ -141,11 +143,11 @@ void Breakthrough::run()
 
       if (step % writeEvery == 0)
       {
-        column.writeOutput(componentStreams, columnStream, realTime);
+        column.writeOutput(componentStreams, columnStream, stepTime);
       }
       if (step % printEvery == 0)
       {
-        std::print("Timestep {}, time: {:6.5f} [s]\n", step, realTime);
+        std::print("Timestep {}, time: {:6.5f} [s]\n", step, stepTime);
         std::print(
             "    Average number of mixture-prediction steps: {:6.5f}\n",
             static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second));

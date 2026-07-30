@@ -45,6 +45,8 @@ struct InputReader
   };
 
   std::vector<Component> components;  ///< The list of components involved in the simulation.
+  std::vector<std::vector<Component>>
+      adsorbentComponents;  ///< Per-adsorbent component lists with adsorbent-specific isotherm parameters.
   size_t numberOfCarrierGases{0};     ///< The number of carrier gas components.
   size_t carrierGasComponent{0};      ///< The index of the carrier gas component.
   size_t maxIsothermTerms{0};         ///< The maximum number of isotherm terms among all components.
@@ -53,7 +55,6 @@ struct InputReader
   size_t mixturePredictionMethod{0};                            ///< The method used for mixture prediction.
   size_t IASTMethod{0};                                         ///< The method used for IAST calculations.
   size_t breakthroughIntegrator{0};                             ///< The integrator used for breakthrough calculations.
-  size_t velocityProfile{0};                                    ///< The method used to calculate the velocity profile.
   size_t boundaryCondition{0};                                  ///< The breakthrough boundary condition.
   std::string displayName{"Column"};                            ///< The display name for the simulation.
 
@@ -64,9 +65,17 @@ struct InputReader
   double particleDensity{1000.0};       ///< Particle density in kg/m^3.
   double inletPressure{-1.0};           ///< Inlet pressure, P_in, in Pa.
   double outletPressure{-1.0};          ///< Outlet pressure, P_out, in Pa.
-  double pressureGradient{0.0};         ///< Pressure-gradient parameter used by FixedPressureGradient in Pa/m.
+  double pressureGradient{0.0};         ///< Pressure-gradient parameter used by fixed-pressure boundary conditions.
   double columnEntranceVelocity{-1.0};  ///< Inlet velocity, v_in, in m/s.
   double columnLength{0.3};             ///< Column length in m.
+  std::vector<double> columnDistances;  ///< Spatial grid node positions in m.
+
+  std::vector<double> adsorbentLengths;            ///< Pure adsorbent-region lengths in m.
+  std::vector<double> adsorbentInterfaceLengths;   ///< Linear interface lengths between adsorbents in m.
+  std::vector<size_t> adsorbentGridPoints;          ///< Spatial grid intervals per adsorbent section.
+  std::vector<double> adsorbentVoidFractions;      ///< Packed-bed void fractions per adsorbent.
+  std::vector<double> adsorbentParticleDensities;  ///< Particle densities per adsorbent in kg/m^3.
+  std::vector<double> adsorbentParticleDiameters;  ///< Particle diameters per adsorbent in m.
 
   double influxTemperature;         ///< Feed/influx gas temperature in K.
   double internalDiameter;          ///< Column internal diameter in m.

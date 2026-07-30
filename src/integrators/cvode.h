@@ -9,6 +9,7 @@
 #include "mixture_prediction.h"
 #include "timing.h"
 #include "utils.h"
+#include "sorption.h"
 
 #if BUILD_SUNDIALS
 #include <cvode/cvode.h>
@@ -81,6 +82,7 @@ struct CVODE
   void* cvodeMem = nullptr;                  ///< CVODE solver memory block.
   SUNNonlinearSolver solver = nullptr;       ///< Nonlinear solver handle.
   SUNLinearSolver linSolver = nullptr;       ///< Linear solver handle.
+  sunrealtype currentTime = 0.0;              ///< Current absolute CVODE time.
 
   const sunrealtype relativeTolerance = 1.0e-3;  ///< Relative integration tolerance.
   const sunrealtype absoluteTolerance = 1.0e-6;  ///< Absolute integration tolerance.
