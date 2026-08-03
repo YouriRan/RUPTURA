@@ -36,34 +36,6 @@ double MultiSiteChemisorption::maximumLoading() const noexcept
   return maximum;
 }
 
-double MultiSiteChemisorption::equilibriumLoading(size_t site, double totalEquilibriumLoading) const noexcept
-{
-  if (site >= sites.size() || !sites[site].usesEquilibriumLoading()) return 0.0;
-
-  double totalCapacity = 0.0;
-  size_t equilibriumSites = 0;
-  bool allSitesHaveCapacity = true;
-  for (const Chemisorption& candidate : sites)
-  {
-    if (!candidate.usesEquilibriumLoading()) continue;
-    ++equilibriumSites;
-    if (candidate.maximumLoading > 0.0)
-    {
-      totalCapacity += candidate.maximumLoading;
-    }
-    else
-    {
-      allSitesHaveCapacity = false;
-    }
-  }
-
-  if (allSitesHaveCapacity && totalCapacity > 0.0)
-  {
-    return totalEquilibriumLoading * sites[site].maximumLoading / totalCapacity;
-  }
-  return equilibriumSites == 0 ? 0.0 : totalEquilibriumLoading / static_cast<double>(equilibriumSites);
-}
-
 std::string MultiSiteChemisorption::repr() const
 {
   std::string text = std::format("    number of chemisorption sites: {}\n", numberOfSites);

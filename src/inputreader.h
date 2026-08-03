@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "component.h"
+#include "geometry.h"
 
 /**
  * \brief Returns true when a string starts with the supplied prefix.
@@ -77,19 +78,20 @@ struct InputReader
   std::vector<double> adsorbentParticleDensities;  ///< Particle densities per adsorbent in kg/m^3.
   std::vector<double> adsorbentParticleDiameters;  ///< Particle diameters per adsorbent in m.
 
-  double influxTemperature;         ///< Feed/influx gas temperature in K.
-  double internalDiameter;          ///< Column internal diameter in m.
-  double outerDiameter;             ///< Column outer diameter in m.
-  double wallDensity;               ///< Wall density in kg/m^3.
-  double gasThermalConductivity;    ///< Gas thermal conductivity in W/(m K).
-  double wallThermalConductivity;   ///< Wall thermal conductivity in W/(m K).
-  double heatTransferGasSolid;      ///< Gas-solid heat-transfer coefficient in W/(m^2 K).
-  double heatTransferGasWall;       ///< Gas-wall heat-transfer coefficient in W/(m^2 K).
-  double heatTransferWallExternal;  ///< Wall-external heat-transfer coefficient in W/(m^2 K).
-  double heatCapacityGas;           ///< Gas heat capacity in J/(kg K).
-  double heatCapacitySolid;         ///< Solid heat capacity in J/(kg K).
-  double heatCapacityWall;          ///< Wall heat capacity in J/(kg K).
-  bool energyBalance;               ///< Enables gas/solid/wall temperature dynamics when true.
+  Geometry geometry;                 ///< Parsed column geometry with precomputed shape parameters.
+  double influxTemperature{433.0};   ///< Feed/influx gas temperature in K.
+  double internalDiameter{0.0};      ///< Column internal diameter in m.
+  double outerDiameter{0.0};         ///< Column outer diameter in m.
+  double wallDensity{0.0};           ///< Wall density in kg/m^3.
+  double gasThermalConductivity{0.0};   ///< Gas thermal conductivity in W/(m K).
+  double wallThermalConductivity{0.0};  ///< Wall thermal conductivity in W/(m K).
+  double heatTransferGasSolid{0.0};     ///< Gas-solid heat-transfer coefficient in W/(m^2 K).
+  double heatTransferGasWall{0.0};      ///< Gas-wall heat-transfer coefficient in W/(m^2 K).
+  double heatTransferWallExternal{0.0};  ///< Wall-external heat-transfer coefficient in W/(m^2 K).
+  double heatCapacityGas{1.0};           ///< Gas heat capacity in J/(kg K).
+  double heatCapacitySolid{1.0};         ///< Solid heat capacity in J/(kg K).
+  double heatCapacityWall{1.0};          ///< Wall heat capacity in J/(kg K).
+  bool energyBalance{false};             ///< Enables gas/solid/wall temperature dynamics when true.
 
   size_t numberOfTimeSteps{0};       ///< The number of time steps in the simulation.
   size_t numberOfInitTimeSteps{0};   ///< The number of initialization time steps.

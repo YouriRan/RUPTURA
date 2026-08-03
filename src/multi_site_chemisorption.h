@@ -23,14 +23,5 @@ struct MultiSiteChemisorption
   [[nodiscard]] bool usesSurfacePoreTransport() const noexcept;
   [[nodiscard]] double maximumLoading() const noexcept;
 
-  /**
-   * \brief Partitions a component equilibrium loading over kinetic sites.
-   *
-   * Only equilibrium-driven kinetic models participate. Positive capacities
-   * are used as weights when every participating site defines one; otherwise
-   * the equilibrium loading is divided equally.
-   */
-  [[nodiscard]] double equilibriumLoading(size_t site, double totalEquilibriumLoading) const noexcept;
-
   [[nodiscard]] std::string repr() const;
 };

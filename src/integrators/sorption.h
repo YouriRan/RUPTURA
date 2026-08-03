@@ -8,9 +8,24 @@ void computeSorptionDerivatives(Column& column);
 
 void computeSorptionDerivatives(const std::vector<Component>& components, size_t numberOfGridPoints,
                                 size_t numberOfComponents, size_t maxChemisorptionSites,
+                                double externalTemperature, const ShapeParameters& geometry,
+                                double particleDensity,
+                                std::span<const double> equilibriumPhysisorption,
+                                std::span<const double> equilibriumChemisorption,
+                                std::span<const double> concentration,
+                                std::span<const double> physisorption, std::span<double> physisorptionDot,
+                                std::span<const double> chemisorption, std::span<double> chemisorptionDot,
+                                std::span<const double> surfaceConcentration,
+                                std::span<double> surfaceConcentrationDot,
+                                std::span<const double> poreConcentration, std::span<double> poreConcentrationDot,
+                                std::span<const double> solidTemperature, std::span<double> bulkSpeciesSink);
+
+void computeSorptionDerivatives(const std::vector<Component>& components, size_t numberOfGridPoints,
+                                size_t numberOfComponents, size_t maxChemisorptionSites,
                                 double externalTemperature, double voidFraction, double particleDensity,
                                 double particleDiameter,
-                                std::span<const double> equilibriumAdsorption,
+                                std::span<const double> equilibriumPhysisorption,
+                                std::span<const double> equilibriumChemisorption,
                                 std::span<const double> concentration,
                                 std::span<const double> physisorption, std::span<double> physisorptionDot,
                                 std::span<const double> chemisorption, std::span<double> chemisorptionDot,
@@ -22,15 +37,23 @@ void computeSorptionDerivatives(const std::vector<Component>& components, size_t
 void computePhysisorption(Column& column);
 
 void computePhysisorption(const std::vector<Component>& components, size_t numberOfGridPoints,
-                          size_t numberOfComponents, std::span<const double> equilibriumAdsorption,
+                          size_t numberOfComponents, std::span<const double> equilibriumPhysisorption,
                           std::span<const double> physisorption, std::span<double> physisorptionDot);
 
 void computeChemisorption(Column& column);
 
 void computeChemisorption(const std::vector<Component>& components, size_t numberOfGridPoints,
                           size_t numberOfComponents, size_t maxChemisorptionSites,
+                          double externalTemperature, const ShapeParameters& geometry, double particleDensity,
+                          std::span<const double> equilibriumChemisorption,
+                          std::span<const double> concentration, std::span<const double> chemisorption,
+                          std::span<double> chemisorptionDot, std::span<const double> poreConcentration,
+                          std::span<const double> solidTemperature);
+
+void computeChemisorption(const std::vector<Component>& components, size_t numberOfGridPoints,
+                          size_t numberOfComponents, size_t maxChemisorptionSites,
                           double externalTemperature, double voidFraction, double particleDensity,
-                          std::span<const double> equilibriumAdsorption,
+                          std::span<const double> equilibriumChemisorption,
                           std::span<const double> concentration, std::span<const double> chemisorption,
                           std::span<double> chemisorptionDot, std::span<const double> poreConcentration,
                           std::span<const double> solidTemperature);

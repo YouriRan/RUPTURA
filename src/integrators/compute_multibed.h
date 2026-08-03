@@ -27,7 +27,7 @@ void computeEquilibriumLoadings(std::vector<MixturePrediction>& mixture, size_t 
                                 std::pair<size_t, size_t>& iastPerformance,
                                 std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
                                 std::span<double> numberOfMolecules, std::span<const double> totalPressure,
-                                std::span<double> equilibriumAdsorption, std::span<double> cachedPressure,
+                                std::span<double> equilibriumPhysisorption, std::span<double> cachedPressure,
                                 std::span<double> cachedGrandPotential, std::span<const double> moleFraction,
                                 std::span<double> gasTemperature);
 

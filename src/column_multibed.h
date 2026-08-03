@@ -119,7 +119,7 @@ struct ColumnMultibed
         particleDensity(this->numberOfGridPoints + 1),
         moleFraction((this->numberOfGridPoints + 1) * this->numberOfComponents),
         partialPressure((this->numberOfGridPoints + 1) * this->numberOfComponents),
-        equilibriumAdsorption((this->numberOfGridPoints + 1) * this->numberOfComponents),
+        equilibriumPhysisorption((this->numberOfGridPoints + 1) * this->numberOfComponents),
         fractionOfAdsorbent((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
         hasAdsorbentOfType((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
         adsorbentScaledVoidFraction((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
@@ -235,7 +235,7 @@ struct ColumnMultibed
   // Size (numberOfGridPoints + 1) * numberOfComponents. Grid-major index: grid * numberOfComponents + comp.
   std::vector<double> moleFraction;          ///< Derived gas-phase mole fraction y_i.
   std::vector<double> partialPressure;        ///< Component partial pressure at each grid node.
-  std::vector<double> equilibriumAdsorption;  ///< Component equilibrium loading at each grid node.
+  std::vector<double> equilibriumPhysisorption;  ///< Component equilibrium loading at each grid node.
 
   // Size (numberOfGridPoints + 1) * numberOfAdsorbents. Grid-major index: ads * numberOfComponents + comp.
   std::vector<double> fractionOfAdsorbent; ///< Fraction of the column that has this adsorbent

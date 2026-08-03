@@ -29,8 +29,7 @@ double Chemisorption::rate(double equilibriumLoading, double loading, double con
     {
       const double c = std::max(0.0, concentration);
       const double q = std::max(0.0, loading);
-      const double qmax = std::max(0.0, maximumLoading);
-      const double freeCapacity = std::max(0.0, qmax - q);
+      const double freeCapacity = std::max(0.0, qeq - q);
       const double ka =
           arrhenius(adsorptionRateCoefficient, adsorptionActivationEnergy, temperature);
       const double kd =
@@ -107,6 +106,11 @@ std::string Chemisorption::repr() const
         "        pore/surface transport: {}\n",
         elovichAlpha, elovichBeta, filmMassTransferCoefficient, poreDiffusivity,
         usePoreSurfaceTransport ? "enabled" : "disabled");
+  }
+  if (isotherm.has_value())
+  {
+    text += "        equilibrium model:\n";
+    text += isotherm->repr();
   }
   return text;
 }

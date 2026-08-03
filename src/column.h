@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "component.h"
+#include "geometry.h"
 #include "inputreader.h"
 #include "mixture_prediction.h"
 #include "utils.h"
@@ -114,7 +115,8 @@ struct Column
    *
    * Allocates grid, component, cache, scratch, and ODE-state arrays.
    */
-  Column(MixturePrediction mixture, std::vector<Component> components, BoundaryCondition boundaryCondition,
+  Column(MixturePrediction physisorptionMixture, std::vector<Component> components,
+         BoundaryCondition boundaryCondition,
          bool energyBalance, size_t numberOfGridPoints, size_t maxIsothermTerms, size_t carrierGasComponent,
          double temperature, double inletPressure, double outletPressure, double pressureGradient,
          double columnVoidFraction, double particleDensity, double columnEntranceVelocity, double columnLength,
@@ -122,10 +124,31 @@ struct Column
          double outerDiameter, double wallDensity, double gasThermalConductivity, double wallThermalConductivity,
          double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
          double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall)
-      : mixture(std::move(mixture)),
+      : Column(std::move(physisorptionMixture), std::move(components), boundaryCondition, energyBalance,
+               numberOfGridPoints, maxIsothermTerms, carrierGasComponent, temperature, inletPressure,
+               outletPressure, pressureGradient, columnVoidFraction, particleDensity, columnEntranceVelocity,
+               columnLength, dynamicViscosity, particleDiameter, influxTemperature, internalDiameter,
+               outerDiameter, wallDensity, gasThermalConductivity, wallThermalConductivity,
+               heatTransferGasSolid, heatTransferGasWall, heatTransferWallExternal, heatCapacityGas,
+               heatCapacitySolid, heatCapacityWall,
+               Geometry{HollowTube{columnVoidFraction, particleDiameter, internalDiameter, outerDiameter}})
+  {
+  }
+
+  Column(MixturePrediction physisorptionMixture, std::vector<Component> components,
+         BoundaryCondition boundaryCondition,
+         bool energyBalance, size_t numberOfGridPoints, size_t maxIsothermTerms, size_t carrierGasComponent,
+         double temperature, double inletPressure, double outletPressure, double pressureGradient,
+         double columnVoidFraction, double particleDensity, double columnEntranceVelocity, double columnLength,
+         double dynamicViscosity, double particleDiameter, double influxTemperature, double internalDiameter,
+         double outerDiameter, double wallDensity, double gasThermalConductivity, double wallThermalConductivity,
+         double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
+         double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall, Geometry geometry)
+      : physisorptionMixture(std::move(physisorptionMixture)),
         components(std::move(components)),
         boundaryCondition(boundaryCondition),
         energyBalance(energyBalance),
+        geometry(std::move(geometry)),
         numberOfGridPoints(numberOfGridPoints),
         numberOfComponents(this->components.size()),
         maxIsothermTerms(maxIsothermTerms),
@@ -167,9 +190,15 @@ struct Column
         totalPressure(this->numberOfGridPoints + 1),
         moleFraction((this->numberOfGridPoints + 1) * this->numberOfComponents),
         partialPressure((this->numberOfGridPoints + 1) * this->numberOfComponents),
-        equilibriumAdsorption((this->numberOfGridPoints + 1) * this->numberOfComponents),
+        equilibriumPhysisorption((this->numberOfGridPoints + 1) * this->numberOfComponents),
+        equilibriumChemisorption(this->maxChemisorptionSites *
+                                 (this->numberOfGridPoints + 1) * this->numberOfComponents),
         cachedPressure((this->numberOfGridPoints + 1) * this->numberOfComponents * this->maxIsothermTerms),
         cachedGrandPotential((this->numberOfGridPoints + 1) * this->maxIsothermTerms),
+        cachedChemisorptionPressure(this->maxChemisorptionSites *
+                                    (this->numberOfGridPoints + 1) * this->numberOfComponents),
+        cachedChemisorptionGrandPotential(this->maxChemisorptionSites *
+                                          (this->numberOfGridPoints + 1)),
         coeffDiffusion(this->numberOfGridPoints + 1),
         facePressures(this->numberOfGridPoints),
         massFlux((this->numberOfGridPoints + 1) * this->numberOfComponents),
@@ -186,6 +215,7 @@ struct Column
                  0.0)
   {
     bindStateViews();
+    chemisorptionMixture = makeChemisorptionMixture(this->physisorptionMixture, this->components);
   }
 
   /**
@@ -203,8 +233,8 @@ struct Column
                inputReader.internalDiameter, inputReader.outerDiameter, inputReader.wallDensity,
                inputReader.gasThermalConductivity, inputReader.wallThermalConductivity,
                inputReader.heatTransferGasSolid, inputReader.heatTransferGasWall,
-               inputReader.heatTransferWallExternal, inputReader.heatCapacityGas, inputReader.heatCapacitySolid,
-               inputReader.heatCapacityWall)
+               inputReader.heatTransferWallExternal, inputReader.heatCapacityGas,
+               inputReader.heatCapacitySolid, inputReader.heatCapacityWall, inputReader.geometry)
   {
   }
   /**
@@ -218,10 +248,12 @@ struct Column
   Column& operator=(const Column& other);
 
   // Model configuration and component data.
-  MixturePrediction mixture;            ///< Mixture-prediction object used for adsorption equilibrium.
+  MixturePrediction physisorptionMixture;  ///< Competitive physisorption equilibrium model.
+  MixturePrediction chemisorptionMixture;  ///< Multisite competitive chemisorption equilibrium model.
   std::vector<Component> components;    ///< Component definitions and isotherm parameters; size numberOfComponents.
   BoundaryCondition boundaryCondition;  ///< Selected breakthrough boundary-condition pair.
   bool energyBalance;                   ///< Enables gas/solid/wall temperature dynamics when true.
+  Geometry geometry;                    ///< Column/tube/monolith geometry and precomputed shape terms.
 
   // Dimensions and counters.
   size_t numberOfGridPoints;   ///< Number of spatial grid intervals; node count is numberOfGridPoints + 1.
@@ -279,13 +311,16 @@ struct Column
   // Size (numberOfGridPoints + 1) * numberOfComponents. Grid-major index: grid * numberOfComponents + comp.
   std::vector<double> moleFraction;          ///< Derived gas-phase mole fraction y_i.
   std::vector<double> partialPressure;        ///< Component partial pressure at each grid node in Pa.
-  std::vector<double> equilibriumAdsorption;  ///< Component equilibrium loading at each grid node in mol/kg.
+  std::vector<double> equilibriumPhysisorption;  ///< Equilibrium physisorbed loading in mol/kg.
+  std::vector<double> equilibriumChemisorption;  ///< Site-major equilibrium chemisorbed loading in mol/kg.
 
   // Mixture-prediction cache arrays.
   // cachedPressure: (numberOfGridPoints + 1) * numberOfComponents * maxIsothermTerms; cachedGrandPotential:
   // (numberOfGridPoints + 1) * maxIsothermTerms.
   std::vector<double> cachedPressure;        ///< Cached hypothetical pressures for mixture prediction.
   std::vector<double> cachedGrandPotential;  ///< Cached reduced grand potentials for mixture prediction.
+  std::vector<double> cachedChemisorptionPressure;  ///< Site-major chemical-phase pressure cache.
+  std::vector<double> cachedChemisorptionGrandPotential;  ///< Site-major chemical-phase spreading-pressure cache.
 
   // Scratch/work arrays.
   // coeffDiffusion is size numberOfGridPoints + 1; facePressures is size numberOfGridPoints; massFlux is grid-major
@@ -334,6 +369,12 @@ struct Column
    * \brief Returns the maximum number of chemisorption sites on any component.
    */
   static size_t maximumChemisorptionSites(const std::vector<Component>& components) noexcept;
+
+  /**
+   * \brief Builds the multisite competitive chemisorption equilibrium model.
+   */
+  static MixturePrediction makeChemisorptionMixture(
+      const MixturePrediction& physisorptionMixture, const std::vector<Component>& components);
 
   /**
    * \brief Returns the centralized state layout for this column.

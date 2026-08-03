@@ -245,134 +245,126 @@ static void readOptionalBool(const nlohmann::json& object, const std::string& ke
 static void requireOnlyKnownKeys(const nlohmann::json& object, std::initializer_list<std::string_view> allowedKeys,
                                  const std::string& context, bool allowIsothermTypes);
 
+static void requireOnlyExactKeys(const nlohmann::json& object,
+                                 std::initializer_list<std::string_view> allowedKeys,
+                                 const std::string& context)
+{
+  for (auto it = object.begin(); it != object.end(); ++it)
+  {
+    const bool known = std::any_of(allowedKeys.begin(), allowedKeys.end(),
+                                   [&](std::string_view key) { return it.key() == key; });
+    if (!known)
+    {
+      throw std::runtime_error("Error: unknown key '" + it.key() + "' (" + context + ")");
+    }
+  }
+}
+
+static void requireExactKeys(const nlohmann::json& object,
+                             std::initializer_list<std::string_view> requiredKeys,
+                             const std::string& context)
+{
+  requireOnlyExactKeys(object, requiredKeys, context);
+  for (const std::string_view key : requiredKeys)
+  {
+    if (!object.contains(std::string{key}))
+    {
+      throw std::runtime_error("Error: required key '" + std::string{key} + "' missing (" + context + ")");
+    }
+  }
+}
+
+static Isotherm readIsothermModel(const nlohmann::json& value, bool nonIsothermal,
+                                  const std::string& context);
+
 static Chemisorption::Type parseChemisorptionType(const std::string& typeString)
 {
   if (caseInSensStringCompare(typeString, "None")) return Chemisorption::Type::None;
   if (caseInSensStringCompare(typeString, "FirstOrder")) return Chemisorption::Type::FirstOrder;
   if (caseInSensStringCompare(typeString, "PseudoNth")) return Chemisorption::Type::PseudoNth;
-  if (caseInSensStringCompare(typeString, "PseudoNthOrder")) return Chemisorption::Type::PseudoNth;
   if (caseInSensStringCompare(typeString, "Avrami")) return Chemisorption::Type::Avrami;
   if (caseInSensStringCompare(typeString, "General")) return Chemisorption::Type::General;
-  if (caseInSensStringCompare(typeString, "GeneralChem")) return Chemisorption::Type::General;
-  if (caseInSensStringCompare(typeString, "GeneralChemisorption")) return Chemisorption::Type::General;
-  if (caseInSensStringCompare(typeString, "General_chem")) return Chemisorption::Type::General;
-  if (caseInSensStringCompare(typeString, "Mechanistic")) return Chemisorption::Type::General;
   if (caseInSensStringCompare(typeString, "Elovich")) return Chemisorption::Type::Elovich;
 
   throw std::runtime_error("Error: invalid Chemisorption Type '" + typeString + "'");
 }
 
-static Chemisorption readChemisorptionSite(const nlohmann::json& value, const std::string& context)
+static Chemisorption readChemisorptionSite(const nlohmann::json& value, bool nonIsothermal,
+                                           const std::string& context)
 {
   if (!value.is_object())
   {
     throw std::runtime_error("Error: Chemisorption site must be an object (" + context + ")");
   }
 
-  requireOnlyKnownKeys(value, {"Type", "Parameters"}, context, false);
+  requireOnlyExactKeys(value, {"Type", "Parameters"}, context);
 
   Chemisorption chemisorption;
-  chemisorption.type =
-      parseChemisorptionType(getStringOrThrow(requireKeyCaseInsensitive(value, "Type", context), "Type", context));
+  chemisorption.type = parseChemisorptionType(
+      getStringOrThrow(requireKeyCaseInsensitive(value, "Type", context), "Type", context));
 
-  const nlohmann::json* params = findKeyCaseInsensitive(value, "Parameters");
-  if (params == nullptr) return chemisorption;
-  if (!params->is_object())
+  const nlohmann::json& params = requireKeyCaseInsensitive(value, "Parameters", context);
+  if (!params.is_object())
   {
     throw std::runtime_error("Error: Chemisorption Parameters must be an object (" + context + ")");
   }
 
-  requireOnlyKnownKeys(*params,
-                       {"RateCoefficient",
-                        "Order",
-                        "MaximumLoading",
-                        "MaximumAdsorption",
-                        "Qmax",
-                        "qmax",
-                        "q_max",
-                        "HeatOfChemisorption",
-                        "HeatOfAdsorption",
-                        "AdsorptionRateCoefficient",
-                        "AdsorptionActivationEnergy",
-                        "DesorptionRateCoefficient",
-                        "DesorptionActivationEnergy",
-                        "PoreConcentrationOrder",
-                        "CapacityOrder",
-                        "DesorptionOrder",
-                        "Alpha",
-                        "Beta",
-                        "FilmMassTransferCoefficient",
-                        "PoreDiffusivity",
-                        "usePoreSurfaceTransport",
-                        "UsePoreSurfaceTransport",
-                        "UseSurfacePoreTransport",
-                        "ka0",
-                        "ka0_chem",
-                        "Ea_ka",
-                        "Ea_ads_chem",
-                        "kd0",
-                        "kd0_chem",
-                        "Ea_kd",
-                        "Ea_des_chem",
-                        "general_m_forward",
-                        "general_n_forward",
-                        "general_n_backward",
-                        "alpha0",
-                        "a_elovich",
-                        "b_elovich",
-                        "KG_FILM",
-                        "Dpore_chem"},
-                       context + " Chemisorption Parameters", false);
+  const std::string parametersContext = context + " Chemisorption Parameters";
+  switch (chemisorption.type)
+  {
+    case Chemisorption::Type::None:
+      throw std::runtime_error("Error: None is not a valid ChemisorptionSites model (" + context + ")");
+    case Chemisorption::Type::FirstOrder:
+      requireExactKeys(params,
+                       {"rateCoefficient", "maximumLoading", "heatOfChemisorption", "Isotherm"},
+                       parametersContext);
+      break;
+    case Chemisorption::Type::PseudoNth:
+    case Chemisorption::Type::Avrami:
+      requireExactKeys(params,
+                       {"rateCoefficient", "order", "maximumLoading", "heatOfChemisorption", "Isotherm"},
+                       parametersContext);
+      break;
+    case Chemisorption::Type::General:
+      requireExactKeys(params,
+                       {"maximumLoading", "heatOfChemisorption", "adsorptionRateCoefficient",
+                        "adsorptionActivationEnergy", "desorptionRateCoefficient",
+                        "desorptionActivationEnergy", "poreConcentrationOrder", "capacityOrder",
+                        "desorptionOrder", "filmMassTransferCoefficient", "poreDiffusivity",
+                        "usePoreSurfaceTransport", "Isotherm"},
+                       parametersContext);
+      break;
+    case Chemisorption::Type::Elovich:
+      requireExactKeys(params,
+                       {"maximumLoading", "heatOfChemisorption", "alpha", "beta",
+                        "filmMassTransferCoefficient", "poreDiffusivity", "usePoreSurfaceTransport",
+                        "Isotherm"},
+                       parametersContext);
+      break;
+  }
 
-  readOptionalNumber<double>(*params, "RateCoefficient", chemisorption.rateCoefficient);
-  readOptionalNonNegativeInteger(*params, "Order", chemisorption.order);
-  readOptionalNumber<double>(*params, "MaximumLoading", chemisorption.maximumLoading);
-  readOptionalNumber<double>(*params, "MaximumAdsorption", chemisorption.maximumLoading);
-  readOptionalNumber<double>(*params, "Qmax", chemisorption.maximumLoading);
-  readOptionalNumber<double>(*params, "qmax", chemisorption.maximumLoading);
-  readOptionalNumber<double>(*params, "q_max", chemisorption.maximumLoading);
-  readOptionalNumber<double>(*params, "HeatOfChemisorption", chemisorption.heatOfChemisorption);
-  readOptionalNumber<double>(*params, "HeatOfAdsorption", chemisorption.heatOfChemisorption);
-  readOptionalNumber<double>(*params, "AdsorptionRateCoefficient", chemisorption.adsorptionRateCoefficient);
-  readOptionalNumber<double>(*params, "ka0", chemisorption.adsorptionRateCoefficient);
-  readOptionalNumber<double>(*params, "ka0_chem", chemisorption.adsorptionRateCoefficient);
-  readOptionalNumber<double>(*params, "AdsorptionActivationEnergy", chemisorption.adsorptionActivationEnergy);
-  readOptionalNumber<double>(*params, "Ea_ka", chemisorption.adsorptionActivationEnergy);
-  readOptionalNumber<double>(*params, "Ea_ads_chem", chemisorption.adsorptionActivationEnergy);
-  readOptionalNumber<double>(*params, "DesorptionRateCoefficient", chemisorption.desorptionRateCoefficient);
-  readOptionalNumber<double>(*params, "kd0", chemisorption.desorptionRateCoefficient);
-  readOptionalNumber<double>(*params, "kd0_chem", chemisorption.desorptionRateCoefficient);
-  readOptionalNumber<double>(*params, "DesorptionActivationEnergy", chemisorption.desorptionActivationEnergy);
-  readOptionalNumber<double>(*params, "Ea_kd", chemisorption.desorptionActivationEnergy);
-  readOptionalNumber<double>(*params, "Ea_des_chem", chemisorption.desorptionActivationEnergy);
-  readOptionalNonNegativeInteger(*params, "PoreConcentrationOrder", chemisorption.poreConcentrationOrder);
-  readOptionalNonNegativeInteger(*params, "general_m_forward", chemisorption.poreConcentrationOrder);
-  readOptionalNonNegativeInteger(*params, "CapacityOrder", chemisorption.capacityOrder);
-  readOptionalNonNegativeInteger(*params, "general_n_forward", chemisorption.capacityOrder);
-  readOptionalNonNegativeInteger(*params, "DesorptionOrder", chemisorption.desorptionOrder);
-  readOptionalNonNegativeInteger(*params, "general_n_backward", chemisorption.desorptionOrder);
-  readOptionalNumber<double>(*params, "Alpha", chemisorption.elovichAlpha);
-  readOptionalNumber<double>(*params, "alpha0", chemisorption.elovichAlpha);
-  readOptionalNumber<double>(*params, "a_elovich", chemisorption.elovichAlpha);
-  readOptionalNumber<double>(*params, "Beta", chemisorption.elovichBeta);
-  readOptionalNumber<double>(*params, "b_elovich", chemisorption.elovichBeta);
-  readOptionalNumber<double>(*params, "FilmMassTransferCoefficient", chemisorption.filmMassTransferCoefficient);
-  readOptionalNumber<double>(*params, "KG_FILM", chemisorption.filmMassTransferCoefficient);
-  readOptionalNumber<double>(*params, "PoreDiffusivity", chemisorption.poreDiffusivity);
-  readOptionalNumber<double>(*params, "Dpore_chem", chemisorption.poreDiffusivity);
-  readOptionalBool(*params, "usePoreSurfaceTransport", chemisorption.usePoreSurfaceTransport);
-  readOptionalBool(*params, "UseSurfacePoreTransport", chemisorption.usePoreSurfaceTransport);
+  readOptionalNumber<double>(params, "rateCoefficient", chemisorption.rateCoefficient);
+  readOptionalNonNegativeInteger(params, "order", chemisorption.order);
+  readOptionalNumber<double>(params, "maximumLoading", chemisorption.maximumLoading);
+  readOptionalNumber<double>(params, "heatOfChemisorption", chemisorption.heatOfChemisorption);
+  readOptionalNumber<double>(params, "adsorptionRateCoefficient", chemisorption.adsorptionRateCoefficient);
+  readOptionalNumber<double>(params, "adsorptionActivationEnergy", chemisorption.adsorptionActivationEnergy);
+  readOptionalNumber<double>(params, "desorptionRateCoefficient", chemisorption.desorptionRateCoefficient);
+  readOptionalNumber<double>(params, "desorptionActivationEnergy", chemisorption.desorptionActivationEnergy);
+  readOptionalNonNegativeInteger(params, "poreConcentrationOrder", chemisorption.poreConcentrationOrder);
+  readOptionalNonNegativeInteger(params, "capacityOrder", chemisorption.capacityOrder);
+  readOptionalNonNegativeInteger(params, "desorptionOrder", chemisorption.desorptionOrder);
+  readOptionalNumber<double>(params, "alpha", chemisorption.elovichAlpha);
+  readOptionalNumber<double>(params, "beta", chemisorption.elovichBeta);
+  readOptionalNumber<double>(params, "filmMassTransferCoefficient", chemisorption.filmMassTransferCoefficient);
+  readOptionalNumber<double>(params, "poreDiffusivity", chemisorption.poreDiffusivity);
+  readOptionalBool(params, "usePoreSurfaceTransport", chemisorption.usePoreSurfaceTransport);
+
+  chemisorption.isotherm = readIsothermModel(
+      requireKeyCaseInsensitive(params, "Isotherm", context), nonIsothermal, context + " Isotherm");
 
   if (chemisorption.type == Chemisorption::Type::General)
   {
-    if (chemisorption.adsorptionRateCoefficient == 0.0 && chemisorption.rateCoefficient != 0.0)
-    {
-      chemisorption.adsorptionRateCoefficient = chemisorption.rateCoefficient;
-    }
-    if (chemisorption.maximumLoading <= 0.0)
-    {
-      throw std::runtime_error("Error: General Chemisorption requires positive MaximumLoading (" + context + ")");
-    }
     if (chemisorption.adsorptionRateCoefficient < 0.0 || chemisorption.desorptionRateCoefficient < 0.0 ||
         chemisorption.filmMassTransferCoefficient < 0.0 || chemisorption.poreDiffusivity < 0.0)
     {
@@ -389,18 +381,21 @@ static Chemisorption readChemisorptionSite(const nlohmann::json& value, const st
                                context + ")");
     }
   }
+  else if (chemisorption.rateCoefficient < 0.0)
+  {
+    throw std::runtime_error("Error: Chemisorption rateCoefficient must be non-negative (" + context + ")");
+  }
+  if (chemisorption.maximumLoading <= 0.0)
+  {
+    throw std::runtime_error("Error: Chemisorption maximumLoading must be positive (" + context + ")");
+  }
   return chemisorption;
 }
 
 static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohmann::json& object,
-                              const std::string& context)
+                              bool nonIsothermal, const std::string& context)
 {
   const nlohmann::json* sites = findKeyCaseInsensitive(object, "ChemisorptionSites");
-  const nlohmann::json* legacySite = findKeyCaseInsensitive(object, "Chemisorption");
-  if (sites != nullptr && legacySite != nullptr)
-  {
-    throw std::runtime_error("Error: use either Chemisorption or ChemisorptionSites, not both (" + context + ")");
-  }
 
   if (sites != nullptr)
   {
@@ -412,13 +407,9 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
     for (size_t site = 0; site < sites->size(); ++site)
     {
       chemisorption.add(
-          readChemisorptionSite((*sites)[site], context + ", ChemisorptionSite " + std::to_string(site)));
+          readChemisorptionSite((*sites)[site], nonIsothermal,
+                                context + ", ChemisorptionSite " + std::to_string(site)));
     }
-  }
-  else if (legacySite != nullptr)
-  {
-    chemisorption = MultiSiteChemisorption{};
-    chemisorption.add(readChemisorptionSite(*legacySite, context + ", Chemisorption"));
   }
 
   if (containsKeyCaseInsensitive(object, "NumberOfChemisorptionSites"))
@@ -594,6 +585,7 @@ static void requireOnlyKnownGeneralSettings(const nlohmann::json& object)
                         "ColumnLoading",
                         "ColumnError",
                         "NumberOfTimeSteps",
+                        "Geometry",
                         "InfluxTemperature",
                         "internalDiameter",
                         "outerDiameter",
@@ -628,14 +620,13 @@ static void requireOnlyKnownComponentSettings(const nlohmann::json& object, cons
                         "AxialDispersionCoefficient",
                         "MolecularWeight",
                         "HeatOfAdsorption",
-                        "NumberOfIsothermSites",
+                        "NumberOfPhysisorptionSites",
                         "referenceTemperature",
                         "nonIsothermal",
-                        "Chemisorption",
                         "NumberOfChemisorptionSites",
                         "ChemisorptionSites",
-                        "IsothermSites"},
-                       context, true);
+                        "PhysisorptionSites"},
+                       context);
 }
 
 static void requireOnlyKnownIsothermSiteSettings(const nlohmann::json& object, const std::string& context)
@@ -668,14 +659,41 @@ static void requireOnlyKnownAdsorbentComponentSettings(const nlohmann::json& obj
                         "MassTransferCoefficient",
                         "AxialDispersionCoefficient",
                         "HeatOfAdsorption",
-                        "NumberOfIsothermSites",
+                        "NumberOfPhysisorptionSites",
                         "referenceTemperature",
                         "nonIsothermal",
-                        "Chemisorption",
                         "NumberOfChemisorptionSites",
                         "ChemisorptionSites",
-                        "IsothermSites"},
-                       context, true);
+                        "PhysisorptionSites"},
+                       context);
+}
+
+static Isotherm readIsothermModel(const nlohmann::json& value, bool nonIsothermal,
+                                  const std::string& context)
+{
+  if (!value.is_object())
+  {
+    throw std::runtime_error("Error: Isotherm must be an object (" + context + ")");
+  }
+  requireOnlyExactKeys(value, {"Type", "Parameters"}, context);
+
+  const std::string typeString =
+      getStringOrThrow(requireKeyCaseInsensitive(value, "Type", context), "Type", context);
+  const IsothermSpec* spec = findIsothermSpec(typeString);
+  if (spec == nullptr)
+  {
+    throw std::runtime_error("Error: unknown isotherm type '" + typeString + "' (" + context + ")");
+  }
+  if (nonIsothermal && !spec->nonIsothermalImplemented)
+  {
+    throw std::logic_error("Error: nonIsothermal not implemented for " + typeString);
+  }
+
+  const nlohmann::json& parameters = requireKeyCaseInsensitive(value, "Parameters", context);
+  std::vector<double> values = requireDoubleParameterCount(
+      getNumberListOrThrow<double>(parameters, typeString, context), spec->parameterCount,
+      typeString, context);
+  return Isotherm(spec->type, values, nonIsothermal);
 }
 
 static void addIsothermSiteFromJson(Component& component, const std::string& typeString, const nlohmann::json& params,
@@ -703,52 +721,41 @@ static void addIsothermSiteFromJson(Component& component, const std::string& typ
   component.isotherm.numberOfSites = component.isotherm.sites.size();
 }
 
-static void readIsothermSites(Component& comp, const nlohmann::json& item, const std::string& context)
+static void readPhysisorptionSites(Component& comp, const nlohmann::json& item,
+                                   const std::string& context)
 {
-  if (containsKeyCaseInsensitive(item, "IsothermSites"))
+  if (!containsKeyCaseInsensitive(item, "PhysisorptionSites")) return;
+
+  const nlohmann::json& sites = requireKeyCaseInsensitive(item, "PhysisorptionSites", context);
+  if (!sites.is_array())
   {
-    const nlohmann::json& sites = requireKeyCaseInsensitive(item, "IsothermSites", context);
-    if (!sites.is_array())
-    {
-      throw std::runtime_error("Error: IsothermSites must be an array (" + context + ")");
-    }
-
-    for (std::size_t siteId = 0; siteId < sites.size(); ++siteId)
-    {
-      const nlohmann::json& site = sites[siteId];
-      std::string siteContext = context + ", IsothermSite " + std::to_string(siteId);
-
-      if (site.is_object() && containsKeyCaseInsensitive(site, "Type") &&
-          containsKeyCaseInsensitive(site, "Parameters"))
-      {
-        requireOnlyKnownIsothermSiteSettings(site, siteContext);
-
-        std::string typeString =
-            getStringOrThrow(requireKeyCaseInsensitive(site, "Type", siteContext), "Type", siteContext);
-        const nlohmann::json& params = requireKeyCaseInsensitive(site, "Parameters", siteContext);
-        addIsothermSiteFromJson(comp, typeString, params, siteContext);
-      }
-      else if (site.is_object() && site.size() == 1)
-      {
-        // Compact format: {"Langmuir": [...]}.
-        auto it = site.begin();
-        addIsothermSiteFromJson(comp, it.key(), it.value(), siteContext);
-      }
-      else
-      {
-        throw std::runtime_error("Error: invalid IsothermSites entry (" + siteContext + ")");
-      }
-    }
+    throw std::runtime_error("Error: PhysisorptionSites must be an array (" + context + ")");
   }
-  else
+
+  for (std::size_t siteId = 0; siteId < sites.size(); ++siteId)
   {
-    // Legacy format: isotherm type names appear directly as component keys.
-    for (auto it = item.begin(); it != item.end(); ++it)
+    const nlohmann::json& site = sites[siteId];
+    std::string siteContext = context + ", PhysisorptionSite " + std::to_string(siteId);
+
+    if (site.is_object() && containsKeyCaseInsensitive(site, "Type") &&
+        containsKeyCaseInsensitive(site, "Parameters"))
     {
-      if (findIsothermSpec(it.key()) != nullptr)
-      {
-        addIsothermSiteFromJson(comp, it.key(), it.value(), context);
-      }
+      requireOnlyKnownIsothermSiteSettings(site, siteContext);
+
+      std::string typeString =
+          getStringOrThrow(requireKeyCaseInsensitive(site, "Type", siteContext), "Type", siteContext);
+      const nlohmann::json& params = requireKeyCaseInsensitive(site, "Parameters", siteContext);
+      addIsothermSiteFromJson(comp, typeString, params, siteContext);
+    }
+    else if (site.is_object() && site.size() == 1)
+    {
+      // Compact format: {"Langmuir": [...]}.
+      auto it = site.begin();
+      addIsothermSiteFromJson(comp, it.key(), it.value(), siteContext);
+    }
+    else
+    {
+      throw std::runtime_error("Error: invalid PhysisorptionSites entry (" + siteContext + ")");
     }
   }
 }
@@ -774,10 +781,9 @@ static Component parseComponentObject(std::size_t componentId, const nlohmann::j
   readOptionalNumber<double>(item, "AxialDispersionCoefficient", comp.axialDispersionCoefficient);
   readOptionalNumber<double>(item, "MolecularWeight", comp.molecularWeight);
   readOptionalNumber<double>(item, "HeatOfAdsorption", comp.heatOfAdsorption);
-  readOptionalNumber<size_t>(item, "NumberOfIsothermSites", comp.isotherm.numberOfSites);
   readOptionalNumber<double>(item, "referenceTemperature", comp.referenceTemperature);
   readOptionalBool(item, "nonIsothermal", comp.nonIsothermal);
-  readChemisorption(comp.chemisorption, item, context);
+  readChemisorption(comp.chemisorption, item, comp.nonIsothermal, context);
 
   if (comp.nonIsothermal)
   {
@@ -785,7 +791,17 @@ static Component parseComponentObject(std::size_t componentId, const nlohmann::j
                                          "Heat of Adsorption should be set for non-isothermal adsorption models.");
   }
 
-  readIsothermSites(comp, item, context);
+  readPhysisorptionSites(comp, item, context);
+  if (containsKeyCaseInsensitive(item, "NumberOfPhysisorptionSites"))
+  {
+    size_t declaredSites = 0;
+    readOptionalNonNegativeInteger(item, "NumberOfPhysisorptionSites", declaredSites);
+    if (declaredSites != comp.isotherm.numberOfSites)
+    {
+      throw std::runtime_error(
+          "Error: NumberOfPhysisorptionSites does not match PhysisorptionSites (" + context + ")");
+    }
+  }
   return comp;
 }
 
@@ -802,22 +818,27 @@ static void applyAdsorbentComponentParameters(Component& comp, const nlohmann::j
   readOptionalNumber<double>(params, "MassTransferCoefficient", comp.massTransferCoefficient);
   readOptionalNumber<double>(params, "AxialDispersionCoefficient", comp.axialDispersionCoefficient);
   readOptionalNumber<double>(params, "HeatOfAdsorption", comp.heatOfAdsorption);
-  readOptionalNumber<size_t>(params, "NumberOfIsothermSites", comp.isotherm.numberOfSites);
   readOptionalNumber<double>(params, "referenceTemperature", comp.referenceTemperature);
   readOptionalBool(params, "nonIsothermal", comp.nonIsothermal);
-  readChemisorption(comp.chemisorption, params, context);
+  readChemisorption(comp.chemisorption, params, comp.nonIsothermal, context);
 
-  bool hasIsothermOverride = containsKeyCaseInsensitive(params, "IsothermSites");
-  for (auto it = params.begin(); it != params.end(); ++it)
-  {
-    hasIsothermOverride = hasIsothermOverride || findIsothermSpec(it.key()) != nullptr;
-  }
+  const bool hasIsothermOverride = containsKeyCaseInsensitive(params, "PhysisorptionSites");
 
   if (hasIsothermOverride)
   {
     comp.isotherm = MultiSiteIsotherm{};
   }
-  readIsothermSites(comp, params, context);
+  readPhysisorptionSites(comp, params, context);
+  if (containsKeyCaseInsensitive(params, "NumberOfPhysisorptionSites"))
+  {
+    size_t declaredSites = 0;
+    readOptionalNonNegativeInteger(params, "NumberOfPhysisorptionSites", declaredSites);
+    if (declaredSites != comp.isotherm.numberOfSites)
+    {
+      throw std::runtime_error(
+          "Error: NumberOfPhysisorptionSites does not match PhysisorptionSites (" + context + ")");
+    }
+  }
 }
 
 static void requireConfigured(bool condition, const std::string& message)
@@ -826,6 +847,180 @@ static void requireConfigured(bool condition, const std::string& message)
   {
     throw std::runtime_error(message);
   }
+}
+
+static const nlohmann::json* findFirstKeyCaseInsensitive(
+    const nlohmann::json& object, std::initializer_list<std::string_view> keys)
+{
+  for (std::string_view key : keys)
+  {
+    const nlohmann::json* value = findKeyCaseInsensitive(object, std::string{key});
+    if (value != nullptr)
+    {
+      return value;
+    }
+  }
+  return nullptr;
+}
+
+static double geometryDoubleOrDefault(const nlohmann::json& object,
+                                      std::initializer_list<std::string_view> keys, double defaultValue)
+{
+  const nlohmann::json* value = findFirstKeyCaseInsensitive(object, keys);
+  return value == nullptr ? defaultValue : getNumberOrThrow<double>(*value, std::string{*keys.begin()}, "Geometry");
+}
+
+static double geometryRequiredDouble(const nlohmann::json& object,
+                                     std::initializer_list<std::string_view> keys)
+{
+  const nlohmann::json* value = findFirstKeyCaseInsensitive(object, keys);
+  if (value == nullptr)
+  {
+    throw std::runtime_error("Error: required Geometry key '" + std::string{*keys.begin()} + "' missing");
+  }
+  return getNumberOrThrow<double>(*value, std::string{*keys.begin()}, "Geometry");
+}
+
+static std::size_t geometryRequiredSize(const nlohmann::json& object,
+                                        std::initializer_list<std::string_view> keys)
+{
+  const nlohmann::json* value = findFirstKeyCaseInsensitive(object, keys);
+  if (value == nullptr)
+  {
+    throw std::runtime_error("Error: required Geometry key '" + std::string{*keys.begin()} + "' missing");
+  }
+
+  try
+  {
+    if (value->is_number_unsigned())
+    {
+      return value->get<std::size_t>();
+    }
+    if (value->is_number_integer())
+    {
+      const std::int64_t integer = value->get<std::int64_t>();
+      if (integer > 0)
+      {
+        return static_cast<std::size_t>(integer);
+      }
+    }
+  }
+  catch (const nlohmann::json::exception&)
+  {
+  }
+
+  throw std::runtime_error("Error: Geometry key '" + std::string{*keys.begin()} +
+                           "' must be a positive integer");
+}
+
+static std::string geometryStringOrDefault(const nlohmann::json& object,
+                                           std::initializer_list<std::string_view> keys,
+                                           const std::string& defaultValue)
+{
+  const nlohmann::json* value = findFirstKeyCaseInsensitive(object, keys);
+  return value == nullptr ? defaultValue : getStringOrThrow(*value, std::string{*keys.begin()}, "Geometry");
+}
+
+static Geometry readGeometry(const nlohmann::json& parsedData, double columnVoidFraction,
+                             double particleDiameter, double internalDiameter, double outerDiameter)
+{
+  const nlohmann::json* geometryJson = findKeyCaseInsensitive(parsedData, "Geometry");
+  if (geometryJson == nullptr)
+  {
+    return Geometry{HollowTube{columnVoidFraction, particleDiameter, internalDiameter, outerDiameter}};
+  }
+  if (!geometryJson->is_object())
+  {
+    throw std::runtime_error("Error: Geometry must be a JSON object");
+  }
+
+  requireOnlyKnownKeys(
+      *geometryJson,
+      {"Type",
+       "GeometryType",
+       "Kind",
+       "ColumnVoidFraction",
+       "VoidFraction",
+       "ParticleDiameter",
+       "InternalDiameter",
+       "internalDiameter",
+       "OuterDiameter",
+       "outerDiameter",
+       "ChannelShape",
+       "MONOLITH_CHANNEL_SHAPE",
+       "channel_shape",
+       "InternalChannelDimension",
+       "ChannelDimension",
+       "ChannelDiameter",
+       "d_int",
+       "dint",
+       "d_out",
+       "dout",
+       "NumberOfChannels",
+       "NChannels",
+       "N_channels",
+       "N_MONOLITH_CHANNELS",
+       "WashcoatThickness",
+       "washcoat_thickness",
+       "t_wc",
+       "WashcoatVolumePerChannelVolume",
+       "WASHCOAT_VOLUME_PER_CHANNEL_VOLUME"},
+      "Geometry");
+
+  const std::string geometryType =
+      geometryStringOrDefault(*geometryJson, {"Type", "GeometryType", "Kind"}, "HollowTube");
+
+  if (caseInSensStringCompare(geometryType, "HollowTube") ||
+      caseInSensStringCompare(geometryType, "PackedBed") ||
+      caseInSensStringCompare(geometryType, "PackedColumn"))
+  {
+    const double eps = geometryDoubleOrDefault(
+        *geometryJson, {"ColumnVoidFraction", "VoidFraction"}, columnVoidFraction);
+    const double dp = geometryDoubleOrDefault(
+        *geometryJson, {"ParticleDiameter"}, particleDiameter);
+    const double di = geometryDoubleOrDefault(
+        *geometryJson, {"InternalDiameter", "internalDiameter"}, internalDiameter);
+    const double douter = geometryDoubleOrDefault(
+        *geometryJson, {"OuterDiameter", "outerDiameter"}, outerDiameter);
+    return Geometry{HollowTube{eps, dp, di, douter}};
+  }
+
+  if (caseInSensStringCompare(geometryType, "Monolith"))
+  {
+    const std::string channelShape =
+        geometryStringOrDefault(*geometryJson, {"ChannelShape", "MONOLITH_CHANNEL_SHAPE", "channel_shape"},
+                                "circular");
+    const double dInt = geometryRequiredDouble(
+        *geometryJson, {"InternalChannelDimension", "ChannelDimension", "ChannelDiameter", "d_int", "dint"});
+    const double dOut = geometryRequiredDouble(
+        *geometryJson, {"OuterDiameter", "outerDiameter", "d_out", "dout"});
+    const std::size_t numberOfChannels = geometryRequiredSize(
+        *geometryJson, {"NumberOfChannels", "NChannels", "N_channels", "N_MONOLITH_CHANNELS"});
+    const double washcoatThickness = geometryDoubleOrDefault(
+        *geometryJson, {"WashcoatThickness", "washcoat_thickness", "t_wc"}, 0.0);
+    const double washcoatVolume = geometryDoubleOrDefault(
+        *geometryJson,
+        {"WashcoatVolumePerChannelVolume", "WASHCOAT_VOLUME_PER_CHANNEL_VOLUME"},
+        -1.0);
+    return Geometry{Monolith{Monolith::parseChannelShape(channelShape), dInt, dOut,
+                             numberOfChannels, washcoatThickness, washcoatVolume}};
+  }
+
+  throw std::runtime_error("Error: Geometry Type must be HollowTube or Monolith");
+}
+
+static void applyGeometryLegacyFields(const Geometry& geometry, double& columnVoidFraction,
+                                      double& particleDiameter, double& internalDiameter,
+                                      double& outerDiameter)
+{
+  const ShapeParameters& shape = geometry.shapeParameters();
+  columnVoidFraction = shape.voidFraction;
+  if (shape.solidCharacteristicLength > 0.0)
+  {
+    particleDiameter = shape.solidCharacteristicLength;
+  }
+  internalDiameter = shape.internalDiameter;
+  outerDiameter = shape.outerDiameter;
 }
 
 InputReader::InputReader(const std::string fileName) : components()
@@ -979,6 +1174,9 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalNumber<double>(parsed_data, "heatCapacitySolid", heatCapacitySolid);
   readOptionalNumber<double>(parsed_data, "heatCapacityWall", heatCapacityWall);
   readOptionalBool(parsed_data, "energyBalance", energyBalance);
+
+  geometry = readGeometry(parsed_data, columnVoidFraction, particleDiameter, internalDiameter, outerDiameter);
+  applyGeometryLegacyFields(geometry, columnVoidFraction, particleDiameter, internalDiameter, outerDiameter);
 
   if (containsKeyCaseInsensitive(parsed_data, "swingTemperatures"))
   {
@@ -1360,6 +1558,31 @@ InputReader::InputReader(const std::string fileName) : components()
         }
       }
     }
+  }
+
+  bool hasChemisorption = false;
+  for (const std::vector<Component>& componentsForAdsorbent : adsorbentComponents)
+  {
+    for (const Component& component : componentsForAdsorbent)
+    {
+      hasChemisorption = hasChemisorption || component.chemisorption.numberOfSites > 0;
+      if (mixturePredictionMethod == 3)
+      {
+        for (const Chemisorption& site : component.chemisorption.sites)
+        {
+          if (site.isotherm.has_value() && site.isotherm->type != Isotherm::Type::Langmuir)
+          {
+            throw std::runtime_error(
+                "Error: SEI chemisorption mixture prediction requires Langmuir isotherms");
+          }
+        }
+      }
+    }
+  }
+  if (hasChemisorption && mixturePredictionMethod == 2)
+  {
+    throw std::runtime_error(
+        "Error: chemisorption mixture prediction supports IAST, SIAST, or SEI; EI is not supported");
   }
 
   maxIsothermTerms = 0;

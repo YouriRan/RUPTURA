@@ -16,6 +16,8 @@
  */
 struct MixturePrediction
 {
+  MixturePrediction() = default;
+
   /**
    * \brief Enum class for prediction methods.
    *
@@ -130,6 +132,8 @@ struct MixturePrediction
   size_t maxIsothermTerms;                  ///< The maximum number of isotherm terms.
   std::vector<std::vector<Component>>
       segregatedSortedComponents;  ///< Segregated and sorted components for SIAST/SEI methods.
+  std::vector<size_t> segregatedNumberOfSortedComponents;  ///< Active component count for each segregated site.
+  std::vector<double> equilibriumSiteLoadings;  ///< Site-major component loadings from the latest prediction.
 
   std::vector<double> firstExplicitIsothermAlpha;    ///< Intermediate calculation vector for explicit isotherms.
   std::vector<double> secondExplicitIsothermAlpha;   ///< Intermediate calculation vector for explicit isotherms.
