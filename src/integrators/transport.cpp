@@ -12,14 +12,14 @@ void computeChemisorptionTransportDerivatives(Column& column)
 {
   computeChemisorptionTransportDerivatives(
       column.components, column.numberOfGridPoints, column.numberOfComponents, column.maxChemisorptionSites,
-      column.voidFraction, column.particleDensity, column.particleDiameter, column.concentration,
+      column.geometry.shapeParameters(), column.particleDensity, column.concentration,
       column.chemisorptionDot, column.surfaceConcentration, column.surfaceConcentrationDot,
       column.poreConcentration, column.poreConcentrationDot);
 }
 
 void computeChemisorptionTransportDerivatives(
     const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, double voidFraction, double particleDensity, double particleDiameter,
+    size_t maxChemisorptionSites, const ShapeParameters& geometry, double particleDensity,
     std::span<const double> concentration, std::span<const double> chemisorptionDot,
     std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
     std::span<const double> poreConcentration, std::span<double> poreConcentrationDot)
@@ -38,8 +38,8 @@ void computeChemisorptionTransportDerivatives(
   mdspan3d_mut spanPoreConcentrationDot(poreConcentrationDot.data(), maxChemisorptionSites,
                                         numberOfGridPoints + 1, numberOfComponents);
 
-  const double particleArea = 6.0 / std::max(particleDiameter, 1.0e-30);
-  const double radius = 0.5 * std::max(particleDiameter, 1.0e-30);
+  const double solidContactArea = geometry.solidFluidContactAreaPerSolidVolume;
+  const double poreDiffusionLength = std::max(geometry.poreDiffusionLength, 1.0e-30);
 
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
@@ -51,13 +51,13 @@ void computeChemisorptionTransportDerivatives(
 
       const double kFilm = std::max(0.0, kinetics.filmMassTransferCoefficient);
       const double poreLdf =
-          15.0 * std::max(0.0, kinetics.poreDiffusivity) / std::max(radius * radius, 1.0e-30);
-      const double epsp = std::clamp(voidFraction, 1.0e-12, 1.0 - 1.0e-12);
-      const double gamma = particleDensity * (1.0 - epsp) / epsp;
+          15.0 * std::max(0.0, kinetics.poreDiffusivity) /
+          std::max(poreDiffusionLength * poreDiffusionLength, 1.0e-30);
+      const double gamma = geometry.loadingPrefactor(particleDensity);
 
       for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
       {
-        const double film = particleArea * kFilm *
+        const double film = solidContactArea * kFilm *
                             (spanConcentration[grid, comp] - spanSurfaceConcentration[site, grid, comp]);
         const double poreDiffusion =
             poreLdf * (spanSurfaceConcentration[site, grid, comp] - spanPoreConcentration[site, grid, comp]);
@@ -69,18 +69,31 @@ void computeChemisorptionTransportDerivatives(
   }
 }
 
+void computeChemisorptionTransportDerivatives(
+    const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
+    size_t maxChemisorptionSites, double voidFraction, double particleDensity, double particleDiameter,
+    std::span<const double> concentration, std::span<const double> chemisorptionDot,
+    std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
+    std::span<const double> poreConcentration, std::span<double> poreConcentrationDot)
+{
+  const Geometry geometry{HollowTube{voidFraction, particleDiameter}};
+  computeChemisorptionTransportDerivatives(components, numberOfGridPoints, numberOfComponents,
+                                           maxChemisorptionSites, geometry.shapeParameters(), particleDensity,
+                                           concentration, chemisorptionDot, surfaceConcentration,
+                                           surfaceConcentrationDot, poreConcentration, poreConcentrationDot);
+}
+
 void computeBulkSpeciesSink(Column& column)
 {
   computeBulkSpeciesSink(column.components, column.numberOfGridPoints, column.numberOfComponents,
-                         column.maxChemisorptionSites, column.voidFraction, column.particleDensity,
-                         column.particleDiameter,
+                         column.maxChemisorptionSites, column.geometry.shapeParameters(), column.particleDensity,
                          column.concentration, column.physisorptionDot, column.chemisorptionDot,
                          column.surfaceConcentration, column.bulkSpeciesSink);
 }
 
 void computeBulkSpeciesSink(const std::vector<Component>& components, size_t numberOfGridPoints,
                             size_t numberOfComponents, size_t maxChemisorptionSites,
-                            double voidFraction, double particleDensity, double particleDiameter,
+                            const ShapeParameters& geometry, double particleDensity,
                             std::span<const double> concentration,
                             std::span<const double> physisorptionDot,
                             std::span<const double> chemisorptionDot,
@@ -95,9 +108,8 @@ void computeBulkSpeciesSink(const std::vector<Component>& components, size_t num
                                       numberOfGridPoints + 1, numberOfComponents);
   mdspan2d_mut spanBulkSpeciesSink(bulkSpeciesSink.data(), numberOfGridPoints + 1, numberOfComponents);
 
-  const double loadingPrefactor = particleDensity * (1.0 - voidFraction) / voidFraction;
-  const double filmPrefactor =
-      ((1.0 - voidFraction) / voidFraction) * 6.0 / std::max(particleDiameter, 1.0e-30);
+  const double loadingPrefactor = geometry.loadingPrefactor(particleDensity);
+  const double filmPrefactor = geometry.fluidSolidContactAreaPerFluidVolume;
 
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
@@ -123,4 +135,19 @@ void computeBulkSpeciesSink(const std::vector<Component>& components, size_t num
       spanBulkSpeciesSink[grid, comp] = sink;
     }
   }
+}
+
+void computeBulkSpeciesSink(const std::vector<Component>& components, size_t numberOfGridPoints,
+                            size_t numberOfComponents, size_t maxChemisorptionSites,
+                            double voidFraction, double particleDensity, double particleDiameter,
+                            std::span<const double> concentration,
+                            std::span<const double> physisorptionDot,
+                            std::span<const double> chemisorptionDot,
+                            std::span<const double> surfaceConcentration,
+                            std::span<double> bulkSpeciesSink)
+{
+  const Geometry geometry{HollowTube{voidFraction, particleDiameter}};
+  computeBulkSpeciesSink(components, numberOfGridPoints, numberOfComponents, maxChemisorptionSites,
+                         geometry.shapeParameters(), particleDensity, concentration, physisorptionDot,
+                         chemisorptionDot, surfaceConcentration, bulkSpeciesSink);
 }

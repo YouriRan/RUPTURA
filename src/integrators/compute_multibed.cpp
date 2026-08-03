@@ -264,7 +264,7 @@ void computeEquilibriumLoadings(ColumnMultibed& column)
                              column.numberOfAdsorbents, column.fractionOfAdsorbent, column.hasAdsorbentOfType,
                              column.maxIsothermTerms, column.iastPerformance, column.idealGasMolFractions,
                              column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
-                             column.equilibriumAdsorption, column.cachedPressure, column.cachedGrandPotential,
+                             column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
                              column.moleFraction, column.gasTemperature);
 }
 
@@ -275,7 +275,7 @@ void computeEquilibriumLoadings(std::vector<MixturePrediction>& mixture, size_t 
                                 std::pair<size_t, size_t>& iastPerformance,
                                 std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
                                 std::span<double> numberOfMolecules, std::span<const double> totalPressure,
-                                std::span<double> equilibriumAdsorption, std::span<double> cachedPressure,
+                                std::span<double> equilibriumPhysisorption, std::span<double> cachedPressure,
                                 std::span<double> cachedGrandPotential, std::span<const double> moleFraction,
                                 std::span<double> gasTemperature)
 {
@@ -306,7 +306,7 @@ void computeEquilibriumLoadings(std::vector<MixturePrediction>& mixture, size_t 
 
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
-      equilibriumAdsorption[grid * numberOfComponents + comp] = 0.0;
+      equilibriumPhysisorption[grid * numberOfComponents + comp] = 0.0;
     }
 
     for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
@@ -326,7 +326,7 @@ void computeEquilibriumLoadings(std::vector<MixturePrediction>& mixture, size_t 
 
       for (size_t comp = 0; comp < numberOfComponents; ++comp)
       {
-        equilibriumAdsorption[grid * numberOfComponents + comp] +=
+        equilibriumPhysisorption[grid * numberOfComponents + comp] +=
             fractionOfAdsorbent[grid * numberOfAdsorbents + ads] * numberOfMolecules[comp];
       }
     }

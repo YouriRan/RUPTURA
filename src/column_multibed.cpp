@@ -145,7 +145,7 @@ ColumnMultibed::ColumnMultibed(const ColumnMultibed& other)
       particleDensity(other.particleDensity),
       moleFraction(other.moleFraction),
       partialPressure(other.partialPressure),
-      equilibriumAdsorption(other.equilibriumAdsorption),
+      equilibriumPhysisorption(other.equilibriumPhysisorption),
       fractionOfAdsorbent(other.fractionOfAdsorbent),
       hasAdsorbentOfType(other.hasAdsorbentOfType),
       adsorbentScaledVoidFraction(other.adsorbentScaledVoidFraction),
@@ -215,7 +215,7 @@ ColumnMultibed& ColumnMultibed::operator=(const ColumnMultibed& other)
   particleDensity = other.particleDensity;
   moleFraction = other.moleFraction;
   partialPressure = other.partialPressure;
-  equilibriumAdsorption = other.equilibriumAdsorption;
+  equilibriumPhysisorption = other.equilibriumPhysisorption;
   fractionOfAdsorbent = other.fractionOfAdsorbent;
   hasAdsorbentOfType = other.hasAdsorbentOfType;
   adsorbentScaledVoidFraction = other.adsorbentScaledVoidFraction;
@@ -449,7 +449,7 @@ void ColumnMultibed::initialize()
 
     for (size_t j = 0; j < numberOfComponents; ++j)
     {
-      equilibriumAdsorption[i * numberOfComponents + j] = 0.0;
+      equilibriumPhysisorption[i * numberOfComponents + j] = 0.0;
     }
 
     for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
@@ -466,7 +466,7 @@ void ColumnMultibed::initialize()
 
       for (size_t j = 0; j < numberOfComponents; ++j)
       {
-        equilibriumAdsorption[i * numberOfComponents + j] +=
+        equilibriumPhysisorption[i * numberOfComponents + j] +=
             fractionOfAdsorbent[i * numberOfAdsorbents + ads] * numberOfMolecules[j];
       }
     }
@@ -566,7 +566,7 @@ void ColumnMultibed::writeOutput(std::vector<std::ofstream>& componentStreams, s
 
       std::print(componentStreams[comp], "{} {} {} {} {} {} {} {} {} {}\n", time * timeNormalizationFactor, time / 60.0,
                  columnDistances[grid], concentration[index], concentrationDot[index],
-                 physisorption[index], physisorptionDot[index], partialPressure[index], equilibriumAdsorption[index],
+                 physisorption[index], physisorptionDot[index], partialPressure[index], equilibriumPhysisorption[index],
                  normalizedPressure);
     }
     std::print(componentStreams[comp], "\n\n");
@@ -625,7 +625,7 @@ void ColumnMultibed::writeJSON(const std::string& filename) const
   j["physisorption"] = toVector(physisorption);
   j["physisorptionDot"] = toVector(physisorptionDot);
   j["partialPressure"] = partialPressure;
-  j["equilibriumAdsorption"] = equilibriumAdsorption;
+  j["equilibriumPhysisorption"] = equilibriumPhysisorption;
   j["moleFraction"] = moleFraction;
   j["fractionOfAdsorbent"] = fractionOfAdsorbent;
   j["adsorbentScaledVoidFraction"] = adsorbentScaledVoidFraction;
@@ -714,7 +714,7 @@ void ColumnMultibed::readJSON(const std::string& filename)
   loadSpanChecked("physisorptionDot", physisorptionDot);
 
   loadVectorChecked("partialPressure", partialPressure);
-  loadVectorChecked("equilibriumAdsorption", equilibriumAdsorption);
+  loadVectorChecked("equilibriumPhysisorption", equilibriumPhysisorption);
   loadVectorChecked("moleFraction", moleFraction);
   loadVectorChecked("fractionOfAdsorbent", fractionOfAdsorbent);
   loadVectorChecked("adsorbentScaledVoidFraction", adsorbentScaledVoidFraction);

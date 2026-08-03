@@ -78,7 +78,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     size_t comp = i % numberOfComponents;
     double kl = column.components[comp].massTransferCoefficient;
     newColumn.physisorption[i] =
-        (column.physisorption[i] + timeStep * kl * column.equilibriumAdsorption[i]) * implicitInvKLs[comp];
+        (column.physisorption[i] + timeStep * kl * column.equilibriumPhysisorption[i]) * implicitInvKLs[comp];
   }
 
   if (newColumn.energyBalance)
@@ -115,7 +115,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double kl = column.components[comp].massTransferCoefficient;
     newColumn.physisorption[i] =
         0.75 * column.physisorption[i] +
-        0.25 * (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumAdsorption[i]) * implicitInvKLs[comp];
+        0.25 * (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumPhysisorption[i]) * implicitInvKLs[comp];
   }
 
   if (newColumn.energyBalance)
@@ -152,7 +152,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double kl = column.components[comp].massTransferCoefficient;
     newColumn.physisorption[i] = (1.0 / 3.0) * column.physisorption[i] +
                               (2.0 / 3.0) *
-                                  (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumAdsorption[i]) *
+                                  (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumPhysisorption[i]) *
                                   implicitInvKLs[comp];
   }
 
@@ -190,7 +190,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double kl = column.components[comp].massTransferCoefficient;
 
     newColumn.physisorption[i] =
-        (newColumn.physisorption[i] + timeStep * timeStep * kl * kl * newColumn.equilibriumAdsorption[i]) /
+        (newColumn.physisorption[i] + timeStep * timeStep * kl * kl * newColumn.equilibriumPhysisorption[i]) /
         (1.0 + timeStep * timeStep * kl * kl);
   }
 
@@ -231,7 +231,7 @@ void computeConcentrationUpdateMatrix(Column& column, double timeStep, std::vect
   double idx2 = idx * idx;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double adsorptionPrefactor = ((1.0 - column.voidFraction) / column.voidFraction) * column.particleDensity;
+  const double adsorptionPrefactor = column.geometry.shapeParameters().loadingPrefactor(column.particleDensity);
 
   int n = static_cast<int>(numberOfGridPoints + 1);
   int nrhs = 1;
@@ -286,7 +286,7 @@ void computeConcentrationUpdateMatrixEnergyBalance(Column& column, double timeSt
   double idx2 = idx * idx;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double adsorptionPrefactor = ((1.0 - column.voidFraction) / column.voidFraction) * column.particleDensity;
+  const double adsorptionPrefactor = column.geometry.shapeParameters().loadingPrefactor(column.particleDensity);
 
   int n = static_cast<int>(numberOfGridPoints + 1);
   int nrhs = 1;
@@ -361,7 +361,7 @@ void computeConcentrationUpdateMatrixFinal(Column& column, double timeStep, std:
   double dt2 = timeStep * timeStep;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double adsorptionPrefactor = ((1.0 - column.voidFraction) / column.voidFraction) * column.particleDensity;
+  const double adsorptionPrefactor = column.geometry.shapeParameters().loadingPrefactor(column.particleDensity);
 
   std::vector<double> upper(numberOfGridPoints);
   std::vector<double> lower(numberOfGridPoints);
@@ -462,7 +462,7 @@ void computeConcentrationUpdateMatrixEnergyBalanceFinal(Column& column, double t
   double dt2 = timeStep * timeStep;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double adsorptionPrefactor = ((1.0 - column.voidFraction) / column.voidFraction) * column.particleDensity;
+  const double adsorptionPrefactor = column.geometry.shapeParameters().loadingPrefactor(column.particleDensity);
 
   std::vector<double> upper(numberOfGridPoints);
   std::vector<double> lower(numberOfGridPoints);

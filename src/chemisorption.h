@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstddef>
+#include <optional>
 #include <string>
+
+#include "isotherm.h"
 
 struct Chemisorption
 {
@@ -32,6 +35,7 @@ struct Chemisorption
   double filmMassTransferCoefficient{0.0};
   double poreDiffusivity{0.0};
   bool usePoreSurfaceTransport{false};
+  std::optional<Isotherm> isotherm{std::nullopt};
 
   [[nodiscard]] double rate(double equilibriumLoading, double loading, double concentration = 0.0,
                             double temperature = 298.15) const;

@@ -55,6 +55,57 @@ size_t Column::maximumChemisorptionSites(const std::vector<Component>& component
   return maximum;
 }
 
+MixturePrediction Column::makeChemisorptionMixture(
+    const MixturePrediction& physisorptionMixture, const std::vector<Component>& components)
+{
+  std::vector<Component> chemicalComponents = components;
+  size_t numberOfCarrierGases = 0;
+  size_t carrierGasComponent = 0;
+  bool foundCarrierGas = false;
+
+  for (size_t comp = 0; comp < components.size(); ++comp)
+  {
+    Component& chemicalComponent = chemicalComponents[comp];
+    chemicalComponent.isotherm = MultiSiteIsotherm{};
+
+    if (!components[comp].isCarrierGas)
+    {
+      for (const Chemisorption& kinetics : components[comp].chemisorption.sites)
+      {
+        if (kinetics.isotherm.has_value())
+        {
+          chemicalComponent.isotherm.add(*kinetics.isotherm);
+        }
+      }
+    }
+    chemicalComponent.isotherm.numberOfSites = chemicalComponent.isotherm.sites.size();
+
+    chemicalComponent.isCarrierGas = chemicalComponent.isotherm.numberOfSites == 0;
+    if (chemicalComponent.isCarrierGas)
+    {
+      ++numberOfCarrierGases;
+      if (!foundCarrierGas)
+      {
+        carrierGasComponent = comp;
+        foundCarrierGas = true;
+      }
+    }
+    else
+    {
+      chemicalComponent.heatOfAdsorption = components[comp].chemisorption.sites.front().heatOfChemisorption;
+    }
+  }
+
+  return MixturePrediction(
+      physisorptionMixture.displayName + " chemisorption", std::move(chemicalComponents),
+      numberOfCarrierGases, carrierGasComponent, physisorptionMixture.temperature,
+      physisorptionMixture.pressureStart, physisorptionMixture.pressureEnd,
+      physisorptionMixture.numberOfPressurePoints,
+      static_cast<size_t>(physisorptionMixture.pressureScale),
+      static_cast<size_t>(physisorptionMixture.predictionMethod),
+      static_cast<size_t>(physisorptionMixture.iastMethod));
+}
+
 ColumnStateLayout Column::stateLayout() const noexcept
 {
   return ColumnStateLayout{numberOfGridPoints, numberOfComponents, maxChemisorptionSites,
@@ -87,10 +138,12 @@ void Column::bindStateViews() noexcept
 }
 
 Column::Column(const Column& other)
-    : mixture(other.mixture),
+    : physisorptionMixture(other.physisorptionMixture),
+      chemisorptionMixture(other.chemisorptionMixture),
       components(other.components),
       boundaryCondition(other.boundaryCondition),
       energyBalance(other.energyBalance),
+      geometry(other.geometry),
       numberOfGridPoints(other.numberOfGridPoints),
       numberOfComponents(other.numberOfComponents),
       maxIsothermTerms(other.maxIsothermTerms),
@@ -133,9 +186,12 @@ Column::Column(const Column& other)
       totalPressure(other.totalPressure),
       moleFraction(other.moleFraction),
       partialPressure(other.partialPressure),
-      equilibriumAdsorption(other.equilibriumAdsorption),
+      equilibriumPhysisorption(other.equilibriumPhysisorption),
+      equilibriumChemisorption(other.equilibriumChemisorption),
       cachedPressure(other.cachedPressure),
       cachedGrandPotential(other.cachedGrandPotential),
+      cachedChemisorptionPressure(other.cachedChemisorptionPressure),
+      cachedChemisorptionGrandPotential(other.cachedChemisorptionGrandPotential),
       coeffDiffusion(other.coeffDiffusion),
       facePressures(other.facePressures),
       massFlux(other.massFlux),
@@ -150,10 +206,12 @@ Column& Column::operator=(const Column& other)
 {
   if (this == &other) return *this;
 
-  mixture = other.mixture;
+  physisorptionMixture = other.physisorptionMixture;
+  chemisorptionMixture = other.chemisorptionMixture;
   components = other.components;
   boundaryCondition = other.boundaryCondition;
   energyBalance = other.energyBalance;
+  geometry = other.geometry;
   numberOfGridPoints = other.numberOfGridPoints;
   numberOfComponents = other.numberOfComponents;
   maxIsothermTerms = other.maxIsothermTerms;
@@ -196,9 +254,12 @@ Column& Column::operator=(const Column& other)
   totalPressure = other.totalPressure;
   moleFraction = other.moleFraction;
   partialPressure = other.partialPressure;
-  equilibriumAdsorption = other.equilibriumAdsorption;
+  equilibriumPhysisorption = other.equilibriumPhysisorption;
+  equilibriumChemisorption = other.equilibriumChemisorption;
   cachedPressure = other.cachedPressure;
   cachedGrandPotential = other.cachedGrandPotential;
+  cachedChemisorptionPressure = other.cachedChemisorptionPressure;
+  cachedChemisorptionGrandPotential = other.cachedChemisorptionGrandPotential;
   coeffDiffusion = other.coeffDiffusion;
   facePressures = other.facePressures;
   massFlux = other.massFlux;
@@ -215,7 +276,7 @@ void Column::initialize()
   for (size_t j = 0; j < numberOfComponents; ++j)
   {
     prefactorMassTransfer[j] =
-        ((1.0 - voidFraction) / voidFraction) * particleDensity * components[j].massTransferCoefficient;
+        geometry.shapeParameters().loadingPrefactor(particleDensity) * components[j].massTransferCoefficient;
   }
 
   std::fill(partialPressure.begin(), partialPressure.end(), 0.0);
@@ -370,40 +431,7 @@ void Column::initialize()
   std::fill(wallTemperature.begin(), wallTemperature.end(), influxTemperature);
 
   updateVelocityAndPressure(*this);
-
-  for (size_t i = 0; i < numberOfGridPoints + 1; ++i)
-  {
-    double sum = 0.0;
-    for (size_t j = 0; j < numberOfComponents; ++j)
-    {
-      idealGasMolFractions[j] = std::max(partialPressure[i * numberOfComponents + j] / totalPressure[i], 0.0);
-      sum += idealGasMolFractions[j];
-    }
-
-    if (sum <= 0.0)
-    {
-      throw std::runtime_error("Error: initialized gas mol-fraction sum must be positive");
-    }
-
-    for (size_t j = 0; j < numberOfComponents; ++j)
-    {
-      idealGasMolFractions[j] /= sum;
-    }
-
-    iastPerformance +=
-        mixture.predictMixture(idealGasMolFractions, totalPressure[i], adsorbedMolFractions, numberOfMolecules,
-                               std::span<double>(cachedPressure).subspan(
-                                   i * numberOfComponents * maxIsothermTerms,
-                                   numberOfComponents * maxIsothermTerms),
-                               std::span<double>(cachedGrandPotential).subspan(i * maxIsothermTerms,
-                                                                                maxIsothermTerms),
-                               gasTemperature[i]);
-
-    for (size_t j = 0; j < numberOfComponents; ++j)
-    {
-      equilibriumAdsorption[i * numberOfComponents + j] = numberOfMolecules[j];
-    }
-  }
+  computeEquilibriumLoadings(*this);
 }
 
 void Column::setTemperature(double temperature)
@@ -435,9 +463,10 @@ void Column::writeOutputHeader(std::vector<std::ofstream>& componentStreams, std
     std::print(componentStreams[i], "# column 9: Chemisorption, q_chem_i [mol/kg]\n");
     std::print(componentStreams[i], "# column 10: Chemisorption time derivative, dq_chem_i/dt [mol/kg/s]\n");
     std::print(componentStreams[i], "# column 11: Partial pressure, p_i [Pa]\n");
-    std::print(componentStreams[i], "# column 12: Equilibrium adsorption, q_i^* [mol/kg]\n");
+    std::print(componentStreams[i], "# column 12: Equilibrium physisorption, q_phy_i^* [mol/kg]\n");
     std::print(componentStreams[i], "# column 13: Normalized partial pressure, p_i / (p_t y_i,0) [-]\n");
-    size_t outputColumn = 14;
+    std::print(componentStreams[i], "# column 14: Equilibrium chemisorption, q_chem_i^* [mol/kg]\n");
+    size_t outputColumn = 15;
     for (size_t site = 0; site < components[i].chemisorption.numberOfSites; ++site)
     {
       if (!components[i].chemisorption.sites[site].usesSurfacePoreTransport()) continue;
@@ -520,11 +549,15 @@ void Column::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofst
         normalizedPressure = partialPressure[index] / (totalPressure[grid] * components[comp].initialGasMoleFraction);
       }
 
-      std::print(componentStreams[comp], "{} {} {} {} {} {} {} {} {} {} {} {} {}",
+      const double totalEquilibriumChemisorption =
+          sumChemisorptionSites(equilibriumChemisorption, componentBlockSize,
+                                numberOfChemisorptionSites, index);
+
+      std::print(componentStreams[comp], "{} {} {} {} {} {} {} {} {} {} {} {} {} {}",
                  time * timeNormalizationFactor, time / 60.0, static_cast<double>(grid) * resolution,
                  concentration[index], concentrationDot[index], moleFraction[index], physisorption[index],
                  physisorptionDot[index], totalChemisorption, totalChemisorptionDot, partialPressure[index],
-                 equilibriumAdsorption[index], normalizedPressure);
+                 equilibriumPhysisorption[index], normalizedPressure, totalEquilibriumChemisorption);
       for (size_t site = 0; site < numberOfChemisorptionSites; ++site)
       {
         if (!components[comp].chemisorption.sites[site].usesSurfacePoreTransport()) continue;
@@ -597,11 +630,14 @@ void Column::writeJSON(const std::string& filename) const
     j["poreConcentrationDot"] = toVector(poreConcentrationDot);
   }
   j["partialPressure"] = partialPressure;
-  j["equilibriumAdsorption"] = equilibriumAdsorption;
+  j["equilibriumPhysisorption"] = equilibriumPhysisorption;
+  j["equilibriumChemisorption"] = equilibriumChemisorption;
   j["moleFraction"] = toVector(moleFraction);
 
   j["cachedPressure"] = cachedPressure;
   j["cachedGrandPotential"] = cachedGrandPotential;
+  j["cachedChemisorptionPressure"] = cachedChemisorptionPressure;
+  j["cachedChemisorptionGrandPotential"] = cachedChemisorptionGrandPotential;
 
   std::print(out, "{}\n", j.dump(4));
 }
@@ -696,9 +732,12 @@ void Column::readJSON(const std::string& filename)
   loadSpanChecked("poreConcentrationDot", poreConcentrationDot);
 
   loadVectorChecked("partialPressure", partialPressure);
-  loadVectorChecked("equilibriumAdsorption", equilibriumAdsorption);
+  loadVectorChecked("equilibriumPhysisorption", equilibriumPhysisorption);
+  loadVectorChecked("equilibriumChemisorption", equilibriumChemisorption);
   loadSpanChecked("moleFraction", moleFraction);
 
   loadVectorChecked("cachedPressure", cachedPressure);
   loadVectorChecked("cachedGrandPotential", cachedGrandPotential);
+  loadVectorChecked("cachedChemisorptionPressure", cachedChemisorptionPressure);
+  loadVectorChecked("cachedChemisorptionGrandPotential", cachedChemisorptionGrandPotential);
 }

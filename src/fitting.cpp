@@ -215,8 +215,8 @@ void Fitting::writeComponentsJson(const std::string& path) const
     {
       componentJson["MassTransferCoefficient"] = component.massTransferCoefficient;
       componentJson["AxialDispersionCoefficient"] = component.axialDispersionCoefficient;
-      componentJson["NumberOfIsothermSites"] = isotherm.numberOfSites;
-      componentJson["IsothermSites"] = ordered_json::array();
+      componentJson["NumberOfPhysisorptionSites"] = isotherm.numberOfSites;
+      componentJson["PhysisorptionSites"] = ordered_json::array();
 
       for (size_t siteIndex = 0; siteIndex < isotherm.numberOfSites; ++siteIndex)
       {
@@ -231,7 +231,7 @@ void Fitting::writeComponentsJson(const std::string& path) const
           siteJson["Parameters"].push_back(site.parameters[parameterIndex]);
         }
 
-        componentJson["IsothermSites"].push_back(siteJson);
+        componentJson["PhysisorptionSites"].push_back(siteJson);
       }
     }
 

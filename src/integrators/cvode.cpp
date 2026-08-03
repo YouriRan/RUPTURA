@@ -211,29 +211,37 @@ int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector
   {
     computeBulkSpeciesSink(
         column->components, column->numberOfGridPoints, column->numberOfComponents,
-        column->maxChemisorptionSites, column->voidFraction, column->particleDensity,
-        column->particleDiameter, spanConcentration, spanPhysisorptionDot, spanChemisorptionDot,
+        column->maxChemisorptionSites, column->geometry.shapeParameters(), column->particleDensity,
+        spanConcentration, spanPhysisorptionDot, spanChemisorptionDot,
         spanSurfaceConcentration, column->bulkSpeciesSink);
 
     updateVelocityAndPressure(
         column->components, column->boundaryCondition, column->numberOfGridPoints, column->numberOfComponents,
         column->inletPressure, column->outletPressure, column->pressureGradient, column->columnLength,
-        column->voidFraction, column->particleDensity, column->columnEntranceVelocity, column->dynamicViscosity,
-        column->particleDiameter, column->resolution,
+        column->geometry, column->columnEntranceVelocity, column->dynamicViscosity, column->resolution,
         column->interstitialGasVelocity, column->gasDensity, column->totalConcentration, column->totalPressure,
         spanConcentration, column->partialPressure, column->moleFraction, column->bulkSpeciesSink,
         spanGasTemperature);
 
-    computeEquilibriumLoadings(column->mixture, column->numberOfGridPoints, column->numberOfComponents,
+    computeEquilibriumLoadings(column->physisorptionMixture, column->numberOfGridPoints,
+                               column->numberOfComponents,
                                column->maxIsothermTerms, column->iastPerformance, column->idealGasMolFractions,
                                column->adsorbedMolFractions, column->numberOfMolecules, column->totalPressure,
-                               column->equilibriumAdsorption, column->cachedPressure, column->cachedGrandPotential,
+                               column->equilibriumPhysisorption, column->cachedPressure, column->cachedGrandPotential,
                                column->moleFraction, spanGasTemperature);
+
+    computeChemisorptionEquilibriumLoadings(
+        column->chemisorptionMixture, column->numberOfGridPoints, column->numberOfComponents,
+        column->maxChemisorptionSites, column->iastPerformance, column->idealGasMolFractions,
+        column->adsorbedMolFractions, column->numberOfMolecules, column->totalPressure,
+        column->equilibriumChemisorption, column->cachedChemisorptionPressure,
+        column->cachedChemisorptionGrandPotential, column->moleFraction, spanGasTemperature);
 
     computeSorptionDerivatives(
         column->components, column->numberOfGridPoints, column->numberOfComponents,
-        column->maxChemisorptionSites, column->externalTemperature, column->voidFraction,
-        column->particleDensity, column->particleDiameter, column->equilibriumAdsorption, spanConcentration,
+        column->maxChemisorptionSites, column->externalTemperature, column->geometry.shapeParameters(),
+        column->particleDensity, column->equilibriumPhysisorption,
+        column->equilibriumChemisorption, spanConcentration,
         spanPhysisorption, spanPhysisorptionDot, spanChemisorption, spanChemisorptionDot,
         spanSurfaceConcentration, spanSurfaceConcentrationDot, spanPoreConcentration,
         spanPoreConcentrationDot, spanSolidTemperature, column->bulkSpeciesSink);
@@ -247,9 +255,8 @@ int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector
   {
     computeEnergyDerivatives(
         column->components, column->numberOfGridPoints, column->numberOfComponents,
-        column->maxChemisorptionSites, column->externalTemperature, column->voidFraction,
-        column->particleDensity, column->particleDiameter, column->internalDiameter, column->outerDiameter,
-        column->wallDensity, column->gasThermalConductivity, column->wallThermalConductivity,
+        column->maxChemisorptionSites, column->externalTemperature, column->geometry.shapeParameters(),
+        column->particleDensity, column->wallDensity, column->gasThermalConductivity, column->wallThermalConductivity,
         column->heatTransferGasSolid, column->heatTransferGasWall, column->heatTransferWallExternal,
         column->heatCapacityGas, column->heatCapacitySolid, column->heatCapacityWall, column->resolution,
         column->interstitialGasVelocity, column->gasDensity, column->coeffDiffusion, spanPhysisorptionDot,
