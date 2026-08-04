@@ -1,9 +1,37 @@
 #pragma once
 
 #include "column.h"
-#include "compute.h"
 #include "timing.h"
-#include "sorption.h"
+
+struct ColumnMultibed;
+
+namespace RK3Helpers
+{
+void updateVelocityAndPressure(Column& column);
+void computeEquilibriumLoadings(Column& column);
+void computeDerivatives(Column& column);
+void computeSorptionDerivatives(Column& column);
+void computePhysisorption(Column& column);
+void computeChemisorption(Column& column);
+void computeChemisorptionTransportDerivatives(Column& column);
+void computeBulkSpeciesSink(Column& column);
+void computeReactionDerivatives(Column& column);
+void computeMassDerivatives(Column& column);
+void computeEnergyDerivatives(Column& column);
+bool reactionAutoStopReached(const Column& column, double timeStep) noexcept;
+}  // namespace RK3Helpers
+
+namespace RK3MultibedHelpers
+{
+void updateVelocityAndPressure(ColumnMultibed& column);
+void computeEquilibriumLoadings(ColumnMultibed& column);
+void computeDerivatives(ColumnMultibed& column);
+void computeSorptionDerivatives(ColumnMultibed& column);
+void computePhysisorption(ColumnMultibed& column);
+void computeBulkSpeciesSink(ColumnMultibed& column);
+void computeMassDerivatives(ColumnMultibed& column);
+void computeEnergyDerivatives(ColumnMultibed& column);
+}  // namespace RK3MultibedHelpers
 
 /**
  * \brief Third-order strong-stability-preserving Runge-Kutta integrator.
@@ -34,4 +62,9 @@ struct RungeKutta3
    * \brief Advances the column by one RK3 step.
    */
   bool propagate(Column& column, size_t step, Timing& timings);
+
+  /**
+   * \brief Advances a multibed column by one RK3 step.
+   */
+  bool propagate(ColumnMultibed& column, size_t step, Timing& timings);
 };

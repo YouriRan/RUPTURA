@@ -1,25 +1,22 @@
+#include "compute_multibed.h"
+
 #include <algorithm>
 #include <mdspan>
 
-#include "compute_multibed.h"
 #include "utils.h"
 
 using mdspan2d_const = std::mdspan<const double, std::dextents<size_t, 2>>;
 using mdspan2d_mut = std::mdspan<double, std::dextents<size_t, 2>>;
 
-void updateVelocityAndPressure(const std::vector<Component>& components,
-                               const ColumnMultibed::BoundaryCondition& boundaryCondition, size_t numberOfGridPoints,
-                               size_t numberOfComponents, double inletPressure, double outletPressure,
-                               double pressureGradient, double columnLength, size_t numberOfAdsorbents,
-                               std::span<const double> particleDensities, double& columnEntranceVelocity,
-                               double dynamicViscosity, std::span<const double> columnDistances,
-                               std::span<const double> fractionOfAdsorbent,
-                               std::span<const double> adsorbentScaledVoidFraction,
-                               std::span<double> interstitialGasVelocity, std::span<double> gasDensity,
-                               std::span<double> totalConcentration, std::span<double> totalPressure,
-                               std::span<const double> concentration, std::span<double> partialPressure,
-                               std::span<double> moleFraction, std::span<const double> physisorptionDot,
-                               std::span<const double> gasTemperature)
+void updateVelocityAndPressure(
+    const std::vector<Component>& components, const ColumnMultibed::BoundaryCondition& boundaryCondition,
+    size_t numberOfGridPoints, size_t numberOfComponents, double inletPressure, double outletPressure,
+    double pressureGradient, double columnLength, size_t numberOfAdsorbents, double& columnEntranceVelocity,
+    double dynamicViscosity, std::span<const double> columnDistances, std::span<const double> fractionOfAdsorbent,
+    std::span<const double> adsorbentScaledVoidFraction, std::span<double> interstitialGasVelocity,
+    std::span<double> gasDensity, std::span<double> totalConcentration, std::span<double> totalPressure,
+    std::span<const double> concentration, std::span<double> partialPressure, std::span<double> moleFraction,
+    std::span<const double> bulkSpeciesSink, std::span<const double> gasTemperature)
 {
   auto refreshNode = [&](size_t grid)
   {
@@ -58,16 +55,8 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
   {
     const auto begin = static_cast<std::ptrdiff_t>(grid * numberOfComponents);
     const auto end = static_cast<std::ptrdiff_t>((grid + 1) * numberOfComponents);
-    double adsorbentSinkPrefactor = 0.0;
-    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
-    {
-      adsorbentSinkPrefactor += fractionOfAdsorbent[grid * numberOfAdsorbents + ads] *
-                                adsorbentScaledVoidFraction[grid * numberOfAdsorbents + ads] *
-                                particleDensities[ads];
-    }
-
-    return gridSpacing(columnDistances, grid) * adsorbentSinkPrefactor *
-           std::reduce(physisorptionDot.begin() + begin, physisorptionDot.begin() + end);
+    return gridSpacing(columnDistances, grid) *
+           std::reduce(bulkSpeciesSink.begin() + begin, bulkSpeciesSink.begin() + end);
   };
 
   auto gridRatio = [&](size_t grid) -> double
@@ -143,11 +132,11 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
 
     for (size_t grid = 1; grid < numberOfGridPoints + 1; grid++)
     {
+      totalPressure[grid] = totalPressure[grid - 1] - ergunGrad(grid - 1) * gridSpacing(columnDistances, grid);
+      refreshNode(grid);
       interstitialGasVelocity[grid] =
           (interstitialGasVelocity[grid - 1] * totalConcentration[grid - 1] - sinkTerm(grid)) /
           std::max(1e-10, totalConcentration[grid]);
-      totalPressure[grid] = totalPressure[grid - 1] - ergunGrad(grid - 1) * gridSpacing(columnDistances, grid);
-      refreshNode(grid);
     }
   }
   else if (boundaryCondition == ColumnMultibed::BoundaryCondition::InletPressureOutletPressure)
@@ -193,7 +182,8 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
     for (size_t grid = numberOfGridPoints; grid > 0; --grid)
     {
       const size_t current = grid - 1;
-      totalPressure[current] = totalPressure[current + 1] + ergunGrad(current) * gridSpacing(columnDistances, current + 1);
+      totalPressure[current] =
+          totalPressure[current + 1] + ergunGrad(current) * gridSpacing(columnDistances, current + 1);
       refreshNode(current);
     }
   }
@@ -218,7 +208,8 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
       for (size_t grid = numberOfGridPoints; grid > 0; --grid)
       {
         const size_t current = grid - 1;
-        totalPressure[current] = totalPressure[current + 1] + ergunGrad(current) * gridSpacing(columnDistances, current + 1);
+        totalPressure[current] =
+            totalPressure[current + 1] + ergunGrad(current) * gridSpacing(columnDistances, current + 1);
         refreshNode(current);
       }
     }
@@ -246,38 +237,13 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
   }
 }
 
-void updateVelocityAndPressure(ColumnMultibed& column)
-{
-  updateVelocityAndPressure(column.components, column.boundaryCondition, column.numberOfGridPoints,
-                            column.numberOfComponents, column.inletPressure, column.outletPressure,
-                            column.pressureGradient, column.columnLength, column.numberOfAdsorbents,
-                            column.particleDensities, column.columnEntranceVelocity, column.dynamicViscosity,
-                            column.columnDistances, column.fractionOfAdsorbent, column.adsorbentScaledVoidFraction,
-                            column.interstitialGasVelocity,
-                            column.gasDensity, column.totalConcentration, column.totalPressure, column.concentration,
-                            column.partialPressure, column.moleFraction, column.physisorptionDot, column.gasTemperature);
-}
-
-void computeEquilibriumLoadings(ColumnMultibed& column)
-{
-  computeEquilibriumLoadings(column.mixture, column.numberOfGridPoints, column.numberOfComponents,
-                             column.numberOfAdsorbents, column.fractionOfAdsorbent, column.hasAdsorbentOfType,
-                             column.maxIsothermTerms, column.iastPerformance, column.idealGasMolFractions,
-                             column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
-                             column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
-                             column.moleFraction, column.gasTemperature);
-}
-
-void computeEquilibriumLoadings(std::vector<MixturePrediction>& mixture, size_t numberOfGridPoints,
-                                size_t numberOfComponents, size_t numberOfAdsorbents,
-                                std::span<const double> fractionOfAdsorbent,
-                                const std::vector<bool>& hasAdsorbentOfType, size_t maxIsothermTerms,
-                                std::pair<size_t, size_t>& iastPerformance,
-                                std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
-                                std::span<double> numberOfMolecules, std::span<const double> totalPressure,
-                                std::span<double> equilibriumPhysisorption, std::span<double> cachedPressure,
-                                std::span<double> cachedGrandPotential, std::span<const double> moleFraction,
-                                std::span<double> gasTemperature)
+void computePhysisorptionEquilibriumLoadings(
+    std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
+    size_t numberOfAdsorbents, std::span<const double> fractionOfAdsorbent, const std::vector<bool>& hasAdsorbentOfType,
+    size_t maxIsothermTerms, std::pair<size_t, size_t>& iastPerformance, std::span<double> idealGasMolFractions,
+    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, std::span<const double> totalPressure,
+    std::span<double> equilibriumPhysisorption, std::span<double> cachedPressure,
+    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> gasTemperature)
 {
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
@@ -319,10 +285,9 @@ void computeEquilibriumLoadings(std::vector<MixturePrediction>& mixture, size_t 
                                  numberOfComponents * maxIsothermTerms);
       std::span<double> spanCachedGrandPotential =
           cachedGrandPotential.subspan((grid * numberOfAdsorbents + ads) * maxIsothermTerms, maxIsothermTerms);
-      iastPerformance +=
-          mixture[ads].predictMixture(idealGasMolFractions, totalPressure[grid], adsorbedMolFractions,
-                                      numberOfMolecules, spanCachedPressure, spanCachedGrandPotential,
-                                      gasTemperature[grid]);
+      iastPerformance += physisorptionMixtures[ads].predictMixture(
+          idealGasMolFractions, totalPressure[grid], adsorbedMolFractions, numberOfMolecules, spanCachedPressure,
+          spanCachedGrandPotential, gasTemperature[grid]);
 
       for (size_t comp = 0; comp < numberOfComponents; ++comp)
       {
@@ -333,47 +298,79 @@ void computeEquilibriumLoadings(std::vector<MixturePrediction>& mixture, size_t 
   }
 }
 
-void computeDerivatives(ColumnMultibed& column)
+void computePhysisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
+                          size_t numberOfComponents, size_t numberOfAdsorbents,
+                          std::span<const double> fractionOfAdsorbent, std::span<const double> equilibriumPhysisorption,
+                          std::span<const double> physisorption, std::span<double> physisorptionDot)
 {
-  computeMassDerivatives(column);
-  if (column.energyBalance)
+  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
-    computeEnergyDerivatives(column);
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      double massTransferCoefficient = 0.0;
+      for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+      {
+        massTransferCoefficient += fractionOfAdsorbent[grid * numberOfAdsorbents + ads] *
+                                   physisorptionMixtures[ads].components[comp].massTransferCoefficient;
+      }
+
+      const size_t index = grid * numberOfComponents + comp;
+      physisorptionDot[index] = massTransferCoefficient * (equilibriumPhysisorption[index] - physisorption[index]);
+    }
   }
 }
 
-void computeMassDerivatives(ColumnMultibed& column)
+void computeBulkSpeciesSink(size_t numberOfGridPoints, size_t numberOfComponents, size_t numberOfAdsorbents,
+                            std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
+                            std::span<const double> fractionOfAdsorbent, std::span<const double> totalVoidFraction,
+                            std::span<const double> physisorptionDot, std::span<double> bulkSpeciesSink)
 {
-  computeMassDerivatives(column.components, column.numberOfGridPoints, column.numberOfComponents,
-                         column.columnDistances, column.totalVoidFraction, column.particleDensity,
-                         column.interstitialGasVelocity,
-                         column.concentration, column.concentrationDot, column.physisorptionDot);
+  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+  {
+    double solidLoadingDensity = 0.0;
+    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+    {
+      const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
+      solidLoadingDensity += fraction * (1.0 - adsorbentVoidFractions[ads]) * particleDensities[ads];
+    }
+
+    const double loadingPrefactor = solidLoadingDensity / std::max(1e-10, totalVoidFraction[grid]);
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      const size_t index = grid * numberOfComponents + comp;
+      bulkSpeciesSink[index] = loadingPrefactor * physisorptionDot[index];
+    }
+  }
 }
 
-void computeMassDerivatives(const std::vector<Component>& components, size_t numberOfGridPoints,
-                            size_t numberOfComponents,
-                            std::span<const double> columnDistances,
-                            std::span<const double> totalVoidFraction,
-                            std::span<const double> particleDensity,
-                            std::span<const double> interstitialGasVelocity,
-                            std::span<const double> concentration, std::span<double> concentrationDot,
-                            std::span<const double> physisorptionDot)
+void computeMassDerivatives(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
+                            size_t numberOfComponents, size_t numberOfAdsorbents,
+                            std::span<const double> columnDistances, std::span<const double> fractionOfAdsorbent,
+                            std::span<const double> interstitialGasVelocity, std::span<const double> concentration,
+                            std::span<double> concentrationDot, std::span<const double> bulkSpeciesSink)
 {
   mdspan2d_const spanConcentration(concentration.data(), numberOfGridPoints + 1, numberOfComponents);
   mdspan2d_mut spanConcentrationDot(concentrationDot.data(), numberOfGridPoints + 1, numberOfComponents);
-  mdspan2d_const spanAdsorptionDot(physisorptionDot.data(), numberOfGridPoints + 1, numberOfComponents);
+  mdspan2d_const spanBulkSpeciesSink(bulkSpeciesSink.data(), numberOfGridPoints + 1, numberOfComponents);
 
-  auto physisorptionPrefactor = [&](size_t grid)
+  auto axialDispersion = [&](size_t grid, size_t comp)
   {
-    return particleDensity[grid] * (1.0 - totalVoidFraction[grid]) / std::max(1e-10, totalVoidFraction[grid]);
+    double coefficient = 0.0;
+    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+    {
+      coefficient += fractionOfAdsorbent[grid * numberOfAdsorbents + ads] *
+                     physisorptionMixtures[ads].components[comp].axialDispersionCoefficient;
+    }
+    return coefficient;
   };
 
   auto secondDerivative = [&](size_t grid, size_t comp)
   {
     const double hm = gridSpacing(columnDistances, grid);
     const double hp = gridSpacing(columnDistances, grid + 1);
-    return 2.0 * (hm * spanConcentration[grid + 1, comp] - (hm + hp) * spanConcentration[grid, comp] +
-                  hp * spanConcentration[grid - 1, comp]) /
+    return 2.0 *
+           (hm * spanConcentration[grid + 1, comp] - (hm + hp) * spanConcentration[grid, comp] +
+            hp * spanConcentration[grid - 1, comp]) /
            std::max(1e-30, hm * hp * (hm + hp));
   };
 
@@ -384,63 +381,45 @@ void computeMassDerivatives(const std::vector<Component>& components, size_t num
 
   for (size_t grid = 1; grid < numberOfGridPoints; ++grid)
   {
+    const double hm = gridSpacing(columnDistances, grid);
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
-      const double hm = gridSpacing(columnDistances, grid);
       const double dvcDz = (interstitialGasVelocity[grid] * spanConcentration[grid, comp] -
-                           interstitialGasVelocity[grid - 1] * spanConcentration[grid - 1, comp]) /
+                            interstitialGasVelocity[grid - 1] * spanConcentration[grid - 1, comp]) /
                            std::max(1e-30, hm);
-
       spanConcentrationDot[grid, comp] =
-          -dvcDz + components[comp].axialDispersionCoefficient * secondDerivative(grid, comp) -
-          physisorptionPrefactor(grid) * spanAdsorptionDot[grid, comp];
+          -dvcDz + axialDispersion(grid, comp) * secondDerivative(grid, comp) - spanBulkSpeciesSink[grid, comp];
     }
   }
 
+  const size_t outlet = numberOfGridPoints;
+  const double hm = gridSpacing(columnDistances, outlet);
+  const double invHm = 1.0 / std::max(1e-30, hm);
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
-    const double hm = gridSpacing(columnDistances, numberOfGridPoints);
-    const double invHm = 1.0 / std::max(1e-30, hm);
-    const double dvcDz = (interstitialGasVelocity[numberOfGridPoints] *
-                              spanConcentration[numberOfGridPoints, comp] -
-                          interstitialGasVelocity[numberOfGridPoints - 1] *
-                              spanConcentration[numberOfGridPoints - 1, comp]) *
+    const double dvcDz = (interstitialGasVelocity[outlet] * spanConcentration[outlet, comp] -
+                          interstitialGasVelocity[outlet - 1] * spanConcentration[outlet - 1, comp]) *
                          invHm;
-    const double d2cDz2 =
-        (spanConcentration[numberOfGridPoints - 1, comp] - spanConcentration[numberOfGridPoints, comp]) * invHm * invHm;
-
-    spanConcentrationDot[numberOfGridPoints, comp] =
-        -dvcDz + components[comp].axialDispersionCoefficient * d2cDz2 -
-        physisorptionPrefactor(numberOfGridPoints) * spanAdsorptionDot[numberOfGridPoints, comp];
+    const double d2cDz2 = (spanConcentration[outlet - 1, comp] - spanConcentration[outlet, comp]) * invHm * invHm;
+    spanConcentrationDot[outlet, comp] =
+        -dvcDz + axialDispersion(outlet, comp) * d2cDz2 - spanBulkSpeciesSink[outlet, comp];
   }
 }
 
-void computeEnergyDerivatives(ColumnMultibed& column)
-{
-  computeEnergyDerivatives(
-      column.components, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
-      column.externalTemperature, column.totalVoidFraction, column.particleDensities, column.particleDiameters,
-      column.fractionOfAdsorbent, column.internalDiameter, column.outerDiameter, column.wallDensity,
-      column.gasThermalConductivity, column.wallThermalConductivity, column.heatTransferGasSolid,
-      column.heatTransferGasWall, column.heatTransferWallExternal, column.heatCapacityGas, column.heatCapacitySolid,
-      column.heatCapacityWall, column.columnDistances, column.interstitialGasVelocity, column.gasDensity,
-      column.coeffDiffusion, column.physisorptionDot, column.gasTemperature, column.gasTemperatureDot,
-      column.solidTemperature, column.solidTemperatureDot, column.wallTemperature, column.wallTemperatureDot);
-}
-
-void computeEnergyDerivatives(
-    const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t numberOfAdsorbents, double externalTemperature, std::span<const double> totalVoidFraction,
-    std::span<const double> particleDensities, std::span<const double> particleDiameters,
-    std::span<const double> fractionOfAdsorbent, double internalDiameter, double outerDiameter, double wallDensity,
-    double gasThermalConductivity, double wallThermalConductivity, double heatTransferGasSolid,
-    double heatTransferGasWall, double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid,
-    double heatCapacityWall, std::span<const double> columnDistances, std::span<const double> interstitialGasVelocity,
-    std::span<const double> gasDensity, std::span<double> coeffDiffusion,
-    std::span<const double> physisorptionDot, std::span<const double> gasTemperature,
-    std::span<double> gasTemperatureDot, std::span<const double> solidTemperature,
-    std::span<double> solidTemperatureDot, std::span<const double> wallTemperature,
-    std::span<double> wallTemperatureDot)
+void computeEnergyDerivatives(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
+                              size_t numberOfComponents, size_t numberOfAdsorbents, double externalTemperature,
+                              std::span<const double> totalVoidFraction, std::span<const double> particleDensities,
+                              std::span<const double> particleDiameters, std::span<const double> fractionOfAdsorbent,
+                              double internalDiameter, double outerDiameter, double wallDensity,
+                              double gasThermalConductivity, double wallThermalConductivity,
+                              double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
+                              double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
+                              std::span<const double> columnDistances, std::span<const double> interstitialGasVelocity,
+                              std::span<const double> gasDensity, std::span<double> coeffDiffusion,
+                              std::span<const double> physisorptionDot, std::span<const double> gasTemperature,
+                              std::span<double> gasTemperatureDot, std::span<const double> solidTemperature,
+                              std::span<double> solidTemperatureDot, std::span<const double> wallTemperature,
+                              std::span<double> wallTemperatureDot)
 {
   mdspan2d_const spanAdsorptionDot(physisorptionDot.data(), numberOfGridPoints + 1, numberOfComponents);
   auto idx = [&](size_t grid) { return 1.0 / std::max(1e-30, gridSpacing(columnDistances, grid)); };
@@ -481,8 +460,7 @@ void computeEnergyDerivatives(
 
   auto coeffSolidGasAt = [&](size_t grid)
   {
-    return accessibleSurface(grid) * heatTransferGasSolid /
-           (heatCapacitySolid * std::max(1e-10, solidDensity(grid)));
+    return accessibleSurface(grid) * heatTransferGasSolid / (heatCapacitySolid * std::max(1e-10, solidDensity(grid)));
   };
 
   // prefactor 4 in python, 2 in eqs
@@ -510,14 +488,23 @@ void computeEnergyDerivatives(
   };
 
   auto solidHeatExchange = [&](size_t grid)
-  {
-    return coeffSolidGasAt(grid) * (gasTemperature[grid] - solidTemperature[grid]);
-  };
+  { return coeffSolidGasAt(grid) * (gasTemperature[grid] - solidTemperature[grid]); };
 
   auto wallHeatExchange = [&](size_t grid)
   {
     return coeffWallGas * (gasTemperature[grid] - wallTemperature[grid]) +
            coeffWallExternal * (externalTemperature - wallTemperature[grid]);
+  };
+
+  auto heatOfAdsorption = [&](size_t grid, size_t comp)
+  {
+    double value = 0.0;
+    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+    {
+      value += fractionOfAdsorbent[grid * numberOfAdsorbents + ads] *
+               physisorptionMixtures[ads].components[comp].heatOfAdsorption;
+    }
+    return value;
   };
 
   gasTemperatureDot[0] = 0.0;
@@ -526,7 +513,7 @@ void computeEnergyDerivatives(
 
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
-    solidTemperatureDot[0] += components[comp].heatOfAdsorption * spanAdsorptionDot[0, comp] / heatCapacitySolid;
+    solidTemperatureDot[0] += heatOfAdsorption(0, comp) * spanAdsorptionDot[0, comp] / heatCapacitySolid;
   }
 
   for (size_t grid = 1; grid < numberOfGridPoints; ++grid)
@@ -539,13 +526,11 @@ void computeEnergyDerivatives(
         interstitialGasVelocity[grid] * (gasTemperature[grid] - gasTemperature[grid - 1]) * idx(grid);
     gasTemperatureDot[grid] += coeffDiffusion[grid] * d2Temperature(gasTemperature, grid);
 
-    wallTemperatureDot[grid] +=
-        (wallThermalConductivity * invHeatDensityWall) * d2Temperature(wallTemperature, grid);
+    wallTemperatureDot[grid] += (wallThermalConductivity * invHeatDensityWall) * d2Temperature(wallTemperature, grid);
 
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
-      solidTemperatureDot[grid] +=
-          components[comp].heatOfAdsorption * spanAdsorptionDot[grid, comp] / heatCapacitySolid;
+      solidTemperatureDot[grid] += heatOfAdsorption(grid, comp) * spanAdsorptionDot[grid, comp] / heatCapacitySolid;
     }
   }
 
@@ -568,55 +553,8 @@ void computeEnergyDerivatives(
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
     solidTemperatureDot[numberOfGridPoints] +=
-        components[comp].heatOfAdsorption * spanAdsorptionDot[numberOfGridPoints, comp] / heatCapacitySolid;
+        heatOfAdsorption(numberOfGridPoints, comp) * spanAdsorptionDot[numberOfGridPoints, comp] / heatCapacitySolid;
   }
-}
-
-void computeWENO(std::span<const double> input, std::span<double> output)
-{
-  double tol = 1e-10;
-  double df0, df1, alpha_0, alpha_1, beta_0, beta_1, first_term, second_term;
-
-  size_t size = input.size();
-  if (size < 3)
-  {
-    throw std::runtime_error("Unable to call WENO with numberOfGridPoints smaller than 3.");
-  }
-
-  // inlet boundary flux: prescribed from Dirichlet inflow state
-  output[0] = input[0];
-
-  // first interior interface, special one-sided closure
-  df0 = input[2] - input[1];
-  df1 = input[1] - input[0];
-  beta_0 = df0 * df0;
-  beta_1 = df1 * df1;
-
-  alpha_0 = (2.0 / 3.0) / ((beta_0 + tol) * (beta_0 + tol));
-  alpha_1 = (1.0 / 3.0) / (16.0 * (beta_1 + tol) * (beta_1 + tol));
-
-  first_term = 0.5 * (alpha_0 / (alpha_0 + alpha_1)) * (input[2] + input[1]);
-  second_term = (alpha_1 / (alpha_0 + alpha_1)) * (2.0 * input[1] - input[0]);
-  output[1] = first_term + second_term;
-
-  // interior interfaces
-  for (size_t i = 2; i < size - 1; ++i)
-  {
-    df0 = input[i + 1] - input[i];
-    df1 = input[i] - input[i - 1];
-    beta_0 = df0 * df0;
-    beta_1 = df1 * df1;
-
-    alpha_0 = (2.0 / 3.0) / ((beta_0 + tol) * (beta_0 + tol));
-    alpha_1 = (1.0 / 3.0) / ((beta_1 + tol) * (beta_1 + tol));
-
-    first_term = 0.5 * (alpha_0 / (alpha_0 + alpha_1)) * (input[i + 1] + input[i]);
-    second_term = (alpha_1 / (alpha_0 + alpha_1)) * ((3.0 / 2.0) * input[i] - (1.0 / 2.0) * input[i - 1]);
-    output[i] = first_term + second_term;
-  }
-
-  // outlet boundary flux: outflow closure
-  output[size - 1] = input[size - 1];  // simplest option
 }
 
 // void computeTVD(std::span<double> input, std::span<double> output, bool clamp)

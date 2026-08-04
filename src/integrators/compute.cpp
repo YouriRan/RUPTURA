@@ -1,13 +1,340 @@
 #include "compute.h"
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
 #include <mdspan>
+#include <stdexcept>
+#include <vector>
 
 #include "transport.h"
 #include "utils.h"
 
 using mdspan2d_const = std::mdspan<const double, std::dextents<size_t, 2>>;
 using mdspan2d_mut = std::mdspan<double, std::dextents<size_t, 2>>;
+using mdspan3d_const = std::mdspan<const double, std::dextents<size_t, 3>>;
+using mdspan3d_mut = std::mdspan<double, std::dextents<size_t, 3>>;
+
+namespace
+{
+constexpr double unboundedLoading = std::numeric_limits<double>::max();
+
+bool isUnbounded(double value) noexcept
+{
+  return value >= 0.5 * unboundedLoading;
+}
+
+double finiteNonNegative(double value) noexcept
+{
+  if (!std::isfinite(value)) return 0.0;
+  return std::max(0.0, value);
+}
+
+double isothermMaximumLoading(const Isotherm& isotherm) noexcept
+{
+  if (isotherm.parameters.empty()) return unboundedLoading;
+
+  switch (isotherm.type)
+  {
+    case Isotherm::Type::Langmuir:
+    case Isotherm::Type::Sips:
+    case Isotherm::Type::Langmuir_Freundlich:
+    case Isotherm::Type::Toth:
+    case Isotherm::Type::Unilan:
+    case Isotherm::Type::OBrien_Myers:
+    case Isotherm::Type::Quadratic:
+    case Isotherm::Type::Temkin:
+    case Isotherm::Type::BingelWalton:
+    {
+      const double maximum = finiteNonNegative(isotherm.parameters.front());
+      return maximum > 0.0 ? maximum : unboundedLoading;
+    }
+    case Isotherm::Type::Anti_Langmuir:
+    case Isotherm::Type::BET:
+    case Isotherm::Type::Henry:
+    case Isotherm::Type::Freundlich:
+    case Isotherm::Type::Redlich_Peterson:
+      return unboundedLoading;
+  }
+  return unboundedLoading;
+}
+
+double physisorptionMaximumLoading(const Component& component) noexcept
+{
+  double maximumLoading = 0.0;
+  bool hasBoundedSite = false;
+  for (const Isotherm& site : component.isotherm.sites)
+  {
+    const double siteMaximum = isothermMaximumLoading(site);
+    if (isUnbounded(siteMaximum)) return unboundedLoading;
+    maximumLoading += siteMaximum;
+    hasBoundedSite = true;
+  }
+  return hasBoundedSite && maximumLoading > 0.0 ? maximumLoading : unboundedLoading;
+}
+
+double chemisorptionMaximumLoading(const Component& component, size_t site) noexcept
+{
+  if (site >= component.chemisorption.numberOfSites) return unboundedLoading;
+
+  const Chemisorption& kinetics = component.chemisorption.sites[site];
+  if (std::isfinite(kinetics.maximumLoading) && kinetics.maximumLoading > 0.0)
+  {
+    return kinetics.maximumLoading;
+  }
+  if (kinetics.isotherm.has_value())
+  {
+    return isothermMaximumLoading(*kinetics.isotherm);
+  }
+  return unboundedLoading;
+}
+
+void limitByInventory(double& limit, double amount, double stoichiometry, double limitTime) noexcept
+{
+  if (stoichiometry <= 0.0) return;
+
+  amount = finiteNonNegative(amount);
+  if (amount <= 0.0)
+  {
+    limit = 0.0;
+    return;
+  }
+  if (limitTime > 0.0)
+  {
+    limit = std::min(limit, amount / (stoichiometry * limitTime));
+  }
+}
+
+void limitByCapacity(double& limit, double maximumLoading, double loading, double stoichiometry,
+                     double limitTime) noexcept
+{
+  if (stoichiometry <= 0.0 || isUnbounded(maximumLoading)) return;
+  limitByInventory(limit, maximumLoading - loading, stoichiometry, limitTime);
+}
+
+double limitedAdsorbedRate(const Reaction& reaction, std::span<const double> activity,
+                           std::span<const double> maximumLoadings, double rate) noexcept
+{
+  if (!std::isfinite(rate) || rate == 0.0) return 0.0;
+
+  const double limitTime = reaction.rateLimitTime;
+  double extentLimit = std::abs(rate);
+
+  if (rate > 0.0)
+  {
+    for (size_t i = 0; i < reaction.reactants.size(); ++i)
+    {
+      const size_t comp = reaction.reactants[i];
+      const double stoichiometry = i < reaction.reactantStoichiometry.size() ? reaction.reactantStoichiometry[i] : 1.0;
+      limitByInventory(extentLimit, comp < activity.size() ? activity[comp] : 0.0, stoichiometry, limitTime);
+    }
+    for (size_t i = 0; i < reaction.products.size(); ++i)
+    {
+      const size_t comp = reaction.products[i];
+      const double stoichiometry = i < reaction.productStoichiometry.size() ? reaction.productStoichiometry[i] : 1.0;
+      const double loading = comp < activity.size() ? activity[comp] : 0.0;
+      const double maximumLoading = comp < maximumLoadings.size() ? maximumLoadings[comp] : unboundedLoading;
+      limitByCapacity(extentLimit, maximumLoading, loading, stoichiometry, limitTime);
+    }
+    return std::min(rate, extentLimit);
+  }
+
+  for (size_t i = 0; i < reaction.products.size(); ++i)
+  {
+    const size_t comp = reaction.products[i];
+    const double stoichiometry = i < reaction.productStoichiometry.size() ? reaction.productStoichiometry[i] : 1.0;
+    limitByInventory(extentLimit, comp < activity.size() ? activity[comp] : 0.0, stoichiometry, limitTime);
+  }
+  for (size_t i = 0; i < reaction.reactants.size(); ++i)
+  {
+    const size_t comp = reaction.reactants[i];
+    const double stoichiometry = i < reaction.reactantStoichiometry.size() ? reaction.reactantStoichiometry[i] : 1.0;
+    const double loading = comp < activity.size() ? activity[comp] : 0.0;
+    const double maximumLoading = comp < maximumLoadings.size() ? maximumLoadings[comp] : unboundedLoading;
+    limitByCapacity(extentLimit, maximumLoading, loading, stoichiometry, limitTime);
+  }
+  return -std::min(-rate, extentLimit);
+}
+
+double limitedPoreRate(const Reaction& reaction, std::span<const double> activity, double rate) noexcept
+{
+  if (!std::isfinite(rate) || rate == 0.0) return 0.0;
+
+  const double limitTime = reaction.rateLimitTime;
+  double extentLimit = std::abs(rate);
+  const std::vector<size_t>& consumed = rate > 0.0 ? reaction.reactants : reaction.products;
+  const std::vector<double>& stoichiometry =
+      rate > 0.0 ? reaction.reactantStoichiometry : reaction.productStoichiometry;
+
+  for (size_t i = 0; i < consumed.size(); ++i)
+  {
+    const size_t comp = consumed[i];
+    const double coefficient = i < stoichiometry.size() ? stoichiometry[i] : 1.0;
+    limitByInventory(extentLimit, comp < activity.size() ? activity[comp] : 0.0, coefficient, limitTime);
+  }
+  return std::copysign(std::min(std::abs(rate), extentLimit), rate);
+}
+
+void addComponentSource(size_t grid, size_t comp, double source, mdspan2d_mut targetDot,
+                        mdspan2d_mut reactionSource)
+{
+  targetDot[grid, comp] += source;
+  reactionSource[grid, comp] += source;
+}
+
+void addComponentSource(size_t site, size_t grid, size_t comp, double source,
+                        mdspan3d_mut targetDot, mdspan3d_mut reactionSource)
+{
+  targetDot[site, grid, comp] += source;
+  reactionSource[site, grid, comp] += source;
+}
+
+}  // namespace
+
+void computeReactionDerivatives(
+    const std::vector<Component>& components, const std::vector<Reaction>& reactions,
+    size_t numberOfGridPoints, size_t numberOfComponents, size_t maxChemisorptionSites,
+    double externalTemperature, std::span<const double> physisorption,
+    std::span<double> physisorptionDot, std::span<const double> chemisorption,
+    std::span<double> chemisorptionDot, std::span<const double> poreConcentration,
+    std::span<double> poreConcentrationDot, std::span<const double> solidTemperature,
+    std::span<double> reactionPhysisorptionSource,
+    std::span<double> reactionChemisorptionSource,
+    std::span<double> reactionPoreConcentrationSource, std::span<double> reactionHeat)
+{
+  std::fill(reactionPhysisorptionSource.begin(), reactionPhysisorptionSource.end(), 0.0);
+  std::fill(reactionChemisorptionSource.begin(), reactionChemisorptionSource.end(), 0.0);
+  std::fill(reactionPoreConcentrationSource.begin(), reactionPoreConcentrationSource.end(), 0.0);
+  std::fill(reactionHeat.begin(), reactionHeat.end(), 0.0);
+
+  if (reactions.empty()) return;
+
+  mdspan2d_const spanPhysisorption(physisorption.data(), numberOfGridPoints + 1, numberOfComponents);
+  mdspan2d_mut spanPhysisorptionDot(physisorptionDot.data(), numberOfGridPoints + 1, numberOfComponents);
+  mdspan2d_mut spanReactionPhysisorptionSource(reactionPhysisorptionSource.data(),
+                                               numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_const spanChemisorption(chemisorption.data(), maxChemisorptionSites,
+                                   numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_mut spanChemisorptionDot(chemisorptionDot.data(), maxChemisorptionSites,
+                                    numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_mut spanReactionChemisorptionSource(reactionChemisorptionSource.data(),
+                                               maxChemisorptionSites, numberOfGridPoints + 1,
+                                               numberOfComponents);
+  mdspan3d_const spanPoreConcentration(poreConcentration.data(), maxChemisorptionSites,
+                                       numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_mut spanPoreConcentrationDot(poreConcentrationDot.data(), maxChemisorptionSites,
+                                        numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_mut spanReactionPoreConcentrationSource(reactionPoreConcentrationSource.data(),
+                                                   maxChemisorptionSites, numberOfGridPoints + 1,
+                                                   numberOfComponents);
+
+  std::vector<double> activity(numberOfComponents, 0.0);
+  std::vector<double> maximumLoadings(numberOfComponents, unboundedLoading);
+
+  for (const Reaction& reaction : reactions)
+  {
+    if (!reaction.enabled()) continue;
+    if ((reaction.phase == Reaction::Phase::Chemisorbed ||
+         reaction.phase == Reaction::Phase::PoreConcentration) &&
+        reaction.site >= maxChemisorptionSites)
+    {
+      throw std::runtime_error("Error: Reaction site index exceeds available chemisorption/pore sites");
+    }
+    if (reaction.phase == Reaction::Phase::PoreConcentration && poreConcentration.empty())
+    {
+      throw std::runtime_error("Error: Pore concentration reaction requires pore concentration state");
+    }
+
+    if (reaction.phase == Reaction::Phase::Physisorbed)
+    {
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        maximumLoadings[comp] = physisorptionMaximumLoading(components[comp]);
+      }
+    }
+    else if (reaction.phase == Reaction::Phase::Chemisorbed)
+    {
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        maximumLoadings[comp] = chemisorptionMaximumLoading(components[comp], reaction.site);
+      }
+    }
+
+    for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+    {
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        switch (reaction.phase)
+        {
+          case Reaction::Phase::Physisorbed:
+            activity[comp] = spanPhysisorption[grid, comp];
+            break;
+          case Reaction::Phase::Chemisorbed:
+            activity[comp] = spanChemisorption[reaction.site, grid, comp];
+            break;
+          case Reaction::Phase::PoreConcentration:
+            activity[comp] = spanPoreConcentration[reaction.site, grid, comp];
+            break;
+        }
+      }
+
+      const double temperature = solidTemperature.empty() ? externalTemperature : solidTemperature[grid];
+      double rate = reaction.rate(activity, temperature);
+      if (reaction.phase == Reaction::Phase::PoreConcentration)
+      {
+        rate = limitedPoreRate(reaction, activity, rate);
+      }
+      else
+      {
+        rate = limitedAdsorbedRate(reaction, activity, maximumLoadings, rate);
+      }
+      if (rate == 0.0) continue;
+
+      auto addSourceForReactants = [&](auto addSource)
+      {
+        for (size_t i = 0; i < reaction.reactants.size(); ++i)
+        {
+          const double stoichiometry =
+              i < reaction.reactantStoichiometry.size() ? reaction.reactantStoichiometry[i] : 1.0;
+          addSource(reaction.reactants[i], -stoichiometry * rate);
+        }
+        for (size_t i = 0; i < reaction.products.size(); ++i)
+        {
+          const double stoichiometry =
+              i < reaction.productStoichiometry.size() ? reaction.productStoichiometry[i] : 1.0;
+          addSource(reaction.products[i], stoichiometry * rate);
+        }
+      };
+
+      switch (reaction.phase)
+      {
+        case Reaction::Phase::Physisorbed:
+          addSourceForReactants(
+              [&](size_t comp, double source)
+              { addComponentSource(grid, comp, source, spanPhysisorptionDot, spanReactionPhysisorptionSource); });
+          break;
+        case Reaction::Phase::Chemisorbed:
+          addSourceForReactants(
+              [&](size_t comp, double source)
+              {
+                addComponentSource(reaction.site, grid, comp, source, spanChemisorptionDot,
+                                   spanReactionChemisorptionSource);
+              });
+          break;
+        case Reaction::Phase::PoreConcentration:
+          addSourceForReactants(
+              [&](size_t comp, double source)
+              {
+                addComponentSource(reaction.site, grid, comp, source, spanPoreConcentrationDot,
+                                   spanReactionPoreConcentrationSource);
+              });
+          break;
+      }
+
+      reactionHeat[grid] += -reaction.gibbsFreeEnergy * rate;
+    }
+  }
+}
 
 void updateVelocityAndPressure(const std::vector<Component>& components,
                                const Column::BoundaryCondition& boundaryCondition, size_t numberOfGridPoints,
@@ -42,7 +369,7 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
 
   auto ergunGrad = [&](size_t grid)
   {
-    return geometry.pressureGradient(dynamicViscosity, gasDensity[grid], interstitialGasVelocity[grid]);
+    return geometry.pressureDrop.gradient(dynamicViscosity, gasDensity[grid], interstitialGasVelocity[grid]);
   };
 
   auto sinkTerm = [&](size_t grid)
@@ -216,203 +543,6 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
   }
 }
 
-void updateVelocityAndPressure(const std::vector<Component>& components,
-                               const Column::BoundaryCondition& boundaryCondition, size_t numberOfGridPoints,
-                               size_t numberOfComponents, double inletPressure, double outletPressure,
-                               double pressureGradient, double columnLength, double voidFraction,
-                               double /*particleDensity*/, double& columnEntranceVelocity, double dynamicViscosity,
-                               double particleDiameter, double resolution,
-                               std::span<double> interstitialGasVelocity, std::span<double> gasDensity,
-                               std::span<double> totalConcentration, std::span<double> totalPressure,
-                               std::span<const double> concentration, std::span<double> partialPressure,
-                               std::span<double> moleFraction, std::span<const double> bulkSpeciesSink,
-                               std::span<const double> gasTemperature)
-{
-  const Geometry geometry{HollowTube{voidFraction, particleDiameter}};
-  updateVelocityAndPressure(components, boundaryCondition, numberOfGridPoints, numberOfComponents,
-                            inletPressure, outletPressure, pressureGradient, columnLength, geometry,
-                            columnEntranceVelocity, dynamicViscosity, resolution, interstitialGasVelocity,
-                            gasDensity, totalConcentration, totalPressure, concentration, partialPressure,
-                            moleFraction, bulkSpeciesSink, gasTemperature);
-}
-
-void updateVelocityAndPressure(Column& column)
-{
-  computeBulkSpeciesSink(column);
-  updateVelocityAndPressure(column.components, column.boundaryCondition, column.numberOfGridPoints,
-                            column.numberOfComponents, column.inletPressure, column.outletPressure,
-                            column.pressureGradient, column.columnLength, column.geometry,
-                            column.columnEntranceVelocity, column.dynamicViscosity, column.resolution,
-                            column.interstitialGasVelocity, column.gasDensity,
-                            column.totalConcentration, column.totalPressure, column.concentration,
-                            column.partialPressure, column.moleFraction, column.bulkSpeciesSink,
-                            column.gasTemperature);
-}
-
-void computeEquilibriumLoadings(Column& column)
-{
-  computeEquilibriumLoadings(column.physisorptionMixture, column.numberOfGridPoints, column.numberOfComponents,
-                             column.maxIsothermTerms, column.iastPerformance, column.idealGasMolFractions,
-                             column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
-                             column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
-                             column.moleFraction, column.gasTemperature);
-
-  computeChemisorptionEquilibriumLoadings(
-      column.chemisorptionMixture, column.numberOfGridPoints, column.numberOfComponents,
-      column.maxChemisorptionSites, column.iastPerformance, column.idealGasMolFractions,
-      column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
-      column.equilibriumChemisorption, column.cachedChemisorptionPressure,
-      column.cachedChemisorptionGrandPotential, column.moleFraction, column.gasTemperature);
-}
-
-void computeEquilibriumLoadings(MixturePrediction& mixture, size_t numberOfGridPoints, size_t numberOfComponents,
-                                size_t maxIsothermTerms, std::pair<size_t, size_t>& iastPerformance,
-                                std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
-                                std::span<double> numberOfMolecules, std::span<const double> totalPressure,
-                                std::span<double> equilibriumPhysisorption, std::span<double> cachedPressure,
-                                std::span<double> cachedGrandPotential, std::span<const double> moleFraction,
-                                std::span<double> gasTemperature)
-{
-  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
-  {
-    // compute gas-phase mol-fractions
-    // force the gas-phase mol-fractions to be positive and normalized
-    double sum = 0.0;
-    for (size_t comp = 0; comp < numberOfComponents; ++comp)
-    {
-      idealGasMolFractions[comp] = std::max(0.0, moleFraction[grid * numberOfComponents + comp]);
-      sum += idealGasMolFractions[comp];
-    }
-    if (sum > 0.0)
-    {
-      for (size_t comp = 0; comp < numberOfComponents; ++comp)
-      {
-        idealGasMolFractions[comp] /= sum;
-      }
-    }
-    else
-    {
-      for (size_t comp = 0; comp < numberOfComponents; ++comp)
-      {
-        idealGasMolFractions[comp] = 1.0 / static_cast<double>(numberOfComponents);
-      }
-    }
-
-    // use Yi and Pt[i] to compute the loadings in the adsorption mixture via mixture prediction
-    std::span<double> spanCachedPressure =
-        cachedPressure.subspan(grid * numberOfComponents * maxIsothermTerms, numberOfComponents * maxIsothermTerms);
-    std::span<double> spanCachedGrandPotential =
-        cachedGrandPotential.subspan(grid * maxIsothermTerms, maxIsothermTerms);
-    iastPerformance +=
-        mixture.predictMixture(idealGasMolFractions, totalPressure[grid], adsorbedMolFractions, numberOfMolecules,
-                               spanCachedPressure, spanCachedGrandPotential, gasTemperature[grid]);
-
-    for (size_t comp = 0; comp < numberOfComponents; ++comp)
-    {
-      equilibriumPhysisorption[grid * numberOfComponents + comp] = numberOfMolecules[comp];
-    }
-  }
-}
-
-void computeChemisorptionEquilibriumLoadings(
-    MixturePrediction& mixture, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, std::pair<size_t, size_t>& iastPerformance,
-    std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
-    std::span<double> numberOfMolecules, std::span<const double> totalPressure,
-    std::span<double> equilibriumChemisorption, std::span<double> cachedPressure,
-    std::span<double> cachedGrandPotential, std::span<const double> moleFraction,
-    std::span<double> gasTemperature)
-{
-  std::fill(equilibriumChemisorption.begin(), equilibriumChemisorption.end(), 0.0);
-  const size_t componentBlockSize = (numberOfGridPoints + 1) * numberOfComponents;
-
-  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
-  {
-    double sum = 0.0;
-    for (size_t comp = 0; comp < numberOfComponents; ++comp)
-    {
-      idealGasMolFractions[comp] = std::max(0.0, moleFraction[grid * numberOfComponents + comp]);
-      sum += idealGasMolFractions[comp];
-    }
-    for (size_t comp = 0; comp < numberOfComponents; ++comp)
-    {
-      idealGasMolFractions[comp] = sum > 0.0
-                                       ? idealGasMolFractions[comp] / sum
-                                       : 1.0 / static_cast<double>(numberOfComponents);
-    }
-
-    std::span<double> spanCachedPressure = cachedPressure.subspan(
-        grid * numberOfComponents * maxChemisorptionSites,
-        numberOfComponents * maxChemisorptionSites);
-    std::span<double> spanCachedGrandPotential = cachedGrandPotential.subspan(
-        grid * maxChemisorptionSites, maxChemisorptionSites);
-    iastPerformance += mixture.predictMixture(
-        idealGasMolFractions, totalPressure[grid], adsorbedMolFractions, numberOfMolecules,
-        spanCachedPressure, spanCachedGrandPotential, gasTemperature[grid]);
-
-    for (size_t site = 0; site < mixture.maxIsothermTerms; ++site)
-    {
-      for (size_t comp = 0; comp < numberOfComponents; ++comp)
-      {
-        equilibriumChemisorption[site * componentBlockSize + grid * numberOfComponents + comp] =
-            mixture.equilibriumSiteLoadings[site * numberOfComponents + comp];
-      }
-    }
-  }
-}
-
-void computeDerivatives(Column& column)
-{
-  computeMassDerivatives(column);
-  if (column.energyBalance)
-  {
-    computeEnergyDerivatives(column);
-  }
-}
-
-void computeMassDerivatives(Column& column)
-{
-  computeBulkSpeciesSink(column);
-  computeMassDerivatives(column.components, column.numberOfGridPoints, column.numberOfComponents, column.resolution,
-                         column.interstitialGasVelocity, column.concentration, column.concentrationDot,
-                         column.bulkSpeciesSink);
-}
-
-void computeMassDerivatives(const std::vector<Component>& components, size_t numberOfGridPoints,
-                            size_t numberOfComponents, size_t maxChemisorptionSites,
-                            double resolution, const ShapeParameters& geometry, double particleDensity,
-                            std::span<const double> interstitialGasVelocity,
-                            std::span<const double> concentration, std::span<double> concentrationDot,
-                            std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot)
-{
-  const double prefactor = geometry.loadingPrefactor(particleDensity);
-  std::vector<double> bulkSpeciesSink((numberOfGridPoints + 1) * numberOfComponents, 0.0);
-  for (size_t i = 0; i < bulkSpeciesSink.size(); ++i)
-  {
-    double totalChemisorptionDot = 0.0;
-    for (size_t site = 0; site < maxChemisorptionSites; ++site)
-    {
-      totalChemisorptionDot += chemisorptionDot[site * bulkSpeciesSink.size() + i];
-    }
-    bulkSpeciesSink[i] = prefactor * (physisorptionDot[i] + totalChemisorptionDot);
-  }
-  computeMassDerivatives(components, numberOfGridPoints, numberOfComponents, resolution, interstitialGasVelocity,
-                         concentration, concentrationDot, bulkSpeciesSink);
-}
-
-void computeMassDerivatives(const std::vector<Component>& components, size_t numberOfGridPoints,
-                            size_t numberOfComponents, size_t maxChemisorptionSites,
-                            double resolution, double voidFraction,
-                            double particleDensity, std::span<const double> interstitialGasVelocity,
-                            std::span<const double> concentration, std::span<double> concentrationDot,
-                            std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot)
-{
-  const Geometry geometry{HollowTube{voidFraction}};
-  computeMassDerivatives(components, numberOfGridPoints, numberOfComponents, maxChemisorptionSites,
-                         resolution, geometry.shapeParameters(), particleDensity, interstitialGasVelocity,
-                         concentration, concentrationDot, physisorptionDot, chemisorptionDot);
-}
-
 void computeMassDerivatives(const std::vector<Component>& components, size_t numberOfGridPoints,
                             size_t numberOfComponents, double resolution,
                             std::span<const double> interstitialGasVelocity,
@@ -464,22 +594,9 @@ void computeMassDerivatives(const std::vector<Component>& components, size_t num
   }
 }
 
-void computeEnergyDerivatives(Column& column)
-{
-  computeEnergyDerivatives(
-      column.components, column.numberOfGridPoints, column.numberOfComponents, column.maxChemisorptionSites,
-      column.externalTemperature, column.geometry.shapeParameters(), column.particleDensity,
-      column.wallDensity, column.gasThermalConductivity,
-      column.wallThermalConductivity, column.heatTransferGasSolid, column.heatTransferGasWall,
-      column.heatTransferWallExternal, column.heatCapacityGas, column.heatCapacitySolid, column.heatCapacityWall,
-      column.resolution, column.interstitialGasVelocity, column.gasDensity, column.coeffDiffusion,
-      column.physisorptionDot, column.chemisorptionDot, column.gasTemperature, column.gasTemperatureDot,
-      column.solidTemperature, column.solidTemperatureDot, column.wallTemperature, column.wallTemperatureDot);
-}
-
 void computeEnergyDerivatives(
     const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, double externalTemperature, const ShapeParameters& geometry,
+    size_t maxChemisorptionSites, double externalTemperature, const Geometry& geometry,
     double particleDensity, double wallDensity, double gasThermalConductivity,
     double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
     double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
@@ -488,7 +605,10 @@ void computeEnergyDerivatives(
     std::span<const double> chemisorptionDot,
     std::span<const double> gasTemperature, std::span<double> gasTemperatureDot,
     std::span<const double> solidTemperature, std::span<double> solidTemperatureDot,
-    std::span<const double> wallTemperature, std::span<double> wallTemperatureDot)
+    std::span<const double> wallTemperature, std::span<double> wallTemperatureDot,
+    std::span<const double> reactionPhysisorptionSource,
+    std::span<const double> reactionChemisorptionSource,
+    std::span<const double> reactionHeat)
 {
   mdspan2d_const spanPhysisorptionDot(physisorptionDot.data(), numberOfGridPoints + 1, numberOfComponents);
   std::mdspan<const double, std::dextents<size_t, 3>> spanChemisorptionDot(
@@ -501,21 +621,22 @@ void computeEnergyDerivatives(
   // computeWENO(gasTemperature, gasTemperatureFlux);
 
   const double prefactorGasSolid =
-      geometry.fluidSolidContactAreaPerFluidVolume * heatTransferGasSolid / heatCapacityGas;
+      geometry.contactAreas.fluidSolidPerFluidVolume * heatTransferGasSolid / heatCapacityGas;
 
   // is this extra 1/eps necessary? It's in python not in eqs
   const double prefactorGasWall =
-      geometry.fluidWallContactAreaPerFluidVolume * heatTransferGasWall / heatCapacityGas;
+      geometry.contactAreas.fluidWallPerFluidVolume * heatTransferGasWall / heatCapacityGas;
 
   const double coeffSolidGas =
-      geometry.solidFluidContactAreaPerSolidVolume * heatTransferGasSolid /
+      geometry.contactAreas.solidFluidPerSolidVolume * heatTransferGasSolid /
       (heatCapacitySolid * particleDensity);
 
   // prefactor 4 in python, 2 in eqs
   double invHeatDensityWall = 1.0 / (heatCapacityWall * wallDensity);
-  const double coeffWallGas = heatTransferGasWall * geometry.wallInnerContactAreaPerWallVolume * invHeatDensityWall;
+  const double coeffWallGas =
+      heatTransferGasWall * geometry.contactAreas.wallInnerPerWallVolume * invHeatDensityWall;
   const double coeffWallExternal =
-      heatTransferWallExternal * geometry.wallOuterContactAreaPerWallVolume * invHeatDensityWall;
+      heatTransferWallExternal * geometry.contactAreas.wallOuterPerWallVolume * invHeatDensityWall;
 
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
@@ -549,9 +670,30 @@ void computeEnergyDerivatives(
     const MultiSiteChemisorption& multisite = components[comp].chemisorption;
     for (size_t site = 0; site < multisite.numberOfSites; ++site)
     {
-      heat += multisite.sites[site].heatOfChemisorption * spanChemisorptionDot[site, grid, comp];
+      double source = spanChemisorptionDot[site, grid, comp];
+      if (!reactionChemisorptionSource.empty())
+      {
+        const size_t componentBlockSize = (numberOfGridPoints + 1) * numberOfComponents;
+        source -= reactionChemisorptionSource[site * componentBlockSize + grid * numberOfComponents + comp];
+      }
+      heat += multisite.sites[site].heatOfChemisorption * source;
     }
     return heat;
+  };
+
+  auto physisorptionSource = [&](size_t grid, size_t comp)
+  {
+    double source = spanPhysisorptionDot[grid, comp];
+    if (!reactionPhysisorptionSource.empty())
+    {
+      source -= reactionPhysisorptionSource[grid * numberOfComponents + comp];
+    }
+    return source;
+  };
+
+  auto reactionHeatAt = [&](size_t grid)
+  {
+    return reactionHeat.empty() ? 0.0 : reactionHeat[grid];
   };
 
   // first grid point
@@ -562,10 +704,11 @@ void computeEnergyDerivatives(
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
     solidTemperatureDot[0] +=
-        (components[comp].heatOfAdsorption * spanPhysisorptionDot[0, comp] +
+        (components[comp].heatOfAdsorption * physisorptionSource(0, comp) +
          chemisorptionHeat(0, comp)) /
         heatCapacitySolid;
   }
+  solidTemperatureDot[0] += reactionHeatAt(0) / heatCapacitySolid;
 
   // middle grid points
   for (size_t grid = 1; grid < numberOfGridPoints; ++grid)
@@ -588,10 +731,11 @@ void computeEnergyDerivatives(
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
       solidTemperatureDot[grid] +=
-          (components[comp].heatOfAdsorption * spanPhysisorptionDot[grid, comp] +
+          (components[comp].heatOfAdsorption * physisorptionSource(grid, comp) +
            chemisorptionHeat(grid, comp)) /
           heatCapacitySolid;
     }
+    solidTemperatureDot[grid] += reactionHeatAt(grid) / heatCapacitySolid;
   }
 
   // last gridpoint
@@ -616,34 +760,11 @@ void computeEnergyDerivatives(
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
     solidTemperatureDot[numberOfGridPoints] +=
-        (components[comp].heatOfAdsorption * spanPhysisorptionDot[numberOfGridPoints, comp] +
+        (components[comp].heatOfAdsorption * physisorptionSource(numberOfGridPoints, comp) +
          chemisorptionHeat(numberOfGridPoints, comp)) /
         heatCapacitySolid;
   }
-}
-
-void computeEnergyDerivatives(
-    const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, double externalTemperature, double voidFraction,
-    double particleDensity, double particleDiameter,
-    double internalDiameter, double outerDiameter, double wallDensity, double gasThermalConductivity,
-    double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
-    double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
-    double resolution, std::span<const double> interstitialGasVelocity, std::span<const double> gasDensity,
-    std::span<double> coeffDiffusion, std::span<const double> physisorptionDot,
-    std::span<const double> chemisorptionDot,
-    std::span<const double> gasTemperature, std::span<double> gasTemperatureDot,
-    std::span<const double> solidTemperature, std::span<double> solidTemperatureDot,
-    std::span<const double> wallTemperature, std::span<double> wallTemperatureDot)
-{
-  const Geometry geometry{HollowTube{voidFraction, particleDiameter, internalDiameter, outerDiameter}};
-  computeEnergyDerivatives(components, numberOfGridPoints, numberOfComponents, maxChemisorptionSites,
-                           externalTemperature, geometry.shapeParameters(), particleDensity, wallDensity,
-                           gasThermalConductivity, wallThermalConductivity, heatTransferGasSolid,
-                           heatTransferGasWall, heatTransferWallExternal, heatCapacityGas, heatCapacitySolid,
-                           heatCapacityWall, resolution, interstitialGasVelocity, gasDensity, coeffDiffusion,
-                           physisorptionDot, chemisorptionDot, gasTemperature, gasTemperatureDot,
-                           solidTemperature, solidTemperatureDot, wallTemperature, wallTemperatureDot);
+  solidTemperatureDot[numberOfGridPoints] += reactionHeatAt(numberOfGridPoints) / heatCapacitySolid;
 }
 
 void computeWENO(std::span<const double> input, std::span<double> output)

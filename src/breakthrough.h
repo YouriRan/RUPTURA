@@ -33,20 +33,8 @@ struct Breakthrough
   {
     SSP_RK = 0,     ///< Strong Stability Preserving Runge-Kutta method.
     CVODE = 1,      ///< CVODE integration.
-    Iterative = 2,  ///< Iterative integration scheme.
-    SIRK3 = 3,      ///< Semi-implicit third-order Runge-Kutta method.
+    SIRK3 = 2,      ///< Semi-implicit third-order Runge-Kutta method.
   };
-
-  /**
-   * \brief Constructs a Breakthrough simulation from explicit simulation objects and settings.
-   *
-   * This constructor is the argument-based alternative to constructing from an InputReader.
-   */
-  Breakthrough(std::string displayName, size_t carrierGasComponent, size_t numberOfComponents,
-               size_t numberOfGridPoints, size_t printEvery, size_t writeEvery, double timeStep,
-               size_t numberOfInitTimeSteps, size_t numberOfTimeSteps, bool autoNumberOfTimeSteps,
-               size_t maxIsothermTerms, Column column, RungeKutta3 rk3, SemiImplicitRungeKutta3 sirk3, CVODE cvode,
-               IntegrationScheme integrationScheme, std::optional<std::string> readColumnFile = std::nullopt);
 
   /**
    * \brief Constructs a Breakthrough simulation using an InputReader.

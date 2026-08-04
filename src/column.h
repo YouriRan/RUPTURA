@@ -17,6 +17,7 @@
 #include "geometry.h"
 #include "inputreader.h"
 #include "mixture_prediction.h"
+#include "reaction.h"
 #include "utils.h"
 
 /**
@@ -123,7 +124,8 @@ struct Column
          double dynamicViscosity, double particleDiameter, double influxTemperature, double internalDiameter,
          double outerDiameter, double wallDensity, double gasThermalConductivity, double wallThermalConductivity,
          double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
-         double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall)
+         double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
+         std::vector<Reaction> reactions = {})
       : Column(std::move(physisorptionMixture), std::move(components), boundaryCondition, energyBalance,
                numberOfGridPoints, maxIsothermTerms, carrierGasComponent, temperature, inletPressure,
                outletPressure, pressureGradient, columnVoidFraction, particleDensity, columnEntranceVelocity,
@@ -131,7 +133,11 @@ struct Column
                outerDiameter, wallDensity, gasThermalConductivity, wallThermalConductivity,
                heatTransferGasSolid, heatTransferGasWall, heatTransferWallExternal, heatCapacityGas,
                heatCapacitySolid, heatCapacityWall,
-               Geometry{HollowTube{columnVoidFraction, particleDiameter, internalDiameter, outerDiameter}})
+               makeGeometry(PackedBedTubeSpec{.voidFraction = columnVoidFraction,
+                                              .particleDiameter = particleDiameter,
+                                              .internalDiameter = internalDiameter,
+                                              .outerDiameter = outerDiameter}),
+               std::move(reactions))
   {
   }
 
@@ -143,12 +149,14 @@ struct Column
          double dynamicViscosity, double particleDiameter, double influxTemperature, double internalDiameter,
          double outerDiameter, double wallDensity, double gasThermalConductivity, double wallThermalConductivity,
          double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
-         double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall, Geometry geometry)
+         double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall, Geometry geometry,
+         std::vector<Reaction> reactions = {})
       : physisorptionMixture(std::move(physisorptionMixture)),
         components(std::move(components)),
         boundaryCondition(boundaryCondition),
         energyBalance(energyBalance),
         geometry(std::move(geometry)),
+        reactions(std::move(reactions)),
         numberOfGridPoints(numberOfGridPoints),
         numberOfComponents(this->components.size()),
         maxIsothermTerms(maxIsothermTerms),
@@ -179,7 +187,8 @@ struct Column
         heatCapacityWall(heatCapacityWall),
         resolution(this->columnLength / static_cast<double>(this->numberOfGridPoints)),
         timeNormalizationFactor(this->columnEntranceVelocity / this->columnLength),
-        surfacePoreTransportEnabled(requiresSurfacePoreTransport(this->components)),
+        surfacePoreTransportEnabled(requiresSurfacePoreTransport(this->components) ||
+                                    reactionsRequirePoreConcentration(this->reactions)),
         prefactorMassTransfer(this->numberOfComponents),
         idealGasMolFractions(this->numberOfComponents),
         adsorbedMolFractions(this->numberOfComponents),
@@ -203,6 +212,12 @@ struct Column
         facePressures(this->numberOfGridPoints),
         massFlux((this->numberOfGridPoints + 1) * this->numberOfComponents),
         bulkSpeciesSink((this->numberOfGridPoints + 1) * this->numberOfComponents),
+        reactionPhysisorptionSource((this->numberOfGridPoints + 1) * this->numberOfComponents),
+        reactionChemisorptionSource(this->maxChemisorptionSites *
+                                    (this->numberOfGridPoints + 1) * this->numberOfComponents),
+        reactionPoreConcentrationSource(this->maxChemisorptionSites *
+                                        (this->numberOfGridPoints + 1) * this->numberOfComponents),
+        reactionHeat(this->numberOfGridPoints + 1),
         state(ColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents,
                                 this->maxChemisorptionSites,
                                 this->surfacePoreTransportEnabled}
@@ -234,7 +249,8 @@ struct Column
                inputReader.gasThermalConductivity, inputReader.wallThermalConductivity,
                inputReader.heatTransferGasSolid, inputReader.heatTransferGasWall,
                inputReader.heatTransferWallExternal, inputReader.heatCapacityGas,
-               inputReader.heatCapacitySolid, inputReader.heatCapacityWall, inputReader.geometry)
+               inputReader.heatCapacitySolid, inputReader.heatCapacityWall, inputReader.geometry,
+               inputReader.reactions)
   {
   }
   /**
@@ -254,6 +270,7 @@ struct Column
   BoundaryCondition boundaryCondition;  ///< Selected breakthrough boundary-condition pair.
   bool energyBalance;                   ///< Enables gas/solid/wall temperature dynamics when true.
   Geometry geometry;                    ///< Column/tube/monolith geometry and precomputed shape terms.
+  std::vector<Reaction> reactions;      ///< Optional reactions coupled to adsorbed or pore-phase variables.
 
   // Dimensions and counters.
   size_t numberOfGridPoints;   ///< Number of spatial grid intervals; node count is numberOfGridPoints + 1.
@@ -329,6 +346,10 @@ struct Column
   std::vector<double> facePressures;   ///< Pressure values at cell faces in Pa.
   std::vector<double> massFlux;        ///< Component mass flux at each grid node in mol/(m^2 s).
   std::vector<double> bulkSpeciesSink;  ///< Species sink in the bulk concentration equation, mol/(m^3 s).
+  std::vector<double> reactionPhysisorptionSource;  ///< Reaction-only physisorbed loading source, mol/(kg s).
+  std::vector<double> reactionChemisorptionSource;  ///< Reaction-only chemisorbed loading source, mol/(kg s).
+  std::vector<double> reactionPoreConcentrationSource;  ///< Reaction-only pore concentration source, mol/(m^3 s).
+  std::vector<double> reactionHeat;  ///< Reaction heat release on a solid-mass basis, J/(kg s).
 
   // Canonical ODE storage.
   // Layout: concentration, physisorption, chemisorption, optional surface concentration, optional pore concentration,

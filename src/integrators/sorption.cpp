@@ -9,20 +9,105 @@ using mdspan2d_mut = std::mdspan<double, std::dextents<size_t, 2>>;
 using mdspan3d_const = std::mdspan<const double, std::dextents<size_t, 3>>;
 using mdspan3d_mut = std::mdspan<double, std::dextents<size_t, 3>>;
 
-void computeSorptionDerivatives(Column& column)
+void computePhysisorptionEquilibriumLoadings(
+    MixturePrediction& mixture, size_t numberOfGridPoints, size_t numberOfComponents,
+    size_t maxIsothermTerms, std::pair<size_t, size_t>& iastPerformance,
+    std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
+    std::span<double> numberOfMolecules, std::span<const double> totalPressure,
+    std::span<double> equilibriumPhysisorption, std::span<double> cachedPressure,
+    std::span<double> cachedGrandPotential, std::span<const double> moleFraction,
+    std::span<double> gasTemperature)
 {
-  computeSorptionDerivatives(
-      column.components, column.numberOfGridPoints, column.numberOfComponents, column.maxChemisorptionSites,
-      column.externalTemperature, column.geometry.shapeParameters(), column.particleDensity,
-      column.equilibriumPhysisorption, column.equilibriumChemisorption,
-      column.concentration, column.physisorption, column.physisorptionDot, column.chemisorption,
-      column.chemisorptionDot, column.surfaceConcentration, column.surfaceConcentrationDot,
-      column.poreConcentration, column.poreConcentrationDot, column.solidTemperature, column.bulkSpeciesSink);
+  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+  {
+    double sum = 0.0;
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      idealGasMolFractions[comp] = std::max(0.0, moleFraction[grid * numberOfComponents + comp]);
+      sum += idealGasMolFractions[comp];
+    }
+    if (sum > 0.0)
+    {
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        idealGasMolFractions[comp] /= sum;
+      }
+    }
+    else
+    {
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        idealGasMolFractions[comp] = 1.0 / static_cast<double>(numberOfComponents);
+      }
+    }
+
+    std::span<double> spanCachedPressure =
+        cachedPressure.subspan(grid * numberOfComponents * maxIsothermTerms,
+                               numberOfComponents * maxIsothermTerms);
+    std::span<double> spanCachedGrandPotential =
+        cachedGrandPotential.subspan(grid * maxIsothermTerms, maxIsothermTerms);
+    iastPerformance +=
+        mixture.predictMixture(idealGasMolFractions, totalPressure[grid], adsorbedMolFractions,
+                               numberOfMolecules, spanCachedPressure, spanCachedGrandPotential,
+                               gasTemperature[grid]);
+
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      equilibriumPhysisorption[grid * numberOfComponents + comp] = numberOfMolecules[comp];
+    }
+  }
+}
+
+void computeChemisorptionEquilibriumLoadings(
+    MixturePrediction& mixture, size_t numberOfGridPoints, size_t numberOfComponents,
+    size_t maxChemisorptionSites, std::pair<size_t, size_t>& iastPerformance,
+    std::span<double> idealGasMolFractions, std::span<double> adsorbedMolFractions,
+    std::span<double> numberOfMolecules, std::span<const double> totalPressure,
+    std::span<double> equilibriumChemisorption, std::span<double> cachedPressure,
+    std::span<double> cachedGrandPotential, std::span<const double> moleFraction,
+    std::span<double> gasTemperature)
+{
+  std::fill(equilibriumChemisorption.begin(), equilibriumChemisorption.end(), 0.0);
+  const size_t componentBlockSize = (numberOfGridPoints + 1) * numberOfComponents;
+
+  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+  {
+    double sum = 0.0;
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      idealGasMolFractions[comp] = std::max(0.0, moleFraction[grid * numberOfComponents + comp]);
+      sum += idealGasMolFractions[comp];
+    }
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      idealGasMolFractions[comp] = sum > 0.0
+                                       ? idealGasMolFractions[comp] / sum
+                                       : 1.0 / static_cast<double>(numberOfComponents);
+    }
+
+    std::span<double> spanCachedPressure =
+        cachedPressure.subspan(grid * numberOfComponents * maxChemisorptionSites,
+                               numberOfComponents * maxChemisorptionSites);
+    std::span<double> spanCachedGrandPotential =
+        cachedGrandPotential.subspan(grid * maxChemisorptionSites, maxChemisorptionSites);
+    iastPerformance += mixture.predictMixture(
+        idealGasMolFractions, totalPressure[grid], adsorbedMolFractions, numberOfMolecules,
+        spanCachedPressure, spanCachedGrandPotential, gasTemperature[grid]);
+
+    for (size_t site = 0; site < mixture.maxIsothermTerms; ++site)
+    {
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        equilibriumChemisorption[site * componentBlockSize + grid * numberOfComponents + comp] =
+            mixture.equilibriumSiteLoadings[site * numberOfComponents + comp];
+      }
+    }
+  }
 }
 
 void computeSorptionDerivatives(
     const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, double externalTemperature, const ShapeParameters& geometry,
+    size_t maxChemisorptionSites, double externalTemperature, const Geometry& geometry,
     double particleDensity,
     std::span<const double> equilibriumPhysisorption,
     std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
@@ -51,33 +136,6 @@ void computeSorptionDerivatives(
                          chemisorptionDot, surfaceConcentration, bulkSpeciesSink);
 }
 
-void computeSorptionDerivatives(
-    const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, double externalTemperature, double voidFraction, double particleDensity,
-    double particleDiameter,
-    std::span<const double> equilibriumPhysisorption,
-    std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
-    std::span<const double> physisorption, std::span<double> physisorptionDot,
-    std::span<const double> chemisorption, std::span<double> chemisorptionDot,
-    std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
-    std::span<const double> poreConcentration, std::span<double> poreConcentrationDot,
-    std::span<const double> solidTemperature, std::span<double> bulkSpeciesSink)
-{
-  const Geometry geometry{HollowTube{voidFraction, particleDiameter}};
-  computeSorptionDerivatives(components, numberOfGridPoints, numberOfComponents, maxChemisorptionSites,
-                             externalTemperature, geometry.shapeParameters(), particleDensity,
-                             equilibriumPhysisorption, equilibriumChemisorption, concentration,
-                             physisorption, physisorptionDot, chemisorption, chemisorptionDot,
-                             surfaceConcentration, surfaceConcentrationDot, poreConcentration,
-                             poreConcentrationDot, solidTemperature, bulkSpeciesSink);
-}
-
-void computePhysisorption(Column& column)
-{
-  computePhysisorption(column.components, column.numberOfGridPoints, column.numberOfComponents,
-                       column.equilibriumPhysisorption, column.physisorption, column.physisorptionDot);
-}
-
 void computePhysisorption(const std::vector<Component>& components, size_t numberOfGridPoints,
                           size_t numberOfComponents, std::span<const double> equilibriumPhysisorption,
                           std::span<const double> physisorption, std::span<double> physisorptionDot)
@@ -95,18 +153,9 @@ void computePhysisorption(const std::vector<Component>& components, size_t numbe
   }
 }
 
-void computeChemisorption(Column& column)
-{
-  computeChemisorption(column.components, column.numberOfGridPoints, column.numberOfComponents,
-                       column.maxChemisorptionSites, column.externalTemperature, column.geometry.shapeParameters(),
-                       column.particleDensity, column.equilibriumChemisorption, column.concentration,
-                       column.chemisorption, column.chemisorptionDot, column.poreConcentration,
-                       column.solidTemperature);
-}
-
 void computeChemisorption(
     const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, double externalTemperature, const ShapeParameters& geometry, double particleDensity,
+    size_t maxChemisorptionSites, double externalTemperature, const Geometry& geometry, double particleDensity,
     std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
     std::span<const double> chemisorption, std::span<double> chemisorptionDot,
     std::span<const double> poreConcentration, std::span<const double> solidTemperature)
@@ -168,18 +217,4 @@ void computeChemisorption(
       }
     }
   }
-}
-
-void computeChemisorption(
-    const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, double externalTemperature, double voidFraction, double particleDensity,
-    std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
-    std::span<const double> chemisorption, std::span<double> chemisorptionDot,
-    std::span<const double> poreConcentration, std::span<const double> solidTemperature)
-{
-  const Geometry geometry{HollowTube{voidFraction}};
-  computeChemisorption(components, numberOfGridPoints, numberOfComponents, maxChemisorptionSites,
-                       externalTemperature, geometry.shapeParameters(), particleDensity,
-                       equilibriumChemisorption, concentration, chemisorption, chemisorptionDot,
-                       poreConcentration, solidTemperature);
 }

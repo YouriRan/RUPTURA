@@ -12,7 +12,6 @@
 #include "inputreader.h"
 #include "mixture_prediction.h"
 #include "rk3.h"
-#include "rk3_si.h"
 #include "timing.h"
 
 /**
@@ -28,9 +27,10 @@ struct SwingAdsorption
    */
   struct SubStage
   {
-    double temperature;    ///< Sub-stage temperature in K.
-    double pressure;       ///< Sub-stage pressure in Pa.
-    size_t numberOfSteps;  ///< Number of time steps in this sub-stage.
+    std::string name;          ///< Sub-stage label.
+    double temperature{0.0};   ///< Sub-stage temperature in K.
+    double pressure{0.0};      ///< Sub-stage inlet pressure in Pa.
+    size_t numberOfSteps{0};   ///< Number of time steps in this sub-stage.
   };
 
   /**

@@ -7,6 +7,7 @@
 
 #include "component.h"
 #include "geometry.h"
+#include "reaction.h"
 
 /**
  * \brief Returns true when a string starts with the supplied prefix.
@@ -45,7 +46,22 @@ struct InputReader
     Test = 4                ///< Test simulation.
   };
 
+  /**
+   * \brief User-provided operating conditions for one swing adsorption phase.
+   *
+   * Temperature and inlet pressure are optional at input level; omitted values
+   * inherit the base breakthrough conditions when the swing simulation is built.
+   */
+  struct SwingAdsorptionPhase
+  {
+    std::string name;                         ///< Optional phase label for logs and frontends.
+    std::optional<double> temperature;        ///< Phase temperature in K.
+    std::optional<double> inletPressure;      ///< Phase inlet pressure in Pa.
+    size_t numberOfSteps{0};                  ///< Number of time steps in this phase.
+  };
+
   std::vector<Component> components;  ///< The list of components involved in the simulation.
+  std::vector<Reaction> reactions;    ///< Optional reactions coupled to pore or adsorbed component balances.
   std::vector<std::vector<Component>>
       adsorbentComponents;  ///< Per-adsorbent component lists with adsorbent-specific isotherm parameters.
   size_t numberOfCarrierGases{0};     ///< The number of carrier gas components.
@@ -78,7 +94,7 @@ struct InputReader
   std::vector<double> adsorbentParticleDensities;  ///< Particle densities per adsorbent in kg/m^3.
   std::vector<double> adsorbentParticleDiameters;  ///< Particle diameters per adsorbent in m.
 
-  Geometry geometry;                 ///< Parsed column geometry with precomputed shape parameters.
+  Geometry geometry{makeGeometry(PackedBedTubeSpec{})};  ///< Parsed geometry with precomputed terms.
   double influxTemperature{433.0};   ///< Feed/influx gas temperature in K.
   double internalDiameter{0.0};      ///< Column internal diameter in m.
   double outerDiameter{0.0};         ///< Column outer diameter in m.
@@ -110,9 +126,7 @@ struct InputReader
   size_t columnLoading{1};   ///< The index of the column for loading data.
   size_t columnError{2};     ///< The index of the column for error data.
 
-  std::vector<double> swingTemperatures;  ///< Swing-stage temperatures in K.
-  std::vector<double> swingPressures;     ///< Swing-stage pressures in Pa.
-  std::vector<size_t> swingSteps;         ///< Swing-stage step counts.
+  std::vector<SwingAdsorptionPhase> swingAdsorptionPhases;  ///< Ordered swing adsorption phases.
 
   std::optional<std::string> readColumnFile;  ///< Optional JSON file used to initialize column state.
 };

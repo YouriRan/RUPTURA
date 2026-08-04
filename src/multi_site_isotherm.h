@@ -32,7 +32,6 @@ struct MultiSiteIsotherm
    */
   MultiSiteIsotherm(std::vector<Isotherm> sites);
 
-  size_t numberOfSites{0};        ///< The number of isotherm sites included in the model.
   std::vector<Isotherm> sites{};  ///< A vector containing the individual isotherm site objects.
 
   size_t numberOfParameters{0};  ///< The total number of parameters across all isotherm sites.
@@ -107,9 +106,9 @@ struct MultiSiteIsotherm
   MultiSiteIsotherm randomized(double maximumLoading)
   {
     MultiSiteIsotherm copy(*this);
-    for (size_t i = 0; i < numberOfSites; ++i)
+    for (Isotherm& site : copy.sites)
     {
-      copy.sites[i].randomize(maximumLoading);
+      site.randomize(maximumLoading);
     }
     return copy;
   }
@@ -144,9 +143,9 @@ struct MultiSiteIsotherm
   inline double value(double pressure, double scale) const
   {
     double sum = 0.0;
-    for (size_t i = 0; i < numberOfSites; ++i)
+    for (const Isotherm& site : sites)
     {
-      sum += sites[i].value(pressure, scale);
+      sum += site.value(pressure, scale);
     }
     return sum;
   }
@@ -163,7 +162,7 @@ struct MultiSiteIsotherm
    */
   inline double value(size_t site, double pressure, double scale) const
   {
-    if (site < numberOfSites)
+    if (site < sites.size())
     {
       return sites[site].value(pressure, scale);
     }
@@ -182,9 +181,9 @@ struct MultiSiteIsotherm
   inline double psiForPressure(double pressure, double scale) const
   {
     double sum = 0.0;
-    for (size_t i = 0; i < numberOfSites; ++i)
+    for (const Isotherm& site : sites)
     {
-      sum += sites[i].psiForPressure(pressure, scale);
+      sum += site.psiForPressure(pressure, scale);
     }
     return sum;
   }
@@ -201,7 +200,7 @@ struct MultiSiteIsotherm
    */
   inline double psiForPressure(size_t site, double pressure, double scale) const
   {
-    if (site < numberOfSites)
+    if (site < sites.size())
     {
       return sites[site].psiForPressure(pressure, scale);
     }
@@ -235,7 +234,7 @@ struct MultiSiteIsotherm
    */
   double inversePressureForPsi(size_t site, double reduced_grand_potential, double& cachedP0, double scale) const
   {
-    if (site < numberOfSites)
+    if (site < sites.size())
     {
       return sites[site].inversePressureForPsi(reduced_grand_potential, cachedP0, scale);
     }

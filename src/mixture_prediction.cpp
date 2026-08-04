@@ -91,8 +91,8 @@ MixturePrediction::MixturePrediction(std::string _displayName, std::vector<Compo
   {
     std::vector<Component>::iterator maxIsothermTermsIterator =
         std::max_element(_components.begin(), _components.end(), [](Component& lhs, Component& rhs)
-                         { return lhs.isotherm.numberOfSites < rhs.isotherm.numberOfSites; });
-    maxIsothermTerms = maxIsothermTermsIterator->isotherm.numberOfSites;
+                         { return lhs.isotherm.sites.size() < rhs.isotherm.sites.size(); });
+    maxIsothermTerms = maxIsothermTermsIterator->isotherm.sites.size();
   }
   segregatedSortedComponents =
       std::vector<std::vector<Component>>(maxIsothermTerms, std::vector<Component>(components));
@@ -159,7 +159,7 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
     const double partialPressure = idealGasMolFractions[comp] * externalPressure;
     numberOfMolecules[comp] = component.isotherm.value(partialPressure, component.scale(gasTemperature));
     adsorbedMolFractions[comp] = numberOfMolecules[comp] > tiny ? 1.0 : 0.0;
-    for (size_t site = 0; site < component.isotherm.numberOfSites; ++site)
+    for (size_t site = 0; site < component.isotherm.sites.size(); ++site)
     {
       equilibriumSiteLoadings[site * numberOfComponents + comp] =
           component.isotherm.value(site, partialPressure, component.scale(gasTemperature));
@@ -192,7 +192,7 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
         const double scale = component.scale(gasTemperature);
         const double pureTotal = component.isotherm.value(cachedPressure[comp], scale);
         if (pureTotal <= tiny) continue;
-        for (size_t site = 0; site < component.isotherm.numberOfSites; ++site)
+        for (size_t site = 0; site < component.isotherm.sites.size(); ++site)
         {
           equilibriumSiteLoadings[site * numberOfComponents + comp] =
               numberOfMolecules[comp] * component.isotherm.value(site, cachedPressure[comp], scale) / pureTotal;
@@ -1314,7 +1314,7 @@ std::vector<double> MixturePrediction::initPressures()
                                            (static_cast<double>(i) / static_cast<double>(numberOfPressurePoints - 1))));
         }
         break;
-      case PressureScale::Normal:
+      case PressureScale::Linear:
         for (size_t i = 0; i < numberOfPressurePoints; ++i)
         {
           pressures[i] = pressureStart + (pressureEnd - pressureStart) *
@@ -1365,7 +1365,7 @@ void MixturePrediction::sortComponents()
       size_t activeComponents = 0;
       for (size_t j = 0; j < numberOfComponents; ++j)
       {
-        if (!components[j].isCarrierGas && i < components[j].isotherm.numberOfSites)
+        if (!components[j].isCarrierGas && i < components[j].isotherm.sites.size())
         {
           segregatedSortedComponents[i][j].isotherm = MultiSiteIsotherm({components[j].isotherm.sites[i]});
           segregatedSortedComponents[i][j].isCarrierGas = false;

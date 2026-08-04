@@ -51,7 +51,7 @@ struct Fitting
   enum class PressureScale
   {
     Log = 0,    ///< Logarithmic pressure scale.
-    Normal = 1  ///< Linear pressure scale.
+    Linear = 1  ///< Linear pressure scale.
   };
 
   /**
