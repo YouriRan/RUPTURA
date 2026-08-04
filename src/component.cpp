@@ -23,7 +23,6 @@ Component::Component(size_t id, std::string name, std::vector<Isotherm> isotherm
       isCarrierGas(isCarrierGas),
       molecularWeight(molecularWeight)
 {
-  isotherm.numberOfSites = isotherms.size();
   for (const Isotherm& site : isotherms)
   {
     isotherm.add(site);

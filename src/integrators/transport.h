@@ -1,15 +1,15 @@
 #pragma once
 
+#include <cstddef>
 #include <span>
 #include <vector>
 
-#include "column.h"
-
-void computeChemisorptionTransportDerivatives(Column& column);
+#include "component.h"
+#include "geometry.h"
 
 void computeChemisorptionTransportDerivatives(
     const std::vector<Component>& components, size_t numberOfGridPoints, size_t numberOfComponents,
-    size_t maxChemisorptionSites, const ShapeParameters& geometry, double particleDensity,
+    size_t maxChemisorptionSites, const Geometry& geometry, double particleDensity,
     std::span<const double> concentration, std::span<const double> chemisorptionDot,
     std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
     std::span<const double> poreConcentration, std::span<double> poreConcentrationDot);
@@ -21,16 +21,16 @@ void computeChemisorptionTransportDerivatives(
     std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
     std::span<const double> poreConcentration, std::span<double> poreConcentrationDot);
 
-void computeBulkSpeciesSink(Column& column);
-
 void computeBulkSpeciesSink(const std::vector<Component>& components, size_t numberOfGridPoints,
                             size_t numberOfComponents, size_t maxChemisorptionSites,
-                            const ShapeParameters& geometry, double particleDensity,
+                            const Geometry& geometry, double particleDensity,
                             std::span<const double> concentration,
                             std::span<const double> physisorptionDot,
                             std::span<const double> chemisorptionDot,
                             std::span<const double> surfaceConcentration,
-                            std::span<double> bulkSpeciesSink);
+                            std::span<double> bulkSpeciesSink,
+                            std::span<const double> reactionPhysisorptionSource = {},
+                            std::span<const double> reactionChemisorptionSource = {});
 
 void computeBulkSpeciesSink(const std::vector<Component>& components, size_t numberOfGridPoints,
                             size_t numberOfComponents, size_t maxChemisorptionSites,

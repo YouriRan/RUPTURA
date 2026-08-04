@@ -80,11 +80,11 @@ void Breakthrough::run()
   if (numberOfInitTimeSteps > 0)
   {
     rk3.autoNumberOfSteps = false;
-    cvode.autoNumberOfSteps = false;
     sirk3.autoNumberOfSteps = false;
+    cvode.autoNumberOfSteps = false;
     rk3.timeStep = timeStep * xi;
-    cvode.timeStep = timeStep * xi;
     sirk3.timeStep = timeStep * xi;
+    cvode.timeStep = timeStep * xi;
   }
 
   try
@@ -128,17 +128,17 @@ void Breakthrough::run()
         double i = static_cast<double>(step) / numberOfInitTimeSteps;
         double nextTime = timeStep * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
         rk3.timeStep = nextTime;
-        cvode.timeStep = nextTime;
         sirk3.timeStep = nextTime;
+        cvode.timeStep = nextTime;
       }
       else if (step == numberOfInitTimeSteps)
       {
         rk3.autoNumberOfSteps = autoNumberOfSteps;
-        cvode.autoNumberOfSteps = autoNumberOfSteps;
         sirk3.autoNumberOfSteps = autoNumberOfSteps;
+        cvode.autoNumberOfSteps = autoNumberOfSteps;
         rk3.timeStep = timeStep;
-        cvode.timeStep = timeStep;
         sirk3.timeStep = timeStep;
+        cvode.timeStep = timeStep;
       }
 
       if (step % writeEvery == 0)

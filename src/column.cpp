@@ -16,7 +16,7 @@
 #include "breakthrough.h"
 #include "component.h"
 #include "inputreader.h"
-#include "integrators/compute.h"
+#include "integrators/rk3.h"
 #include "json.h"
 #include "mixture_prediction.h"
 #include "utils.h"
@@ -78,9 +78,7 @@ MixturePrediction Column::makeChemisorptionMixture(
         }
       }
     }
-    chemicalComponent.isotherm.numberOfSites = chemicalComponent.isotherm.sites.size();
-
-    chemicalComponent.isCarrierGas = chemicalComponent.isotherm.numberOfSites == 0;
+    chemicalComponent.isCarrierGas = chemicalComponent.isotherm.sites.empty();
     if (chemicalComponent.isCarrierGas)
     {
       ++numberOfCarrierGases;
@@ -144,6 +142,7 @@ Column::Column(const Column& other)
       boundaryCondition(other.boundaryCondition),
       energyBalance(other.energyBalance),
       geometry(other.geometry),
+      reactions(other.reactions),
       numberOfGridPoints(other.numberOfGridPoints),
       numberOfComponents(other.numberOfComponents),
       maxIsothermTerms(other.maxIsothermTerms),
@@ -196,6 +195,10 @@ Column::Column(const Column& other)
       facePressures(other.facePressures),
       massFlux(other.massFlux),
       bulkSpeciesSink(other.bulkSpeciesSink),
+      reactionPhysisorptionSource(other.reactionPhysisorptionSource),
+      reactionChemisorptionSource(other.reactionChemisorptionSource),
+      reactionPoreConcentrationSource(other.reactionPoreConcentrationSource),
+      reactionHeat(other.reactionHeat),
       state(other.state),
       stateDot(other.stateDot)
 {
@@ -212,6 +215,7 @@ Column& Column::operator=(const Column& other)
   boundaryCondition = other.boundaryCondition;
   energyBalance = other.energyBalance;
   geometry = other.geometry;
+  reactions = other.reactions;
   numberOfGridPoints = other.numberOfGridPoints;
   numberOfComponents = other.numberOfComponents;
   maxIsothermTerms = other.maxIsothermTerms;
@@ -264,6 +268,10 @@ Column& Column::operator=(const Column& other)
   facePressures = other.facePressures;
   massFlux = other.massFlux;
   bulkSpeciesSink = other.bulkSpeciesSink;
+  reactionPhysisorptionSource = other.reactionPhysisorptionSource;
+  reactionChemisorptionSource = other.reactionChemisorptionSource;
+  reactionPoreConcentrationSource = other.reactionPoreConcentrationSource;
+  reactionHeat = other.reactionHeat;
   state = other.state;
   stateDot = other.stateDot;
 
@@ -276,7 +284,7 @@ void Column::initialize()
   for (size_t j = 0; j < numberOfComponents; ++j)
   {
     prefactorMassTransfer[j] =
-        geometry.shapeParameters().loadingPrefactor(particleDensity) * components[j].massTransferCoefficient;
+        geometry.loadingPrefactor(particleDensity) * components[j].massTransferCoefficient;
   }
 
   std::fill(partialPressure.begin(), partialPressure.end(), 0.0);
@@ -287,6 +295,10 @@ void Column::initialize()
   std::fill(concentration.begin(), concentration.end(), 0.0);
   std::fill(moleFraction.begin(), moleFraction.end(), 0.0);
   std::fill(bulkSpeciesSink.begin(), bulkSpeciesSink.end(), 0.0);
+  std::fill(reactionPhysisorptionSource.begin(), reactionPhysisorptionSource.end(), 0.0);
+  std::fill(reactionChemisorptionSource.begin(), reactionChemisorptionSource.end(), 0.0);
+  std::fill(reactionPoreConcentrationSource.begin(), reactionPoreConcentrationSource.end(), 0.0);
+  std::fill(reactionHeat.begin(), reactionHeat.end(), 0.0);
   std::fill(stateDot.begin(), stateDot.end(), 0.0);
 
   std::vector<double> initialPressure(numberOfGridPoints + 1, 0.0);
@@ -430,8 +442,8 @@ void Column::initialize()
   std::fill(solidTemperature.begin(), solidTemperature.end(), influxTemperature);
   std::fill(wallTemperature.begin(), wallTemperature.end(), influxTemperature);
 
-  updateVelocityAndPressure(*this);
-  computeEquilibriumLoadings(*this);
+  RK3Helpers::updateVelocityAndPressure(*this);
+  RK3Helpers::computeEquilibriumLoadings(*this);
 }
 
 void Column::setTemperature(double temperature)

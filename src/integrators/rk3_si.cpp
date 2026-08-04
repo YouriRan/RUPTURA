@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "compute.h"
+#include "rk3.h"
 #include "sorption.h"
 #include "utils.h"
 
@@ -37,7 +38,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
   if (column.surfacePoreTransportEnabled)
   {
     throw std::runtime_error(
-        "SemiImplicitRungeKutta3 is deprecated for General chemisorption; use RungeKutta3 or CVODE");
+        "SemiImplicitRungeKutta3 does not support General chemisorption with surface-pore transport; use RungeKutta3 or CVODE");
   }
 
   size_t numberOfGridPoints = column.numberOfGridPoints;
@@ -86,7 +87,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeSorptionDerivatives(newColumn);
+                      RK3Helpers::computeSorptionDerivatives(newColumn);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -95,7 +96,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeSorptionDerivatives(newColumn);
+                      RK3Helpers::computeSorptionDerivatives(newColumn);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -105,8 +106,10 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     newColumn.concentration[i] = solved[i];
   }
 
-  timings.measure(timings.updateVelocityAndPressure, [&] { updateVelocityAndPressure(newColumn); });
-  timings.measure(timings.computeEquilibriumLoadings, [&] { computeEquilibriumLoadings(newColumn); });
+  timings.measure(timings.updateVelocityAndPressure,
+                  [&] { RK3Helpers::updateVelocityAndPressure(newColumn); });
+  timings.measure(timings.computeEquilibriumLoadings,
+                  [&] { RK3Helpers::computeEquilibriumLoadings(newColumn); });
 
   // SSP-RK Step 2
   for (size_t i = 0; i < column.physisorption.size(); ++i)
@@ -123,7 +126,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeSorptionDerivatives(newColumn);
+                      RK3Helpers::computeSorptionDerivatives(newColumn);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -132,7 +135,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeSorptionDerivatives(newColumn);
+                      RK3Helpers::computeSorptionDerivatives(newColumn);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -142,8 +145,10 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     newColumn.concentration[i] = 0.75 * column.concentration[i] + 0.25 * solved[i];
   }
 
-  timings.measure(timings.updateVelocityAndPressure, [&] { updateVelocityAndPressure(newColumn); });
-  timings.measure(timings.computeEquilibriumLoadings, [&] { computeEquilibriumLoadings(newColumn); });
+  timings.measure(timings.updateVelocityAndPressure,
+                  [&] { RK3Helpers::updateVelocityAndPressure(newColumn); });
+  timings.measure(timings.computeEquilibriumLoadings,
+                  [&] { RK3Helpers::computeEquilibriumLoadings(newColumn); });
 
   // SSP-RK Step 3
   for (size_t i = 0; i < column.physisorption.size(); ++i)
@@ -161,7 +166,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeSorptionDerivatives(newColumn);
+                      RK3Helpers::computeSorptionDerivatives(newColumn);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -170,7 +175,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeSorptionDerivatives(newColumn);
+                      RK3Helpers::computeSorptionDerivatives(newColumn);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -180,8 +185,10 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     newColumn.concentration[i] = (1.0 / 3.0) * column.concentration[i] + (2.0 / 3.0) * solved[i];
   }
 
-  timings.measure(timings.updateVelocityAndPressure, [&] { updateVelocityAndPressure(newColumn); });
-  timings.measure(timings.computeEquilibriumLoadings, [&] { computeEquilibriumLoadings(newColumn); });
+  timings.measure(timings.updateVelocityAndPressure,
+                  [&] { RK3Helpers::updateVelocityAndPressure(newColumn); });
+  timings.measure(timings.computeEquilibriumLoadings,
+                  [&] { RK3Helpers::computeEquilibriumLoadings(newColumn); });
 
   // final implicit physisorption update
   for (size_t i = 0; i < column.physisorption.size(); ++i)
@@ -199,7 +206,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeSorptionDerivatives(newColumn);
+                      RK3Helpers::computeSorptionDerivatives(newColumn);
                       computeConcentrationUpdateMatrixEnergyBalanceFinal(newColumn, timeStep, solved);
                     });
   }
@@ -208,7 +215,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeSorptionDerivatives(newColumn);
+                      RK3Helpers::computeSorptionDerivatives(newColumn);
                       computeConcentrationUpdateMatrixFinal(newColumn, timeStep, solved);
                     });
   }
@@ -218,8 +225,10 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     newColumn.concentration[i] = solved[i];
   }
 
-  timings.measure(timings.updateVelocityAndPressure, [&] { updateVelocityAndPressure(newColumn); });
-  timings.measure(timings.computeEquilibriumLoadings, [&] { computeEquilibriumLoadings(newColumn); });
+  timings.measure(timings.updateVelocityAndPressure,
+                  [&] { RK3Helpers::updateVelocityAndPressure(newColumn); });
+  timings.measure(timings.computeEquilibriumLoadings,
+                  [&] { RK3Helpers::computeEquilibriumLoadings(newColumn); });
 
   column = newColumn;
   return (!autoNumberOfSteps && step >= numberOfSteps - 1);
@@ -231,7 +240,7 @@ void computeConcentrationUpdateMatrix(Column& column, double timeStep, std::vect
   double idx2 = idx * idx;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double adsorptionPrefactor = column.geometry.shapeParameters().loadingPrefactor(column.particleDensity);
+  const double adsorptionPrefactor = column.geometry.loadingPrefactor(column.particleDensity);
 
   int n = static_cast<int>(numberOfGridPoints + 1);
   int nrhs = 1;
@@ -286,7 +295,7 @@ void computeConcentrationUpdateMatrixEnergyBalance(Column& column, double timeSt
   double idx2 = idx * idx;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double adsorptionPrefactor = column.geometry.shapeParameters().loadingPrefactor(column.particleDensity);
+  const double adsorptionPrefactor = column.geometry.loadingPrefactor(column.particleDensity);
 
   int n = static_cast<int>(numberOfGridPoints + 1);
   int nrhs = 1;
@@ -361,7 +370,7 @@ void computeConcentrationUpdateMatrixFinal(Column& column, double timeStep, std:
   double dt2 = timeStep * timeStep;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double adsorptionPrefactor = column.geometry.shapeParameters().loadingPrefactor(column.particleDensity);
+  const double adsorptionPrefactor = column.geometry.loadingPrefactor(column.particleDensity);
 
   std::vector<double> upper(numberOfGridPoints);
   std::vector<double> lower(numberOfGridPoints);
@@ -462,7 +471,7 @@ void computeConcentrationUpdateMatrixEnergyBalanceFinal(Column& column, double t
   double dt2 = timeStep * timeStep;
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double adsorptionPrefactor = column.geometry.shapeParameters().loadingPrefactor(column.particleDensity);
+  const double adsorptionPrefactor = column.geometry.loadingPrefactor(column.particleDensity);
 
   std::vector<double> upper(numberOfGridPoints);
   std::vector<double> lower(numberOfGridPoints);

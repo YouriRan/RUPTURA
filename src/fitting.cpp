@@ -4,6 +4,7 @@
 #include <bitset>
 #include <climits>
 #include <cmath>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <exception>
@@ -215,10 +216,9 @@ void Fitting::writeComponentsJson(const std::string& path) const
     {
       componentJson["MassTransferCoefficient"] = component.massTransferCoefficient;
       componentJson["AxialDispersionCoefficient"] = component.axialDispersionCoefficient;
-      componentJson["NumberOfPhysisorptionSites"] = isotherm.numberOfSites;
       componentJson["PhysisorptionSites"] = ordered_json::array();
 
-      for (size_t siteIndex = 0; siteIndex < isotherm.numberOfSites; ++siteIndex)
+      for (size_t siteIndex = 0; siteIndex < isotherm.sites.size(); ++siteIndex)
       {
         const Isotherm& site = isotherm.sites[siteIndex];
 
@@ -308,16 +308,6 @@ Fitting::DNA Fitting::newCitizen(size_t ID)
 
 void Fitting::updateCitizen(DNA& citizen) { citizen.fitness = fitness(citizen.phenotype); }
 
-inline bool my_isnan(double val)
-{
-  union
-  {
-    double f;
-    uint64_t x;
-  } u = {val};
-  return (u.x << 1) > (0x7ff0000000000000u << 1);
-}
-
 double Fitting::fitness(const MultiSiteIsotherm& phenotype)
 // For evaluating isotherm goodness-of-fit:
 // Residual Root Mean Square Error (RMSE)
@@ -336,7 +326,12 @@ double Fitting::fitness(const MultiSiteIsotherm& phenotype)
   }
   fitnessValue = sqrt(fitnessValue / static_cast<double>(m - p));
 
-  if (my_isnan(fitnessValue)) fitnessValue = 99999999.999999;
+  union
+  {
+    double f;
+    std::uint64_t x;
+  } fitnessBits = {fitnessValue};
+  if ((fitnessBits.x << 1) > (0x7ff0000000000000u << 1)) fitnessValue = 99999999.999999;
   if (fitnessValue == 0.0000000000) fitnessValue = 99999999.999999;
 
   return fitnessValue;

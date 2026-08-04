@@ -1,53 +1,111 @@
 #pragma once
 
 #include <cstddef>
-#include <string>
-#include <variant>
+#include <optional>
+#include <string_view>
+
+enum struct GeometryKind
+{
+  HollowTube = 0,
+  Monolith = 1
+};
+
+enum struct ChannelShape
+{
+  Triangular = 0,
+  Square = 1,
+  Hexagonal = 2,
+  Circular = 3
+};
 
 /**
- * \brief Precomputed geometry terms used by transport and energy balances.
- *
- * Area densities are normalized by the phase volume named in the field. For
- * example, fluidSolidContactAreaPerFluidVolume is the gas/liquid-solid contact
- * area per flowing-channel volume.
+ * \brief Parses a user-facing monolith channel-shape name.
  */
-struct ShapeParameters
-{
-  enum struct GeometryKind
-  {
-    HollowTube = 0,
-    Monolith = 1
-  };
+[[nodiscard]] ChannelShape parseChannelShape(std::string_view value);
 
-  GeometryKind geometryKind{GeometryKind::HollowTube};
-  std::string geometryName{"HollowTube"};
-  std::string channelShape{"circular"};
+/**
+ * \brief Returns the canonical user-facing name for a channel shape.
+ */
+[[nodiscard]] std::string_view channelShapeName(ChannelShape channelShape);
+
+/**
+ * \brief Area densities used by transport and energy balances.
+ *
+ * Each value is normalized by the phase volume named in the field.
+ */
+struct ContactAreaDensities
+{
+  double fluidSolidPerFluidVolume{0.0};  ///< Gas/liquid-solid area per flowing volume, 1/m.
+  double solidFluidPerSolidVolume{0.0};  ///< Gas/liquid-solid area per active solid volume, 1/m.
+  double fluidWallPerFluidVolume{0.0};   ///< Gas/liquid-wall area per flowing volume, 1/m.
+  double wallInnerPerWallVolume{0.0};    ///< Inner wall area per wall volume, 1/m.
+  double wallOuterPerWallVolume{0.0};    ///< Outer wall area per wall volume, 1/m.
+};
+
+/**
+ * \brief Physical dimensions and diagnostic cross-section terms.
+ */
+struct GeometryDimensions
+{
+  ChannelShape channelShape{ChannelShape::Circular};
   std::size_t numberOfChannels{1};
 
-  double voidFraction{0.4};                         ///< Flowing-volume fraction.
-  double solidToFluidVolumeRatio{1.5};              ///< Solid volume divided by flowing volume.
-  double fluidSolidContactAreaPerFluidVolume{0.0};  ///< Gas/liquid-solid area density, 1/m.
-  double solidFluidContactAreaPerSolidVolume{0.0};  ///< Gas/liquid-solid area per solid volume, 1/m.
-  double fluidWallContactAreaPerFluidVolume{0.0};   ///< Gas/liquid-wall area density, 1/m.
-  double wallInnerContactAreaPerWallVolume{0.0};    ///< Inner wall area per wall volume, 1/m.
-  double wallOuterContactAreaPerWallVolume{0.0};    ///< Outer wall area per wall volume, 1/m.
-
-  double hydraulicDiameter{0.0};       ///< Flow-channel hydraulic diameter, m.
+  double hydraulicDiameter{0.0};          ///< Flow-channel hydraulic diameter, m.
   double solidCharacteristicLength{0.0};  ///< Bead diameter or equivalent solid length, m.
-  double poreDiffusionLength{0.0};     ///< Characteristic pore/washcoat diffusion length, m.
-  double internalDiameter{0.0};        ///< Hollow tube inner diameter or channel characteristic size, m.
-  double outerDiameter{0.0};           ///< Column/monolith outer diameter, m.
+  double poreDiffusionLength{0.0};        ///< Characteristic pore/washcoat diffusion length, m.
+  double internalDiameter{0.0};           ///< Tube diameter or monolith channel dimension, m.
+  double outerDiameter{0.0};              ///< Column/monolith outer diameter, m.
 
-  double channelArea{0.0};       ///< Single-channel open area, m^2.
-  double channelPerimeter{0.0};  ///< Single-channel wetted perimeter, m.
-  double outerArea{0.0};         ///< Whole bundle/tube outer cross-section area, m^2.
-  double openArea{0.0};          ///< Total flowing cross-section area, m^2.
-  double solidArea{0.0};         ///< Solid/wall cross-section area, m^2.
-  double washcoatThickness{0.0};  ///< Optional washcoat thickness, m.
-  double washcoatVolumePerChannelVolume{0.0};  ///< Optional washcoat volume ratio.
+  double channelArea{0.0};                     ///< Single-channel open area, m^2.
+  double channelPerimeter{0.0};                ///< Single-channel wetted perimeter, m.
+  double outerArea{0.0};                       ///< Whole bundle/tube outer cross-section area, m^2.
+  double openArea{0.0};                        ///< Total flowing cross-section area, m^2.
+  double solidArea{0.0};                       ///< Solid/wall cross-section area, m^2.
+  double washcoatThickness{0.0};               ///< Optional washcoat thickness, m.
+  double washcoatVolumePerChannelVolume{0.0};  ///< Active washcoat volume ratio.
+};
 
-  double viscousPressureDropCoefficient{0.0};  ///< Multiplies mu * u in dP/dz.
-  double inertialPressureDropCoefficient{0.0};  ///< Multiplies rho * u^2 in dP/dz.
+/**
+ * \brief Coefficients for a value-semantic pressure-drop law.
+ */
+struct PressureDropLaw
+{
+  double viscousCoefficient{0.0};   ///< Multiplies mu * u in dP/dz.
+  double inertialCoefficient{0.0};  ///< Multiplies rho * u^2 in dP/dz.
+
+  [[nodiscard]] double gradient(double dynamicViscosity, double density, double velocity) const noexcept
+  {
+    return viscousCoefficient * dynamicViscosity * velocity + inertialCoefficient * density * velocity * velocity;
+  }
+};
+
+/**
+ * \brief Fully derived geometry stored and consumed by a simulation.
+ *
+ * Geometry is an ordinary copyable value. Geometry-specific validation and
+ * formulas live in the makeGeometry overloads; downstream calculations do not
+ * branch on the source geometry type.
+ */
+struct Geometry
+{
+  Geometry(GeometryKind kind, double voidFraction, double solidToFluidVolumeRatio, ContactAreaDensities contactAreas,
+           GeometryDimensions dimensions, PressureDropLaw pressureDrop) noexcept
+      : kind(kind),
+        voidFraction(voidFraction),
+        solidToFluidVolumeRatio(solidToFluidVolumeRatio),
+        contactAreas(contactAreas),
+        dimensions(dimensions),
+        pressureDrop(pressureDrop)
+  {
+  }
+
+  GeometryKind kind;
+  double voidFraction;             ///< Flowing-volume fraction.
+  double solidToFluidVolumeRatio;  ///< Active solid volume divided by flowing volume.
+
+  ContactAreaDensities contactAreas;
+  GeometryDimensions dimensions;
+  PressureDropLaw pressureDrop;
 
   [[nodiscard]] double loadingPrefactor(double particleDensity) const noexcept
   {
@@ -56,54 +114,28 @@ struct ShapeParameters
 };
 
 /**
- * \brief Packed beads in one hollow tube.
+ * \brief User inputs for packed beads in one hollow tube.
  */
-struct HollowTube
+struct PackedBedTubeSpec
 {
-  HollowTube(double voidFraction = 0.4, double particleDiameter = 1.0e-3,
-             double internalDiameter = 0.0, double outerDiameter = 0.0);
-
-  [[nodiscard]] const ShapeParameters& shapeParameters() const noexcept { return parameters; }
-
-  ShapeParameters parameters;
+  double voidFraction{0.4};
+  double particleDiameter{1.0e-3};
+  double internalDiameter{0.0};
+  double outerDiameter{0.0};
 };
 
 /**
- * \brief Monolith bundle with many identical coated flow channels.
+ * \brief User inputs for a monolith bundle with identical coated channels.
  */
-struct Monolith
+struct MonolithSpec
 {
-  enum struct ChannelShape
-  {
-    Triangular = 0,
-    Square = 1,
-    Hexagonal = 2,
-    Circular = 3
-  };
-
-  Monolith(ChannelShape channelShape, double internalChannelDimension, double outerDiameter,
-           std::size_t numberOfChannels, double washcoatThickness = 0.0,
-           double washcoatVolumePerChannelVolume = -1.0);
-
-  [[nodiscard]] const ShapeParameters& shapeParameters() const noexcept { return parameters; }
-
-  [[nodiscard]] static ChannelShape parseChannelShape(const std::string& value);
-  [[nodiscard]] static std::string channelShapeName(ChannelShape channelShape);
-
-  ShapeParameters parameters;
+  ChannelShape channelShape{ChannelShape::Circular};
+  double internalChannelDimension{0.0};
+  double outerDiameter{0.0};
+  std::size_t numberOfChannels{0};
+  double washcoatThickness{0.0};
+  std::optional<double> washcoatVolumePerChannelVolume;
 };
 
-/**
- * \brief Value-semantic geometry object stored by a Column.
- */
-struct Geometry
-{
-  Geometry() = default;
-  Geometry(const HollowTube& hollowTube) : value(hollowTube) {}
-  Geometry(const Monolith& monolith) : value(monolith) {}
-
-  [[nodiscard]] const ShapeParameters& shapeParameters() const noexcept;
-  [[nodiscard]] double pressureGradient(double dynamicViscosity, double density, double velocity) const noexcept;
-
-  std::variant<HollowTube, Monolith> value{HollowTube{}};
-};
+[[nodiscard]] Geometry makeGeometry(const PackedBedTubeSpec& specification);
+[[nodiscard]] Geometry makeGeometry(const MonolithSpec& specification);

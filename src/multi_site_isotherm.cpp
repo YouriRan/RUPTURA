@@ -8,7 +8,6 @@
 
 MultiSiteIsotherm::MultiSiteIsotherm(std::vector<Isotherm> sites)
 {
-  numberOfSites = sites.size();
   numberOfParameters = 0;
 
   for (const Isotherm& site : sites)
@@ -22,10 +21,10 @@ void MultiSiteIsotherm::print() const { std::print("{}", repr()); }
 std::string MultiSiteIsotherm::repr() const
 {
   std::string s;
-  s += "    number of isotherm sites:  " + std::to_string(numberOfSites) + "\n";
-  for (size_t i = 0; i < numberOfSites; ++i)
+  s += "    number of isotherm sites:  " + std::to_string(sites.size()) + "\n";
+  for (const Isotherm& site : sites)
   {
-    s += sites[i].repr();
+    s += site.repr();
   }
   return s;
 }
@@ -72,7 +71,7 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
   double right_bracket;
 
   // For a single Langmuir or Langmuir-Freundlich site, the inverse can be handled analytically
-  if (numberOfSites == 1)
+  if (sites.size() == 1)
   {
     return sites[0].inversePressureForPsi(reduced_grand_potential, cachedP0, scale);
   }
@@ -167,9 +166,9 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
 double MultiSiteIsotherm::fitness() const
 {
   const double penaltyCost = 50.0;
-  for (size_t i = 0; i < numberOfSites; ++i)
+  for (const Isotherm& site : sites)
   {
-    if (sites[i].isUnphysical()) return penaltyCost;
+    if (site.isUnphysical()) return penaltyCost;
   }
   return 0.0;
 }

@@ -7,6 +7,7 @@
 #include <print>
 #include <type_traits>
 
+#include "rk3.h"
 #include "transport.h"
 
 #if BUILD_SUNDIALS
@@ -93,7 +94,7 @@ bool CVODE::propagate(Column& column, size_t step, Timing& timings)
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
 
-  if (autoNumberOfSteps)
+  if (autoNumberOfSteps && column.reactions.empty())
   {
     double tolerance = 0.0;
 
@@ -130,6 +131,16 @@ bool CVODE::propagate(Column& column, size_t step, Timing& timings)
   if (flag != 0)
   {
     throw std::runtime_error("CVODE::evaluateDerivatives failed after propagation");
+  }
+
+  if (autoNumberOfSteps && !column.reactions.empty() &&
+      RK3Helpers::reactionAutoStopReached(column, timeStep))
+  {
+    std::print("\nReaction convergence criteria reached, running 10% longer\n\n\n");
+
+    const size_t minimumSteps = std::max<size_t>(step + 1, 1);
+    numberOfSteps = std::max<size_t>(static_cast<size_t>(std::ceil(1.1 * static_cast<double>(minimumSteps))), 2);
+    autoNumberOfSteps = false;
   }
 
   return (!autoNumberOfSteps && step >= numberOfSteps - 1);
@@ -207,13 +218,18 @@ int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector
   auto spanWallTemperatureDot =
       (column->energyBalance) ? layout.wallTemperature(derivativeBase) : column->wallTemperatureDot;
 
+  std::fill(column->reactionPhysisorptionSource.begin(), column->reactionPhysisorptionSource.end(), 0.0);
+  std::fill(column->reactionChemisorptionSource.begin(), column->reactionChemisorptionSource.end(), 0.0);
+  std::fill(column->reactionPoreConcentrationSource.begin(), column->reactionPoreConcentrationSource.end(), 0.0);
+  std::fill(column->reactionHeat.begin(), column->reactionHeat.end(), 0.0);
   for (size_t iteration = 0; iteration < 2; ++iteration)
   {
     computeBulkSpeciesSink(
         column->components, column->numberOfGridPoints, column->numberOfComponents,
-        column->maxChemisorptionSites, column->geometry.shapeParameters(), column->particleDensity,
+        column->maxChemisorptionSites, column->geometry, column->particleDensity,
         spanConcentration, spanPhysisorptionDot, spanChemisorptionDot,
-        spanSurfaceConcentration, column->bulkSpeciesSink);
+        spanSurfaceConcentration, column->bulkSpeciesSink,
+        column->reactionPhysisorptionSource, column->reactionChemisorptionSource);
 
     updateVelocityAndPressure(
         column->components, column->boundaryCondition, column->numberOfGridPoints, column->numberOfComponents,
@@ -223,12 +239,12 @@ int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector
         spanConcentration, column->partialPressure, column->moleFraction, column->bulkSpeciesSink,
         spanGasTemperature);
 
-    computeEquilibriumLoadings(column->physisorptionMixture, column->numberOfGridPoints,
-                               column->numberOfComponents,
-                               column->maxIsothermTerms, column->iastPerformance, column->idealGasMolFractions,
-                               column->adsorbedMolFractions, column->numberOfMolecules, column->totalPressure,
-                               column->equilibriumPhysisorption, column->cachedPressure, column->cachedGrandPotential,
-                               column->moleFraction, spanGasTemperature);
+    computePhysisorptionEquilibriumLoadings(
+        column->physisorptionMixture, column->numberOfGridPoints, column->numberOfComponents,
+        column->maxIsothermTerms, column->iastPerformance, column->idealGasMolFractions,
+        column->adsorbedMolFractions, column->numberOfMolecules, column->totalPressure,
+        column->equilibriumPhysisorption, column->cachedPressure, column->cachedGrandPotential,
+        column->moleFraction, spanGasTemperature);
 
     computeChemisorptionEquilibriumLoadings(
         column->chemisorptionMixture, column->numberOfGridPoints, column->numberOfComponents,
@@ -239,12 +255,19 @@ int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector
 
     computeSorptionDerivatives(
         column->components, column->numberOfGridPoints, column->numberOfComponents,
-        column->maxChemisorptionSites, column->externalTemperature, column->geometry.shapeParameters(),
+        column->maxChemisorptionSites, column->externalTemperature, column->geometry,
         column->particleDensity, column->equilibriumPhysisorption,
         column->equilibriumChemisorption, spanConcentration,
         spanPhysisorption, spanPhysisorptionDot, spanChemisorption, spanChemisorptionDot,
         spanSurfaceConcentration, spanSurfaceConcentrationDot, spanPoreConcentration,
         spanPoreConcentrationDot, spanSolidTemperature, column->bulkSpeciesSink);
+    computeReactionDerivatives(
+        column->components, column->reactions, column->numberOfGridPoints, column->numberOfComponents,
+        column->maxChemisorptionSites, column->externalTemperature, spanPhysisorption,
+        spanPhysisorptionDot, spanChemisorption, spanChemisorptionDot, spanPoreConcentration,
+        spanPoreConcentrationDot, spanSolidTemperature, column->reactionPhysisorptionSource,
+        column->reactionChemisorptionSource, column->reactionPoreConcentrationSource,
+        column->reactionHeat);
   }
 
   computeMassDerivatives(column->components, column->numberOfGridPoints, column->numberOfComponents,
@@ -255,13 +278,14 @@ int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector
   {
     computeEnergyDerivatives(
         column->components, column->numberOfGridPoints, column->numberOfComponents,
-        column->maxChemisorptionSites, column->externalTemperature, column->geometry.shapeParameters(),
+        column->maxChemisorptionSites, column->externalTemperature, column->geometry,
         column->particleDensity, column->wallDensity, column->gasThermalConductivity, column->wallThermalConductivity,
         column->heatTransferGasSolid, column->heatTransferGasWall, column->heatTransferWallExternal,
         column->heatCapacityGas, column->heatCapacitySolid, column->heatCapacityWall, column->resolution,
         column->interstitialGasVelocity, column->gasDensity, column->coeffDiffusion, spanPhysisorptionDot,
         spanChemisorptionDot, spanGasTemperature, spanGasTemperatureDot, spanSolidTemperature,
-        spanSolidTemperatureDot, spanWallTemperature, spanWallTemperatureDot);
+        spanSolidTemperatureDot, spanWallTemperature, spanWallTemperatureDot,
+        column->reactionPhysisorptionSource, column->reactionChemisorptionSource, column->reactionHeat);
   }
 
   return 0;

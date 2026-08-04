@@ -64,7 +64,7 @@ struct MixturePrediction
    * \param _pressureStart The starting pressure for the simulation.
    * \param _pressureEnd The ending pressure for the simulation.
    * \param _numberOfPressurePoints The number of pressure points in the simulation.
-   * \param _pressureScale The pressure scale (0 for Log, 1 for Normal).
+   * \param _pressureScale The pressure scale (0 for Log, 1 for Linear).
    * \param _predictionMethod The prediction method to use.
    * \param _iastMethod The IAST method to use.
    */
@@ -154,7 +154,7 @@ struct MixturePrediction
   enum class PressureScale
   {
     Log = 0,    ///< Logarithmic pressure scale
-    Normal = 1  ///< Linear pressure scale
+    Linear = 1  ///< Linear pressure scale
   };
   double temperature{300.0};                        ///< The temperature of the system in K.
   double pressureStart{1e3};                        ///< The starting pressure for the simulation in Pa.

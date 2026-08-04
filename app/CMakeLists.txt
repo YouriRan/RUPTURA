@@ -1,21 +1,32 @@
-project(ruptura)
-
-add_executable(${PROJECT_NAME}
-  main.cpp
+find_package(Qt6 6.5 REQUIRED COMPONENTS
+  Network
+  Widgets
 )
 
-target_compile_options(${PROJECT_NAME} PRIVATE
+set(CMAKE_AUTOMOC ON)
+
+add_executable(ruptura_lab
+  main.cpp
+  mainwindow.cpp
+  mainwindow.h
+  runner.cpp
+  runner.h
+)
+
+target_compile_options(ruptura_lab PRIVATE
   ${RUPTURA_COMPILE_OPTIONS}
 )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-  rupturalib
+target_compile_definitions(ruptura_lab PRIVATE
+  RUPTURA_CLI_EXECUTABLE="$<TARGET_FILE:${PROJECT_NAME}>"
+  RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
 )
 
-if(BUILD_MAC_PACKAGE)
-  install(CODE "execute_process(COMMAND
-    codesign --force --options runtime --timestamp --sign \"Developer ID Application: David Dubbeldam (24U2ZRZ6SC)\"
-    \"app/${PROJECT_NAME}\")" COMPONENT app)
-endif()
+target_link_libraries(ruptura_lab PRIVATE
+  Qt6::Network
+  Qt6::Widgets
+)
 
-install(TARGETS ${PROJECT_NAME} DESTINATION bin COMPONENT app)
+add_dependencies(ruptura_lab ${PROJECT_NAME})
+
+install(TARGETS ruptura_lab DESTINATION bin COMPONENT app)
