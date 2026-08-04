@@ -40,6 +40,18 @@ struct MultiSiteIsotherm
   std::vector<size_t> siteParameterIndex{};  ///< Indices indicating the starting parameter index for each site.
 
   /**
+   * \brief Returns whether at least one retained isotherm site has nonzero loading.
+   */
+  [[nodiscard]] bool enabled() const noexcept
+  {
+    for (const Isotherm& site : sites)
+    {
+      if (site.enabled()) return true;
+    }
+    return false;
+  }
+
+  /**
    * \brief Accesses the parameter at the specified index.
    *
    * Provides a reference to the parameter value corresponding to the given global parameter index, allowing for
@@ -145,7 +157,7 @@ struct MultiSiteIsotherm
     double sum = 0.0;
     for (const Isotherm& site : sites)
     {
-      sum += site.value(pressure, scale);
+      if (site.enabled()) sum += site.value(pressure, scale);
     }
     return sum;
   }
@@ -164,7 +176,7 @@ struct MultiSiteIsotherm
   {
     if (site < sites.size())
     {
-      return sites[site].value(pressure, scale);
+      return sites[site].enabled() ? sites[site].value(pressure, scale) : 0.0;
     }
     return 0.0;
   }
@@ -183,7 +195,7 @@ struct MultiSiteIsotherm
     double sum = 0.0;
     for (const Isotherm& site : sites)
     {
-      sum += site.psiForPressure(pressure, scale);
+      if (site.enabled()) sum += site.psiForPressure(pressure, scale);
     }
     return sum;
   }
@@ -202,7 +214,7 @@ struct MultiSiteIsotherm
   {
     if (site < sites.size())
     {
-      return sites[site].psiForPressure(pressure, scale);
+      return sites[site].enabled() ? sites[site].psiForPressure(pressure, scale) : 0.0;
     }
     return 0.0;
   }
@@ -236,7 +248,7 @@ struct MultiSiteIsotherm
   {
     if (site < sites.size())
     {
-      return sites[site].inversePressureForPsi(reduced_grand_potential, cachedP0, scale);
+      return sites[site].enabled() ? sites[site].inversePressureForPsi(reduced_grand_potential, cachedP0, scale) : 0.0;
     }
     return 0.0;
   }

@@ -16,23 +16,34 @@
 #include "component.h"
 #include "inputreader.h"
 #include "mixture_prediction.h"
+#include "reaction.h"
 #include "utils.h"
 
 /**
  * \brief Centralized view of the flattened multibed column ODE state layout.
  *
- * The layout is the physisorption-only subset of ColumnStateLayout: gas
- * concentration, physisorption loading, and the three temperature fields.
+ * The layout matches ColumnStateLayout: gas concentration, physisorption,
+ * chemisorption, optional surface/pore concentration, and temperature fields.
  */
-struct ColumnMultibedStateLayout
+struct MultibedColumnStateLayout
 {
   size_t numberOfGridPoints{0};
   size_t numberOfComponents{0};
+  size_t numberOfChemisorptionSites{1};
+  bool includeSurfacePoreTransport{false};
 
   [[nodiscard]] size_t nodeCount() const noexcept { return numberOfGridPoints + 1; }
   [[nodiscard]] size_t componentBlockSize() const noexcept { return nodeCount() * numberOfComponents; }
   [[nodiscard]] size_t scalarBlockSize() const noexcept { return nodeCount(); }
-  [[nodiscard]] size_t temperatureOffset() const noexcept { return 2 * componentBlockSize(); }
+  [[nodiscard]] size_t chemisorptionSiteCount() const noexcept
+  {
+    return std::max<size_t>(1, numberOfChemisorptionSites);
+  }
+  [[nodiscard]] size_t componentBlockCount() const noexcept
+  {
+    return 2 + chemisorptionSiteCount() * (includeSurfacePoreTransport ? 3 : 1);
+  }
+  [[nodiscard]] size_t temperatureOffset() const noexcept { return componentBlockCount() * componentBlockSize(); }
   [[nodiscard]] size_t stateSize() const noexcept { return temperatureOffset() + 3 * scalarBlockSize(); }
 
   [[nodiscard]] std::span<double> componentBlock(double* base, size_t block) const noexcept
@@ -42,6 +53,23 @@ struct ColumnMultibedStateLayout
 
   [[nodiscard]] std::span<double> concentration(double* base) const noexcept { return componentBlock(base, 0); }
   [[nodiscard]] std::span<double> physisorption(double* base) const noexcept { return componentBlock(base, 1); }
+  [[nodiscard]] std::span<double> chemisorption(double* base) const noexcept
+  {
+    return {base + 2 * componentBlockSize(), chemisorptionSiteCount() * componentBlockSize()};
+  }
+  [[nodiscard]] std::span<double> surfaceConcentration(double* base) const noexcept
+  {
+    return includeSurfacePoreTransport ? std::span<double>{base + (2 + chemisorptionSiteCount()) * componentBlockSize(),
+                                                           chemisorptionSiteCount() * componentBlockSize()}
+                                       : std::span<double>{};
+  }
+  [[nodiscard]] std::span<double> poreConcentration(double* base) const noexcept
+  {
+    return includeSurfacePoreTransport
+               ? std::span<double>{base + (2 + 2 * chemisorptionSiteCount()) * componentBlockSize(),
+                                   chemisorptionSiteCount() * componentBlockSize()}
+               : std::span<double>{};
+  }
   [[nodiscard]] std::span<double> gasTemperature(double* base) const noexcept
   {
     return {base + temperatureOffset(), scalarBlockSize()};
@@ -62,7 +90,7 @@ struct ColumnMultibedStateLayout
  * Stores column parameters, component data, cache arrays, scratch arrays, and
  * canonical ODE state storage.
  */
-struct ColumnMultibed
+struct MultibedColumn
 {
   /**
    * \brief Boundary-condition pair supplied by the input file.
@@ -81,7 +109,7 @@ struct ColumnMultibed
    *
    * Allocates grid, component, cache, scratch, and ODE-state arrays.
    */
-  ColumnMultibed(std::vector<MixturePrediction> physisorptionMixtures, std::vector<Component> components,
+  MultibedColumn(std::vector<MixturePrediction> physisorptionMixtures, std::vector<Component> components,
                  BoundaryCondition boundaryCondition, bool energyBalance, size_t numberOfGridPoints,
                  size_t maxIsothermTerms, size_t carrierGasComponent, double temperature, double inletPressure,
                  double outletPressure, double pressureGradient, std::vector<double> adsorbentVoidFractions,
@@ -92,15 +120,18 @@ struct ColumnMultibed
                  double outerDiameter, double wallDensity, double gasThermalConductivity,
                  double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
                  double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid,
-                 double heatCapacityWall, std::vector<double> columnDistances = {})
+                 double heatCapacityWall, std::vector<double> columnDistances = {},
+                 std::vector<Reaction> reactions = {})
       : physisorptionMixtures(std::move(physisorptionMixtures)),
         components(std::move(components)),
         boundaryCondition(boundaryCondition),
         energyBalance(energyBalance),
+        reactions(std::move(reactions)),
         numberOfGridPoints(numberOfGridPoints),
         numberOfComponents(this->components.size()),
         numberOfAdsorbents(this->physisorptionMixtures.size()),
         maxIsothermTerms(maxIsothermTerms),
+        maxChemisorptionSites(maximumChemisorptionSites(this->physisorptionMixtures)),
         numberOfCalls(0),
         carrierGasComponent(carrierGasComponent),
         adsorbentLengths(std::move(adsorbentLengths)),
@@ -133,6 +164,8 @@ struct ColumnMultibed
         heatCapacityWall(heatCapacityWall),
         resolution(this->columnLength / static_cast<double>(this->numberOfGridPoints)),
         timeNormalizationFactor(this->columnEntranceVelocity / this->columnLength),
+        surfacePoreTransportEnabled(requiresSurfacePoreTransport(this->physisorptionMixtures) ||
+                                    reactionsRequirePoreConcentration(this->reactions)),
         prefactorMassTransfer(this->numberOfComponents),
         idealGasMolFractions(this->numberOfComponents),
         adsorbedMolFractions(this->numberOfComponents),
@@ -146,21 +179,40 @@ struct ColumnMultibed
         moleFraction((this->numberOfGridPoints + 1) * this->numberOfComponents),
         partialPressure((this->numberOfGridPoints + 1) * this->numberOfComponents),
         equilibriumPhysisorption((this->numberOfGridPoints + 1) * this->numberOfComponents),
+        equilibriumChemisorption(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                 this->numberOfComponents),
         fractionOfAdsorbent((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
         hasAdsorbentOfType((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
         adsorbentScaledVoidFraction((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
         cachedPressure((this->numberOfGridPoints + 1) * this->numberOfAdsorbents * this->numberOfComponents *
                        this->maxIsothermTerms),
         cachedGrandPotential((this->numberOfGridPoints + 1) * this->numberOfAdsorbents * this->maxIsothermTerms),
+        cachedChemisorptionPressure(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                    this->numberOfAdsorbents * this->numberOfComponents),
+        cachedChemisorptionGrandPotential(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                          this->numberOfAdsorbents),
         coeffDiffusion(this->numberOfGridPoints + 1),
         facePressures(this->numberOfGridPoints),
         massFlux((this->numberOfGridPoints + 1) * this->numberOfComponents),
         bulkSpeciesSink((this->numberOfGridPoints + 1) * this->numberOfComponents),
-        state(ColumnMultibedStateLayout{this->numberOfGridPoints, this->numberOfComponents}.stateSize(), 0.0),
-        stateDot(ColumnMultibedStateLayout{this->numberOfGridPoints, this->numberOfComponents}.stateSize(), 0.0)
+        reactionPhysisorptionSource((this->numberOfGridPoints + 1) * this->numberOfComponents),
+        reactionChemisorptionSource(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                    this->numberOfComponents),
+        reactionPoreConcentrationSource(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                        this->numberOfComponents),
+        reactionHeat(this->numberOfGridPoints + 1),
+        state(MultibedColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents, this->maxChemisorptionSites,
+                                        this->surfacePoreTransportEnabled}
+                  .stateSize(),
+              0.0),
+        stateDot(MultibedColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents,
+                                           this->maxChemisorptionSites, this->surfacePoreTransportEnabled}
+                     .stateSize(),
+                 0.0)
   {
     validateColumnDistances(this->columnDistances, this->numberOfGridPoints, this->columnLength);
     bindStateViews();
+    chemisorptionMixtures = makeChemisorptionMixtures(this->physisorptionMixtures);
   }
 
   /**
@@ -168,8 +220,8 @@ struct ColumnMultibed
    *
    * Allocates grid, component, cache, scratch, and ODE-state arrays.
    */
-  ColumnMultibed(const InputReader& inputReader)
-      : ColumnMultibed(
+  MultibedColumn(const InputReader& inputReader)
+      : MultibedColumn(
             [&inputReader]()
             {
               std::vector<MixturePrediction> mixtures;
@@ -194,32 +246,35 @@ struct ColumnMultibed
             inputReader.wallDensity, inputReader.gasThermalConductivity, inputReader.wallThermalConductivity,
             inputReader.heatTransferGasSolid, inputReader.heatTransferGasWall, inputReader.heatTransferWallExternal,
             inputReader.heatCapacityGas, inputReader.heatCapacitySolid, inputReader.heatCapacityWall,
-            inputReader.columnDistances)
+            inputReader.columnDistances, inputReader.reactions)
   {
   }
   /**
    * \brief Copy constructor; rebinds spans to this object's state storage.
    */
-  ColumnMultibed(const ColumnMultibed& other);
+  MultibedColumn(const MultibedColumn& other);
 
   /**
    * \brief Copy assignment; rebinds spans to this object's state storage.
    */
-  ColumnMultibed& operator=(const ColumnMultibed& other);
+  MultibedColumn& operator=(const MultibedColumn& other);
 
   // Model configuration and component data.
   std::vector<MixturePrediction> physisorptionMixtures;  ///< One physisorption mixture-prediction object per bed.
+  std::vector<MixturePrediction> chemisorptionMixtures;  ///< One competitive chemisorption model per bed.
   std::vector<Component> components;                     ///< Feed component definitions; size numberOfComponents.
   BoundaryCondition boundaryCondition;                   ///< Selected breakthrough boundary-condition pair.
   bool energyBalance;                                    ///< Enables gas/solid/wall temperature dynamics when true.
+  std::vector<Reaction> reactions;                       ///< Reactions coupled to adsorbed or pore-phase variables.
 
   // Dimensions and counters.
-  size_t numberOfGridPoints;   ///< Number of spatial grid intervals; node count is numberOfGridPoints + 1.
-  size_t numberOfComponents;   ///< Number of gas components.
-  size_t numberOfAdsorbents;   ///< Number of adsorbents.
-  size_t maxIsothermTerms;     ///< Maximum number of isotherm sites across all components.
-  size_t numberOfCalls;        ///< Counter for model/evaluation calls.
-  size_t carrierGasComponent;  ///< Index of the carrier-gas component.
+  size_t numberOfGridPoints;     ///< Number of spatial grid intervals; node count is numberOfGridPoints + 1.
+  size_t numberOfComponents;     ///< Number of gas components.
+  size_t numberOfAdsorbents;     ///< Number of adsorbents.
+  size_t maxIsothermTerms;       ///< Maximum number of isotherm sites across all components.
+  size_t maxChemisorptionSites;  ///< Maximum chemisorption-site count across all beds and components.
+  size_t numberOfCalls;          ///< Counter for model/evaluation calls.
+  size_t carrierGasComponent;    ///< Index of the carrier-gas component.
 
   // Size numberOfAdsorbents. Indexed as value[ads].
   std::vector<double> adsorbentLengths;           ///< Pure adsorbent-region lengths in m.
@@ -254,8 +309,9 @@ struct ColumnMultibed
   double heatCapacityWall;          ///< Wall heat capacity.
 
   // Derived scalar quantities.
-  double resolution;               ///< Spatial grid spacing, dz = L / numberOfGridPoints.
-  double timeNormalizationFactor;  ///< Dimensionless-time factor, v_in / L.
+  double resolution;                 ///< Spatial grid spacing, dz = L / numberOfGridPoints.
+  double timeNormalizationFactor;    ///< Dimensionless-time factor, v_in / L.
+  bool surfacePoreTransportEnabled;  ///< Adds surface/pore state for mechanistic or pore reactions.
 
   std::pair<size_t, size_t> iastPerformance{0, 0};  ///< Accumulated mixture-prediction diagnostics.
 
@@ -277,6 +333,7 @@ struct ColumnMultibed
   std::vector<double> moleFraction;              ///< Derived gas-phase mole fraction y_i.
   std::vector<double> partialPressure;           ///< Component partial pressure at each grid node.
   std::vector<double> equilibriumPhysisorption;  ///< Component equilibrium loading at each grid node.
+  std::vector<double> equilibriumChemisorption;  ///< Site-major equilibrium chemisorption loading.
 
   // Size (numberOfGridPoints + 1) * numberOfAdsorbents. Grid-major index: grid * numberOfAdsorbents + ads.
   std::vector<double> fractionOfAdsorbent;  ///< Fraction of the column that has this adsorbent
@@ -289,19 +346,24 @@ struct ColumnMultibed
   std::vector<double> cachedPressure;  ///< Cached hypothetical pressures for mixture prediction.
   // cachedGrandPotential: (numberOfGridPoints + 1) * numberOfAdsorbents * maxIsothermTerms.
   // Grid-major index: (grid * numberOfAdsorbents + ads) * maxIsothermTerms
-  std::vector<double> cachedGrandPotential;  ///< Cached reduced grand potentials for mixture prediction.
+  std::vector<double> cachedGrandPotential;               ///< Cached reduced grand potentials for mixture prediction.
+  std::vector<double> cachedChemisorptionPressure;        ///< Per-bed competitive chemisorption pressure cache.
+  std::vector<double> cachedChemisorptionGrandPotential;  ///< Per-bed chemisorption spreading-pressure cache.
 
   // Scratch/work arrays.
   // coeffDiffusion is size numberOfGridPoints + 1; facePressures is size numberOfGridPoints; massFlux is grid-major
   // size (numberOfGridPoints + 1) * numberOfComponents.
-  std::vector<double> coeffDiffusion;   ///< Temporary diffusion coefficient field.
-  std::vector<double> facePressures;    ///< Pressure values at cell faces.
-  std::vector<double> massFlux;         ///< Component mass flux at each grid node.
-  std::vector<double> bulkSpeciesSink;  ///< Solid-uptake sink in the bulk gas balance.
+  std::vector<double> coeffDiffusion;                   ///< Temporary diffusion coefficient field.
+  std::vector<double> facePressures;                    ///< Pressure values at cell faces.
+  std::vector<double> massFlux;                         ///< Component mass flux at each grid node.
+  std::vector<double> bulkSpeciesSink;                  ///< Solid-uptake sink in the bulk gas balance.
+  std::vector<double> reactionPhysisorptionSource;      ///< Reaction-only physisorbed source.
+  std::vector<double> reactionChemisorptionSource;      ///< Reaction-only site-major chemisorbed source.
+  std::vector<double> reactionPoreConcentrationSource;  ///< Reaction-only site-major pore source.
+  std::vector<double> reactionHeat;                     ///< Reaction heat release on a solid-mass basis.
 
   // Canonical ODE storage.
-  // Size: (2 * numberOfComponents + 3) * (numberOfGridPoints + 1). Layout: concentration, physisorption, gas T, solid
-  // T, wall T.
+  // Layout: concentration, physisorption, chemisorption, optional surface/pore concentration, gas T, solid T, wall T.
   std::vector<double> state;     ///< Canonical ODE state vector.
   std::vector<double> stateDot;  ///< Time derivative of the canonical ODE state vector.
 
@@ -312,22 +374,33 @@ struct ColumnMultibed
   std::span<double> concentrationDot;  ///< Time derivative dc_i/dt; size (numberOfGridPoints + 1) * numberOfComponents.
   std::span<double> physisorption;     ///< Adsorbed loading q_i; size (numberOfGridPoints + 1) * numberOfComponents.
   std::span<double> physisorptionDot;  ///< Time derivative dq_i/dt; size (numberOfGridPoints + 1) * numberOfComponents.
-  std::span<double> gasTemperature;    ///< Gas temperature; size numberOfGridPoints + 1.
-  std::span<double> gasTemperatureDot;    ///< Time derivative of gas temperature; size numberOfGridPoints + 1.
-  std::span<double> solidTemperature;     ///< Solid temperature; size numberOfGridPoints + 1.
-  std::span<double> solidTemperatureDot;  ///< Time derivative of solid temperature; size numberOfGridPoints + 1.
-  std::span<double> wallTemperature;      ///< Wall temperature; size numberOfGridPoints + 1.
-  std::span<double> wallTemperatureDot;   ///< Time derivative of wall temperature; size numberOfGridPoints + 1.
+  std::span<double> chemisorption;     ///< Site-major chemisorbed loading.
+  std::span<double> chemisorptionDot;  ///< Site-major chemisorbed loading derivative.
+  std::span<double> surfaceConcentration;     ///< Site-major particle-surface concentration.
+  std::span<double> surfaceConcentrationDot;  ///< Surface-concentration derivative.
+  std::span<double> poreConcentration;        ///< Site-major pore concentration.
+  std::span<double> poreConcentrationDot;     ///< Pore-concentration derivative.
+  std::span<double> gasTemperature;           ///< Gas temperature; size numberOfGridPoints + 1.
+  std::span<double> gasTemperatureDot;        ///< Time derivative of gas temperature; size numberOfGridPoints + 1.
+  std::span<double> solidTemperature;         ///< Solid temperature; size numberOfGridPoints + 1.
+  std::span<double> solidTemperatureDot;      ///< Time derivative of solid temperature; size numberOfGridPoints + 1.
+  std::span<double> wallTemperature;          ///< Wall temperature; size numberOfGridPoints + 1.
+  std::span<double> wallTemperatureDot;       ///< Time derivative of wall temperature; size numberOfGridPoints + 1.
 
   /**
    * \brief Returns the canonical ODE state size.
    */
   size_t stateSize() const noexcept;
 
+  static bool requiresSurfacePoreTransport(const std::vector<MixturePrediction>& mixtures) noexcept;
+  static size_t maximumChemisorptionSites(const std::vector<MixturePrediction>& mixtures) noexcept;
+  static std::vector<MixturePrediction> makeChemisorptionMixtures(
+      const std::vector<MixturePrediction>& physisorptionMixtures);
+
   /**
    * \brief Returns the canonical multibed ODE state layout.
    */
-  [[nodiscard]] ColumnMultibedStateLayout stateLayout() const noexcept;
+  [[nodiscard]] MultibedColumnStateLayout stateLayout() const noexcept;
 
   /**
    * \brief Rebinds all state/stateDot spans to the current vector storage.

@@ -3,7 +3,7 @@
 #include "column.h"
 #include "timing.h"
 
-struct ColumnMultibed;
+struct MultibedColumn;
 
 namespace RK3Helpers
 {
@@ -23,14 +23,18 @@ bool reactionAutoStopReached(const Column& column, double timeStep) noexcept;
 
 namespace RK3MultibedHelpers
 {
-void updateVelocityAndPressure(ColumnMultibed& column);
-void computeEquilibriumLoadings(ColumnMultibed& column);
-void computeDerivatives(ColumnMultibed& column);
-void computeSorptionDerivatives(ColumnMultibed& column);
-void computePhysisorption(ColumnMultibed& column);
-void computeBulkSpeciesSink(ColumnMultibed& column);
-void computeMassDerivatives(ColumnMultibed& column);
-void computeEnergyDerivatives(ColumnMultibed& column);
+void updateVelocityAndPressure(MultibedColumn& column);
+void computeEquilibriumLoadings(MultibedColumn& column);
+void computeDerivatives(MultibedColumn& column);
+void computeSorptionDerivatives(MultibedColumn& column);
+void computePhysisorption(MultibedColumn& column);
+void computeChemisorption(MultibedColumn& column);
+void computeChemisorptionTransportDerivatives(MultibedColumn& column);
+void computeBulkSpeciesSink(MultibedColumn& column);
+void computeReactionDerivatives(MultibedColumn& column);
+void computeMassDerivatives(MultibedColumn& column);
+void computeEnergyDerivatives(MultibedColumn& column);
+bool reactionAutoStopReached(const MultibedColumn& column, double timeStep) noexcept;
 }  // namespace RK3MultibedHelpers
 
 /**
@@ -66,5 +70,5 @@ struct RungeKutta3
   /**
    * \brief Advances a multibed column by one RK3 step.
    */
-  bool propagate(ColumnMultibed& column, size_t step, Timing& timings);
+  bool propagate(MultibedColumn& column, size_t step, Timing& timings);
 };

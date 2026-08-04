@@ -161,23 +161,63 @@ bool reactionAutoStopReached(const Column& column, double timeStep) noexcept
 
 namespace RK3MultibedHelpers
 {
-void computeSorptionDerivatives(ColumnMultibed& column) { computePhysisorption(column); }
+void computeSorptionDerivatives(MultibedColumn& column)
+{
+  computePhysisorption(column);
+  computeChemisorption(column);
+  computeChemisorptionTransportDerivatives(column);
+  computeReactionDerivatives(column);
+  computeBulkSpeciesSink(column);
+}
 
-void computePhysisorption(ColumnMultibed& column)
+void computePhysisorption(MultibedColumn& column)
 {
   ::computePhysisorption(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
                          column.numberOfAdsorbents, column.fractionOfAdsorbent, column.equilibriumPhysisorption,
                          column.physisorption, column.physisorptionDot);
 }
 
-void computeBulkSpeciesSink(ColumnMultibed& column)
+void computeChemisorption(MultibedColumn& column)
 {
-  ::computeBulkSpeciesSink(column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
-                           column.adsorbentVoidFractions, column.particleDensities, column.fractionOfAdsorbent,
-                           column.totalVoidFraction, column.physisorptionDot, column.bulkSpeciesSink);
+  ::computeChemisorption(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
+                         column.numberOfAdsorbents, column.maxChemisorptionSites, column.externalTemperature,
+                         column.fractionOfAdsorbent, column.adsorbentVoidFractions, column.particleDensities,
+                         column.equilibriumChemisorption, column.concentration, column.chemisorption,
+                         column.chemisorptionDot, column.poreConcentration, column.solidTemperature);
 }
 
-void updateVelocityAndPressure(ColumnMultibed& column)
+void computeChemisorptionTransportDerivatives(MultibedColumn& column)
+{
+  ::computeChemisorptionTransportDerivatives(
+      column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
+      column.maxChemisorptionSites, column.fractionOfAdsorbent, column.adsorbentVoidFractions, column.particleDensities,
+      column.particleDiameters, column.totalVoidFraction, column.concentration, column.chemisorptionDot,
+      column.surfaceConcentration, column.surfaceConcentrationDot, column.poreConcentration,
+      column.poreConcentrationDot);
+}
+
+void computeReactionDerivatives(MultibedColumn& column)
+{
+  const std::vector<Component>& reactionComponents = column.physisorptionMixtures.front().components;
+  ::computeReactionDerivatives(
+      reactionComponents, column.reactions, column.numberOfGridPoints, column.numberOfComponents,
+      column.maxChemisorptionSites, column.externalTemperature, column.physisorption, column.physisorptionDot,
+      column.chemisorption, column.chemisorptionDot, column.poreConcentration, column.poreConcentrationDot,
+      column.solidTemperature, column.reactionPhysisorptionSource, column.reactionChemisorptionSource,
+      column.reactionPoreConcentrationSource, column.reactionHeat);
+}
+
+void computeBulkSpeciesSink(MultibedColumn& column)
+{
+  ::computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
+                           column.numberOfAdsorbents, column.maxChemisorptionSites, column.adsorbentVoidFractions,
+                           column.particleDensities, column.particleDiameters, column.fractionOfAdsorbent,
+                           column.totalVoidFraction, column.concentration, column.physisorptionDot,
+                           column.chemisorptionDot, column.surfaceConcentration, column.bulkSpeciesSink,
+                           column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
+}
+
+void updateVelocityAndPressure(MultibedColumn& column)
 {
   computeBulkSpeciesSink(column);
   ::updateVelocityAndPressure(
@@ -189,7 +229,7 @@ void updateVelocityAndPressure(ColumnMultibed& column)
       column.moleFraction, column.bulkSpeciesSink, column.gasTemperature);
 }
 
-void computeEquilibriumLoadings(ColumnMultibed& column)
+void computeEquilibriumLoadings(MultibedColumn& column)
 {
   computePhysisorptionEquilibriumLoadings(
       column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
@@ -197,9 +237,16 @@ void computeEquilibriumLoadings(ColumnMultibed& column)
       column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
       column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential, column.moleFraction,
       column.gasTemperature);
+
+  computeChemisorptionEquilibriumLoadings(
+      column.chemisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
+      column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxChemisorptionSites, column.iastPerformance,
+      column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
+      column.equilibriumChemisorption, column.cachedChemisorptionPressure, column.cachedChemisorptionGrandPotential,
+      column.moleFraction, column.gasTemperature);
 }
 
-void computeMassDerivatives(ColumnMultibed& column)
+void computeMassDerivatives(MultibedColumn& column)
 {
   computeBulkSpeciesSink(column);
   ::computeMassDerivatives(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
@@ -208,7 +255,7 @@ void computeMassDerivatives(ColumnMultibed& column)
                            column.bulkSpeciesSink);
 }
 
-void computeEnergyDerivatives(ColumnMultibed& column)
+void computeEnergyDerivatives(MultibedColumn& column)
 {
   ::computeEnergyDerivatives(
       column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
@@ -217,17 +264,33 @@ void computeEnergyDerivatives(ColumnMultibed& column)
       column.gasThermalConductivity, column.wallThermalConductivity, column.heatTransferGasSolid,
       column.heatTransferGasWall, column.heatTransferWallExternal, column.heatCapacityGas, column.heatCapacitySolid,
       column.heatCapacityWall, column.columnDistances, column.interstitialGasVelocity, column.gasDensity,
-      column.coeffDiffusion, column.physisorptionDot, column.gasTemperature, column.gasTemperatureDot,
-      column.solidTemperature, column.solidTemperatureDot, column.wallTemperature, column.wallTemperatureDot);
+      column.coeffDiffusion, column.maxChemisorptionSites, column.physisorptionDot, column.chemisorptionDot,
+      column.gasTemperature, column.gasTemperatureDot, column.solidTemperature, column.solidTemperatureDot,
+      column.wallTemperature, column.wallTemperatureDot, column.reactionPhysisorptionSource,
+      column.reactionChemisorptionSource, column.reactionHeat);
 }
 
-void computeDerivatives(ColumnMultibed& column)
+void computeDerivatives(MultibedColumn& column)
 {
   computeMassDerivatives(column);
   if (column.energyBalance)
   {
     computeEnergyDerivatives(column);
   }
+}
+
+bool reactionAutoStopReached(const MultibedColumn& column, double timeStep) noexcept
+{
+  if (column.reactions.empty()) return false;
+
+  return RK3Helpers::reactionStepChangeSmall(column.physisorption, column.physisorptionDot, timeStep) &&
+         RK3Helpers::reactionStepChangeSmall(column.chemisorption, column.chemisorptionDot, timeStep) &&
+         RK3Helpers::reactionStepChangeSmall(column.surfaceConcentration, column.surfaceConcentrationDot, timeStep) &&
+         RK3Helpers::reactionStepChangeSmall(column.poreConcentration, column.poreConcentrationDot, timeStep) &&
+         RK3Helpers::reactionStepChangeSmall(column.physisorption, column.reactionPhysisorptionSource, timeStep) &&
+         RK3Helpers::reactionStepChangeSmall(column.chemisorption, column.reactionChemisorptionSource, timeStep) &&
+         RK3Helpers::reactionStepChangeSmall(column.poreConcentration, column.reactionPoreConcentrationSource,
+                                             timeStep);
 }
 }  // namespace RK3MultibedHelpers
 
@@ -274,7 +337,7 @@ void updateStateRK(Column& column, Column& newColumn, double alpha, double beta,
   }
 }
 
-void updateStateRK(ColumnMultibed& column, ColumnMultibed& newColumn, double alpha, double beta, double timeStep)
+void updateStateRK(MultibedColumn& column, MultibedColumn& newColumn, double alpha, double beta, double timeStep)
 {
   for (size_t i = 0; i < column.physisorption.size(); ++i)
   {
@@ -283,6 +346,22 @@ void updateStateRK(ColumnMultibed& column, ColumnMultibed& newColumn, double alp
     newColumn.concentration[i] =
         std::max(0.0, alpha * column.concentration[i] +
                           beta * (newColumn.concentration[i] + timeStep * newColumn.concentrationDot[i]));
+  }
+
+  for (size_t i = 0; i < column.chemisorption.size(); ++i)
+  {
+    newColumn.chemisorption[i] = alpha * column.chemisorption[i] +
+                                 beta * (newColumn.chemisorption[i] + timeStep * newColumn.chemisorptionDot[i]);
+  }
+
+  for (size_t i = 0; i < column.surfaceConcentration.size(); ++i)
+  {
+    newColumn.surfaceConcentration[i] =
+        std::max(0.0, alpha * column.surfaceConcentration[i] +
+                          beta * (newColumn.surfaceConcentration[i] + timeStep * newColumn.surfaceConcentrationDot[i]));
+    newColumn.poreConcentration[i] =
+        std::max(0.0, alpha * column.poreConcentration[i] +
+                          beta * (newColumn.poreConcentration[i] + timeStep * newColumn.poreConcentrationDot[i]));
   }
 
   if (column.energyBalance)
@@ -391,11 +470,11 @@ bool RungeKutta3::propagate(Column& column, size_t step, Timing& timings)
   return (!autoNumberOfSteps && step >= numberOfSteps - 1);
 }
 
-bool RungeKutta3::propagate(ColumnMultibed& column, size_t step, Timing& timings)
+bool RungeKutta3::propagate(MultibedColumn& column, size_t step, Timing& timings)
 {
   auto totalTimer = timings.scoped(timings.total);
 
-  if (autoNumberOfSteps && breakthroughConverged(column))
+  if (autoNumberOfSteps && column.reactions.empty() && breakthroughConverged(column))
   {
     // consider 1% as being visibly indistinguishable from 'converged'
     // use a 10% longer time for display purposes
@@ -407,6 +486,20 @@ bool RungeKutta3::propagate(ColumnMultibed& column, size_t step, Timing& timings
   advanceSSPRK3(column, timeStep, timings, RK3MultibedHelpers::computeSorptionDerivatives,
                 RK3MultibedHelpers::computeDerivatives, RK3MultibedHelpers::updateVelocityAndPressure,
                 RK3MultibedHelpers::computeEquilibriumLoadings);
+
+  if (autoNumberOfSteps && !column.reactions.empty())
+  {
+    RK3MultibedHelpers::computeSorptionDerivatives(column);
+    RK3MultibedHelpers::computeDerivatives(column);
+    if (RK3MultibedHelpers::reactionAutoStopReached(column, timeStep))
+    {
+      std::print("\nReaction convergence criteria reached, running 10% longer\n\n\n");
+
+      const size_t minimumSteps = std::max<size_t>(step + 1, 1);
+      numberOfSteps = std::max<size_t>(static_cast<size_t>(std::ceil(1.1 * static_cast<double>(minimumSteps))), 2);
+      autoNumberOfSteps = false;
+    }
+  }
 
   return (!autoNumberOfSteps && step >= numberOfSteps - 1);
 }

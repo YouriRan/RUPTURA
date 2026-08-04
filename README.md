@@ -84,9 +84,52 @@ cd examples/Silicalite-CO2-N2/breakthrough/Langmuir<br>
 ./run
 ```
 
+Qt Application
+==============
+The command-line executable is built from `main.cpp`. The optional native Qt
+application lives in `app/` and provides widgets for creating components,
+columns, simulations, running the local `ruptura` executable, and opening an
+analysis notebook.
+
+Build it with Qt 6 Widgets available:
+
+```
+cmake . -B build -DBUILD_QT_APP=ON
+cmake --build build --target ruptura_lab
+```
+
+Run:
+
+```
+./build/app/ruptura_lab
+```
+
+The Analysis button writes `analysis.ipynb` into the experiment run directory
+and opens Jupyter Lab with the relevant `ruptura` widgets preloaded. Simulation
+run directories are created under `simulations/` in the current working
+directory. The Load JSON button can import an existing single-simulation
+`ruptura` JSON file into the editable app state. Save State writes a separate
+Ruptura Lab state JSON format that preserves all components, columns, and
+multiple simulations.
+
 Input
 =====
 See the cited article.
+
+Swing adsorption inputs use `SimulationType: "SwingAdsorption"` and define
+ordered phases. Each phase runs after the previous one and can override
+temperature, inlet pressure, or both:
+
+```json
+"SwingAdsorptionPhases": [
+  {"Name": "Adsorption", "Temperature": 552.0, "InletPressure": 100000.0, "NumberOfTimeSteps": 1000000},
+  {"Name": "Regeneration", "Temperature": 673.0, "InletPressure": 100000.0, "NumberOfTimeSteps": 2000000}
+]
+```
+
+Swing adsorption inputs must use `SwingAdsorptionPhases`; array-based phase
+definitions are not supported in this release. See
+`examples/BEA-alkanes-C7/psa` and `examples/BEA-alkanes-C7/tsa`.
 
 Python Usage
 ======
