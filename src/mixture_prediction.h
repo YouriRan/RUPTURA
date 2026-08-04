@@ -28,7 +28,9 @@ struct MixturePrediction
     IAST = 0,   ///< Ideal Adsorbed Solution Theory
     SIAST = 1,  ///< Segregated Ideal Adsorbed Solution Theory
     EI = 2,     ///< Explicit Isotherm
-    SEI = 3     ///< Segregated Explicit Isotherm
+    SEI = 3,    ///< Segregated Explicit Isotherm
+    SCI = 4,    ///< Segregated Competitive Isotherm
+    SPI = 5     ///< Segregated Pure Isotherm
   };
 
   /**
@@ -329,6 +331,38 @@ struct MixturePrediction
                                                             std::span<double> adsorbedMolFractions,
                                                             std::span<double> numberOfMolecules,
                                                             double& gasTemperature);
+
+  /**
+   * \brief Computes mixture prediction using segregated competitive isotherms.
+   *
+   * Components compete through one shared expression at each aligned isotherm site. Site contributions are then
+   * summed into the component loadings.
+   */
+  std::pair<size_t, size_t> computeSegregatedCompetitiveIsotherm(std::span<const double> idealGasMolFractions,
+                                                                 const double& externalPressure,
+                                                                 std::span<double> adsorbedMolFractions,
+                                                                 std::span<double> numberOfMolecules,
+                                                                 double& gasTemperature);
+
+  /**
+   * \brief Computes one aligned site for the segregated competitive isotherm method.
+   */
+  std::pair<size_t, size_t> computeSegregatedCompetitiveIsotherm(size_t site,
+                                                                 std::span<const double> idealGasMolFractions,
+                                                                 const double& externalPressure,
+                                                                 std::span<double> numberOfMolecules,
+                                                                 double& gasTemperature);
+
+  /**
+   * \brief Computes mixture prediction using segregated pure isotherms.
+   *
+   * Each component site is evaluated independently at that component's partial pressure, and aligned site
+   * contributions are summed into the component loadings.
+   */
+  std::pair<size_t, size_t> computeSegregatedPureIsotherm(std::span<const double> idealGasMolFractions,
+                                                          const double& externalPressure,
+                                                          std::span<double> adsorbedMolFractions,
+                                                          std::span<double> numberOfMolecules, double& gasTemperature);
 
   /**
    * \brief Prints error status for debugging purposes.

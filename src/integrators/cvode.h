@@ -7,9 +7,11 @@
 #include "component.h"
 #include "compute.h"
 #include "mixture_prediction.h"
+#include "sorption.h"
 #include "timing.h"
 #include "utils.h"
-#include "sorption.h"
+
+struct MultibedColumn;
 
 #if BUILD_SUNDIALS
 #include <cvode/cvode.h>
@@ -82,7 +84,7 @@ struct CVODE
   void* cvodeMem = nullptr;                  ///< CVODE solver memory block.
   SUNNonlinearSolver solver = nullptr;       ///< Nonlinear solver handle.
   SUNLinearSolver linSolver = nullptr;       ///< Linear solver handle.
-  sunrealtype currentTime = 0.0;              ///< Current absolute CVODE time.
+  sunrealtype currentTime = 0.0;             ///< Current absolute CVODE time.
 
   const sunrealtype relativeTolerance = 1.0e-3;  ///< Relative integration tolerance.
   const sunrealtype absoluteTolerance = 1.0e-6;  ///< Absolute integration tolerance.
@@ -91,6 +93,12 @@ struct CVODE
    * \brief Evaluates the Column ODE right-hand side for CVODE.
    */
   static int evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector stateDerivativeVector, void* user_data);
+
+  /**
+   * \brief Evaluates the MultibedColumn ODE right-hand side for CVODE.
+   */
+  static int evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Vector stateDerivativeVector,
+                                         void* user_data);
 #endif
 
   /**
@@ -99,7 +107,22 @@ struct CVODE
   bool propagate(Column& column, size_t step, Timing& timings);
 
   /**
+   * \brief Advances a multibed column by one CVODE output step.
+   */
+  bool propagate(MultibedColumn& column, size_t step, Timing& timings);
+
+  /**
    * \brief Initializes CVODE state and solver data for the given column.
    */
   void initialize(Column& column);
+
+  /**
+   * \brief Initializes CVODE state and solver data for the given multibed column.
+   */
+  void initialize(MultibedColumn& column);
+
+  /**
+   * \brief Resets CVODE integration history after an external state or boundary change.
+   */
+  void reinitialize();
 };

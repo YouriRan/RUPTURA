@@ -235,14 +235,13 @@ static void readOptionalBool(const nlohmann::json& object, const std::string& ke
 static void requireOnlyKnownKeys(const nlohmann::json& object, std::initializer_list<std::string_view> allowedKeys,
                                  const std::string& context, bool allowIsothermTypes);
 
-static void requireOnlyExactKeys(const nlohmann::json& object,
-                                 std::initializer_list<std::string_view> allowedKeys,
+static void requireOnlyExactKeys(const nlohmann::json& object, std::initializer_list<std::string_view> allowedKeys,
                                  const std::string& context)
 {
   for (auto it = object.begin(); it != object.end(); ++it)
   {
-    const bool known = std::any_of(allowedKeys.begin(), allowedKeys.end(),
-                                   [&](std::string_view key) { return it.key() == key; });
+    const bool known =
+        std::any_of(allowedKeys.begin(), allowedKeys.end(), [&](std::string_view key) { return it.key() == key; });
     if (!known)
     {
       throw std::runtime_error("Error: unknown key '" + it.key() + "' (" + context + ")");
@@ -250,8 +249,7 @@ static void requireOnlyExactKeys(const nlohmann::json& object,
   }
 }
 
-static void requireExactKeys(const nlohmann::json& object,
-                             std::initializer_list<std::string_view> requiredKeys,
+static void requireExactKeys(const nlohmann::json& object, std::initializer_list<std::string_view> requiredKeys,
                              const std::string& context)
 {
   requireOnlyExactKeys(object, requiredKeys, context);
@@ -273,8 +271,8 @@ struct IsothermSpec
 
 static const IsothermSpec* findIsothermSpec(const std::string& typeString);
 
-static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohmann::json& object,
-                              bool nonIsothermal, const std::string& context)
+static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohmann::json& object, bool nonIsothermal,
+                              const std::string& context)
 {
   const nlohmann::json* sites = findKeyCaseInsensitive(object, "ChemisorptionSites");
 
@@ -299,12 +297,18 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
       const std::string chemisorptionTypeString =
           getStringOrThrow(requireKeyCaseInsensitive(value, "Type", siteContext), "Type", siteContext);
       Chemisorption siteChemisorption;
-      if (caseInSensStringCompare(chemisorptionTypeString, "None")) siteChemisorption.type = Chemisorption::Type::None;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "FirstOrder")) siteChemisorption.type = Chemisorption::Type::FirstOrder;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "PseudoNth")) siteChemisorption.type = Chemisorption::Type::PseudoNth;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "Avrami")) siteChemisorption.type = Chemisorption::Type::Avrami;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "General")) siteChemisorption.type = Chemisorption::Type::General;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "Elovich")) siteChemisorption.type = Chemisorption::Type::Elovich;
+      if (caseInSensStringCompare(chemisorptionTypeString, "None"))
+        siteChemisorption.type = Chemisorption::Type::None;
+      else if (caseInSensStringCompare(chemisorptionTypeString, "FirstOrder"))
+        siteChemisorption.type = Chemisorption::Type::FirstOrder;
+      else if (caseInSensStringCompare(chemisorptionTypeString, "PseudoNth"))
+        siteChemisorption.type = Chemisorption::Type::PseudoNth;
+      else if (caseInSensStringCompare(chemisorptionTypeString, "Avrami"))
+        siteChemisorption.type = Chemisorption::Type::Avrami;
+      else if (caseInSensStringCompare(chemisorptionTypeString, "General"))
+        siteChemisorption.type = Chemisorption::Type::General;
+      else if (caseInSensStringCompare(chemisorptionTypeString, "Elovich"))
+        siteChemisorption.type = Chemisorption::Type::Elovich;
       else
       {
         throw std::runtime_error("Error: invalid Chemisorption Type '" + chemisorptionTypeString + "'");
@@ -322,30 +326,26 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
         case Chemisorption::Type::None:
           throw std::runtime_error("Error: None is not a valid ChemisorptionSites model (" + siteContext + ")");
         case Chemisorption::Type::FirstOrder:
-          requireExactKeys(params,
-                           {"rateCoefficient", "maximumLoading", "heatOfChemisorption", "Isotherm"},
+          requireExactKeys(params, {"rateCoefficient", "maximumLoading", "heatOfChemisorption", "Isotherm"},
                            parametersContext);
           break;
         case Chemisorption::Type::PseudoNth:
         case Chemisorption::Type::Avrami:
-          requireExactKeys(params,
-                           {"rateCoefficient", "order", "maximumLoading", "heatOfChemisorption", "Isotherm"},
+          requireExactKeys(params, {"rateCoefficient", "order", "maximumLoading", "heatOfChemisorption", "Isotherm"},
                            parametersContext);
           break;
         case Chemisorption::Type::General:
           requireExactKeys(params,
                            {"maximumLoading", "heatOfChemisorption", "adsorptionRateCoefficient",
-                            "adsorptionActivationEnergy", "desorptionRateCoefficient",
-                            "desorptionActivationEnergy", "poreConcentrationOrder", "capacityOrder",
-                            "desorptionOrder", "filmMassTransferCoefficient", "poreDiffusivity",
-                            "usePoreSurfaceTransport", "Isotherm"},
+                            "adsorptionActivationEnergy", "desorptionRateCoefficient", "desorptionActivationEnergy",
+                            "poreConcentrationOrder", "capacityOrder", "desorptionOrder", "filmMassTransferCoefficient",
+                            "poreDiffusivity", "usePoreSurfaceTransport", "Isotherm"},
                            parametersContext);
           break;
         case Chemisorption::Type::Elovich:
           requireExactKeys(params,
-                           {"maximumLoading", "heatOfChemisorption", "alpha", "beta",
-                            "filmMassTransferCoefficient", "poreDiffusivity", "usePoreSurfaceTransport",
-                            "Isotherm"},
+                           {"maximumLoading", "heatOfChemisorption", "alpha", "beta", "filmMassTransferCoefficient",
+                            "poreDiffusivity", "usePoreSurfaceTransport", "Isotherm"},
                            parametersContext);
           break;
       }
@@ -388,20 +388,19 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
       }
 
       const nlohmann::json& parameters = requireKeyCaseInsensitive(isothermValue, "Parameters", isothermContext);
-      std::vector<double> values = requireDoubleParameterCount(
-          getNumberListOrThrow<double>(parameters, isothermTypeString, isothermContext), spec->parameterCount,
-          isothermTypeString, isothermContext);
+      std::vector<double> values =
+          requireDoubleParameterCount(getNumberListOrThrow<double>(parameters, isothermTypeString, isothermContext),
+                                      spec->parameterCount, isothermTypeString, isothermContext);
       siteChemisorption.isotherm = Isotherm(spec->type, values, nonIsothermal);
 
       if (siteChemisorption.type == Chemisorption::Type::General)
       {
-        if (siteChemisorption.adsorptionRateCoefficient < 0.0 ||
-            siteChemisorption.desorptionRateCoefficient < 0.0 ||
+        if (siteChemisorption.adsorptionRateCoefficient < 0.0 || siteChemisorption.desorptionRateCoefficient < 0.0 ||
             siteChemisorption.filmMassTransferCoefficient < 0.0 || siteChemisorption.poreDiffusivity < 0.0)
         {
           throw std::runtime_error(
-              "Error: General Chemisorption kinetic and transport coefficients must be non-negative (" +
-              siteContext + ")");
+              "Error: General Chemisorption kinetic and transport coefficients must be non-negative (" + siteContext +
+              ")");
         }
       }
       else if (siteChemisorption.type == Chemisorption::Type::Elovich)
@@ -410,8 +409,8 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
             siteChemisorption.filmMassTransferCoefficient < 0.0 || siteChemisorption.poreDiffusivity < 0.0)
         {
           throw std::runtime_error(
-              "Error: Elovich Chemisorption kinetic and transport coefficients must be non-negative (" +
-              siteContext + ")");
+              "Error: Elovich Chemisorption kinetic and transport coefficients must be non-negative (" + siteContext +
+              ")");
         }
       }
       else if (siteChemisorption.rateCoefficient < 0.0)
@@ -425,7 +424,6 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
       chemisorption.add(siteChemisorption);
     }
   }
-
 }
 
 template <typename T>
@@ -502,6 +500,22 @@ static const IsothermSpec* findIsothermSpec(const std::string& typeString)
   return nullptr;
 }
 
+static bool supportsSegregatedCompetitiveIsotherm(Isotherm::Type type)
+{
+  switch (type)
+  {
+    case Isotherm::Type::Langmuir:
+    case Isotherm::Type::Anti_Langmuir:
+    case Isotherm::Type::Sips:
+    case Isotherm::Type::Langmuir_Freundlich:
+    case Isotherm::Type::Redlich_Peterson:
+    case Isotherm::Type::Toth:
+      return true;
+    default:
+      return false;
+  }
+}
+
 static void requireOnlyKnownKeys(const nlohmann::json& object, std::initializer_list<std::string_view> allowedKeys,
                                  const std::string& context, bool allowIsothermTypeKeys = false)
 {
@@ -513,11 +527,8 @@ static void requireOnlyKnownKeys(const nlohmann::json& object, std::initializer_
 
   for (auto it = object.begin(); it != object.end(); ++it)
   {
-    const bool known =
-        std::any_of(allowedKeys.begin(), allowedKeys.end(),
-                    [&](std::string_view allowedKey) {
-                      return caseInSensStringCompare(it.key(), std::string{allowedKey});
-                    });
+    const bool known = std::any_of(allowedKeys.begin(), allowedKeys.end(), [&](std::string_view allowedKey)
+                                   { return caseInSensStringCompare(it.key(), std::string{allowedKey}); });
     if (known)
     {
       continue;
@@ -533,8 +544,7 @@ static void requireOnlyKnownKeys(const nlohmann::json& object, std::initializer_
   }
 }
 
-static void readPhysisorptionSites(Component& comp, const nlohmann::json& item,
-                                   const std::string& context)
+static void readPhysisorptionSites(Component& comp, const nlohmann::json& item, const std::string& context)
 {
   if (!containsKeyCaseInsensitive(item, "PhysisorptionSites")) return;
 
@@ -549,8 +559,7 @@ static void readPhysisorptionSites(Component& comp, const nlohmann::json& item,
     const nlohmann::json& site = sites[siteId];
     std::string siteContext = context + ", PhysisorptionSite " + std::to_string(siteId);
 
-    if (site.is_object() && containsKeyCaseInsensitive(site, "Type") &&
-        containsKeyCaseInsensitive(site, "Parameters"))
+    if (site.is_object() && containsKeyCaseInsensitive(site, "Type") && containsKeyCaseInsensitive(site, "Parameters"))
     {
       requireOnlyKnownKeys(site, {"Type", "Parameters"}, siteContext);
 
@@ -593,18 +602,9 @@ static Component parseComponentObject(std::size_t componentId, const nlohmann::j
 
   std::string context = "Component " + std::to_string(componentId);
   requireOnlyKnownKeys(item,
-                       {"Name",
-                        "FileName",
-                        "CarrierGas",
-                        "GasPhaseMolFraction",
-                        "MassTransferCoefficient",
-                        "AxialDispersionCoefficient",
-                        "MolecularWeight",
-                        "HeatOfAdsorption",
-                        "referenceTemperature",
-                        "nonIsothermal",
-                        "ChemisorptionSites",
-                        "PhysisorptionSites"},
+                       {"Name", "FileName", "CarrierGas", "GasPhaseMolFraction", "MassTransferCoefficient",
+                        "AxialDispersionCoefficient", "MolecularWeight", "HeatOfAdsorption", "referenceTemperature",
+                        "nonIsothermal", "ChemisorptionSites", "PhysisorptionSites"},
                        context);
 
   std::string componentName = getStringOrThrow(requireKeyCaseInsensitive(item, "Name", context), "Name", context);
@@ -640,8 +640,8 @@ static void requireConfigured(bool condition, const std::string& message)
   }
 }
 
-static const nlohmann::json* findFirstKeyCaseInsensitive(
-    const nlohmann::json& object, std::initializer_list<std::string_view> keys)
+static const nlohmann::json* findFirstKeyCaseInsensitive(const nlohmann::json& object,
+                                                         std::initializer_list<std::string_view> keys)
 {
   for (std::string_view key : keys)
   {
@@ -660,8 +660,8 @@ static std::vector<double> readSizedDoubleList(const nlohmann::json& value, cons
   std::vector<double> values = getNumberListOrThrow<double>(value, key, context);
   if (values.size() != expected)
   {
-    throw std::runtime_error("Error: " + key + " must contain " + std::to_string(expected) + " values (" +
-                             context + ")");
+    throw std::runtime_error("Error: " + key + " must contain " + std::to_string(expected) + " values (" + context +
+                             ")");
   }
   for (double valueItem : values)
   {
@@ -674,15 +674,13 @@ static std::vector<double> readSizedDoubleList(const nlohmann::json& value, cons
 }
 
 static std::vector<size_t> readReactionParticipants(const nlohmann::json& value,
-                                                    const std::vector<Component>& components,
-                                                    const std::string& key,
+                                                    const std::vector<Component>& components, const std::string& key,
                                                     const std::string& context)
 {
   if (!value.is_array())
   {
     throw std::runtime_error("Error: Reaction " + key +
-                             " must be an array of zero-based component indices or component names (" + context +
-                             ")");
+                             " must be an array of zero-based component indices or component names (" + context + ")");
   }
 
   std::vector<size_t> participants;
@@ -754,15 +752,14 @@ static std::vector<size_t> readReactionParticipants(const nlohmann::json& value,
   return participants;
 }
 
-static double geometryDoubleOrDefault(const nlohmann::json& object,
-                                      std::initializer_list<std::string_view> keys, double defaultValue)
+static double geometryDoubleOrDefault(const nlohmann::json& object, std::initializer_list<std::string_view> keys,
+                                      double defaultValue)
 {
   const nlohmann::json* value = findFirstKeyCaseInsensitive(object, keys);
   return value == nullptr ? defaultValue : getNumberOrThrow<double>(*value, std::string{*keys.begin()}, "Geometry");
 }
 
-static double geometryRequiredDouble(const nlohmann::json& object,
-                                     std::initializer_list<std::string_view> keys)
+static double geometryRequiredDouble(const nlohmann::json& object, std::initializer_list<std::string_view> keys)
 {
   const nlohmann::json* value = findFirstKeyCaseInsensitive(object, keys);
   if (value == nullptr)
@@ -855,10 +852,9 @@ InputReader::InputReader(const std::string fileName) : components()
                             {"Test", SimulationType::Test}});
 
   readOptionalMappedString(parsed_data, "MixturePredictionMethod", mixturePredictionMethod,
-                           {{"IAST", 0}, {"SIAST", 1}, {"EI", 2}, {"SEI", 3}});
+                           {{"IAST", 0}, {"SIAST", 1}, {"EI", 2}, {"SEI", 3}, {"SCI", 4}, {"SPI", 5}});
 
-  readOptionalMappedString(parsed_data, "IASTMethod", IASTMethod,
-                           {{"FastIAST", 0}, {"NestedLoopBisection", 1}});
+  readOptionalMappedString(parsed_data, "IASTMethod", IASTMethod, {{"FastIAST", 0}, {"NestedLoopBisection", 1}});
 
   readOptionalMappedString(parsed_data, "BreakthroughIntegrator", breakthroughIntegrator,
                            {{"RungeKutta3", 0}, {"CVODE", 1}, {"SIRK3", 2}});
@@ -897,8 +893,8 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalNumber<size_t>(parsed_data, "NumberOfGridPoints", numberOfGridPoints);
   if (containsKeyCaseInsensitive(parsed_data, "ColumnDistances"))
   {
-    columnDistances =
-        getNumberListOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "ColumnDistances", ""), "ColumnDistances", "");
+    columnDistances = getNumberListOrThrow<double>(requireKeyCaseInsensitive(parsed_data, "ColumnDistances", ""),
+                                                   "ColumnDistances", "");
     if (columnDistances.size() < 2)
     {
       throw std::runtime_error("Error: ColumnDistances must contain at least two node positions");
@@ -962,9 +958,9 @@ InputReader::InputReader(const std::string fileName) : components()
       throw std::runtime_error("Error: Geometry is required for Breakthrough and SwingAdsorption simulations");
     }
     geometry = makeGeometry(PackedBedTubeSpec{.voidFraction = columnVoidFraction,
-                                               .particleDiameter = particleDiameter,
-                                               .internalDiameter = internalDiameter,
-                                               .outerDiameter = outerDiameter});
+                                              .particleDiameter = particleDiameter,
+                                              .internalDiameter = internalDiameter,
+                                              .outerDiameter = outerDiameter});
   }
   else
   {
@@ -975,16 +971,8 @@ InputReader::InputReader(const std::string fileName) : components()
 
     requireOnlyKnownKeys(
         *geometryJson,
-        {"Type",
-         "ColumnVoidFraction",
-         "ParticleDiameter",
-         "InternalDiameter",
-         "OuterDiameter",
-         "ChannelShape",
-         "InternalChannelDimension",
-         "NumberOfChannels",
-         "WashcoatThickness",
-         "WashcoatVolumePerChannelVolume"},
+        {"Type", "ColumnVoidFraction", "ParticleDiameter", "InternalDiameter", "OuterDiameter", "ChannelShape",
+         "InternalChannelDimension", "NumberOfChannels", "WashcoatThickness", "WashcoatVolumePerChannelVolume"},
         "Geometry");
 
     const std::string geometryType =
@@ -996,10 +984,8 @@ InputReader::InputReader(const std::string fileName) : components()
       const double dp = geometryDoubleOrDefault(*geometryJson, {"ParticleDiameter"}, particleDiameter);
       const double di = geometryDoubleOrDefault(*geometryJson, {"InternalDiameter"}, internalDiameter);
       const double douter = geometryDoubleOrDefault(*geometryJson, {"OuterDiameter"}, outerDiameter);
-      geometry = makeGeometry(PackedBedTubeSpec{.voidFraction = eps,
-                                                 .particleDiameter = dp,
-                                                 .internalDiameter = di,
-                                                 .outerDiameter = douter});
+      geometry = makeGeometry(PackedBedTubeSpec{
+          .voidFraction = eps, .particleDiameter = dp, .internalDiameter = di, .outerDiameter = douter});
     }
     else if (caseInSensStringCompare(geometryType, "Monolith"))
     {
@@ -1044,16 +1030,16 @@ InputReader::InputReader(const std::string fileName) : components()
       std::optional<double> washcoatVolume;
       if (washcoatVolumeValue != nullptr)
       {
-        const double value = getNumberOrThrow<double>(
-            *washcoatVolumeValue, "WashcoatVolumePerChannelVolume", "Geometry");
+        const double value =
+            getNumberOrThrow<double>(*washcoatVolumeValue, "WashcoatVolumePerChannelVolume", "Geometry");
         if (value != -1.0) washcoatVolume = value;
       }
       geometry = makeGeometry(MonolithSpec{.channelShape = parseChannelShape(channelShape),
-                                            .internalChannelDimension = dInt,
-                                            .outerDiameter = dOut,
-                                            .numberOfChannels = numberOfChannels,
-                                            .washcoatThickness = washcoatThickness,
-                                            .washcoatVolumePerChannelVolume = washcoatVolume});
+                                           .internalChannelDimension = dInt,
+                                           .outerDiameter = dOut,
+                                           .numberOfChannels = numberOfChannels,
+                                           .washcoatThickness = washcoatThickness,
+                                           .washcoatVolumePerChannelVolume = washcoatVolume});
     }
     else
     {
@@ -1088,12 +1074,7 @@ InputReader::InputReader(const std::string fileName) : components()
         throw std::runtime_error("Error: each SwingAdsorptionPhases entry must be an object (" + context + ")");
       }
 
-      requireOnlyKnownKeys(value,
-                           {"Name",
-                            "Temperature",
-                            "InletPressure",
-                            "NumberOfTimeSteps"},
-                           context);
+      requireOnlyKnownKeys(value, {"Name", "Temperature", "InletPressure", "NumberOfTimeSteps"}, context);
 
       SwingAdsorptionPhase phase;
       phase.name = "Phase " + std::to_string(i + 1);
@@ -1156,9 +1137,9 @@ InputReader::InputReader(const std::string fileName) : components()
       inletPressure = *firstPhase.inletPressure;
     }
 
-    numberOfTimeSteps = std::accumulate(
-        swingAdsorptionPhases.begin(), swingAdsorptionPhases.end(), size_t{0},
-        [](size_t total, const SwingAdsorptionPhase& phase) { return total + phase.numberOfSteps; });
+    numberOfTimeSteps =
+        std::accumulate(swingAdsorptionPhases.begin(), swingAdsorptionPhases.end(), size_t{0},
+                        [](size_t total, const SwingAdsorptionPhase& phase) { return total + phase.numberOfSteps; });
     autoNumberOfTimeSteps = false;
   }
 
@@ -1245,21 +1226,12 @@ InputReader::InputReader(const std::string fileName) : components()
         throw std::runtime_error("Error: each Reactions entry must be an object (" + context + ")");
       }
       requireOnlyKnownKeys(value,
-                           {"Phase",
-                            "Style",
-                            "Reactants",
-                            "Products",
-                            "Stoichiometry",
-                            "Kinetics",
-                            "Site",
-                            "ForwardOrders",
-                            "BackwardOrders",
-                            "RateLimitTime"},
+                           {"Phase", "Style", "Reactants", "Products", "Stoichiometry", "Kinetics", "Site",
+                            "ForwardOrders", "BackwardOrders", "RateLimitTime"},
                            context);
 
       Reaction reaction;
-      const std::string phase =
-          getStringOrThrow(requireKeyCaseInsensitive(value, "Phase", context), "Phase", context);
+      const std::string phase = getStringOrThrow(requireKeyCaseInsensitive(value, "Phase", context), "Phase", context);
       if (caseInSensStringCompare(phase, "Physisorbed"))
       {
         reaction.phase = Reaction::Phase::Physisorbed;
@@ -1278,8 +1250,7 @@ InputReader::InputReader(const std::string fileName) : components()
                                  context + ")");
       }
 
-      const std::string style =
-          getStringOrThrow(requireKeyCaseInsensitive(value, "Style", context), "Style", context);
+      const std::string style = getStringOrThrow(requireKeyCaseInsensitive(value, "Style", context), "Style", context);
       if (caseInSensStringCompare(style, "GeneralPowerLaw"))
       {
         reaction.style = Reaction::Style::GeneralPowerLaw;
@@ -1294,15 +1265,16 @@ InputReader::InputReader(const std::string fileName) : components()
       }
       else
       {
-        throw std::runtime_error("Error: Reaction Style must be GeneralPowerLaw, LangmuirHinshelwood, or "
-                                 "LangmuirHinshelwoodHougenWatson (" +
-                                 context + ")");
+        throw std::runtime_error(
+            "Error: Reaction Style must be GeneralPowerLaw, LangmuirHinshelwood, or "
+            "LangmuirHinshelwoodHougenWatson (" +
+            context + ")");
       }
 
-      reaction.reactants = readReactionParticipants(requireKeyCaseInsensitive(value, "Reactants", context),
-                                                    components, "Reactants", context);
-      reaction.products = readReactionParticipants(requireKeyCaseInsensitive(value, "Products", context),
-                                                   components, "Products", context);
+      reaction.reactants = readReactionParticipants(requireKeyCaseInsensitive(value, "Reactants", context), components,
+                                                    "Reactants", context);
+      reaction.products = readReactionParticipants(requireKeyCaseInsensitive(value, "Products", context), components,
+                                                   "Products", context);
 
       if (reaction.reactants.empty() || reaction.products.empty())
       {
@@ -1349,13 +1321,13 @@ InputReader::InputReader(const std::string fileName) : components()
         requireOnlyKnownKeys(*stoichiometryValue, {"Reactants", "Products"}, context + " Stoichiometry");
         const std::vector<double> reactantValues =
             containsKeyCaseInsensitive(*stoichiometryValue, "Reactants")
-                ? readSizedDoubleList(requireKeyCaseInsensitive(*stoichiometryValue, "Reactants", context),
-                                      "Reactants", context + " Stoichiometry", reaction.reactants.size())
+                ? readSizedDoubleList(requireKeyCaseInsensitive(*stoichiometryValue, "Reactants", context), "Reactants",
+                                      context + " Stoichiometry", reaction.reactants.size())
                 : std::vector<double>(reaction.reactants.size(), 1.0);
         const std::vector<double> productValues =
             containsKeyCaseInsensitive(*stoichiometryValue, "Products")
-                ? readSizedDoubleList(requireKeyCaseInsensitive(*stoichiometryValue, "Products", context),
-                                      "Products", context + " Stoichiometry", reaction.products.size())
+                ? readSizedDoubleList(requireKeyCaseInsensitive(*stoichiometryValue, "Products", context), "Products",
+                                      context + " Stoichiometry", reaction.products.size())
                 : std::vector<double>(reaction.products.size(), 1.0);
 
         stoichiometry = reactantValues;
@@ -1370,16 +1342,14 @@ InputReader::InputReader(const std::string fileName) : components()
       reaction.productStoichiometry.assign(
           stoichiometry.begin() + static_cast<std::ptrdiff_t>(reaction.reactants.size()), stoichiometry.end());
 
-      reaction.forwardOrders =
-          containsKeyCaseInsensitive(value, "ForwardOrders")
-              ? readSizedDoubleList(requireKeyCaseInsensitive(value, "ForwardOrders", context), "ForwardOrders",
-                                    context, reaction.reactants.size())
-              : reaction.reactantStoichiometry;
-      reaction.backwardOrders =
-          containsKeyCaseInsensitive(value, "BackwardOrders")
-              ? readSizedDoubleList(requireKeyCaseInsensitive(value, "BackwardOrders", context), "BackwardOrders",
-                                    context, reaction.products.size())
-              : reaction.productStoichiometry;
+      reaction.forwardOrders = containsKeyCaseInsensitive(value, "ForwardOrders")
+                                   ? readSizedDoubleList(requireKeyCaseInsensitive(value, "ForwardOrders", context),
+                                                         "ForwardOrders", context, reaction.reactants.size())
+                                   : reaction.reactantStoichiometry;
+      reaction.backwardOrders = containsKeyCaseInsensitive(value, "BackwardOrders")
+                                    ? readSizedDoubleList(requireKeyCaseInsensitive(value, "BackwardOrders", context),
+                                                          "BackwardOrders", context, reaction.products.size())
+                                    : reaction.productStoichiometry;
       readOptionalNonNegativeInteger(value, "Site", reaction.site);
       readOptionalNumber<double>(value, "RateLimitTime", reaction.rateLimitTime);
 
@@ -1394,7 +1364,7 @@ InputReader::InputReader(const std::string fileName) : components()
         throw std::runtime_error("Error: LH/LHHW reactions require Phase=PoreConcentration (" + context + ")");
       }
 
-      if (reaction.phase == Reaction::Phase::Chemisorbed)
+      if (reaction.phase == Reaction::Phase::Chemisorbed && !containsKeyCaseInsensitive(parsed_data, "Adsorbents"))
       {
         for (size_t comp : participants)
         {
@@ -1412,22 +1382,23 @@ InputReader::InputReader(const std::string fileName) : components()
         throw std::runtime_error("Error: Reaction Kinetics must be an object (" + context + ")");
       }
       requireOnlyKnownKeys(kinetics,
-                           {"forwardRateCoefficient",
-                            "forwardActivationEnergy",
-                            "equilibriumConstant",
-                            "gibbsFreeEnergy",
+                           {
+                               "forwardRateCoefficient",
+                               "forwardActivationEnergy",
+                               "equilibriumConstant",
+                               "gibbsFreeEnergy",
                            },
                            context + " Kinetics");
 
-      reaction.forwardRateCoefficient = getNumberOrThrow<double>(
-          requireKeyCaseInsensitive(kinetics, "forwardRateCoefficient", context + " Kinetics"),
-          "forwardRateCoefficient", context + " Kinetics");
+      reaction.forwardRateCoefficient =
+          getNumberOrThrow<double>(requireKeyCaseInsensitive(kinetics, "forwardRateCoefficient", context + " Kinetics"),
+                                   "forwardRateCoefficient", context + " Kinetics");
       reaction.forwardActivationEnergy = getNumberOrThrow<double>(
           requireKeyCaseInsensitive(kinetics, "forwardActivationEnergy", context + " Kinetics"),
           "forwardActivationEnergy", context + " Kinetics");
-      reaction.equilibriumConstant = getNumberOrThrow<double>(
-          requireKeyCaseInsensitive(kinetics, "equilibriumConstant", context + " Kinetics"),
-          "equilibriumConstant", context + " Kinetics");
+      reaction.equilibriumConstant =
+          getNumberOrThrow<double>(requireKeyCaseInsensitive(kinetics, "equilibriumConstant", context + " Kinetics"),
+                                   "equilibriumConstant", context + " Kinetics");
       reaction.gibbsFreeEnergy =
           getNumberOrThrow<double>(requireKeyCaseInsensitive(kinetics, "gibbsFreeEnergy", context + " Kinetics"),
                                    "gibbsFreeEnergy", context + " Kinetics");
@@ -1487,13 +1458,8 @@ InputReader::InputReader(const std::string fileName) : components()
         throw std::runtime_error("Error: each adsorbent entry must be an object (" + context + ")");
       }
       requireOnlyKnownKeys(adsorbent,
-                           {"Name",
-                            "ParticleDiameter",
-                            "ColumnVoidFraction",
-                            "ParticleDensity",
-                            "AdsorbentLength",
-                            "ComponentParameters",
-                            "Components"},
+                           {"Name", "ParticleDiameter", "ColumnVoidFraction", "ParticleDensity", "AdsorbentLength",
+                            "ComponentParameters", "Components"},
                            context);
 
       std::string adsorbentName = std::to_string(ads);
@@ -1534,8 +1500,8 @@ InputReader::InputReader(const std::string fileName) : components()
           auto componentIndex = componentIndexByName.find(it.key());
           if (componentIndex == componentIndexByName.end())
           {
-            throw std::runtime_error("Error: unknown component '" + it.key() + "' in ComponentParameters (" +
-                                     context + ")");
+            throw std::runtime_error("Error: unknown component '" + it.key() + "' in ComponentParameters (" + context +
+                                     ")");
           }
 
           Component& comp = componentsForAdsorbent[componentIndex->second];
@@ -1547,14 +1513,8 @@ InputReader::InputReader(const std::string fileName) : components()
           }
 
           requireOnlyKnownKeys(params,
-                               {"Name",
-                                "MassTransferCoefficient",
-                                "AxialDispersionCoefficient",
-                                "HeatOfAdsorption",
-                                "referenceTemperature",
-                                "nonIsothermal",
-                                "ChemisorptionSites",
-                                "PhysisorptionSites"},
+                               {"Name", "MassTransferCoefficient", "AxialDispersionCoefficient", "HeatOfAdsorption",
+                                "referenceTemperature", "nonIsothermal", "ChemisorptionSites", "PhysisorptionSites"},
                                componentContext);
 
           readOptionalNumber<double>(params, "MassTransferCoefficient", comp.massTransferCoefficient);
@@ -1625,9 +1585,10 @@ InputReader::InputReader(const std::string fileName) : components()
         const bool hasInterface = containsKeyCaseInsensitive(section, "InterfaceLength");
         if (hasAdsorbent == hasInterface)
         {
-          throw std::runtime_error("Error: ColumnSections entries must define either Adsorbent/Length or "
-                                   "InterfaceLength (" +
-                                   context + ")");
+          throw std::runtime_error(
+              "Error: ColumnSections entries must define either Adsorbent/Length or "
+              "InterfaceLength (" +
+              context + ")");
         }
 
         if (hasInterface)
@@ -1661,7 +1622,8 @@ InputReader::InputReader(const std::string fileName) : components()
       }
       if (sectionInterfaceLengths.size() != adsorbentsJson.size() - 1)
       {
-        throw std::runtime_error("Error: ColumnSections must define one InterfaceLength between neighboring adsorbents");
+        throw std::runtime_error(
+            "Error: ColumnSections must define one InterfaceLength between neighboring adsorbents");
       }
 
       adsorbentLengths = std::move(sectionLengths);
@@ -1770,6 +1732,34 @@ InputReader::InputReader(const std::string fileName) : components()
     }
   }
 
+  for (size_t reactionId = 0; reactionId < reactions.size(); ++reactionId)
+  {
+    const Reaction& reaction = reactions[reactionId];
+    if (reaction.phase != Reaction::Phase::Chemisorbed) continue;
+
+    for (size_t ads = 0; ads < adsorbentComponents.size(); ++ads)
+    {
+      for (size_t comp : reaction.reactants)
+      {
+        if (reaction.site >= adsorbentComponents[ads][comp].chemisorption.numberOfSites)
+        {
+          throw std::runtime_error("Error: Chemisorbed reaction " + std::to_string(reactionId) +
+                                   " component has no requested chemisorption site in adsorbent " +
+                                   std::to_string(ads));
+        }
+      }
+      for (size_t comp : reaction.products)
+      {
+        if (reaction.site >= adsorbentComponents[ads][comp].chemisorption.numberOfSites)
+        {
+          throw std::runtime_error("Error: Chemisorbed reaction " + std::to_string(reactionId) +
+                                   " component has no requested chemisorption site in adsorbent " +
+                                   std::to_string(ads));
+        }
+      }
+    }
+  }
+
   if ((mixturePredictionMethod == 2) || (mixturePredictionMethod == 3))
   {
     for (const std::vector<Component>& componentsForAdsorbent : adsorbentComponents)
@@ -1787,6 +1777,40 @@ InputReader::InputReader(const std::string fileName) : components()
     }
   }
 
+  if (mixturePredictionMethod == 4)
+  {
+    for (const std::vector<Component>& componentsForAdsorbent : adsorbentComponents)
+    {
+      size_t maximumSites = 0;
+      for (const Component& component : componentsForAdsorbent)
+      {
+        maximumSites = std::max(maximumSites, component.isotherm.sites.size());
+      }
+
+      for (size_t site = 0; site < maximumSites; ++site)
+      {
+        std::optional<Isotherm::Type> model;
+        for (const Component& component : componentsForAdsorbent)
+        {
+          if (component.isCarrierGas || site >= component.isotherm.sites.size() ||
+              !component.isotherm.sites[site].enabled())
+            continue;
+
+          const Isotherm::Type type = component.isotherm.sites[site].type;
+          if (!supportsSegregatedCompetitiveIsotherm(type))
+          {
+            throw std::runtime_error("Error: unsupported physisorption isotherm model for SCI mixture prediction");
+          }
+          if (model.has_value() && *model != type)
+          {
+            throw std::runtime_error("Error: SCI requires one physisorption isotherm model per segregated site");
+          }
+          model = type;
+        }
+      }
+    }
+  }
+
   bool hasChemisorption = false;
   for (const std::vector<Component>& componentsForAdsorbent : adsorbentComponents)
   {
@@ -1799,9 +1823,43 @@ InputReader::InputReader(const std::string fileName) : components()
         {
           if (site.isotherm.has_value() && site.isotherm->type != Isotherm::Type::Langmuir)
           {
-            throw std::runtime_error(
-                "Error: SEI chemisorption mixture prediction requires Langmuir isotherms");
+            throw std::runtime_error("Error: SEI chemisorption mixture prediction requires Langmuir isotherms");
           }
+        }
+      }
+    }
+  }
+
+  if (mixturePredictionMethod == 4)
+  {
+    for (const std::vector<Component>& componentsForAdsorbent : adsorbentComponents)
+    {
+      size_t maximumSites = 0;
+      for (const Component& component : componentsForAdsorbent)
+      {
+        maximumSites = std::max(maximumSites, component.chemisorption.sites.size());
+      }
+
+      for (size_t site = 0; site < maximumSites; ++site)
+      {
+        std::optional<Isotherm::Type> model;
+        for (const Component& component : componentsForAdsorbent)
+        {
+          if (site >= component.chemisorption.sites.size() ||
+              !component.chemisorption.sites[site].isotherm.has_value() ||
+              !component.chemisorption.sites[site].isotherm->enabled())
+            continue;
+
+          const Isotherm::Type type = component.chemisorption.sites[site].isotherm->type;
+          if (!supportsSegregatedCompetitiveIsotherm(type))
+          {
+            throw std::runtime_error("Error: unsupported chemisorption isotherm model for SCI mixture prediction");
+          }
+          if (model.has_value() && *model != type)
+          {
+            throw std::runtime_error("Error: SCI requires one chemisorption isotherm model per segregated site");
+          }
+          model = type;
         }
       }
     }
@@ -1809,7 +1867,8 @@ InputReader::InputReader(const std::string fileName) : components()
   if (hasChemisorption && mixturePredictionMethod == 2)
   {
     throw std::runtime_error(
-        "Error: chemisorption mixture prediction supports IAST, SIAST, or SEI; EI is not supported");
+        "Error: chemisorption mixture prediction supports IAST, SIAST, SEI, SCI, or SPI; EI is "
+        "not supported");
   }
 
   maxIsothermTerms = 0;
@@ -1817,10 +1876,9 @@ InputReader::InputReader(const std::string fileName) : components()
   {
     if (!componentsForAdsorbent.empty())
     {
-      std::vector<Component>::const_iterator maxIsothermTermsIterator =
-          std::max_element(componentsForAdsorbent.begin(), componentsForAdsorbent.end(),
-                           [](const Component& lhs, const Component& rhs)
-                           { return lhs.isotherm.sites.size() < rhs.isotherm.sites.size(); });
+      std::vector<Component>::const_iterator maxIsothermTermsIterator = std::max_element(
+          componentsForAdsorbent.begin(), componentsForAdsorbent.end(), [](const Component& lhs, const Component& rhs)
+          { return lhs.isotherm.sites.size() < rhs.isotherm.sites.size(); });
       maxIsothermTerms = std::max(maxIsothermTerms, maxIsothermTermsIterator->isotherm.sites.size());
     }
   }
@@ -1834,18 +1892,17 @@ InputReader::InputReader(const std::string fileName) : components()
     static constexpr size_t fixedPressureInletVelocity = 4;
 
     // Boundary conditions define which externally supplied quantities are mandatory.
-    const bool boundaryNeedsInletPressure =
-        boundaryCondition == inletPressureInletVelocity || boundaryCondition == inletPressureOutletPressure ||
-        boundaryCondition == fixedPressureInletVelocity;
+    const bool boundaryNeedsInletPressure = boundaryCondition == inletPressureInletVelocity ||
+                                            boundaryCondition == inletPressureOutletPressure ||
+                                            boundaryCondition == fixedPressureInletVelocity;
     const bool boundaryNeedsOutletPressure =
         boundaryCondition == inletPressureOutletPressure || boundaryCondition == inletVelocityOutletPressure;
     const bool boundaryNeedsInletVelocity =
         boundaryCondition == inletPressureInletVelocity || boundaryCondition == inletVelocityOutletPressure ||
         boundaryCondition == fixedVelocity || boundaryCondition == fixedPressureInletVelocity;
-    const bool effectiveHasInletPressure = hasInletPressure ||
-                                           (simulationType == SimulationType::SwingAdsorption &&
-                                            !swingAdsorptionPhases.empty() &&
-                                            swingAdsorptionPhases.front().inletPressure.has_value());
+    const bool effectiveHasInletPressure =
+        hasInletPressure || (simulationType == SimulationType::SwingAdsorption && !swingAdsorptionPhases.empty() &&
+                             swingAdsorptionPhases.front().inletPressure.has_value());
 
     requireConfigured(numberOfCarrierGases != 0, "Error: no carrier gas component present");
     requireConfigured(numberOfCarrierGases == 1,
@@ -1862,25 +1919,23 @@ InputReader::InputReader(const std::string fileName) : components()
     }
     else
     {
-      requireConfigured(!swingAdsorptionPhases.empty(),
-                        "Error: SwingAdsorption requires SwingAdsorptionPhases");
+      requireConfigured(!swingAdsorptionPhases.empty(), "Error: SwingAdsorption requires SwingAdsorptionPhases");
       for (size_t phaseIndex = 0; phaseIndex < swingAdsorptionPhases.size(); ++phaseIndex)
       {
         const SwingAdsorptionPhase& phase = swingAdsorptionPhases[phaseIndex];
-        requireConfigured(phase.numberOfSteps != 0,
-                          "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) +
-                              " must have a positive number of time steps");
+        requireConfigured(phase.numberOfSteps != 0, "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) +
+                                                        " must have a positive number of time steps");
         if (phase.temperature.has_value())
         {
-          requireConfigured(std::isfinite(*phase.temperature) && *phase.temperature >= 0.0,
-                            "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) +
-                                " has invalid temperature");
+          requireConfigured(
+              std::isfinite(*phase.temperature) && *phase.temperature >= 0.0,
+              "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) + " has invalid temperature");
         }
         if (phase.inletPressure.has_value())
         {
-          requireConfigured(std::isfinite(*phase.inletPressure) && *phase.inletPressure > 0.0,
-                            "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) +
-                                " has invalid inlet pressure");
+          requireConfigured(
+              std::isfinite(*phase.inletPressure) && *phase.inletPressure > 0.0,
+              "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) + " has invalid inlet pressure");
           if (boundaryCondition == fixedPressureInletVelocity)
           {
             requireConfigured(*phase.inletPressure + pressureGradient / columnLength > 0.0,
@@ -1914,9 +1969,9 @@ InputReader::InputReader(const std::string fileName) : components()
 
     if (boundaryCondition == fixedVelocity)
     {
-      requireConfigured((effectiveHasInletPressure && inletPressure >= 0.0) ||
-                            (hasOutletPressure && outletPressure >= 0.0),
-                        "Error: FixedVelocity requires InletPressure or OutletPressure");
+      requireConfigured(
+          (effectiveHasInletPressure && inletPressure >= 0.0) || (hasOutletPressure && outletPressure >= 0.0),
+          "Error: FixedVelocity requires InletPressure or OutletPressure");
     }
 
     if (boundaryCondition == fixedPressureInletVelocity)

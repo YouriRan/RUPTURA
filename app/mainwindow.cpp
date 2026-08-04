@@ -1791,7 +1791,7 @@ void MainWindow::rebuildSimulationEditor()
                   refreshColumnList();
                 });
   addComboField(form, "Mixture prediction method", simulation.mixtureMethod,
-                valueOptions({"SIAST", "IAST", "EI", "SEI"}),
+                valueOptions({"SIAST", "IAST", "EI", "SEI", "SCI", "SPI"}),
                 [this](const QString& value) { simulations_[selectedSimulationIndex_].mixtureMethod = value; });
 
   auto* feedGroup = new QGroupBox("Feed components");

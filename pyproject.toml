@@ -24,5 +24,13 @@ authors = [
 zip-safe = false
 packages = ["ruptura"]
 
+[project.optional-dependencies]
+lab = [
+  "ipywidgets",
+  "jupyterlab",
+  "pandas",
+  "plotly",
+]
+
 [tool.setuptools.package-dir]
 ruptura = "ruptura"

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 import glob
-import io
 import json
 import os
 import re
@@ -78,17 +78,6 @@ def infer_components_from_files(
     return components
 
 
-def _read_header_lines(path: Path) -> List[str]:
-    header_lines: List[str] = []
-    with path.open("r", encoding="utf-8", errors="replace") as f:
-        for line in f:
-            if line.strip() == "" or line.lstrip().startswith("#"):
-                header_lines.append(line)
-            else:
-                break
-    return header_lines
-
-
 def parse_header_metadata(path: Union[str, Path]) -> Dict:
     """
     Parse header comments to detect:
@@ -101,7 +90,13 @@ def parse_header_metadata(path: Union[str, Path]) -> Dict:
       # component 0: Helium (y_i=0.93)   (optional)
     """
     path = Path(path)
-    header_lines = _read_header_lines(path)
+    header_lines: List[str] = []
+    with path.open("r", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if line.strip() == "" or line.lstrip().startswith("#"):
+                header_lines.append(line)
+            else:
+                break
 
     columns: Dict[int, str] = {}
     components: Dict[int, HeaderComponentInfo] = {}
@@ -147,29 +142,36 @@ def read_blocks(path: Union[str, Path]) -> List[np.ndarray]:
     """
     Read whitespace-separated numeric data split into blocks by blank lines.
     Lines starting with '#' are ignored.
+    Malformed rows and rows with a non-dominant column count are skipped, which
+    keeps readers usable while a simulation is still appending partial rows.
     Returns list of arrays, each (nrows, ncols).
     """
     path = Path(path)
     blocks: List[np.ndarray] = []
-    buf: List[str] = []
+    rows: List[List[float]] = []
+
+    def flush_block():
+        nonlocal rows
+        if rows:
+            column_counts = Counter(len(row) for row in rows)
+            ncols = max(column_counts, key=lambda count: (column_counts[count], count))
+            rectangular_rows = [row for row in rows if len(row) == ncols]
+            if rectangular_rows:
+                blocks.append(np.asarray(rectangular_rows, dtype=float))
+        rows = []
 
     with path.open("r", encoding="utf-8", errors="replace") as f:
         for line in f:
             s = line.strip()
             if (not s) or s.startswith("#"):
-                if buf:
-                    arr = np.loadtxt(io.StringIO("".join(buf)))
-                    if arr.ndim == 1:
-                        arr = arr.reshape(1, -1)
-                    blocks.append(arr)
-                    buf = []
+                flush_block()
                 continue
-            buf.append(line)
+            try:
+                row = [float(value) for value in s.split()]
+                rows.append(row)
+            except ValueError:
+                pass
 
-    if buf:
-        arr = np.loadtxt(io.StringIO("".join(buf)))
-        if arr.ndim == 1:
-            arr = arr.reshape(1, -1)
-        blocks.append(arr)
+    flush_block()
 
     return blocks

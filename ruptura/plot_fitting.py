@@ -130,17 +130,17 @@ class JsonMultiSiteIsotherm:
     @classmethod
     def from_component_json(cls, componentJson: Mapping[str, Any]) -> JsonMultiSiteIsotherm:
         isCarrierGas = bool(componentJson.get("CarrierGas", False))
-        sitesJson = componentJson.get("IsothermSites", [])
+        sitesJson = componentJson.get("PhysisorptionSites", [])
 
         if sitesJson is None:
             sitesJson = []
         if not isinstance(sitesJson, list):
-            raise ValueError("Component field 'IsothermSites' must be a list")
+            raise ValueError("Component field 'PhysisorptionSites' must be a list")
 
         sites: list[JsonIsothermSite] = []
         for siteJson in sitesJson:
             if not isinstance(siteJson, Mapping):
-                raise ValueError("Each isotherm site in 'IsothermSites' must be an object")
+                raise ValueError("Each isotherm site in 'PhysisorptionSites' must be an object")
 
             siteType = siteJson.get("Type")
             parametersJson = siteJson.get("Parameters")
@@ -216,11 +216,11 @@ class FittingPlotly(BasePlotly):
     @staticmethod
     def _normalise_pressure_scale(value: object) -> str:
         scale = str(value).strip().lower()
-        if scale in {"0", "log", "logarithmic"}:
+        if scale == "log":
             return "log"
-        if scale in {"1", "normal", "linear", "lin"}:
-            return "normal"
-        return scale
+        if scale == "linear":
+            return "linear"
+        raise ValueError(f"Unknown pressureScale '{value}'. Allowed values: log, linear")
 
     @staticmethod
     def _component_filename_from_json(componentJson: Mapping[str, Any], fallback: str) -> str:

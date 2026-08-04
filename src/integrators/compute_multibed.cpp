@@ -1,15 +1,18 @@
 #include "compute_multibed.h"
 
 #include <algorithm>
+#include <cmath>
 #include <mdspan>
 
 #include "utils.h"
 
 using mdspan2d_const = std::mdspan<const double, std::dextents<size_t, 2>>;
 using mdspan2d_mut = std::mdspan<double, std::dextents<size_t, 2>>;
+using mdspan3d_const = std::mdspan<const double, std::dextents<size_t, 3>>;
+using mdspan3d_mut = std::mdspan<double, std::dextents<size_t, 3>>;
 
 void updateVelocityAndPressure(
-    const std::vector<Component>& components, const ColumnMultibed::BoundaryCondition& boundaryCondition,
+    const std::vector<Component>& components, const MultibedColumn::BoundaryCondition& boundaryCondition,
     size_t numberOfGridPoints, size_t numberOfComponents, double inletPressure, double outletPressure,
     double pressureGradient, double columnLength, size_t numberOfAdsorbents, double& columnEntranceVelocity,
     double dynamicViscosity, std::span<const double> columnDistances, std::span<const double> fractionOfAdsorbent,
@@ -124,7 +127,7 @@ void updateVelocityAndPressure(
     }
   }
 
-  if (boundaryCondition == ColumnMultibed::BoundaryCondition::InletPressureInletVelocity)
+  if (boundaryCondition == MultibedColumn::BoundaryCondition::InletPressureInletVelocity)
   {
     interstitialGasVelocity[0] = columnEntranceVelocity;
     totalPressure[0] = inletPressure;
@@ -139,7 +142,7 @@ void updateVelocityAndPressure(
           std::max(1e-10, totalConcentration[grid]);
     }
   }
-  else if (boundaryCondition == ColumnMultibed::BoundaryCondition::InletPressureOutletPressure)
+  else if (boundaryCondition == MultibedColumn::BoundaryCondition::InletPressureOutletPressure)
   {
     auto shoot = [&](double v0)
     {
@@ -167,7 +170,7 @@ void updateVelocityAndPressure(
     columnEntranceVelocity = bisection(shoot);
     shoot(columnEntranceVelocity);
   }
-  else if (boundaryCondition == ColumnMultibed::BoundaryCondition::InletVelocityOutletPressure)
+  else if (boundaryCondition == MultibedColumn::BoundaryCondition::InletVelocityOutletPressure)
   {
     interstitialGasVelocity[0] = columnEntranceVelocity;
     totalPressure[numberOfGridPoints] = outletPressure;
@@ -187,7 +190,7 @@ void updateVelocityAndPressure(
       refreshNode(current);
     }
   }
-  else if (boundaryCondition == ColumnMultibed::BoundaryCondition::FixedVelocity)
+  else if (boundaryCondition == MultibedColumn::BoundaryCondition::FixedVelocity)
   {
     std::fill(interstitialGasVelocity.begin(), interstitialGasVelocity.end(), columnEntranceVelocity);
 
@@ -214,7 +217,7 @@ void updateVelocityAndPressure(
       }
     }
   }
-  else if (boundaryCondition == ColumnMultibed::BoundaryCondition::FixedPressureInletVelocity)
+  else if (boundaryCondition == MultibedColumn::BoundaryCondition::FixedPressureInletVelocity)
   {
     interstitialGasVelocity[0] = columnEntranceVelocity;
     for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
@@ -298,6 +301,58 @@ void computePhysisorptionEquilibriumLoadings(
   }
 }
 
+void computeChemisorptionEquilibriumLoadings(
+    std::vector<MixturePrediction>& chemisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
+    size_t numberOfAdsorbents, std::span<const double> fractionOfAdsorbent, const std::vector<bool>& hasAdsorbentOfType,
+    size_t maxChemisorptionSites, std::pair<size_t, size_t>& iastPerformance, std::span<double> idealGasMolFractions,
+    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, std::span<const double> totalPressure,
+    std::span<double> equilibriumChemisorption, std::span<double> cachedPressure,
+    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> gasTemperature)
+{
+  std::fill(equilibriumChemisorption.begin(), equilibriumChemisorption.end(), 0.0);
+  const size_t componentBlockSize = (numberOfGridPoints + 1) * numberOfComponents;
+
+  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+  {
+    double sum = 0.0;
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      idealGasMolFractions[comp] = std::max(0.0, moleFraction[grid * numberOfComponents + comp]);
+      sum += idealGasMolFractions[comp];
+    }
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      idealGasMolFractions[comp] =
+          sum > 0.0 ? idealGasMolFractions[comp] / sum : 1.0 / static_cast<double>(numberOfComponents);
+    }
+
+    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+    {
+      if (!hasAdsorbentOfType[grid * numberOfAdsorbents + ads]) continue;
+
+      MixturePrediction& mixture = chemisorptionMixtures[ads];
+      std::span<double> spanCachedPressure =
+          cachedPressure.subspan((grid * numberOfAdsorbents + ads) * numberOfComponents * maxChemisorptionSites,
+                                 numberOfComponents * maxChemisorptionSites);
+      std::span<double> spanCachedGrandPotential = cachedGrandPotential.subspan(
+          (grid * numberOfAdsorbents + ads) * maxChemisorptionSites, maxChemisorptionSites);
+      iastPerformance +=
+          mixture.predictMixture(idealGasMolFractions, totalPressure[grid], adsorbedMolFractions, numberOfMolecules,
+                                 spanCachedPressure, spanCachedGrandPotential, gasTemperature[grid]);
+
+      const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
+      for (size_t site = 0; site < mixture.maxIsothermTerms; ++site)
+      {
+        for (size_t comp = 0; comp < numberOfComponents; ++comp)
+        {
+          equilibriumChemisorption[site * componentBlockSize + grid * numberOfComponents + comp] +=
+              fraction * mixture.equilibriumSiteLoadings[site * numberOfComponents + comp];
+        }
+      }
+    }
+  }
+}
+
 void computePhysisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
                           size_t numberOfComponents, size_t numberOfAdsorbents,
                           std::span<const double> fractionOfAdsorbent, std::span<const double> equilibriumPhysisorption,
@@ -320,11 +375,160 @@ void computePhysisorption(const std::vector<MixturePrediction>& physisorptionMix
   }
 }
 
-void computeBulkSpeciesSink(size_t numberOfGridPoints, size_t numberOfComponents, size_t numberOfAdsorbents,
-                            std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
-                            std::span<const double> fractionOfAdsorbent, std::span<const double> totalVoidFraction,
-                            std::span<const double> physisorptionDot, std::span<double> bulkSpeciesSink)
+void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
+                          size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
+                          double externalTemperature, std::span<const double> fractionOfAdsorbent,
+                          std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
+                          std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
+                          std::span<const double> chemisorption, std::span<double> chemisorptionDot,
+                          std::span<const double> poreConcentration, std::span<const double> solidTemperature)
 {
+  std::fill(chemisorptionDot.begin(), chemisorptionDot.end(), 0.0);
+  mdspan3d_const spanEquilibrium(equilibriumChemisorption.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                                 numberOfComponents);
+  mdspan3d_const spanChemisorption(chemisorption.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                                   numberOfComponents);
+  mdspan3d_mut spanChemisorptionDot(chemisorptionDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                                    numberOfComponents);
+  mdspan2d_const spanConcentration(concentration.data(), numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_const spanPoreConcentration(poreConcentration.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                                       numberOfComponents);
+  constexpr double poreInventoryLimitTime = 1.0e-4;
+
+  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+  {
+    const double temperature = solidTemperature.empty() ? externalTemperature : solidTemperature[grid];
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      for (size_t site = 0; site < maxChemisorptionSites; ++site)
+      {
+        double blendedRate = 0.0;
+        for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+        {
+          const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
+          if (fraction <= 0.0) continue;
+
+          const MultiSiteChemisorption& multisite = physisorptionMixtures[ads].components[comp].chemisorption;
+          if (site >= multisite.numberOfSites) continue;
+          const Chemisorption& kinetics = multisite.sites[site];
+          if (!kinetics.enabled()) continue;
+
+          const double drivingConcentration = kinetics.usesSurfacePoreTransport()
+                                                  ? spanPoreConcentration[site, grid, comp]
+                                                  : spanConcentration[grid, comp];
+          double equilibriumLoading = std::max(0.0, spanEquilibrium[site, grid, comp]);
+          if (kinetics.maximumLoading > 0.0)
+          {
+            equilibriumLoading = std::min(equilibriumLoading, kinetics.maximumLoading);
+          }
+          double rate =
+              kinetics.rate(equilibriumLoading, spanChemisorption[site, grid, comp], drivingConcentration, temperature);
+          if (kinetics.usesSurfacePoreTransport())
+          {
+            const double gamma = (1.0 - adsorbentVoidFractions[ads]) * particleDensities[ads] /
+                                 std::max(1.0e-10, adsorbentVoidFractions[ads]);
+            if (rate > 0.0 && gamma > 0.0)
+            {
+              rate = std::min(rate, drivingConcentration / (gamma * poreInventoryLimitTime));
+            }
+          }
+
+          if (spanChemisorption[site, grid, comp] >= equilibriumLoading)
+          {
+            rate = std::min(0.0, rate);
+          }
+          else if (spanChemisorption[site, grid, comp] <= 0.0)
+          {
+            rate = std::max(0.0, rate);
+          }
+          blendedRate += fraction * rate;
+        }
+        spanChemisorptionDot[site, grid, comp] = blendedRate;
+      }
+    }
+  }
+}
+
+void computeChemisorptionTransportDerivatives(
+    const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
+    size_t numberOfAdsorbents, size_t maxChemisorptionSites, std::span<const double> fractionOfAdsorbent,
+    std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
+    std::span<const double> particleDiameters, std::span<const double> totalVoidFraction,
+    std::span<const double> concentration, std::span<const double> chemisorptionDot,
+    std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
+    std::span<const double> poreConcentration, std::span<double> poreConcentrationDot)
+{
+  std::fill(surfaceConcentrationDot.begin(), surfaceConcentrationDot.end(), 0.0);
+  std::fill(poreConcentrationDot.begin(), poreConcentrationDot.end(), 0.0);
+  if (surfaceConcentration.empty() || poreConcentration.empty()) return;
+
+  mdspan2d_const spanConcentration(concentration.data(), numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_const spanChemisorptionDot(chemisorptionDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                                      numberOfComponents);
+  mdspan3d_const spanSurface(surfaceConcentration.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                             numberOfComponents);
+  mdspan3d_mut spanSurfaceDot(surfaceConcentrationDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                              numberOfComponents);
+  mdspan3d_const spanPore(poreConcentration.data(), maxChemisorptionSites, numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_mut spanPoreDot(poreConcentrationDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                           numberOfComponents);
+
+  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+  {
+    double solidLoadingDensity = 0.0;
+    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+    {
+      const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
+      solidLoadingDensity += fraction * (1.0 - adsorbentVoidFractions[ads]) * particleDensities[ads];
+    }
+    const double loadingPrefactor = solidLoadingDensity / std::max(1.0e-10, totalVoidFraction[grid]);
+
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      for (size_t site = 0; site < maxChemisorptionSites; ++site)
+      {
+        double film = 0.0;
+        double poreDiffusion = 0.0;
+        for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+        {
+          const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
+          const MultiSiteChemisorption& multisite = physisorptionMixtures[ads].components[comp].chemisorption;
+          if (fraction <= 0.0 || site >= multisite.numberOfSites) continue;
+          const Chemisorption& kinetics = multisite.sites[site];
+          if (!kinetics.usesSurfacePoreTransport()) continue;
+
+          const double particleDiameter = std::max(1.0e-30, particleDiameters[ads]);
+          const double solidContactArea = 6.0 / particleDiameter;
+          const double poreDiffusionLength = 0.5 * particleDiameter;
+          const double poreLdf = 15.0 * std::max(0.0, kinetics.poreDiffusivity) /
+                                 std::max(1.0e-30, poreDiffusionLength * poreDiffusionLength);
+          film += fraction * solidContactArea * std::max(0.0, kinetics.filmMassTransferCoefficient) *
+                  (spanConcentration[grid, comp] - spanSurface[site, grid, comp]);
+          poreDiffusion += fraction * poreLdf * (spanSurface[site, grid, comp] - spanPore[site, grid, comp]);
+        }
+        spanSurfaceDot[site, grid, comp] = film - poreDiffusion;
+        spanPoreDot[site, grid, comp] = poreDiffusion - loadingPrefactor * spanChemisorptionDot[site, grid, comp];
+      }
+    }
+  }
+}
+
+void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
+                            size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
+                            std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
+                            std::span<const double> particleDiameters, std::span<const double> fractionOfAdsorbent,
+                            std::span<const double> totalVoidFraction, std::span<const double> concentration,
+                            std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot,
+                            std::span<const double> surfaceConcentration, std::span<double> bulkSpeciesSink,
+                            std::span<const double> reactionPhysisorptionSource,
+                            std::span<const double> reactionChemisorptionSource)
+{
+  mdspan2d_const spanConcentration(concentration.data(), numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_const spanChemisorptionDot(chemisorptionDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                                      numberOfComponents);
+  mdspan3d_const spanSurface(surfaceConcentration.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                             numberOfComponents);
+
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
     double solidLoadingDensity = 0.0;
@@ -338,7 +542,39 @@ void computeBulkSpeciesSink(size_t numberOfGridPoints, size_t numberOfComponents
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
       const size_t index = grid * numberOfComponents + comp;
-      bulkSpeciesSink[index] = loadingPrefactor * physisorptionDot[index];
+      const double reactionPhysisorption =
+          reactionPhysisorptionSource.empty() ? 0.0 : reactionPhysisorptionSource[index];
+      double sink = loadingPrefactor * (physisorptionDot[index] - reactionPhysisorption);
+
+      for (size_t site = 0; site < maxChemisorptionSites; ++site)
+      {
+        double directFraction = 0.0;
+        double filmSink = 0.0;
+        for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+        {
+          const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
+          const MultiSiteChemisorption& multisite = physisorptionMixtures[ads].components[comp].chemisorption;
+          if (fraction <= 0.0 || site >= multisite.numberOfSites) continue;
+          const Chemisorption& kinetics = multisite.sites[site];
+          if (kinetics.usesSurfacePoreTransport())
+          {
+            const double solidContactArea = 6.0 / std::max(1.0e-30, particleDiameters[ads]);
+            filmSink += fraction * solidContactArea * std::max(0.0, kinetics.filmMassTransferCoefficient) *
+                        (spanConcentration[grid, comp] - spanSurface[site, grid, comp]);
+          }
+          else if (kinetics.enabled())
+          {
+            directFraction += fraction;
+          }
+        }
+
+        const size_t siteIndex = site * (numberOfGridPoints + 1) * numberOfComponents + index;
+        const double reactionChemisorption =
+            reactionChemisorptionSource.empty() ? 0.0 : reactionChemisorptionSource[siteIndex];
+        sink += loadingPrefactor * directFraction * (spanChemisorptionDot[site, grid, comp] - reactionChemisorption) +
+                filmSink;
+      }
+      bulkSpeciesSink[index] = sink;
     }
   }
 }
@@ -416,12 +652,16 @@ void computeEnergyDerivatives(const std::vector<MixturePrediction>& physisorptio
                               double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
                               std::span<const double> columnDistances, std::span<const double> interstitialGasVelocity,
                               std::span<const double> gasDensity, std::span<double> coeffDiffusion,
-                              std::span<const double> physisorptionDot, std::span<const double> gasTemperature,
+                              size_t maxChemisorptionSites, std::span<const double> physisorptionDot,
+                              std::span<const double> chemisorptionDot, std::span<const double> gasTemperature,
                               std::span<double> gasTemperatureDot, std::span<const double> solidTemperature,
                               std::span<double> solidTemperatureDot, std::span<const double> wallTemperature,
-                              std::span<double> wallTemperatureDot)
+                              std::span<double> wallTemperatureDot, std::span<const double> reactionPhysisorptionSource,
+                              std::span<const double> reactionChemisorptionSource, std::span<const double> reactionHeat)
 {
   mdspan2d_const spanAdsorptionDot(physisorptionDot.data(), numberOfGridPoints + 1, numberOfComponents);
+  mdspan3d_const spanChemisorptionDot(chemisorptionDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
+                                      numberOfComponents);
   auto idx = [&](size_t grid) { return 1.0 / std::max(1e-30, gridSpacing(columnDistances, grid)); };
   auto d2Temperature = [&](std::span<const double> values, size_t grid)
   {
@@ -507,14 +747,49 @@ void computeEnergyDerivatives(const std::vector<MixturePrediction>& physisorptio
     return value;
   };
 
+  auto physisorptionSource = [&](size_t grid, size_t comp)
+  {
+    const size_t index = grid * numberOfComponents + comp;
+    return spanAdsorptionDot[grid, comp] -
+           (reactionPhysisorptionSource.empty() ? 0.0 : reactionPhysisorptionSource[index]);
+  };
+
+  auto chemisorptionHeat = [&](size_t grid, size_t comp)
+  {
+    double heat = 0.0;
+    const size_t componentBlockSize = (numberOfGridPoints + 1) * numberOfComponents;
+    for (size_t site = 0; site < maxChemisorptionSites; ++site)
+    {
+      double heatOfChemisorption = 0.0;
+      for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+      {
+        const MultiSiteChemisorption& multisite = physisorptionMixtures[ads].components[comp].chemisorption;
+        if (site < multisite.numberOfSites)
+        {
+          heatOfChemisorption +=
+              fractionOfAdsorbent[grid * numberOfAdsorbents + ads] * multisite.sites[site].heatOfChemisorption;
+        }
+      }
+      const size_t index = site * componentBlockSize + grid * numberOfComponents + comp;
+      const double source = spanChemisorptionDot[site, grid, comp] -
+                            (reactionChemisorptionSource.empty() ? 0.0 : reactionChemisorptionSource[index]);
+      heat += heatOfChemisorption * source;
+    }
+    return heat;
+  };
+
+  auto reactionHeatAt = [&](size_t grid) { return reactionHeat.empty() ? 0.0 : reactionHeat[grid]; };
+
   gasTemperatureDot[0] = 0.0;
   solidTemperatureDot[0] = solidHeatExchange(0);
   wallTemperatureDot[0] = wallHeatExchange(0);
 
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
-    solidTemperatureDot[0] += heatOfAdsorption(0, comp) * spanAdsorptionDot[0, comp] / heatCapacitySolid;
+    solidTemperatureDot[0] +=
+        (heatOfAdsorption(0, comp) * physisorptionSource(0, comp) + chemisorptionHeat(0, comp)) / heatCapacitySolid;
   }
+  solidTemperatureDot[0] += reactionHeatAt(0) / heatCapacitySolid;
 
   for (size_t grid = 1; grid < numberOfGridPoints; ++grid)
   {
@@ -530,8 +805,11 @@ void computeEnergyDerivatives(const std::vector<MixturePrediction>& physisorptio
 
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
-      solidTemperatureDot[grid] += heatOfAdsorption(grid, comp) * spanAdsorptionDot[grid, comp] / heatCapacitySolid;
+      solidTemperatureDot[grid] +=
+          (heatOfAdsorption(grid, comp) * physisorptionSource(grid, comp) + chemisorptionHeat(grid, comp)) /
+          heatCapacitySolid;
     }
+    solidTemperatureDot[grid] += reactionHeatAt(grid) / heatCapacitySolid;
   }
 
   gasTemperatureDot[numberOfGridPoints] = gasHeatExchange(numberOfGridPoints);
@@ -553,8 +831,11 @@ void computeEnergyDerivatives(const std::vector<MixturePrediction>& physisorptio
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
     solidTemperatureDot[numberOfGridPoints] +=
-        heatOfAdsorption(numberOfGridPoints, comp) * spanAdsorptionDot[numberOfGridPoints, comp] / heatCapacitySolid;
+        (heatOfAdsorption(numberOfGridPoints, comp) * physisorptionSource(numberOfGridPoints, comp) +
+         chemisorptionHeat(numberOfGridPoints, comp)) /
+        heatCapacitySolid;
   }
+  solidTemperatureDot[numberOfGridPoints] += reactionHeatAt(numberOfGridPoints) / heatCapacitySolid;
 }
 
 // void computeTVD(std::span<double> input, std::span<double> output, bool clamp)

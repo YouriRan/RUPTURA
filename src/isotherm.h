@@ -89,6 +89,14 @@ struct Isotherm
   bool nonIsothermal;              ///< Switches whether temperature dependence is used in the isotherm.
 
   /**
+   * \brief Returns whether this site can contribute adsorption loading.
+   *
+   * The first parameter is the loading coefficient (or saturation loading) for every supported isotherm type. A zero
+   * value therefore makes the site inactive while leaving it available for multisite index alignment.
+   */
+  [[nodiscard]] bool enabled() const noexcept { return !parameters.empty() && parameters[0] != 0.0; }
+
+  /**
    * \brief Prints a representation of the isotherm to standard output.
    */
   void print() const;
@@ -111,6 +119,8 @@ struct Isotherm
    */
   inline double value(double pressure, double scale) const
   {
+    if (!enabled()) return 0.0;
+
     switch (type)
     {
       case Isotherm::Type::Langmuir:
@@ -201,6 +211,8 @@ struct Isotherm
    */
   inline double psiForPressure(double pressure, double scale) const
   {
+    if (!enabled()) return 0.0;
+
     switch (type)
     {
       case Isotherm::Type::Langmuir:
@@ -363,6 +375,8 @@ struct Isotherm
    */
   inline double inversePressureForPsi(double reduced_grand_potential, double& cachedP0, double scale) const
   {
+    if (!enabled()) return 0.0;
+
     switch (type)
     {
       case Isotherm::Type::Langmuir:

@@ -12,6 +12,10 @@ Package.StoreAssociation.xml
 *.appxbundle
 *.appxupload
 examples/
+!examples/
+!examples/Reactions/
+!examples/Reactions/**/
+!examples/Reactions/**/simulation.json
 .vscode
 .idea
 

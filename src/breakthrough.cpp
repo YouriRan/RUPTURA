@@ -1,28 +1,46 @@
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstdio>
-#include <fstream>
-#include <iostream>
-#include <limits>
-#include <numeric>
-#include <sstream>
-#include <string>
-#if __cplusplus >= 201703L && __has_include(<filesystem>)
-#include <filesystem>
-#elif __cplusplus >= 201703L && __has_include(<experimental/filesystem>)
-#include <experimental/filesystem>
-#else
-#include <sys/stat.h>
-#endif
-
 #include "breakthrough.h"
-#include "compute.h"
-#include "mixture_prediction.h"
-#include "rk3.h"
-#include "utils.h"
 
-Breakthrough::Breakthrough(const InputReader& inputReader)
+#include <cstdio>
+#include <format>
+#include <fstream>
+#include <print>
+#include <ranges>
+#include <stdexcept>
+#include <string>
+#include <type_traits>
+#include <vector>
+
+namespace
+{
+void validateMultibedInput(const InputReader& inputReader)
+{
+  if (inputReader.adsorbentComponents.size() < 2)
+  {
+    throw std::runtime_error("Error: MultibedColumn requires at least two adsorbents");
+  }
+  if (inputReader.breakthroughIntegrator == 2)
+  {
+    throw std::runtime_error("Error: MultibedColumn does not support the SIRK3 integrator");
+  }
+}
+
+template <typename ColumnType>
+std::string componentFileName(const ColumnType& column, size_t component)
+{
+  return "component_" + std::to_string(component) + "_" + column.components[component].name + ".data";
+}
+
+template <typename ColumnType>
+double averageMixturePredictionSteps(const ColumnType& column)
+{
+  return column.iastPerformance.second == 0
+             ? 0.0
+             : static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second);
+}
+}  // namespace
+
+template <typename ColumnType>
+Breakthrough<ColumnType>::Breakthrough(const InputReader& inputReader)
     : displayName(inputReader.displayName),
       carrierGasComponent(inputReader.carrierGasComponent),
       numberOfComponents(inputReader.components.size()),
@@ -38,53 +56,61 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
       rk3(inputReader),
       sirk3(inputReader),
       cvode(inputReader),
-      integrationScheme(IntegrationScheme(inputReader.breakthroughIntegrator))
+      integrationScheme(BreakthroughIntegrationScheme(inputReader.breakthroughIntegrator))
 {
+  if constexpr (std::is_same_v<ColumnType, MultibedColumn>)
+  {
+    validateMultibedInput(inputReader);
+  }
+  else if (inputReader.adsorbentComponents.size() > 1)
+  {
+    throw std::runtime_error("Error: multiple adsorbents require Breakthrough<MultibedColumn>");
+  }
+
   column.initialize();
   if (inputReader.readColumnFile.has_value())
   {
-    column.readJSON(inputReader.readColumnFile.value());
+    column.readJSON(*inputReader.readColumnFile);
   }
 
-  if (integrationScheme == IntegrationScheme::CVODE) cvode.initialize(column);
+  if (integrationScheme == BreakthroughIntegrationScheme::CVODE) cvode.initialize(column);
 
-  // open the output files in append mode, unless there is a
-  // create the output files
-
-  auto openMode = (inputReader.readColumnFile.has_value()) ? std::ios_base::app : std::ios_base::trunc;
+  const auto openMode = inputReader.readColumnFile.has_value() ? std::ios_base::app : std::ios_base::trunc;
   std::vector<std::ofstream> componentStreams(numberOfComponents);
-  for (size_t comp = 0; comp < numberOfComponents; comp++)
+  for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
-    std::string fileName = "component_" + std::to_string(comp) + "_" + column.components[comp].name + ".data";
-    componentStreams[comp] = std::ofstream{fileName, openMode};
+    componentStreams[comp] = std::ofstream{componentFileName(column, comp), openMode};
   }
   std::ofstream columnStream("column.data", openMode);
-  if (!inputReader.readColumnFile.has_value()) column.writeOutputHeader(componentStreams, columnStream);
+  if (!inputReader.readColumnFile.has_value())
+  {
+    column.writeOutputHeader(componentStreams, columnStream);
+  }
 }
 
-void Breakthrough::run()
+template <typename ColumnType>
+void Breakthrough<ColumnType>::run()
 {
   std::vector<std::ofstream> componentStreams(numberOfComponents);
-  for (size_t comp = 0; comp < numberOfComponents; comp++)
+  for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
-    std::string fileName = "component_" + std::to_string(comp) + "_" + column.components[comp].name + ".data";
-    componentStreams[comp] = std::ofstream{fileName, std::ios_base::app};
+    componentStreams[comp] = std::ofstream{componentFileName(column, comp), std::ios_base::app};
   }
   std::ofstream columnStream("column.data", std::ios_base::app);
 
   bool finished = false;
   size_t step = 0;
   double realTime = 0.0;
-  double xi = 1e-4;
+  constexpr double initialTimeStepFraction = 1.0e-4;
 
   if (numberOfInitTimeSteps > 0)
   {
     rk3.autoNumberOfSteps = false;
     sirk3.autoNumberOfSteps = false;
     cvode.autoNumberOfSteps = false;
-    rk3.timeStep = timeStep * xi;
-    sirk3.timeStep = timeStep * xi;
-    cvode.timeStep = timeStep * xi;
+    rk3.timeStep = timeStep * initialTimeStepFraction;
+    sirk3.timeStep = timeStep * initialTimeStepFraction;
+    cvode.timeStep = timeStep * initialTimeStepFraction;
   }
 
   try
@@ -95,38 +121,44 @@ void Breakthrough::run()
 
       if (step % writeEvery == 0)
       {
-        const std::string outputFile = std::format("column.json", step);
-        column.writeJSON(outputFile);
+        column.writeJSON("column.json");
       }
 
       switch (integrationScheme)
       {
-        case IntegrationScheme::SSP_RK:
+        case BreakthroughIntegrationScheme::SSP_RK:
         {
           finished = rk3.propagate(column, step, timings);
           realTime += rk3.timeStep;
           break;
         }
-        case IntegrationScheme::CVODE:
+        case BreakthroughIntegrationScheme::CVODE:
         {
           finished = cvode.propagate(column, step, timings);
           realTime += cvode.timeStep;
           break;
         }
-        case IntegrationScheme::SIRK3:
+        case BreakthroughIntegrationScheme::SIRK3:
         {
-          finished = sirk3.propagate(column, step, timings);
-          realTime += sirk3.timeStep;
+          if constexpr (std::is_same_v<ColumnType, Column>)
+          {
+            finished = sirk3.propagate(column, step, timings);
+            realTime += sirk3.timeStep;
+          }
+          else
+          {
+            throw std::runtime_error("Error: SIRK3 is not supported by MultibedColumn");
+          }
           break;
         }
-        default:
-          break;
       }
 
       if (step < numberOfInitTimeSteps)
       {
-        double i = static_cast<double>(step) / numberOfInitTimeSteps;
-        double nextTime = timeStep * (xi + (1 - xi) * (3 * i * i - 2 * i * i * i));
+        const double progress = static_cast<double>(step) / static_cast<double>(numberOfInitTimeSteps);
+        const double nextTime = timeStep * (initialTimeStepFraction +
+                                            (1.0 - initialTimeStepFraction) *
+                                                (3.0 * progress * progress - 2.0 * progress * progress * progress));
         rk3.timeStep = nextTime;
         sirk3.timeStep = nextTime;
         cvode.timeStep = nextTime;
@@ -148,13 +180,11 @@ void Breakthrough::run()
       if (step % printEvery == 0)
       {
         std::print("Timestep {}, time: {:6.5f} [s]\n", step, stepTime);
-        std::print(
-            "    Average number of mixture-prediction steps: {:6.5f}\n",
-            static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second));
+        std::print("    Average number of mixture-prediction steps: {:6.5f}\n", averageMixturePredictionSteps(column));
         std::fflush(stdout);
       }
 
-      step++;
+      ++step;
     }
   }
   catch (const std::runtime_error&)
@@ -163,58 +193,99 @@ void Breakthrough::run()
     throw;
   }
 
-  std::print("Final timestep {}, time: {:6.5f} [s]\n\n", step, timeStep * static_cast<double>(step));
-
+  std::print("Final timestep {}, time: {:6.5f} [s]\n\n", step, realTime);
   timings.print();
 }
 
-void Breakthrough::print() const { std::print("{}", repr()); }
-
-std::string Breakthrough::repr() const
+template <typename ColumnType>
+void Breakthrough<ColumnType>::computeStep(size_t step)
 {
-  std::string s;
+  switch (integrationScheme)
+  {
+    case BreakthroughIntegrationScheme::SSP_RK:
+      static_cast<void>(rk3.propagate(column, step, timings));
+      break;
+    case BreakthroughIntegrationScheme::CVODE:
+      static_cast<void>(cvode.propagate(column, step, timings));
+      break;
+    case BreakthroughIntegrationScheme::SIRK3:
+      if constexpr (std::is_same_v<ColumnType, Column>)
+      {
+        static_cast<void>(sirk3.propagate(column, step, timings));
+      }
+      else
+      {
+        throw std::runtime_error("Error: SIRK3 is not supported by MultibedColumn");
+      }
+      break;
+  }
+}
 
-  // Column properties
-  s += std::format(
+template <typename ColumnType>
+void Breakthrough<ColumnType>::print() const
+{
+  std::print("{}", repr());
+}
+
+template <typename ColumnType>
+std::string Breakthrough<ColumnType>::repr() const
+{
+  std::string result = std::format(
       "Column properties\n"
       "=======================================================\n"
       "Display-name:                          {}\n",
       displayName);
+  result += column.repr();
 
-  s += column.repr();
-
-  // Breakthrough settings
-  s += std::format(
+  result += std::format(
       "Breakthrough settings\n"
-      "=======================================================\n"
+      "=======================================================\n");
+  if constexpr (std::is_same_v<ColumnType, MultibedColumn>)
+  {
+    result += std::format("Number of adsorbents:          {}\n", column.numberOfAdsorbents);
+  }
+  result += std::format(
       "Number of time steps:          {}\n"
       "Print every step:              {}\n"
-      "Write data every step:         {}\n"
-      "\n\n",
-      numberOfSteps, printEvery, writeEvery);
-
-  // Integration details
-  s += std::format(
+      "Write data every step:         {}\n\n\n"
       "Integration details\n"
       "=======================================================\n"
       "Time step:                     {} [s]\n"
       "Number of column grid points:  {}\n"
-      "Column spacing:                {} [m]\n"
-      "\n\n",
-      timeStep, numberOfGridPoints, column.resolution);
+      "Column spacing:                {} [m]\n\n\n",
+      numberOfSteps, printEvery, writeEvery, timeStep, numberOfGridPoints, column.resolution);
 
-  // Component data header
-  s += std::format(
-      "Component data\n"
-      "=======================================================\n"
-      "maximum isotherm terms:        {}\n",
-      maxIsothermTerms);
-
-  // Append each component’s repr()
-  for (std::size_t i = 0; i < numberOfComponents; ++i)
+  if constexpr (std::is_same_v<ColumnType, MultibedColumn>)
   {
-    s += std::format("{}\n", column.components[i].repr());
+    result += std::format(
+        "Adsorbent component data\n"
+        "=======================================================\n"
+        "maximum isotherm terms:        {}\n",
+        maxIsothermTerms);
+    for (size_t ads = 0; ads < column.numberOfAdsorbents; ++ads)
+    {
+      result += std::format("Adsorbent {}\n", ads);
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        result += std::format("{}\n", column.physisorptionMixtures[ads].components[comp].repr());
+      }
+    }
+  }
+  else
+  {
+    result += std::format(
+        "Component data\n"
+        "=======================================================\n"
+        "maximum isotherm terms:        {}\n",
+        maxIsothermTerms);
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      result += std::format("{}\n", column.components[comp].repr());
+    }
   }
 
-  return s;
+  return result;
 }
+
+template struct Breakthrough<Column>;
+template struct Breakthrough<MultibedColumn>;

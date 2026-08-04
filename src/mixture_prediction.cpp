@@ -19,10 +19,143 @@
 #include "mixture_prediction.h"
 #include "utils.h"
 
+namespace
+{
+constexpr double isothermValueCeiling = 1.0e300;
+constexpr double isothermExponentClip = 700.0;
+constexpr double isothermDenominatorFloor = 1.0e-300;
+
+double finiteNonnegative(double value, double ceiling = isothermValueCeiling)
+{
+  if (std::isnan(value) || value <= 0.0) return 0.0;
+  if (!std::isfinite(value)) return ceiling;
+  return std::min(value, ceiling);
+}
+
+double safeMultiply(double lhs, double rhs, double ceiling = isothermValueCeiling)
+{
+  const double a = finiteNonnegative(lhs, ceiling);
+  const double b = finiteNonnegative(rhs, ceiling);
+  if (a == 0.0 || b == 0.0) return 0.0;
+
+  return std::exp(std::min(std::log(a) + std::log(b), std::log(ceiling)));
+}
+
+double safePositivePower(double base, double exponent)
+{
+  const double b = finiteNonnegative(base);
+  if (b == 0.0) return 0.0;
+
+  double e = exponent;
+  if (!std::isfinite(e)) e = 1.0;
+  e = std::clamp(e, 0.0, 1.0e6);
+  return std::exp(std::clamp(e * std::log(b), -isothermExponentClip, isothermExponentClip));
+}
+
+double safeDenominator(double value, double floor = isothermDenominatorFloor)
+{
+  if (std::isnan(value) || value < floor) return floor;
+  return value;
+}
+
+double sanitizeUnboundedLoading(double loading)
+{
+  if (std::isnan(loading) || loading <= 0.0) return 0.0;
+  if (!std::isfinite(loading)) return isothermValueCeiling;
+  return std::min(loading, isothermValueCeiling);
+}
+
+double sanitizeBoundedLoading(double loading, double saturationLoading)
+{
+  const double maximum = finiteNonnegative(saturationLoading);
+  if (std::isnan(loading) || loading <= 0.0) return 0.0;
+  if (!std::isfinite(loading)) return maximum;
+  return std::clamp(loading, 0.0, maximum);
+}
+
+double boundedRatioLoading(double saturationLoading, double numerator, double denominator)
+{
+  const double loading = safeMultiply(saturationLoading, numerator) / safeDenominator(denominator);
+  return sanitizeBoundedLoading(loading, saturationLoading);
+}
+
+double safeActivitySum(std::span<const double> activities)
+{
+  double sum = 0.0;
+  for (double activity : activities)
+  {
+    const double value = finiteNonnegative(activity);
+    if (value >= isothermValueCeiling - sum) return isothermValueCeiling;
+    sum += value;
+  }
+  return sum;
+}
+
+double safePureSiteLoading(const Isotherm& isotherm, double partialPressure, double scale)
+{
+  if (!isotherm.enabled()) return 0.0;
+
+  const double pressure = finiteNonnegative(partialPressure);
+  const std::vector<double>& parameters = isotherm.parameters;
+
+  switch (isotherm.type)
+  {
+    case Isotherm::Type::Langmuir:
+    {
+      const double activity = safeMultiply(safeMultiply(scale, parameters[1]), pressure);
+      return boundedRatioLoading(parameters[0], activity, 1.0 + activity);
+    }
+    case Isotherm::Type::Anti_Langmuir:
+    {
+      const double activity = safeMultiply(parameters[1], pressure);
+      return sanitizeUnboundedLoading(safeMultiply(parameters[0], pressure) / safeDenominator(1.0 - activity, 1.0e-12));
+    }
+    case Isotherm::Type::Henry:
+      return sanitizeUnboundedLoading(safeMultiply(parameters[0], pressure));
+    case Isotherm::Type::Freundlich:
+    {
+      const double exponent = 1.0 / std::max(finiteNonnegative(parameters[1]), isothermDenominatorFloor);
+      return sanitizeUnboundedLoading(safeMultiply(parameters[0], safePositivePower(pressure, exponent)));
+    }
+    case Isotherm::Type::Sips:
+    {
+      const double activity = safeMultiply(safeMultiply(scale, parameters[1]), pressure);
+      const double exponent = 1.0 / std::max(finiteNonnegative(parameters[2]), isothermDenominatorFloor);
+      const double term = safePositivePower(activity, exponent);
+      return boundedRatioLoading(parameters[0], term, 1.0 + term);
+    }
+    case Isotherm::Type::Langmuir_Freundlich:
+    {
+      const double pressurePower = safePositivePower(pressure, parameters[2]);
+      const double term = safeMultiply(safeMultiply(scale, parameters[1]), pressurePower);
+      return boundedRatioLoading(parameters[0], term, 1.0 + term);
+    }
+    case Isotherm::Type::Redlich_Peterson:
+    {
+      const double numerator = safeMultiply(parameters[0], pressure);
+      const double denominatorTerm = safeMultiply(parameters[1], safePositivePower(pressure, parameters[2]));
+      return sanitizeUnboundedLoading(numerator / safeDenominator(1.0 + denominatorTerm));
+    }
+    case Isotherm::Type::Toth:
+    {
+      const double activity = safeMultiply(parameters[1], pressure);
+      const double exponent = std::max(finiteNonnegative(parameters[2]), isothermDenominatorFloor);
+      const double denominator =
+          safeDenominator(safePositivePower(1.0 + safePositivePower(activity, exponent), 1.0 / exponent), 1.0e-12);
+      return boundedRatioLoading(parameters[0], activity, denominator);
+    }
+    default:
+      return sanitizeUnboundedLoading(isotherm.value(pressure, scale));
+  }
+}
+}  // namespace
+
 bool LangmuirLoadingSorter(Component const& lhs, Component const& rhs)
 {
-  if (lhs.isCarrierGas) return false;
-  if (rhs.isCarrierGas) return true;
+  const bool lhsEnabled = !lhs.isCarrierGas && lhs.isotherm.enabled();
+  const bool rhsEnabled = !rhs.isCarrierGas && rhs.isotherm.enabled();
+  if (!lhsEnabled) return false;
+  if (!rhsEnabled) return true;
   return lhs.isotherm.sites[0].parameters[0] < rhs.isotherm.sites[0].parameters[0];
 }
 
@@ -222,6 +355,12 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
     case PredictionMethod::SEI:
       return computeSegratedExplicitIsotherm(idealGasMolFractions, externalPressure, adsorbedMolFractions,
                                              numberOfMolecules, gasTemperature);
+    case PredictionMethod::SCI:
+      return computeSegregatedCompetitiveIsotherm(idealGasMolFractions, externalPressure, adsorbedMolFractions,
+                                                  numberOfMolecules, gasTemperature);
+    case PredictionMethod::SPI:
+      return computeSegregatedPureIsotherm(idealGasMolFractions, externalPressure, adsorbedMolFractions,
+                                           numberOfMolecules, gasTemperature);
   }
 }
 
@@ -1057,27 +1196,29 @@ std::pair<size_t, size_t> MixturePrediction::computeExplicitIsotherm(std::span<c
                                                                      std::span<double> numberOfMolecules,
                                                                      double& gasTemperature)
 {
-  std::vector<double> componentScale(numberOfComponents);
-  for (size_t i = 0; i < numberOfComponents; ++i)
+  std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
+  std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
+
+  std::vector<double> componentScale(numberOfSortedComponents);
+  for (size_t i = 0; i < numberOfSortedComponents; ++i)
   {
     componentScale[i] = sortedComponents[i].scale(gasTemperature);
   }
 
   adsorbedMoleFractionsScratch[0] = 1.0;
-  for (size_t i = 1; i < numberOfComponents; ++i)
+  for (size_t i = 1; i < numberOfSortedComponents; ++i)
   {
     adsorbedMoleFractionsScratch[i] =
         sortedComponents[i].isotherm.sites[0].parameters[0] / sortedComponents[i - 1].isotherm.sites[0].parameters[0];
   }
 
-  double b =
-      componentScale[numberOfComponents - 1] * sortedComponents[numberOfComponents - 1].isotherm.sites[0].parameters[1];
-  firstExplicitIsothermAlpha[numberOfComponents - 1] =
-      std::pow((1.0 + b * idealGasMolFractions[sortedComponents[numberOfComponents - 1].id] * externalPressure),
-               adsorbedMoleFractionsScratch[numberOfComponents - 1]);
-  secondExplicitIsothermAlpha[numberOfComponents - 1] =
-      1.0 + b * idealGasMolFractions[sortedComponents[numberOfComponents - 1].id] * externalPressure;
-  for (size_t i = numberOfComponents - 2; i > 0; i--)
+  const size_t last = numberOfSortedComponents - 1;
+  double b = componentScale[last] * sortedComponents[last].isotherm.sites[0].parameters[1];
+  firstExplicitIsothermAlpha[last] =
+      std::pow((1.0 + b * idealGasMolFractions[sortedComponents[last].id] * externalPressure),
+               adsorbedMoleFractionsScratch[last]);
+  secondExplicitIsothermAlpha[last] = 1.0 + b * idealGasMolFractions[sortedComponents[last].id] * externalPressure;
+  for (size_t i = numberOfSortedComponents - 2; i > 0; i--)
   {
     b = componentScale[i] * sortedComponents[i].isotherm.sites[0].parameters[1];
     firstExplicitIsothermAlpha[i] = std::pow(
@@ -1096,13 +1237,13 @@ std::pair<size_t, size_t> MixturePrediction::computeExplicitIsotherm(std::span<c
   double beta = secondExplicitIsothermAlpha[0];
 
   explicitIsothermAlphaProduct[0] = 1.0;
-  for (size_t i = 1; i < numberOfComponents; ++i)
+  for (size_t i = 1; i < numberOfSortedComponents; ++i)
   {
     explicitIsothermAlphaProduct[i] =
         (firstExplicitIsothermAlpha[i] / secondExplicitIsothermAlpha[i]) * explicitIsothermAlphaProduct[i - 1];
   }
 
-  for (size_t i = 0; i < numberOfComponents; ++i)
+  for (size_t i = 0; i < numberOfSortedComponents; ++i)
   {
     size_t index = sortedComponents[i].id;
     b = componentScale[i] * sortedComponents[i].isotherm.sites[0].parameters[1];
@@ -1116,7 +1257,7 @@ std::pair<size_t, size_t> MixturePrediction::computeExplicitIsotherm(std::span<c
   }
   for (size_t i = 0; i < numberOfComponents; ++i)
   {
-    adsorbedMolFractions[i] = numberOfMolecules[i] / N;
+    adsorbedMolFractions[i] = N > 0.0 ? numberOfMolecules[i] / N : 0.0;
   }
 
   return std::make_pair(1, 1);
@@ -1228,6 +1369,182 @@ std::pair<size_t, size_t> MixturePrediction::computeSegratedExplicitIsotherm(
   }
 
   return std::make_pair(1, 1);
+}
+
+std::pair<size_t, size_t> MixturePrediction::computeSegregatedCompetitiveIsotherm(
+    std::span<const double> idealGasMolFractions, const double& externalPressure,
+    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double& gasTemperature)
+{
+  std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
+  std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
+
+  std::pair<size_t, size_t> acc;
+  std::vector<double> previous(numberOfComponents, 0.0);
+  for (size_t site = 0; site < maxIsothermTerms; ++site)
+  {
+    if (segregatedNumberOfSortedComponents[site] == 0) continue;
+
+    std::copy(numberOfMolecules.begin(), numberOfMolecules.end(), previous.begin());
+    acc += computeSegregatedCompetitiveIsotherm(site, idealGasMolFractions, externalPressure, numberOfMolecules,
+                                                gasTemperature);
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      equilibriumSiteLoadings[site * numberOfComponents + comp] = numberOfMolecules[comp] - previous[comp];
+    }
+  }
+
+  const double totalLoading = std::accumulate(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
+  for (size_t comp = 0; comp < numberOfComponents; ++comp)
+  {
+    adsorbedMolFractions[comp] = totalLoading > 0.0 ? numberOfMolecules[comp] / totalLoading : 0.0;
+  }
+
+  return acc;
+}
+
+std::pair<size_t, size_t> MixturePrediction::computeSegregatedCompetitiveIsotherm(
+    size_t site, std::span<const double> idealGasMolFractions, const double& externalPressure,
+    std::span<double> numberOfMolecules, double& gasTemperature)
+{
+  const std::vector<Component>& siteComponents = segregatedSortedComponents[site];
+  const size_t activeComponents = segregatedNumberOfSortedComponents[site];
+  const Isotherm::Type model = siteComponents.front().isotherm.sites.front().type;
+
+  std::vector<double> denominatorTerms(activeComponents, 0.0);
+  std::vector<double> numeratorTerms(activeComponents, 0.0);
+  std::vector<double> exponents(activeComponents, 1.0);
+
+  for (size_t i = 0; i < activeComponents; ++i)
+  {
+    const Component& component = siteComponents[i];
+    const Isotherm& isotherm = component.isotherm.sites.front();
+    if (isotherm.type != model)
+    {
+      throw std::runtime_error("Error: SCI requires one isotherm model per segregated site");
+    }
+
+    const std::vector<double>& parameters = isotherm.parameters;
+    const double pressure = finiteNonnegative(idealGasMolFractions[component.id] * externalPressure);
+    const double scale = component.scale(gasTemperature);
+
+    switch (model)
+    {
+      case Isotherm::Type::Langmuir:
+      {
+        denominatorTerms[i] = safeMultiply(safeMultiply(scale, parameters[1]), pressure);
+        numeratorTerms[i] = denominatorTerms[i];
+        break;
+      }
+      case Isotherm::Type::Langmuir_Freundlich:
+      {
+        denominatorTerms[i] =
+            safeMultiply(safeMultiply(scale, parameters[1]), safePositivePower(pressure, parameters[2]));
+        numeratorTerms[i] = denominatorTerms[i];
+        break;
+      }
+      case Isotherm::Type::Sips:
+      {
+        const double activity = safeMultiply(safeMultiply(scale, parameters[1]), pressure);
+        exponents[i] = 1.0 / std::max(finiteNonnegative(parameters[2]), isothermDenominatorFloor);
+        denominatorTerms[i] = safePositivePower(activity, exponents[i]);
+        numeratorTerms[i] = denominatorTerms[i];
+        break;
+      }
+      case Isotherm::Type::Anti_Langmuir:
+      {
+        denominatorTerms[i] = safeMultiply(parameters[1], pressure);
+        numeratorTerms[i] = safeMultiply(parameters[0], pressure);
+        break;
+      }
+      case Isotherm::Type::Toth:
+      {
+        numeratorTerms[i] = safeMultiply(parameters[1], pressure);
+        exponents[i] = std::max(finiteNonnegative(parameters[2]), isothermDenominatorFloor);
+        denominatorTerms[i] = safePositivePower(numeratorTerms[i], exponents[i]);
+        break;
+      }
+      case Isotherm::Type::Redlich_Peterson:
+      {
+        numeratorTerms[i] = safeMultiply(parameters[0], pressure);
+        denominatorTerms[i] = safeMultiply(parameters[1], safePositivePower(pressure, parameters[2]));
+        break;
+      }
+      default:
+        throw std::runtime_error("Error: unsupported isotherm model for SCI mixture prediction");
+    }
+  }
+
+  const double sum = safeActivitySum(denominatorTerms);
+  for (size_t i = 0; i < activeComponents; ++i)
+  {
+    const Component& component = siteComponents[i];
+    const Isotherm& isotherm = component.isotherm.sites.front();
+    double loading = 0.0;
+
+    switch (model)
+    {
+      case Isotherm::Type::Langmuir:
+      case Isotherm::Type::Langmuir_Freundlich:
+      case Isotherm::Type::Sips:
+        loading = boundedRatioLoading(isotherm.parameters[0], numeratorTerms[i], 1.0 + sum);
+        break;
+      case Isotherm::Type::Anti_Langmuir:
+        loading = sanitizeUnboundedLoading(numeratorTerms[i] / safeDenominator(1.0 - sum, 1.0e-12));
+        break;
+      case Isotherm::Type::Toth:
+      {
+        const double denominator = safeDenominator(safePositivePower(1.0 + sum, 1.0 / exponents[i]), 1.0e-12);
+        loading = boundedRatioLoading(isotherm.parameters[0], numeratorTerms[i], denominator);
+        break;
+      }
+      case Isotherm::Type::Redlich_Peterson:
+        loading = sanitizeUnboundedLoading(numeratorTerms[i] / safeDenominator(1.0 + sum));
+        break;
+      default:
+        break;
+    }
+
+    numberOfMolecules[component.id] += loading;
+  }
+
+  return std::make_pair(1, 1);
+}
+
+std::pair<size_t, size_t> MixturePrediction::computeSegregatedPureIsotherm(std::span<const double> idealGasMolFractions,
+                                                                           const double& externalPressure,
+                                                                           std::span<double> adsorbedMolFractions,
+                                                                           std::span<double> numberOfMolecules,
+                                                                           double& gasTemperature)
+{
+  std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
+  std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
+
+  std::pair<size_t, size_t> acc;
+  for (size_t site = 0; site < maxIsothermTerms; ++site)
+  {
+    const std::vector<Component>& siteComponents = segregatedSortedComponents[site];
+    const size_t activeComponents = segregatedNumberOfSortedComponents[site];
+    if (activeComponents == 0) continue;
+
+    for (size_t i = 0; i < activeComponents; ++i)
+    {
+      const Component& component = siteComponents[i];
+      const Isotherm& isotherm = component.isotherm.sites.front();
+      const double partialPressure = idealGasMolFractions[component.id] * externalPressure;
+      const double loading = safePureSiteLoading(isotherm, partialPressure, component.scale(gasTemperature));
+      numberOfMolecules[component.id] += loading;
+      equilibriumSiteLoadings[site * numberOfComponents + component.id] = loading;
+    }
+    acc += std::make_pair<size_t, size_t>(1, 1);
+  }
+
+  const double totalLoading = std::accumulate(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
+  for (size_t comp = 0; comp < numberOfComponents; ++comp)
+  {
+    adsorbedMolFractions[comp] = totalLoading > 0.0 ? numberOfMolecules[comp] / totalLoading : 0.0;
+  }
+
+  return acc;
 }
 
 void MixturePrediction::print() const { std::print("{}", repr()); }
@@ -1353,11 +1670,15 @@ void MixturePrediction::printErrorStatus(double psi_value, double sum, double ex
 
 void MixturePrediction::sortComponents()
 {
+  const auto isActiveAdsorbate = [](const Component& component)
+  { return !component.isCarrierGas && component.isotherm.enabled(); };
+
   if (predictionMethod == PredictionMethod::EI)
   {
     std::sort(sortedComponents.begin(), sortedComponents.end(), &LangmuirLoadingSorter);
   }
-  else if (predictionMethod == PredictionMethod::SIAST || predictionMethod == PredictionMethod::SEI)
+  else if (predictionMethod == PredictionMethod::SIAST || predictionMethod == PredictionMethod::SEI ||
+           predictionMethod == PredictionMethod::SCI || predictionMethod == PredictionMethod::SPI)
   {
     for (size_t i = 0; i < maxIsothermTerms; ++i)
     {
@@ -1368,8 +1689,9 @@ void MixturePrediction::sortComponents()
         if (!components[j].isCarrierGas && i < components[j].isotherm.sites.size())
         {
           segregatedSortedComponents[i][j].isotherm = MultiSiteIsotherm({components[j].isotherm.sites[i]});
-          segregatedSortedComponents[i][j].isCarrierGas = false;
-          ++activeComponents;
+          const bool siteEnabled = components[j].isotherm.sites[i].enabled();
+          segregatedSortedComponents[i][j].isCarrierGas = !siteEnabled;
+          if (siteEnabled) ++activeComponents;
         }
         else
         {
@@ -1383,8 +1705,7 @@ void MixturePrediction::sortComponents()
     {
       if (predictionMethod == PredictionMethod::SEI)
       {
-        std::sort(segregatedSortedComponents[i].begin(), segregatedSortedComponents[i].end(),
-                  &LangmuirLoadingSorter);
+        std::sort(segregatedSortedComponents[i].begin(), segregatedSortedComponents[i].end(), &LangmuirLoadingSorter);
       }
       else
       {
@@ -1392,12 +1713,18 @@ void MixturePrediction::sortComponents()
                               [](const Component& component) { return !component.isCarrierGas; });
       }
     }
-    std::stable_partition(sortedComponents.begin(), sortedComponents.end(),
-                          [](const Component& component) { return !component.isCarrierGas; });
+    std::stable_partition(sortedComponents.begin(), sortedComponents.end(), isActiveAdsorbate);
   }
   else
   {
-    std::stable_partition(sortedComponents.begin(), sortedComponents.end(),
-                          [](const Component& component) { return !component.isCarrierGas; });
+    std::stable_partition(sortedComponents.begin(), sortedComponents.end(), isActiveAdsorbate);
   }
+
+  numberOfSortedComponents =
+      static_cast<size_t>(std::count_if(sortedComponents.begin(), sortedComponents.end(), isActiveAdsorbate));
+  hypotheticalPressure.resize(numberOfSortedComponents);
+  reducedGrandPotential.resize(numberOfSortedComponents);
+  residualVector.resize(numberOfSortedComponents);
+  correctionVector.resize(numberOfSortedComponents);
+  jacobianMatrix.resize(numberOfSortedComponents * numberOfSortedComponents);
 }

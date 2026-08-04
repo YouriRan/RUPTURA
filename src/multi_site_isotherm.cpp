@@ -1,6 +1,8 @@
 #include "multi_site_isotherm.h"
 
+#include <algorithm>
 #include <cmath>
+#include <iterator>
 #include <print>
 #include <sstream>
 
@@ -70,10 +72,17 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
   double left_bracket;
   double right_bracket;
 
-  // For a single Langmuir or Langmuir-Freundlich site, the inverse can be handled analytically
-  if (sites.size() == 1)
+  const auto firstActiveSite =
+      std::find_if(sites.begin(), sites.end(), [](const Isotherm& site) { return site.enabled(); });
+  if (firstActiveSite == sites.end()) return 0.0;
+
+  // A multisite isotherm can contain retained, inactive sites for SIAST index alignment. If only one site is active,
+  // its inverse can still be handled directly.
+  const auto secondActiveSite =
+      std::find_if(std::next(firstActiveSite), sites.end(), [](const Isotherm& site) { return site.enabled(); });
+  if (secondActiveSite == sites.end())
   {
-    return sites[0].inversePressureForPsi(reduced_grand_potential, cachedP0, scale);
+    return firstActiveSite->inversePressureForPsi(reduced_grand_potential, cachedP0, scale);
   }
 
   // from here on, work with pressure, and return 1.0 / pressure at the end of the routine
