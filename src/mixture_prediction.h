@@ -1,11 +1,13 @@
 #pragma once
 
+#include <optional>
 #include <span>
 #include <tuple>
 #include <vector>
 
 #include "component.h"
 #include "inputreader.h"
+#include "macrostate_particle_distribution.h"
 
 /**
  * \brief Class for predicting mixture adsorption isotherms.
@@ -29,8 +31,9 @@ struct MixturePrediction
     SIAST = 1,  ///< Segregated Ideal Adsorbed Solution Theory
     EI = 2,     ///< Explicit Isotherm
     SEI = 3,    ///< Segregated Explicit Isotherm
-    SCI = 4,    ///< Segregated Competitive Isotherm
-    SPI = 5     ///< Segregated Pure Isotherm
+    SCI = 4,   ///< Segregated Competitive Isotherm
+    SPI = 5,   ///< Segregated Pure Isotherm
+    MPD = 6    ///< Macrostate particle-distribution reweighting
   };
 
   /**
@@ -42,6 +45,12 @@ struct MixturePrediction
   {
     FastIAST = 0,            ///< Fast IAST algorithm
     NestedLoopBisection = 1  ///< Nested Loop Bisection method
+  };
+
+  enum class DrivingForceInput
+  {
+    MoleFraction = 0,
+    Concentration = 1
   };
 
   /**
@@ -120,7 +129,22 @@ struct MixturePrediction
   std::pair<size_t, size_t> predictMixture(std::span<const double> idealGasMolFractions, const double& externalPressure,
                                            std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules,
                                            std::span<double> cachedPressure, std::span<double> cachedGrandPotential,
-                                           double& gasTemperature);
+                                           double& gasTemperature, double pH = 7.0,
+                                           DrivingForceInput input = DrivingForceInput::MoleFraction);
+
+  /**
+   * \brief Computes the pure-component loading of every component.
+   *
+   * For MPD, each pure loading is evaluated through predictMixture using a
+   * one-hot gas-phase mole-fraction vector. Other prediction methods retain
+   * their analytical pure-component isotherm evaluation.
+   *
+   * \param externalPressure Target pressure or fugacity in Pa.
+   * \param pureComponentLoadings Pure-component loadings in component order.
+   * \param gasTemperature Temperature of the gas in K.
+   */
+  void predictPureComponentLoadings(double externalPressure, std::span<double> pureComponentLoadings,
+                                    double gasTemperature);
 
   std::string displayName;                  ///< The display name for the simulation.
   std::vector<Component> components;        ///< The vector of components in the mixture.
@@ -148,6 +172,9 @@ struct MixturePrediction
   std::vector<double> correctionVector;       ///< Correction vector in IAST.
   std::vector<double> jacobianMatrix;         ///< Jacobian matrix in IAST calculations.
 
+  std::optional<MacrostateParticleDistribution> macrostateParticleDistribution;  ///< MPD reweighting engine.
+  std::vector<size_t> mpdComponentIds;  ///< Original component IDs in MPD dimension order.
+
   /**
    * \brief Enum class for pressure scales.
    *
@@ -172,6 +199,13 @@ struct MixturePrediction
    * \return A vector containing the pressure points for the simulation.
    */
   std::vector<double> initPressures();
+
+  /**
+   * \brief Computes mixture loadings by reweighting a macrostate distribution.
+   */
+  std::pair<size_t, size_t> computeMPD(std::span<const double> idealGasMolFractions, double fugacity,
+                                       std::span<double> adsorbedMolFractions,
+                                       std::span<double> numberOfMolecules, double gasTemperature);
 
   /**
    * \brief Sorts the components based on specific criteria.
@@ -362,7 +396,8 @@ struct MixturePrediction
   std::pair<size_t, size_t> computeSegregatedPureIsotherm(std::span<const double> idealGasMolFractions,
                                                           const double& externalPressure,
                                                           std::span<double> adsorbedMolFractions,
-                                                          std::span<double> numberOfMolecules, double& gasTemperature);
+                                                          std::span<double> numberOfMolecules, double& gasTemperature,
+                                                          double pH = 7.0);
 
   /**
    * \brief Prints error status for debugging purposes.

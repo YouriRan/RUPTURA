@@ -2,6 +2,7 @@ import sys
 import types
 
 import numpy as np
+import pytest
 
 try:
     import plotly.graph_objects  # noqa: F401
@@ -25,7 +26,6 @@ except ModuleNotFoundError:
 from ruptura.plot_breakthrough import (
     BreakthroughPlotly,
     COMPONENT_METRICS,
-    _canonicalize_component_blocks,
     _column_explorer_y_options,
 )
 
@@ -69,24 +69,15 @@ def test_explorer_y_options_use_full_column_header_names():
     assert labels.count("Concentration time derivative, dc_i/dt [mol/m^3/s]") == 1
 
 
-def test_legacy_multibed_component_blocks_are_upgraded_to_canonical_schema():
-    legacy = np.asarray(
-        [
-            [0.0, 0.0, 0.0, 2.0, 0.1, 1.2, 0.2, 25.0, 1.3, 0.5],
-            [0.0, 0.0, 1.0, 4.0, 0.2, 1.4, 0.3, 50.0, 1.5, 1.0],
-        ]
+def test_breakthrough_reader_rejects_old_component_schema(tmp_path):
+    component_file = tmp_path / "component_0_test.data"
+    component_file.write_text("0 0 0 1 2 3 4 5 6 7\n", encoding="utf-8")
+    plotter = BreakthroughPlotly(
+        displayName="test",
+        externalTemperature=298.15,
+        externalPressure=101325.0,
+        components=[],
     )
-    column = np.zeros((2, 12), dtype=float)
-    column[:, :3] = legacy[:, :3]
-    column[:, 4] = 100.0
 
-    [canonical] = _canonicalize_component_blocks([legacy], [column])
-
-    assert canonical.shape == (2, 14)
-    np.testing.assert_allclose(canonical[:, COMPONENT_METRICS["Y"].col_0based], [0.25, 0.5])
-    np.testing.assert_allclose(canonical[:, COMPONENT_METRICS["Q"].col_0based], legacy[:, 5])
-    np.testing.assert_allclose(canonical[:, COMPONENT_METRICS["Dqdt"].col_0based], legacy[:, 6])
-    np.testing.assert_allclose(canonical[:, COMPONENT_METRICS["P"].col_0based], legacy[:, 7])
-    np.testing.assert_allclose(canonical[:, COMPONENT_METRICS["Qeq"].col_0based], legacy[:, 8])
-    np.testing.assert_allclose(canonical[:, COMPONENT_METRICS["Pnorm"].col_0based], legacy[:, 9])
-    np.testing.assert_allclose(canonical[:, COMPONENT_METRICS["Qchem"].col_0based], 0.0)
+    with pytest.raises(ValueError, match="expected the current 14-column schema"):
+        plotter._read_component_blocks(component_file)

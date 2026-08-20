@@ -2,12 +2,236 @@
 
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
+#include <fstream>
 #include <vector>
 
 #include "component.h"
+#include "inputreader.h"
 #include "isotherm.h"
+#include "json.h"
+#include "macrostate_particle_distribution.h"
 #include "mixture_prediction.h"
 #include "multi_site_isotherm.h"
+
+namespace
+{
+std::filesystem::path mpdTemporaryPath(const std::string& name)
+{
+  return std::filesystem::temp_directory_path() / ("ruptura_mpd_" + name);
+}
+
+void writeMPDFile(const std::filesystem::path& path, const std::string& contents)
+{
+  std::ofstream output(path);
+  output << contents;
+}
+}  // namespace
+
+TEST(MacrostateParticleDistribution, ReweightsCOrderedTwoComponentDistribution)
+{
+  const std::filesystem::path path = mpdTemporaryPath("c_order.data");
+  writeMPDFile(path, "0.1\n0.2\n0.3\n0.4\n");
+
+  MPDSettings settings;
+  settings.fileName = path.string();
+  settings.referenceTemperature = 300.0;
+  settings.referenceFugacity = 1.0e5;
+  settings.referenceFrameworkMass = 1.0;
+  settings.componentBounds = {{"A", 0, 1, 1}, {"B", 0, 1, 1}};
+  MacrostateParticleDistribution distribution(settings);
+
+  ASSERT_EQ(distribution.rank(), 2U);
+  EXPECT_EQ(distribution.numberOfMacrostates(), 4U);
+  EXPECT_FALSE(distribution.hasMeanEnergies());
+
+  const std::vector<double> gasFractions{0.25, 0.75};
+  const std::vector<double> means = distribution.meanParticleNumbers(gasFractions, 2.0e5, 300.0);
+  ASSERT_EQ(means.size(), 2U);
+  EXPECT_NEAR(means[0], 0.45 / 0.85, 1.0e-14);
+  EXPECT_NEAR(means[1], 0.60 / 0.85, 1.0e-14);
+}
+
+TEST(MacrostateParticleDistribution, AppliesFirstOrderTemperatureReweightingWhenEnergyColumnExists)
+{
+  const std::filesystem::path path = mpdTemporaryPath("energy.data");
+  constexpr double boltzmannConstant = 1.380649e-23;
+  {
+    std::ofstream output(path);
+    output << "0.5 0\n";
+    output << "0.5 " << std::scientific << boltzmannConstant * 600.0 << "\n";
+  }
+
+  MPDSettings settings;
+  settings.fileName = path.string();
+  settings.referenceTemperature = 300.0;
+  settings.referenceFugacity = 1.0e5;
+  settings.referenceFrameworkMass = 1.0;
+  settings.componentBounds = {{"A", 0, 1, 1}};
+  MacrostateParticleDistribution distribution(settings);
+
+  ASSERT_TRUE(distribution.hasMeanEnergies());
+  const std::vector<double> gasFractions{1.0};
+  const std::vector<double> means = distribution.meanParticleNumbers(gasFractions, 1.0e5, 600.0);
+  const double odds = 0.5 * std::exp(1.0);
+  EXPECT_NEAR(means[0], odds / (1.0 + odds), 1.0e-7);
+}
+
+TEST(MacrostateParticleDistribution, UsesInclusiveBoundsAndParticleNumberDeltas)
+{
+  const std::filesystem::path path = mpdTemporaryPath("delta.data");
+  writeMPDFile(path, "0.2\n0.3\n0.5\n");
+
+  MPDSettings settings;
+  settings.fileName = path.string();
+  settings.referenceTemperature = 300.0;
+  settings.referenceFugacity = 1.0e5;
+  settings.referenceFrameworkMass = 1.0;
+  settings.componentBounds = {{"A", 2, 6, 2}};
+  MacrostateParticleDistribution distribution(settings);
+
+  const std::vector<double> gasFractions{1.0};
+  const std::vector<double> means = distribution.meanParticleNumbers(gasFractions, 1.0e5, 300.0);
+  EXPECT_NEAR(means[0], 4.6, 1.0e-14);
+}
+
+TEST(MacrostateParticleDistribution, RejectsWrongEntryCount)
+{
+  const std::filesystem::path path = mpdTemporaryPath("wrong_count.data");
+  writeMPDFile(path, "0.25\n0.25\n0.5\n");
+
+  MPDSettings settings;
+  settings.fileName = path.string();
+  settings.referenceTemperature = 300.0;
+  settings.referenceFugacity = 1.0e5;
+  settings.referenceFrameworkMass = 1.0;
+  settings.componentBounds = {{"A", 0, 1, 1}, {"B", 0, 1, 1}};
+  EXPECT_THROW(static_cast<void>(MacrostateParticleDistribution(settings)), std::runtime_error);
+}
+
+TEST(MixturePrediction, LoadsAndUsesMPDSettings)
+{
+  const std::filesystem::path distributionPath = mpdTemporaryPath("integration.data");
+  const std::filesystem::path inputPath = mpdTemporaryPath("integration.json");
+  writeMPDFile(distributionPath, "0.1\n0.2\n0.3\n0.4\n");
+
+  constexpr double avogadroConstant = 6.02214076e23;
+  nlohmann::json input = {
+      {"SimulationType", "MixturePrediction"},
+      {"MixturePredictionMethod", "MPD"},
+      {"Temperature", 300.0},
+      {"PressureStart", 2.0e5},
+      {"PressureEnd", 2.0e5},
+      {"NumberOfPressurePoints", 1},
+      {"MPDSettings",
+       {{"FileName", distributionPath.filename().string()},
+        {"ReferenceTemperature", 300.0},
+        {"ReferenceFugacity", 1.0e5},
+        {"ReferenceFrameworkMass", 1.0 / avogadroConstant},
+        {"ComponentBounds",
+         nlohmann::json::array({{{"Component", "A"}, {"NMin", 0}, {"NMax", 1}, {"DeltaN", 1}},
+                                {{"Component", "B"}, {"NMin", 0}, {"NMax", 1}, {"DeltaN", 1}}})}}},
+      {"Components",
+       nlohmann::json::array({{{"Name", "A"}, {"GasPhaseMolFraction", 0.25}},
+                              {{"Name", "B"}, {"GasPhaseMolFraction", 0.75}}})},
+  };
+  {
+    std::ofstream output(inputPath);
+    output << input;
+  }
+
+  InputReader reader(inputPath.string());
+  ASSERT_TRUE(reader.mpdSettings.has_value());
+  EXPECT_EQ(reader.mixturePredictionMethod, static_cast<size_t>(MixturePrediction::PredictionMethod::MPD));
+  EXPECT_EQ(reader.maxIsothermTerms, 1U);
+  EXPECT_EQ(reader.mpdSettings->fileName, distributionPath.string());
+
+  MixturePrediction prediction(reader);
+  std::vector<double> adsorbedFractions(2, 0.0);
+  std::vector<double> loadings(2, 0.0);
+  std::vector<double> cachedPressure(2, 0.0);
+  std::vector<double> cachedGrandPotential(1, 0.0);
+  const std::vector<double> gasFractions{0.25, 0.75};
+  double temperature = 300.0;
+  prediction.predictMixture(gasFractions, 2.0e5, adsorbedFractions, loadings, cachedPressure,
+                            cachedGrandPotential, temperature);
+
+  EXPECT_NEAR(loadings[0], 0.45 / 0.85, 1.0e-14);
+  EXPECT_NEAR(loadings[1], 0.60 / 0.85, 1.0e-14);
+  EXPECT_NEAR(adsorbedFractions[0] + adsorbedFractions[1], 1.0, 1.0e-14);
+  EXPECT_NEAR(prediction.equilibriumSiteLoadings[0], loadings[0], 1.0e-14);
+  EXPECT_NEAR(prediction.equilibriumSiteLoadings[1], loadings[1], 1.0e-14);
+}
+
+TEST(MixturePrediction, EvaluatesMPDPureComponentsThroughOneHotMixtures)
+{
+  const std::filesystem::path distributionPath = mpdTemporaryPath("pure_components.data");
+  const std::filesystem::path inputPath = mpdTemporaryPath("pure_components.json");
+  writeMPDFile(distributionPath, "0.1\n0.2\n0.3\n0.4\n");
+
+  constexpr double avogadroConstant = 6.02214076e23;
+  nlohmann::json input = {
+      {"SimulationType", "MixturePrediction"},
+      {"MixturePredictionMethod", "MPD"},
+      {"Temperature", 300.0},
+      {"PressureStart", 1.0e5},
+      {"PressureEnd", 1.0e5},
+      {"NumberOfPressurePoints", 1},
+      {"MPDSettings",
+       {{"FileName", distributionPath.filename().string()},
+        {"ReferenceTemperature", 300.0},
+        {"ReferenceFugacity", 1.0e5},
+        {"ReferenceFrameworkMass", 1.0 / avogadroConstant},
+        {"ComponentBounds",
+         nlohmann::json::array({{{"Component", "A"}, {"NMin", 0}, {"NMax", 1}, {"DeltaN", 1}},
+                                {{"Component", "B"}, {"NMin", 0}, {"NMax", 1}, {"DeltaN", 1}}})}}},
+      {"Components",
+       nlohmann::json::array({{{"Name", "A"}, {"GasPhaseMolFraction", 0.25}},
+                              {{"Name", "B"}, {"GasPhaseMolFraction", 0.75}}})},
+  };
+  {
+    std::ofstream output(inputPath);
+    output << input;
+  }
+
+  InputReader reader(inputPath.string());
+  MixturePrediction prediction(reader);
+  std::vector<double> pureLoadings(2, 0.0);
+  prediction.predictPureComponentLoadings(1.0e5, pureLoadings, 300.0);
+
+  // For pure A only states (0,0) and (1,0) remain; for pure B only
+  // states (0,0) and (0,1) remain.
+  EXPECT_NEAR(pureLoadings[0], 0.3 / (0.1 + 0.3), 1.0e-14);
+  EXPECT_NEAR(pureLoadings[1], 0.2 / (0.1 + 0.2), 1.0e-14);
+}
+
+TEST(MPDInput, WarnsWhenReferenceTemperatureHasNoTargetTemperature)
+{
+  const std::filesystem::path distributionPath = mpdTemporaryPath("warning.data");
+  const std::filesystem::path inputPath = mpdTemporaryPath("warning.json");
+  writeMPDFile(distributionPath, "1.0\n");
+  nlohmann::json input = {
+      {"SimulationType", "MixturePrediction"},
+      {"MixturePredictionMethod", "MPD"},
+      {"MPDSettings",
+       {{"FileName", distributionPath.string()},
+        {"ReferenceTemperature", 300.0},
+        {"ReferenceFugacity", 1.0e5},
+        {"FrameworkMass", 1.0},
+        {"ComponentBounds",
+         nlohmann::json::array({{{"Component", "A"}, {"NMin", 0}, {"NMax", 0}, {"DeltaN", 1}}})}}},
+      {"Components", nlohmann::json::array({{{"Name", "A"}, {"GasPhaseMolFraction", 1.0}}})},
+  };
+  {
+    std::ofstream output(inputPath);
+    output << input;
+  }
+
+  testing::internal::CaptureStderr();
+  InputReader reader(inputPath.string());
+  const std::string warning = testing::internal::GetCapturedStderr();
+  EXPECT_NE(warning.find("ReferenceTemperature is set, but target Temperature is not"), std::string::npos);
+}
 
 TEST(MultiSiteIsotherm, RetainsButIgnoresZeroLoadingSites)
 {
@@ -18,7 +242,7 @@ TEST(MultiSiteIsotherm, RetainsButIgnoresZeroLoadingSites)
   ASSERT_EQ(isotherm.sites.size(), 2U);
   EXPECT_FALSE(isotherm.sites[0].enabled());
   EXPECT_TRUE(isotherm.sites[1].enabled());
-  EXPECT_DOUBLE_EQ(isotherm.value(0, 1.0e5, 1.0), 0.0);
+  EXPECT_DOUBLE_EQ(isotherm.value(size_t{0}, 1.0e5, 1.0), 0.0);
   EXPECT_DOUBLE_EQ(isotherm.psiForPressure(0, 1.0e5, 1.0), 0.0);
 
   double cachedPressure = 0.0;

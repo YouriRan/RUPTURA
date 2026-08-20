@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <vector>
@@ -58,7 +59,8 @@ struct Isotherm
     OBrien_Myers = 10,        ///< O'Brien and Myers isotherm model
     Quadratic = 11,           ///< Quadratic isotherm model
     Temkin = 12,              ///< Temkin isotherm model
-    BingelWalton = 13         ///< Bingel and Walton isotherm model
+    BingelWalton = 13,        ///< Bingel and Walton isotherm model
+    Langmuir_pH = 14          ///< pH-dependent Langmuir isotherm model
   };
 
   /**
@@ -117,7 +119,7 @@ struct Isotherm
    * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The adsorption amount at the given pressure.
    */
-  inline double value(double pressure, double scale) const
+  inline double value(double pressure, double scale, double pH = 7.0) const
   {
     if (!enabled()) return 0.0;
 
@@ -126,6 +128,12 @@ struct Isotherm
       case Isotherm::Type::Langmuir:
       {
         double bp = scale * parameters[1] * pressure;
+        return parameters[0] * bp / (1.0 + bp);
+      }
+      case Isotherm::Type::Langmuir_pH:
+      {
+        const double pHFactor = std::pow(10.0, std::clamp(parameters[2] - pH, -300.0, 300.0));
+        const double bp = scale * parameters[1] * pressure / (1.0 + pHFactor);
         return parameters[0] * bp / (1.0 + bp);
       }
       case Isotherm::Type::Anti_Langmuir:
@@ -161,7 +169,7 @@ struct Isotherm
       }
       case Isotherm::Type::Toth:
       {
-        double temp = parameters[1] * pressure;
+        double temp = scale * parameters[1] * pressure;
         return parameters[0] * temp / std::pow(1.0 + std::pow(temp, parameters[2]), 1.0 / parameters[2]);
       }
       case Isotherm::Type::Unilan:
@@ -220,6 +228,8 @@ struct Isotherm
         double bp = scale * parameters[1] * pressure;
         return parameters[0] * std::log(1.0 + bp);
       }
+      case Isotherm::Type::Langmuir_pH:
+        throw std::runtime_error("Error: pH-dependent Langmuir is not compatible with spreading-pressure methods");
       case Isotherm::Type::Anti_Langmuir:
       {
         return -(parameters[0] / parameters[1]) * std::log(1.0 - parameters[1] * pressure);
@@ -276,7 +286,7 @@ struct Isotherm
       }
       case Isotherm::Type::Toth:
       {
-        double temp = parameters[1] * pressure;
+        double temp = scale * parameters[1] * pressure;
         double theta = temp / std::pow(1.0 + std::pow(temp, parameters[2]), 1.0 / parameters[2]);
         double theta_pow = std::pow(theta, parameters[2]);
         double reducedGrandPotential = parameters[0] * (theta - (theta / parameters[2]) * std::log(1.0 - theta_pow));
@@ -409,6 +419,8 @@ struct Isotherm
         double b = scale * parameters[1];
         return std::pow(b / denominator, 1.0 / parameters[2]);
       }
+      case Isotherm::Type::Langmuir_pH:
+        throw std::runtime_error("Error: pH-dependent Langmuir is not compatible with spreading-pressure methods");
       default:
       {
         const double tiny = 1.0e-15;

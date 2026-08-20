@@ -35,6 +35,15 @@ std::string Isotherm::repr() const
       appendParameter(nonIsothermal ? "b_0:" : "b:", parameters[1]);
       break;
     }
+    case Isotherm::Type::Langmuir_pH:
+    {
+      s += nonIsothermal ? "    pH-dependent Langmuir isotherm (temperature-scaled)\n"
+                         : "    pH-dependent Langmuir isotherm\n";
+      appendParameter("q_sat:", parameters[0]);
+      appendParameter(nonIsothermal ? "k_0:" : "k:", parameters[1]);
+      appendParameter("pH_0:", parameters[2]);
+      break;
+    }
     case Isotherm::Type::Anti_Langmuir:
     {
       s += "    Anti-Langmuir isotherm\n";
@@ -152,6 +161,12 @@ bool Isotherm::isUnphysical() const
       if (parameters[0] < 0 || parameters[0] > 1.0e20 || parameters[1] < 0.0 || parameters[1] > 1.0e10) return true;
       return false;
     }
+    case Isotherm::Type::Langmuir_pH:
+    {
+      if (parameters[0] < 0 || parameters[0] > 1.0e20 || parameters[1] < 0.0 || parameters[1] > 1.0e10 ||
+          !std::isfinite(parameters[2])) return true;
+      return false;
+    }
     case Isotherm::Type::Anti_Langmuir:
     {
       if (parameters[0] < 0 || parameters[0] > 1.0e20 || parameters[1] < 0.0 || parameters[1] > 1.0e10) return true;
@@ -230,6 +245,7 @@ void Isotherm::randomize(double maximumLoading)
   switch (type)
   {
     case Isotherm::Type::Langmuir:
+    case Isotherm::Type::Langmuir_pH:
     {
       parameters[0] = 1.1 * maximumLoading * RandomNumber::Uniform();
       parameters[1] = std::pow(RandomNumber::Uniform(), 10.0 * 2.0 * (RandomNumber::Uniform() - 1.0));

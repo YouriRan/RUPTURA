@@ -17,7 +17,9 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
                                std::span<double> totalConcentration, std::span<double> totalPressure,
                                std::span<const double> concentration, std::span<double> partialPressure,
                                std::span<double> moleFraction, std::span<const double> bulkSpeciesSink,
-                               std::span<const double> gasTemperature);
+                               std::span<const double> gasTemperature, Column::FluidPhase fluidPhase,
+                               double liquidDensity, Column::PHMode pHMode, double pHValue, double pKw,
+                               size_t pHComponent, std::span<double> pH);
 
 /**
  * \brief Adds reaction source terms to explicit adsorbed/pore state arrays.

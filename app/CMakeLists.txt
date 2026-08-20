@@ -23,6 +23,7 @@ target_compile_definitions(ruptura_lab PRIVATE
 )
 
 target_link_libraries(ruptura_lab PRIVATE
+  rupturalib
   Qt6::Network
   Qt6::Widgets
 )

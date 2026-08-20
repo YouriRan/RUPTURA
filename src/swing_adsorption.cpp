@@ -11,7 +11,11 @@
 #include <type_traits>
 #include <vector>
 
+#include "compute.h"
+#include "compute_multibed.h"
 #include "rk3.h"
+#include "sorption.h"
+#include "transport.h"
 #include "utils.h"
 
 namespace
@@ -19,22 +23,89 @@ namespace
 template <typename ColumnType>
 void refreshColumnState(ColumnType& column)
 {
-  if constexpr (std::is_same_v<ColumnType, Column>)
+  auto updateDerivedState = [&]
   {
-    RK3Helpers::updateVelocityAndPressure(column);
-    RK3Helpers::computeEquilibriumLoadings(column);
-    RK3Helpers::computeSorptionDerivatives(column);
-    RK3Helpers::updateVelocityAndPressure(column);
-    RK3Helpers::computeEquilibriumLoadings(column);
-  }
-  else
-  {
-    RK3MultibedHelpers::updateVelocityAndPressure(column);
-    RK3MultibedHelpers::computeEquilibriumLoadings(column);
-    RK3MultibedHelpers::computeSorptionDerivatives(column);
-    RK3MultibedHelpers::updateVelocityAndPressure(column);
-    RK3MultibedHelpers::computeEquilibriumLoadings(column);
-  }
+    if constexpr (std::is_same_v<ColumnType, Column>)
+    {
+      computeBulkSpeciesSink(column.components, column.numberOfGridPoints, column.numberOfComponents,
+                             column.maxChemisorptionSites, column.geometry, column.particleDensity,
+                             column.concentration, column.physisorptionDot, column.chemisorptionDot,
+                             column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
+                             column.reactionChemisorptionSource);
+      updateVelocityAndPressure(
+          column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
+          column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength, column.geometry,
+          column.columnEntranceVelocity, column.dynamicViscosity, column.resolution, column.interstitialGasVelocity,
+          column.gasDensity, column.totalConcentration, column.totalPressure, column.concentration,
+          column.partialPressure, column.moleFraction, column.bulkSpeciesSink, column.gasTemperature,
+          column.fluidPhase, column.liquidDensity, column.pHMode, column.pHValue, column.pKw,
+          column.pHComponent, column.pH);
+      computePhysisorptionEquilibriumLoadings(
+          column.physisorptionMixture, column.numberOfGridPoints, column.numberOfComponents, column.maxIsothermTerms,
+          column.iastPerformance, column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules,
+          column.totalPressure, column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
+          column.moleFraction, column.gasTemperature,
+          column.fluidPhase == Column::FluidPhase::Gas
+              ? MixturePrediction::DrivingForceInput::MoleFraction
+              : MixturePrediction::DrivingForceInput::Concentration,
+          column.concentration, column.pH);
+      computeChemisorptionEquilibriumLoadings(
+          column.chemisorptionMixture, column.numberOfGridPoints, column.numberOfComponents,
+          column.maxChemisorptionSites, column.iastPerformance, column.idealGasMolFractions,
+          column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure, column.equilibriumChemisorption,
+          column.cachedChemisorptionPressure, column.cachedChemisorptionGrandPotential, column.moleFraction,
+          column.gasTemperature,
+          column.fluidPhase == Column::FluidPhase::Gas
+              ? MixturePrediction::DrivingForceInput::MoleFraction
+              : MixturePrediction::DrivingForceInput::Concentration,
+          column.concentration, column.pH);
+    }
+    else
+    {
+      computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
+                             column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries,
+                             column.adsorbentVoidFractions,
+                             column.particleDensities, column.particleDiameters, column.fractionOfAdsorbent,
+                             column.totalVoidFraction, column.concentration, column.physisorptionDot,
+                             column.chemisorptionDot, column.surfaceConcentration, column.bulkSpeciesSink,
+                             column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
+      updateVelocityAndPressure(
+          column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
+          column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength,
+          column.numberOfAdsorbents, column.columnEntranceVelocity, column.dynamicViscosity, column.columnDistances,
+          column.fractionOfAdsorbent, column.geometries, column.adsorbentScaledVoidFraction,
+          column.totalVoidFraction,
+          column.interstitialGasVelocity,
+          column.gasDensity, column.totalConcentration, column.totalPressure, column.concentration,
+          column.partialPressure, column.moleFraction, column.bulkSpeciesSink, column.gasTemperature,
+          column.fluidPhase, column.liquidDensity, column.pHMode, column.pHValue, column.pKw,
+          column.pHComponent, column.pH);
+      computePhysisorptionEquilibriumLoadings(
+          column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
+          column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxIsothermTerms, column.iastPerformance,
+          column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
+          column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential, column.moleFraction,
+          column.gasTemperature,
+          column.fluidPhase == MultibedColumn::FluidPhase::Gas
+              ? MixturePrediction::DrivingForceInput::MoleFraction
+              : MixturePrediction::DrivingForceInput::Concentration,
+          column.concentration, column.pH);
+      computeChemisorptionEquilibriumLoadings(
+          column.chemisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
+          column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxChemisorptionSites, column.iastPerformance,
+          column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
+          column.equilibriumChemisorption, column.cachedChemisorptionPressure, column.cachedChemisorptionGrandPotential,
+          column.moleFraction, column.gasTemperature,
+          column.fluidPhase == MultibedColumn::FluidPhase::Gas
+              ? MixturePrediction::DrivingForceInput::MoleFraction
+              : MixturePrediction::DrivingForceInput::Concentration,
+          column.concentration, column.pH);
+    }
+  };
+
+  updateDerivedState();
+  computeDerivatives(column);
+  updateDerivedState();
 }
 }  // namespace
 
@@ -110,7 +181,14 @@ void SwingAdsorption<ColumnType>::run()
     {
       column.gasTemperature[0] = stage.temperature;
     }
-    if (column.inletPressure > 0.0)
+    if (column.fluidPhase == decltype(column.fluidPhase)::Liquid)
+    {
+      for (size_t comp = 0; comp < column.numberOfComponents; ++comp)
+      {
+        column.concentration[comp] = column.components[comp].inletLiquidConcentration;
+      }
+    }
+    else if (column.inletPressure > 0.0)
     {
       const double inletTemperature =
           std::max(1e-10, column.gasTemperature.empty() ? stage.temperature : column.gasTemperature[0]);

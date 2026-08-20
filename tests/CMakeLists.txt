@@ -13,8 +13,11 @@ endif()
 
 add_executable(ruptura_tests
   example_inputreader_tests.cpp
+  fluid_phase_tests.cpp
   mixture_prediction_tests.cpp
   multibed_tests.cpp
+  notebook_templates_tests.cpp
+  single_adsorbent_equivalence_tests.cpp
 )
 
 target_compile_options(ruptura_tests PRIVATE

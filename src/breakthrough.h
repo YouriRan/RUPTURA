@@ -26,8 +26,7 @@ enum class BreakthroughIntegrationScheme
  * \brief Simulates a breakthrough process for a concrete column model.
  *
  * Column and MultibedColumn share this implementation at compile time. The
- * input boundary selects the concrete instantiation; no runtime variant or
- * legacy breakthrough wrapper is used inside the simulation.
+ * input boundary selects the concrete instantiation.
  */
 template <typename ColumnType>
 struct Breakthrough

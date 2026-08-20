@@ -167,9 +167,11 @@ set(RUPTURA_SOURCES
   src/geometry.cpp
   src/inputreader.cpp
   src/isotherm.cpp
+  src/macrostate_particle_distribution.cpp
   src/mixture_prediction.cpp
   src/multi_site_chemisorption.cpp
   src/multi_site_isotherm.cpp
+  src/notebook_templates.cpp
   src/random_numbers.cpp
   src/reaction.cpp
   src/special_functions.cpp
@@ -182,6 +184,10 @@ set(RUPTURA_SOURCES
   src/integrators/sorption.cpp
   src/integrators/transport.cpp
 )
+
+# MPD normalization and validation rely on IEEE non-finite handling and must
+# not inherit the library-wide finite-math assumptions.
+set_source_files_properties(src/macrostate_particle_distribution.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math")
 
 set(RUPTURA_COMPILE_OPTIONS
   -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
@@ -237,38 +243,36 @@ target_link_libraries(rupturalib PUBLIC
 
 
 # ---------------------------------------------------------------------------
-# Stage 2: app and pybuild
+# Stage 2: executable, app, and pybuild
 # ---------------------------------------------------------------------------
-option(BUILD_APP "Build Ruptura command-line executable" ON)
+add_executable(${PROJECT_NAME}
+  src/main.cpp
+)
 
-if(BUILD_APP)
-  add_executable(${PROJECT_NAME}
-    main.cpp
-  )
+target_compile_options(${PROJECT_NAME} PRIVATE
+  ${RUPTURA_COMPILE_OPTIONS}
+)
 
-  target_compile_options(${PROJECT_NAME} PRIVATE
-    ${RUPTURA_COMPILE_OPTIONS}
-  )
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+  RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+)
 
-  target_link_libraries(${PROJECT_NAME} PRIVATE
-    rupturalib
-  )
+target_link_libraries(${PROJECT_NAME} PRIVATE
+  rupturalib
+)
 
-  if(BUILD_MAC_PACKAGE)
-    install(CODE "execute_process(COMMAND
-      codesign --force --options runtime --timestamp --sign \"Developer ID Application: David Dubbeldam (24U2ZRZ6SC)\"
-      \"$<TARGET_FILE:${PROJECT_NAME}>\")" COMPONENT app)
-  endif()
-
-  install(TARGETS ${PROJECT_NAME} DESTINATION bin COMPONENT app)
+if(BUILD_MAC_PACKAGE)
+  install(CODE "execute_process(COMMAND
+    codesign --force --options runtime --timestamp --sign \"Developer ID Application: David Dubbeldam (24U2ZRZ6SC)\"
+    \"$<TARGET_FILE:${PROJECT_NAME}>\")" COMPONENT app)
 endif()
 
-option(BUILD_QT_APP "Build the native Qt application for local Ruptura experiments" OFF)
+install(TARGETS ${PROJECT_NAME} DESTINATION bin COMPONENT app)
 
-if(BUILD_QT_APP)
-  if(NOT BUILD_APP)
-    message(FATAL_ERROR "BUILD_QT_APP requires BUILD_APP so the GUI can launch the local ruptura executable.")
-  endif()
+option(BUILD_APP "Build the native Qt application for local Ruptura experiments" OFF)
+option(BUILD_BENCHMARKS "Build Google Benchmark performance comparisons" OFF)
+
+if(BUILD_APP)
   add_subdirectory(app)
 endif()
 
@@ -278,6 +282,10 @@ endif()
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
+endif()
+
+if(BUILD_BENCHMARKS)
+  add_subdirectory(benchmark/multibed)
 endif()
 
 add_subdirectory(docs)

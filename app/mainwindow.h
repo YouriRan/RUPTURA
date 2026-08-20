@@ -67,6 +67,7 @@ struct BedConfig
   QString id;
   QString name;
   double length{0.15};
+  double mixFraction{0.5};
   double voidFraction{0.4};
   double particleDensity{1000.0};
   double particleDiameter{0.001};
@@ -91,7 +92,7 @@ struct ColumnConfig
   double length{0.3};
   bool energyBalance{false};
   double influxTemperature{300.0};
-  QString geometryType{"HollowTube"};
+  QString geometryType{"PackedBed"};
   QString channelShape{"square"};
   double internalChannelDimension{0.001};
   double internalDiameter{0.04};
