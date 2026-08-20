@@ -1,12 +1,13 @@
 #pragma once
 
 #include <cstddef>
+#include <cmath>
 #include <optional>
 #include <string_view>
 
 enum struct GeometryKind
 {
-  HollowTube = 0,
+  PackedBed = 0,
   Monolith = 1
 };
 
@@ -75,7 +76,32 @@ struct PressureDropLaw
 
   [[nodiscard]] double gradient(double dynamicViscosity, double density, double velocity) const noexcept
   {
-    return viscousCoefficient * dynamicViscosity * velocity + inertialCoefficient * density * velocity * velocity;
+    return viscousCoefficient * dynamicViscosity * velocity +
+           inertialCoefficient * density * velocity * std::abs(velocity);
+  }
+
+  [[nodiscard]] double velocity(double dynamicViscosity, double density, double pressureGradient) const noexcept
+  {
+    const double drivingGradient = -pressureGradient;
+    const double viscousResistance = viscousCoefficient * dynamicViscosity;
+    const double inertialResistance = inertialCoefficient * density;
+    const double magnitude = std::abs(drivingGradient);
+
+    if (magnitude == 0.0) return 0.0;
+    if (inertialResistance <= 0.0)
+    {
+      return viscousResistance > 0.0 ? drivingGradient / viscousResistance : 0.0;
+    }
+    if (viscousResistance <= 0.0)
+    {
+      return std::copysign(std::sqrt(magnitude / inertialResistance), drivingGradient);
+    }
+
+    // Stable positive root of B |v|^2 + A |v| - |dP/dz| = 0.
+    const double speed = 2.0 * magnitude /
+                         (viscousResistance +
+                          std::sqrt(viscousResistance * viscousResistance + 4.0 * inertialResistance * magnitude));
+    return std::copysign(speed, drivingGradient);
   }
 };
 
@@ -114,7 +140,7 @@ struct Geometry
 };
 
 /**
- * \brief User inputs for packed beads in one hollow tube.
+ * \brief User inputs for a packed bed.
  */
 struct PackedBedTubeSpec
 {
@@ -135,6 +161,7 @@ struct MonolithSpec
   std::size_t numberOfChannels{0};
   double washcoatThickness{0.0};
   std::optional<double> washcoatVolumePerChannelVolume;
+  double forchheimerCoefficient{0.0};  ///< Channel Forchheimer coefficient b_M, 1/m.
 };
 
 [[nodiscard]] Geometry makeGeometry(const PackedBedTubeSpec& specification);

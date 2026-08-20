@@ -104,6 +104,19 @@ struct MultibedColumn
     FixedPressureInletVelocity = 4    ///< Boundary data: fixed pressure profile and v_in.
   };
 
+  enum class FluidPhase
+  {
+    Gas = 0,
+    Liquid = 1
+  };
+
+  enum class PHMode
+  {
+    Fixed = 0,
+    HPlus = 1,
+    OHMinus = 2
+  };
+
   /**
    * \brief Constructs a column from explicit model/configuration arguments.
    *
@@ -121,10 +134,16 @@ struct MultibedColumn
                  double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
                  double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid,
                  double heatCapacityWall, std::vector<double> columnDistances = {},
-                 std::vector<Reaction> reactions = {})
+                 std::vector<Reaction> reactions = {}, std::vector<Geometry> geometries = {},
+                 std::vector<double> adsorbentMixFractions = {}, double configuredColumnLength = -1.0,
+                 FluidPhase fluidPhase = FluidPhase::Gas, double liquidDensity = 1000.0,
+                 PHMode pHMode = PHMode::Fixed, double pHValue = 7.0, double pKw = 14.0,
+                 size_t pHComponent = 0)
       : physisorptionMixtures(std::move(physisorptionMixtures)),
         components(std::move(components)),
         boundaryCondition(boundaryCondition),
+        fluidPhase(fluidPhase),
+        pHMode(pHMode),
         energyBalance(energyBalance),
         reactions(std::move(reactions)),
         numberOfGridPoints(numberOfGridPoints),
@@ -134,19 +153,30 @@ struct MultibedColumn
         maxChemisorptionSites(maximumChemisorptionSites(this->physisorptionMixtures)),
         numberOfCalls(0),
         carrierGasComponent(carrierGasComponent),
+        pHComponent(pHComponent),
         adsorbentLengths(std::move(adsorbentLengths)),
         adsorbentInterfaceLengths(std::move(adsorbentInterfaceLengths)),
+        adsorbentMixFractions(std::move(adsorbentMixFractions)),
         adsorbentGridPoints(std::move(adsorbentGridPoints)),
         adsorbentVoidFractions(std::move(adsorbentVoidFractions)),
         particleDensities(std::move(particleDensities)),
         particleDiameters(std::move(particleDiameters)),
+        geometries(geometries.empty()
+                       ? makePackedBedGeometries(this->adsorbentVoidFractions, this->particleDiameters,
+                                                 internalDiameter, outerDiameter)
+                       : std::move(geometries)),
         externalTemperature(temperature),
         inletPressure(inletPressure),
         outletPressure(outletPressure),
         pressureGradient(pressureGradient),
         columnEntranceVelocity(columnEntranceVelocity),
-        columnLength(std::reduce(this->adsorbentLengths.begin(), this->adsorbentLengths.end(), 0.0)),
+        columnLength(configuredColumnLength > 0.0
+                         ? configuredColumnLength
+                         : std::reduce(this->adsorbentLengths.begin(), this->adsorbentLengths.end(), 0.0)),
         dynamicViscosity(dynamicViscosity),
+        liquidDensity(liquidDensity),
+        pHValue(pHValue),
+        pKw(pKw),
         columnDistances(columnDistances.empty()
                             ? makeUniformColumnDistances(this->numberOfGridPoints, this->columnLength)
                             : std::move(columnDistances)),
@@ -174,6 +204,7 @@ struct MultibedColumn
         gasDensity(this->numberOfGridPoints + 1),
         totalConcentration(this->numberOfGridPoints + 1),
         totalPressure(this->numberOfGridPoints + 1),
+        pH(this->numberOfGridPoints + 1, pHValue),
         totalVoidFraction(this->numberOfGridPoints + 1),
         particleDensity(this->numberOfGridPoints + 1),
         moleFraction((this->numberOfGridPoints + 1) * this->numberOfComponents),
@@ -243,10 +274,21 @@ struct MultibedColumn
             inputReader.columnEntranceVelocity, inputReader.adsorbentLengths, inputReader.adsorbentInterfaceLengths,
             inputReader.adsorbentGridPoints, inputReader.dynamicViscosity, inputReader.adsorbentParticleDiameters,
             inputReader.influxTemperature, inputReader.internalDiameter, inputReader.outerDiameter,
-            inputReader.wallDensity, inputReader.gasThermalConductivity, inputReader.wallThermalConductivity,
-            inputReader.heatTransferGasSolid, inputReader.heatTransferGasWall, inputReader.heatTransferWallExternal,
-            inputReader.heatCapacityGas, inputReader.heatCapacitySolid, inputReader.heatCapacityWall,
-            inputReader.columnDistances, inputReader.reactions)
+            inputReader.wallDensity,
+            inputReader.fluidPhase == 1 ? inputReader.liquidThermalConductivity
+                                        : inputReader.gasThermalConductivity,
+            inputReader.wallThermalConductivity,
+            inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidSolid
+                                        : inputReader.heatTransferGasSolid,
+            inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidWall
+                                        : inputReader.heatTransferGasWall,
+            inputReader.heatTransferWallExternal,
+            inputReader.fluidPhase == 1 ? inputReader.heatCapacityLiquid : inputReader.heatCapacityGas,
+            inputReader.heatCapacitySolid, inputReader.heatCapacityWall,
+            inputReader.columnDistances, inputReader.reactions, inputReader.adsorbentGeometries,
+            inputReader.adsorbentMixFractions, inputReader.columnLength, FluidPhase(inputReader.fluidPhase),
+            inputReader.liquidDensity, PHMode(inputReader.pHMode), inputReader.pHValue, inputReader.pKw,
+            inputReader.pHComponent)
   {
   }
   /**
@@ -264,6 +306,8 @@ struct MultibedColumn
   std::vector<MixturePrediction> chemisorptionMixtures;  ///< One competitive chemisorption model per bed.
   std::vector<Component> components;                     ///< Feed component definitions; size numberOfComponents.
   BoundaryCondition boundaryCondition;                   ///< Selected breakthrough boundary-condition pair.
+  FluidPhase fluidPhase;                                 ///< Gas or liquid mobile phase.
+  PHMode pHMode;                                         ///< Fixed or transported pH representation.
   bool energyBalance;                                    ///< Enables gas/solid/wall temperature dynamics when true.
   std::vector<Reaction> reactions;                       ///< Reactions coupled to adsorbed or pore-phase variables.
 
@@ -275,23 +319,29 @@ struct MultibedColumn
   size_t maxChemisorptionSites;  ///< Maximum chemisorption-site count across all beds and components.
   size_t numberOfCalls;          ///< Counter for model/evaluation calls.
   size_t carrierGasComponent;    ///< Index of the carrier-gas component.
+  size_t pHComponent;            ///< Component used to derive transported pH.
 
   // Size numberOfAdsorbents. Indexed as value[ads].
-  std::vector<double> adsorbentLengths;           ///< Pure adsorbent-region lengths in m.
+  std::vector<double> adsorbentLengths;           ///< Pure adsorbent-region lengths in m; empty for a uniform mix.
   std::vector<double> adsorbentInterfaceLengths;  ///< Linear interface lengths between adsorbents in m.
+  std::vector<double> adsorbentMixFractions;      ///< Uniform adsorbent volume fractions over the whole column.
   std::vector<size_t> adsorbentGridPoints;        ///< Spatial grid intervals per adsorbent section.
   std::vector<double> adsorbentVoidFractions;     ///< Packed-bed void fraction for each adsorbent.
   std::vector<double> particleDensities;          ///< Particle density for each adsorbent in kg/m^3.
   std::vector<double> particleDiameters;          ///< Particle diameter for each adsorbent in m.
+  std::vector<Geometry> geometries;                ///< Derived geometry for each adsorbent section.
 
   // Column operating conditions and geometry.
   double externalTemperature;           ///< External/reference gas temperature, T, in K.
   double inletPressure;                 ///< Inlet pressure, P_in, in Pa.
   double outletPressure;                ///< Outlet pressure, P_out, in Pa.
-  double pressureGradient;              ///< Input pressure-gradient parameter.
+  double pressureGradient;              ///< Signed axial pressure gradient dP/dz in Pa/m.
   double columnEntranceVelocity;        ///< Inlet/interstitial velocity, v_in, in m/s.
   double columnLength;                  ///< Column length, L, in m.
   double dynamicViscosity;              ///< Gas dynamic viscosity used in Ergun calculations.
+  double liquidDensity;                 ///< Constant liquid density in kg/m^3.
+  double pHValue;                       ///< Fixed pH value when pHMode is Fixed.
+  double pKw;                           ///< Water ion-product exponent used for OH- transport.
   std::vector<double> columnDistances;  ///< Spatial grid node positions in m.
 
   // Energy-balance parameters.
@@ -326,6 +376,7 @@ struct MultibedColumn
   std::vector<double> gasDensity;               ///< Gas density at each grid node.
   std::vector<double> totalConcentration;       ///< Total gas concentration at each grid node.
   std::vector<double> totalPressure;            ///< Total pressure at each grid node.
+  std::vector<double> pH;                       ///< Local liquid pH; fixed at 7 for gas simulations.
   std::vector<double> totalVoidFraction;        ///< Packed-bed void fraction, epsilon.
   std::vector<double> particleDensity;          ///< Particle density in kg/m^3.
 
@@ -394,6 +445,9 @@ struct MultibedColumn
 
   static bool requiresSurfacePoreTransport(const std::vector<MixturePrediction>& mixtures) noexcept;
   static size_t maximumChemisorptionSites(const std::vector<MixturePrediction>& mixtures) noexcept;
+  static std::vector<Geometry> makePackedBedGeometries(std::span<const double> voidFractions,
+                                                        std::span<const double> particleDiameters,
+                                                        double internalDiameter, double outerDiameter);
   static std::vector<MixturePrediction> makeChemisorptionMixtures(
       const std::vector<MixturePrediction>& physisorptionMixtures);
 

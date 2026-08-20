@@ -152,12 +152,12 @@ struct MultiSiteIsotherm
    * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The total adsorption value.
    */
-  inline double value(double pressure, double scale) const
+  inline double value(double pressure, double scale, double pH = 7.0) const
   {
     double sum = 0.0;
     for (const Isotherm& site : sites)
     {
-      if (site.enabled()) sum += site.value(pressure, scale);
+      if (site.enabled()) sum += site.value(pressure, scale, pH);
     }
     return sum;
   }
@@ -172,11 +172,11 @@ struct MultiSiteIsotherm
    * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
    * \return The adsorption value for the specified site, or 0.0 if the site index is invalid.
    */
-  inline double value(size_t site, double pressure, double scale) const
+  inline double value(size_t site, double pressure, double scale, double pH = 7.0) const
   {
     if (site < sites.size())
     {
-      return sites[site].enabled() ? sites[site].value(pressure, scale) : 0.0;
+      return sites[site].enabled() ? sites[site].value(pressure, scale, pH) : 0.0;
     }
     return 0.0;
   }

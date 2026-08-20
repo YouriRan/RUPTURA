@@ -16,6 +16,17 @@
 const double R = 8.31446261815324;
 
 /**
+ * \brief Clamps values to the physically meaningful non-negative range.
+ */
+inline void clampNonnegative(std::span<double> values)
+{
+  for (double& value : values)
+  {
+    value = std::max(0.0, value);
+  }
+}
+
+/**
  * \brief Evaluates an Arrhenius law, optionally relative to a reference temperature.
  *
  * Returns k0 exp[-Ea/R (1/T - 1/Tref)]. Without Tref, the reference-temperature

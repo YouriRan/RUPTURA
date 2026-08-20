@@ -100,7 +100,7 @@ void writeGeneralChemisorptionInput(const std::filesystem::path& path, bool useP
   "DynamicViscosity": 1.0e-5,
   "ParticleDiameter": 1.0e-3,
   "Geometry": {
-    "Type": "HollowTube",
+    "Type": "PackedBed",
     "ColumnVoidFraction": 0.4,
     "ParticleDiameter": 1.0e-3
   },
@@ -226,7 +226,7 @@ void writeReactionInput(const std::filesystem::path& path, const std::string& ph
   "DynamicViscosity": 1.0e-5,
   "ParticleDiameter": 1.0e-3,
   "Geometry": {
-    "Type": "HollowTube",
+    "Type": "PackedBed",
     "ColumnVoidFraction": 0.4,
     "ParticleDiameter": 1.0e-3
   },
@@ -489,19 +489,54 @@ TEST(SwingAdsorptionInput, LoadsPsaAndTsaExamples)
   EXPECT_DOUBLE_EQ(*tsaReader.swingAdsorptionPhases[1].temperature, 673.0);
 }
 
-TEST(GeometryInput, LoadsExplicitHollowTubeGeometry)
+TEST(GeometryInput, LoadsExplicitPackedBedGeometry)
 {
   InputReader reader(examplePath("examples/CoBDP-alkanes-C6/breakthrough/simulation.json"));
   const Geometry& shape = reader.geometry;
 
-  EXPECT_EQ(shape.kind, GeometryKind::HollowTube);
+  EXPECT_EQ(shape.kind, GeometryKind::PackedBed);
   EXPECT_DOUBLE_EQ(shape.voidFraction, reader.columnVoidFraction);
   EXPECT_DOUBLE_EQ(shape.solidToFluidVolumeRatio, 1.5);
   EXPECT_DOUBLE_EQ(shape.contactAreas.solidFluidPerSolidVolume, 6000.0);
   EXPECT_DOUBLE_EQ(shape.contactAreas.fluidSolidPerFluidVolume, 9000.0);
+  EXPECT_DOUBLE_EQ(shape.pressureDrop.viscousCoefficient,
+                   150.0 * shape.solidToFluidVolumeRatio * shape.solidToFluidVolumeRatio /
+                       (reader.particleDiameter * reader.particleDiameter));
+  EXPECT_DOUBLE_EQ(shape.pressureDrop.inertialCoefficient,
+                   1.75 * shape.solidToFluidVolumeRatio / reader.particleDiameter);
 
   Column column(reader);
-  EXPECT_EQ(column.geometry.kind, GeometryKind::HollowTube);
+  EXPECT_EQ(column.geometry.kind, GeometryKind::PackedBed);
+}
+
+TEST(PressureDropLaw, SolvesSignedDarcyForchheimerVelocity)
+{
+  const PressureDropLaw law{2.0, 3.0};
+  const double viscosity = 0.5;
+  const double density = 2.0;
+  const double pressureGradient = -7.0;
+
+  const double velocity = law.velocity(viscosity, density, pressureGradient);
+  EXPECT_GT(velocity, 0.0);
+  EXPECT_NEAR(law.gradient(viscosity, density, velocity), -pressureGradient, 1.0e-12);
+
+  const double reverseVelocity = law.velocity(viscosity, density, -pressureGradient);
+  EXPECT_NEAR(reverseVelocity, -velocity, 1.0e-12);
+  EXPECT_NEAR(law.gradient(viscosity, density, reverseVelocity), pressureGradient, 1.0e-12);
+}
+
+TEST(PressureDropLaw, MonolithDarcyVelocityUsesHydraulicPermeability)
+{
+  MonolithSpec specification;
+  specification.channelShape = ChannelShape::Square;
+  specification.internalChannelDimension = 1.0e-3;
+  specification.outerDiameter = 1.0e-2;
+  specification.numberOfChannels = 10;
+  const Geometry geometry = makeGeometry(specification);
+
+  const double viscosity = 1.8e-5;
+  const double pressureGradient = -576.0;
+  EXPECT_NEAR(geometry.pressureDrop.velocity(viscosity, 0.0, pressureGradient), 1.0, 1.0e-12);
 }
 
 TEST(GeometryInput, RequiresGeometryForBreakthrough)
@@ -541,6 +576,7 @@ TEST(GeometryInput, ParsesMonolithSubJsonAndPrecomputesChannelTerms)
   data["Geometry"] = {
       {"Type", "Monolith"},      {"ChannelShape", "square"}, {"InternalChannelDimension", 1.0e-3},
       {"OuterDiameter", 1.0e-2}, {"NumberOfChannels", 10},   {"WashcoatThickness", 1.0e-4},
+      {"ForchheimerCoefficient", 12.5},
   };
   input.close();
 
@@ -564,6 +600,8 @@ TEST(GeometryInput, ParsesMonolithSubJsonAndPrecomputesChannelTerms)
   EXPECT_DOUBLE_EQ(shape.solidToFluidVolumeRatio, 0.4);
   EXPECT_DOUBLE_EQ(shape.contactAreas.solidFluidPerSolidVolume, 10000.0);
   EXPECT_DOUBLE_EQ(shape.dimensions.poreDiffusionLength, 1.0e-4);
+  EXPECT_DOUBLE_EQ(shape.pressureDrop.viscousCoefficient, 32.0 / 1.0e-6);
+  EXPECT_DOUBLE_EQ(shape.pressureDrop.inertialCoefficient, 12.5);
   EXPECT_DOUBLE_EQ(reader.columnVoidFraction, shape.voidFraction);
 
   Column column(reader);
@@ -605,7 +643,7 @@ TEST(ExampleMassBalance, RecomputesBeaColumnStateDerivatives)
   Column column = loadBeaBreakthroughColumn();
   const std::vector<double> savedConcentrationDot = toVector(column.concentrationDot);
 
-  RK3Helpers::computeMassDerivatives(column);
+  computeDerivatives(column);
 
   EXPECT_LE(maxAbsDifference(column.concentrationDot, savedConcentrationDot), 1e-10);
 
@@ -631,7 +669,12 @@ TEST(ExampleMixturePrediction, RecomputesBeaBreakthroughEquilibriumLoadings)
   Column column = loadBeaBreakthroughColumn();
   const std::vector<double> savedEquilibriumAdsorption = column.equilibriumPhysisorption;
 
-  RK3Helpers::computeEquilibriumLoadings(column);
+  computePhysisorptionEquilibriumLoadings(
+      column.physisorptionMixture, column.numberOfGridPoints, column.numberOfComponents, column.maxIsothermTerms,
+      column.iastPerformance, column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules,
+      column.totalPressure, column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
+      column.moleFraction, column.gasTemperature, MixturePrediction::DrivingForceInput::MoleFraction,
+      column.concentration, column.pH);
 
   EXPECT_LE(maxAbsDifference(column.equilibriumPhysisorption, savedEquilibriumAdsorption), 1e-10);
 
@@ -667,7 +710,7 @@ TEST(ChemisorptionGeneral, DefaultsToBulkConcentrationWithoutPoreSurfaceTranspor
   EXPECT_TRUE(column.surfaceConcentration.empty());
   EXPECT_TRUE(column.poreConcentration.empty());
 
-  RK3Helpers::computeSorptionDerivatives(column);
+  computeDerivatives(column);
   const size_t adsorbateInlet = 1U;
   EXPECT_GT(column.chemisorptionDot[adsorbateInlet], 0.0);
   EXPECT_TRUE(column.poreConcentrationDot.empty());
@@ -696,7 +739,7 @@ TEST(ChemisorptionGeneral, InitializesSurfacePoreStateAndFilmSinkWhenEnabled)
   EXPECT_LE(maxAbsDifference(column.surfaceConcentration, toVector(column.concentration)), 0.0);
   EXPECT_LE(maxAbsDifference(column.poreConcentration, toVector(column.concentration)), 0.0);
 
-  RK3Helpers::computeSorptionDerivatives(column);
+  computeDerivatives(column);
   const size_t adsorbateInlet = 1U;
   EXPECT_GT(column.chemisorptionDot[adsorbateInlet], 0.0);
   const double poreLoadingConversion = column.geometry.loadingPrefactor(column.particleDensity);
@@ -705,7 +748,11 @@ TEST(ChemisorptionGeneral, InitializesSurfacePoreStateAndFilmSinkWhenEnabled)
   EXPECT_NEAR(column.bulkSpeciesSink[adsorbateInlet], 0.0, 1.0e-12);
 
   column.surfaceConcentration[adsorbateInlet] = 0.5 * column.concentration[adsorbateInlet];
-  RK3Helpers::computeBulkSpeciesSink(column);
+  computeBulkSpeciesSink(column.components, column.numberOfGridPoints, column.numberOfComponents,
+                         column.maxChemisorptionSites, column.geometry, column.particleDensity, column.concentration,
+                         column.physisorptionDot, column.chemisorptionDot, column.surfaceConcentration,
+                         column.bulkSpeciesSink, column.reactionPhysisorptionSource,
+                         column.reactionChemisorptionSource);
   EXPECT_GT(column.bulkSpeciesSink[adsorbateInlet], 0.0);
 }
 
@@ -794,7 +841,7 @@ TEST(ReactionsAdsorbed, AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax)
   column.physisorption[reactant] = 0.4;
   column.physisorption[product] = 0.0;
 
-  RK3Helpers::computeSorptionDerivatives(column);
+  computeDerivatives(column);
   EXPECT_LT(column.physisorptionDot[reactant], 0.0);
   EXPECT_GT(column.physisorptionDot[product], 0.0);
   EXPECT_NEAR(column.physisorptionDot[reactant], -column.physisorptionDot[product], 1.0e-12);
@@ -803,12 +850,11 @@ TEST(ReactionsAdsorbed, AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax)
   EXPECT_NEAR(column.bulkSpeciesSink[reactant], 0.0, 1.0e-12);
   EXPECT_NEAR(column.bulkSpeciesSink[product], 0.0, 1.0e-12);
 
-  RK3Helpers::computeEnergyDerivatives(column);
   EXPECT_NEAR(column.solidTemperatureDot[0], column.reactionHeat[0] / column.heatCapacitySolid, 1.0e-12);
   EXPECT_GT(column.solidTemperatureDot[0], 0.0);
 
   column.physisorption[product] = 1.0;
-  RK3Helpers::computeSorptionDerivatives(column);
+  computeDerivatives(column);
   EXPECT_NEAR(column.reactionPhysisorptionSource[reactant], 0.0, 1.0e-12);
   EXPECT_NEAR(column.reactionPhysisorptionSource[product], 0.0, 1.0e-12);
 }
@@ -827,7 +873,7 @@ TEST(ReactionsPore, LangmuirHinshelwoodRequiresAndUsesPoreConcentration)
   EXPECT_TRUE(column.surfacePoreTransportEnabled);
   EXPECT_EQ(column.poreConcentration.size(), column.concentration.size());
 
-  RK3Helpers::computeSorptionDerivatives(column);
+  computeDerivatives(column);
   const size_t reactant = 1U;
   const size_t product = 2U;
   EXPECT_LT(column.poreConcentrationDot[reactant], 0.0);
@@ -850,15 +896,15 @@ TEST(ReactionsAutoStop, RequiresLowReactionSourcesAndStablePhaseStates)
   const size_t reactant = 1U;
   const size_t product = 2U;
   column.physisorption[reactant] = 0.4;
-  RK3Helpers::computeSorptionDerivatives(column);
-  EXPECT_FALSE(RK3Helpers::reactionAutoStopReached(column, 0.01));
+  computeDerivatives(column);
+  EXPECT_FALSE(reactionAutoStopReached(column, 0.01));
 
   column.physisorption[product] = 1.0;
-  RK3Helpers::computeSorptionDerivatives(column);
-  EXPECT_TRUE(RK3Helpers::reactionAutoStopReached(column, 0.01));
+  computeDerivatives(column);
+  EXPECT_TRUE(reactionAutoStopReached(column, 0.01));
 
   column.physisorptionDot[reactant] = 1.0;
-  EXPECT_FALSE(RK3Helpers::reactionAutoStopReached(column, 0.01));
+  EXPECT_FALSE(reactionAutoStopReached(column, 0.01));
 }
 
 TEST(ReactionsAutoStop, RungeKuttaSchedulesAutoStopForStableReactionState)
@@ -1111,7 +1157,7 @@ TEST(ChemisorptionElovich, ParsesAndSubtractsMassFromBulk)
 
   Column column(reader);
   column.initialize();
-  RK3Helpers::computeSorptionDerivatives(column);
+  computeDerivatives(column);
 
   const size_t adsorbateInlet = 1U;
   EXPECT_NEAR(column.chemisorptionDot[adsorbateInlet], 0.25 * column.concentration[adsorbateInlet], 1.0e-12);
@@ -1140,7 +1186,7 @@ TEST(MultiSiteChemisorption, ParsesIndependentSitesAndSumsTheirBulkSink)
   EXPECT_EQ(column.chemisorption.size(), 2 * column.concentration.size());
   EXPECT_EQ(column.stateSize(), (4 * column.numberOfComponents + 3) * (column.numberOfGridPoints + 1));
 
-  RK3Helpers::computeSorptionDerivatives(column);
+  computeDerivatives(column);
 
   const size_t componentBlockSize = column.concentration.size();
   const size_t adsorbateInlet = 1U;
@@ -1176,7 +1222,7 @@ TEST(MultiSiteChemisorption, KeepsDirectAndPoreTransportSiteBalancesIndependent)
   ASSERT_EQ(column.poreConcentration.size(), 2 * componentBlockSize);
   EXPECT_EQ(column.stateSize(), (8 * column.numberOfComponents + 3) * (column.numberOfGridPoints + 1));
 
-  RK3Helpers::computeSorptionDerivatives(column);
+  computeDerivatives(column);
 
   EXPECT_GT(column.chemisorptionDot[adsorbateInlet], 0.0);
   EXPECT_GT(column.chemisorptionDot[secondSiteInlet], 0.0);
@@ -1191,7 +1237,11 @@ TEST(MultiSiteChemisorption, KeepsDirectAndPoreTransportSiteBalancesIndependent)
               1.0e-12);
 
   column.surfaceConcentration[secondSiteInlet] = 0.5 * column.concentration[adsorbateInlet];
-  RK3Helpers::computeBulkSpeciesSink(column);
+  computeBulkSpeciesSink(column.components, column.numberOfGridPoints, column.numberOfComponents,
+                         column.maxChemisorptionSites, column.geometry, column.particleDensity, column.concentration,
+                         column.physisorptionDot, column.chemisorptionDot, column.surfaceConcentration,
+                         column.bulkSpeciesSink, column.reactionPhysisorptionSource,
+                         column.reactionChemisorptionSource);
   EXPECT_GT(column.bulkSpeciesSink[adsorbateInlet],
             loadingPrefactor * (column.physisorptionDot[adsorbateInlet] + column.chemisorptionDot[adsorbateInlet]));
 

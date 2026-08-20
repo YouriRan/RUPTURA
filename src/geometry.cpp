@@ -134,7 +134,7 @@ Geometry makeGeometry(const PackedBedTubeSpec& specification)
                                : 0.0;
   const double wallArea = outerArea > fluidArea ? outerArea - fluidArea : 0.0;
 
-  Geometry geometry{GeometryKind::HollowTube, specification.voidFraction, solidToFluidVolumeRatio, {}, {}, {}};
+  Geometry geometry{GeometryKind::PackedBed, specification.voidFraction, solidToFluidVolumeRatio, {}, {}, {}};
   geometry.contactAreas.fluidSolidPerFluidVolume = solidToFluidVolumeRatio * solidAreaPerSolidVolume;
   geometry.contactAreas.solidFluidPerSolidVolume = solidAreaPerSolidVolume;
   geometry.contactAreas.fluidWallPerFluidVolume =
@@ -159,8 +159,11 @@ Geometry makeGeometry(const PackedBedTubeSpec& specification)
   geometry.dimensions.solidArea = wallArea;
 
   // Packed-bed pressure-drop coefficients.
-  geometry.pressureDrop.viscousCoefficient = 150.0 * solidToFluidVolumeRatio * solidToFluidVolumeRatio;
-  geometry.pressureDrop.inertialCoefficient = 1.75 * solidToFluidVolumeRatio;
+  geometry.pressureDrop.viscousCoefficient =
+      150.0 * solidToFluidVolumeRatio * solidToFluidVolumeRatio /
+      (specification.particleDiameter * specification.particleDiameter);
+  geometry.pressureDrop.inertialCoefficient =
+      1.75 * solidToFluidVolumeRatio / specification.particleDiameter;
   return geometry;
 }
 
@@ -173,6 +176,7 @@ Geometry makeGeometry(const MonolithSpec& specification)
     throw std::runtime_error("Error: Geometry NumberOfChannels must be positive");
   }
   requireNonNegative(specification.washcoatThickness, "WashcoatThickness");
+  requireNonNegative(specification.forchheimerCoefficient, "ForchheimerCoefficient");
   if (specification.washcoatVolumePerChannelVolume.has_value())
   {
     requireNonNegative(*specification.washcoatVolumePerChannelVolume, "WashcoatVolumePerChannelVolume");
@@ -228,6 +232,6 @@ Geometry makeGeometry(const MonolithSpec& specification)
   // Hydraulic-diameter laminar-channel approximation.
   geometry.pressureDrop.viscousCoefficient =
       32.0 / std::max(channel.hydraulicDiameter * channel.hydraulicDiameter, tinyLength);
-  geometry.pressureDrop.inertialCoefficient = 0.0;
+  geometry.pressureDrop.inertialCoefficient = specification.forchheimerCoefficient;
   return geometry;
 }

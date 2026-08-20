@@ -14,6 +14,8 @@
 #include <QUrl>
 #include <algorithm>
 
+#include "notebook_templates.h"
+
 #ifndef RUPTURA_CLI_EXECUTABLE
 #define RUPTURA_CLI_EXECUTABLE "ruptura"
 #endif
@@ -24,45 +26,30 @@
 
 namespace
 {
+bool ensureDefaultNotebook(const QString& notebookPath, const QJsonObject& simulation, const QString& runId,
+                           const QString& repoRoot, const QString& runDirectory, QString* errorMessage)
+{
+  try
+  {
+    const auto simulationType = RupturaNotebooks::simulationTypeFromName(
+        simulation.value("SimulationType").toString("Breakthrough").toStdString());
+    RupturaNotebooks::writeDefaultNotebook(notebookPath.toStdString(), simulationType, runId.toStdString(),
+                                           repoRoot.toStdString(), runDirectory.toStdString());
+    return true;
+  }
+  catch (const std::exception& exception)
+  {
+    if (errorMessage != nullptr)
+    {
+      *errorMessage = QString::fromStdString(exception.what());
+    }
+    return false;
+  }
+}
+
 QString isoDate(const QDateTime& value)
 {
   return value.isValid() ? value.toUTC().toString(Qt::ISODateWithMs) : QString{};
-}
-
-QJsonArray notebookSource(const QString& source)
-{
-  QJsonArray lines;
-  const QStringList split = source.split('\n');
-  for (qsizetype i = 0; i < split.size(); ++i)
-  {
-    QString line = split.at(i);
-    if (i + 1 < split.size())
-    {
-      line += '\n';
-    }
-    lines.append(line);
-  }
-  return lines;
-}
-
-QJsonObject markdownCell(const QString& source)
-{
-  return QJsonObject{
-      {"cell_type", "markdown"},
-      {"metadata", QJsonObject{}},
-      {"source", notebookSource(source)},
-  };
-}
-
-QJsonObject codeCell(const QString& source)
-{
-  return QJsonObject{
-      {"cell_type", "code"},
-      {"execution_count", QJsonValue(QJsonValue::Null)},
-      {"metadata", QJsonObject{}},
-      {"outputs", QJsonArray{}},
-      {"source", notebookSource(source)},
-  };
 }
 
 QJsonObject runRecordJson(const RupturaRunner::RunRecord& record)
@@ -174,6 +161,11 @@ bool RupturaRunner::startRun(const QJsonObject& simulation, QString* errorMessag
   }
   simulationFile.write(QJsonDocument(simulation).toJson(QJsonDocument::Indented));
   simulationFile.close();
+
+  if (!ensureDefaultNotebook(record.notebookPath, simulation, record.id, repoRoot_, record.directory, errorMessage))
+  {
+    return false;
+  }
 
   QFile logFile(record.logPath);
   if (logFile.open(QIODevice::WriteOnly | QIODevice::Truncate))
@@ -323,10 +315,29 @@ bool RupturaRunner::openAnalysis(const QString& runId, QString* errorMessage)
   }
 
   RunRecord& record = runs_[runId];
-  if (!writeAnalysisNotebook(record, errorMessage))
+  if (!QFile::exists(record.notebookPath))
   {
-    emitRecord(record);
-    return false;
+    QFile simulationFile(record.simulationPath);
+    if (!simulationFile.open(QIODevice::ReadOnly))
+    {
+      if (errorMessage != nullptr)
+      {
+        *errorMessage = "The analysis notebook is missing and simulation.json could not be read.";
+      }
+      return false;
+    }
+
+    const QJsonDocument simulationDocument = QJsonDocument::fromJson(simulationFile.readAll());
+    if (!simulationDocument.isObject() || !ensureDefaultNotebook(record.notebookPath, simulationDocument.object(),
+                                                                 record.id, repoRoot_, record.directory, errorMessage))
+    {
+      if (errorMessage != nullptr && errorMessage->isEmpty())
+      {
+        *errorMessage = "The analysis notebook is missing and simulation.json is invalid.";
+      }
+      emitRecord(record);
+      return false;
+    }
   }
 
   const QString url = startJupyter(record, errorMessage);
@@ -347,95 +358,6 @@ QString RupturaRunner::logTail(const RunRecord& record, qint64 maxBytes) const
     file.seek(file.size() - maxBytes);
   }
   return QString::fromUtf8(file.readAll());
-}
-
-bool RupturaRunner::writeAnalysisNotebook(RunRecord& record, QString* errorMessage)
-{
-  const QString escapedRepo = QString(repoRoot_).replace('\\', "\\\\").replace('\'', "\\'");
-  const QString escapedRun = QString(record.directory).replace('\\', "\\\\").replace('\'', "\\'");
-
-  QJsonArray cells;
-  cells.append(markdownCell(QString("# Ruptura analysis\n\nSimulation `%1`").arg(record.id)));
-  cells.append(codeCell(QString("from pathlib import Path\n"
-                                "import json\n"
-                                "import sys\n\n"
-                                "repo_root = Path(r'%1').resolve()\n"
-                                "run_dir = Path(r'%2').resolve()\n"
-                                "if str(repo_root) not in sys.path:\n"
-                                "    sys.path.insert(0, str(repo_root))\n\n"
-                                "simulation_json = run_dir / 'simulation.json'\n"
-                                "data_dir = run_dir\n\n"
-                                "import ruptura\n"
-                                "from IPython.display import display\n\n"
-                                "simulation_config = json.loads(simulation_json.read_text())\n"
-                                "simulation_type = simulation_config.get('SimulationType', 'Breakthrough')\n"
-                                "simulation_type\n")
-                            .arg(escapedRepo, escapedRun)));
-  cells.append(
-      codeCell("if simulation_type == 'MixturePrediction':\n"
-               "    from ruptura.plot_mixture import MixturePredictionPlotly\n"
-               "    plotter = MixturePredictionPlotly.from_simulation_json(simulation_json, data_dir=data_dir)\n"
-               "    display(plotter.pure_components(include_carrier_gas=False))\n"
-               "    display(plotter.mixture_loading(include_carrier_gas=False))\n"
-               "    display(plotter.mixture_adsorbed_molfractions(include_carrier_gas=False))\n"
-               "else:\n"
-               "    from ruptura.plot_breakthrough import BreakthroughPlotly\n"
-               "    plotter = BreakthroughPlotly.from_simulation_json(simulation_json, data_dir=data_dir)\n"
-               "    display(plotter.breakthrough(\n"
-               "        x_units='min',\n"
-               "        y_units='normalized concentration',\n"
-               "        include_carrier_gas=False,\n"
-               "        show_markers=True,\n"
-               "    ))\n"));
-  cells.append(
-      codeCell("if simulation_type in ('Breakthrough', 'SwingAdsorption'):\n"
-               "    try:\n"
-               "        display(plotter.temperature_triplet_time(x_units='min', y_units='kelvin', show_markers=True))\n"
-               "    except Exception as exc:\n"
-               "        print(f'Temperature plot unavailable: {exc}')\n"
-               "else:\n"
-               "    print('Temperature widgets are specific to column runs.')\n"));
-  cells.append(
-      codeCell("if simulation_type in ('Breakthrough', 'SwingAdsorption'):\n"
-               "    explorer = plotter.explorer()\n"
-               "    explorer.display()\n"
-               "else:\n"
-               "    print('Mixture prediction figures are loaded above.')\n"));
-  cells.append(codeCell(
-      "if simulation_type == 'SwingAdsorption':\n"
-      "    print('Swing adsorption writes file output for plotting; in-memory compute is not available yet.')\n"
-      "else:\n"
-      "    try:\n"
-      "        result = ruptura.run(simulation_json)\n"
-      "        print(result.kind, result.shape)\n"
-      "    except Exception as exc:\n"
-      "        print(f'In-memory ruptura compute unavailable: {exc}')\n"));
-
-  const QJsonObject metadata{
-      {"kernelspec", QJsonObject{{"display_name", "Python 3"}, {"language", "python"}, {"name", "python3"}}},
-      {"language_info", QJsonObject{{"name", "python"}, {"pygments_lexer", "ipython3"}}},
-  };
-  const QJsonObject notebook{
-      {"cells", cells},
-      {"metadata", metadata},
-      {"nbformat", 4},
-      {"nbformat_minor", 5},
-  };
-
-  QFile file(record.notebookPath);
-  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-  {
-    if (errorMessage != nullptr)
-    {
-      *errorMessage = "Could not write the analysis notebook.";
-    }
-    return false;
-  }
-  file.write(QJsonDocument(notebook).toJson(QJsonDocument::Indented));
-  file.close();
-
-  writeManifest(record);
-  return true;
 }
 
 QString RupturaRunner::startJupyter(const RunRecord& record, QString* errorMessage)

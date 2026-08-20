@@ -5,37 +5,12 @@
 
 struct MultibedColumn;
 
-namespace RK3Helpers
-{
-void updateVelocityAndPressure(Column& column);
-void computeEquilibriumLoadings(Column& column);
 void computeDerivatives(Column& column);
-void computeSorptionDerivatives(Column& column);
-void computePhysisorption(Column& column);
-void computeChemisorption(Column& column);
-void computeChemisorptionTransportDerivatives(Column& column);
-void computeBulkSpeciesSink(Column& column);
-void computeReactionDerivatives(Column& column);
-void computeMassDerivatives(Column& column);
-void computeEnergyDerivatives(Column& column);
-bool reactionAutoStopReached(const Column& column, double timeStep) noexcept;
-}  // namespace RK3Helpers
-
-namespace RK3MultibedHelpers
-{
-void updateVelocityAndPressure(MultibedColumn& column);
-void computeEquilibriumLoadings(MultibedColumn& column);
 void computeDerivatives(MultibedColumn& column);
-void computeSorptionDerivatives(MultibedColumn& column);
-void computePhysisorption(MultibedColumn& column);
-void computeChemisorption(MultibedColumn& column);
-void computeChemisorptionTransportDerivatives(MultibedColumn& column);
-void computeBulkSpeciesSink(MultibedColumn& column);
-void computeReactionDerivatives(MultibedColumn& column);
-void computeMassDerivatives(MultibedColumn& column);
-void computeEnergyDerivatives(MultibedColumn& column);
+void precompute(Column& column, Timing& timings);
+void precompute(MultibedColumn& column, Timing& timings);
+bool reactionAutoStopReached(const Column& column, double timeStep) noexcept;
 bool reactionAutoStopReached(const MultibedColumn& column, double timeStep) noexcept;
-}  // namespace RK3MultibedHelpers
 
 /**
  * \brief Third-order strong-stability-preserving Runge-Kutta integrator.
@@ -65,10 +40,9 @@ struct RungeKutta3
   /**
    * \brief Advances the column by one RK3 step.
    */
-  bool propagate(Column& column, size_t step, Timing& timings);
-
-  /**
-   * \brief Advances a multibed column by one RK3 step.
-   */
-  bool propagate(MultibedColumn& column, size_t step, Timing& timings);
+  template <typename ColumnType>
+  bool propagate(ColumnType& column, size_t step, Timing& timings);
 };
+
+extern template bool RungeKutta3::propagate(Column& column, size_t step, Timing& timings);
+extern template bool RungeKutta3::propagate(MultibedColumn& column, size_t step, Timing& timings);

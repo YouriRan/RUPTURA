@@ -48,6 +48,8 @@ struct Component
   std::string filename{};                                    ///< Filename associated with the component data.
   MultiSiteIsotherm isotherm;                                ///< Isotherm information for the component.
   double initialGasMoleFraction{0.0};                        ///< Gas-phase mole fraction [-].
+  double inletLiquidConcentration{0.0};                      ///< Liquid feed concentration in mol/m^3.
+  double initialLiquidConcentration{0.0};                    ///< Initial column liquid concentration in mol/m^3.
   double massTransferCoefficient{0.0};                       ///< Mass transfer coefficient in 1/s.
   double axialDispersionCoefficient{0.0};                    ///< Axial dispersion coefficient in m^2/s.
   double heatOfAdsorption{0.0};                              ///< Heat of adsorption in J/mol.

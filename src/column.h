@@ -111,6 +111,19 @@ struct Column
     FixedPressureInletVelocity = 4    ///< Boundary data: fixed pressure profile and v_in.
   };
 
+  enum class FluidPhase
+  {
+    Gas = 0,
+    Liquid = 1
+  };
+
+  enum class PHMode
+  {
+    Fixed = 0,
+    HPlus = 1,
+    OHMinus = 2
+  };
+
   /**
    * \brief Constructs a column from explicit model/configuration arguments.
    *
@@ -125,7 +138,9 @@ struct Column
          double outerDiameter, double wallDensity, double gasThermalConductivity, double wallThermalConductivity,
          double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
          double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
-         std::vector<Reaction> reactions = {})
+         std::vector<Reaction> reactions = {}, FluidPhase fluidPhase = FluidPhase::Gas,
+         double liquidDensity = 1000.0, PHMode pHMode = PHMode::Fixed, double pHValue = 7.0,
+         double pKw = 14.0, size_t pHComponent = 0)
       : Column(std::move(physisorptionMixture), std::move(components), boundaryCondition, energyBalance,
                numberOfGridPoints, maxIsothermTerms, carrierGasComponent, temperature, inletPressure,
                outletPressure, pressureGradient, columnVoidFraction, particleDensity, columnEntranceVelocity,
@@ -137,7 +152,7 @@ struct Column
                                               .particleDiameter = particleDiameter,
                                               .internalDiameter = internalDiameter,
                                               .outerDiameter = outerDiameter}),
-               std::move(reactions))
+               std::move(reactions), fluidPhase, liquidDensity, pHMode, pHValue, pKw, pHComponent)
   {
   }
 
@@ -150,10 +165,14 @@ struct Column
          double outerDiameter, double wallDensity, double gasThermalConductivity, double wallThermalConductivity,
          double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
          double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall, Geometry geometry,
-         std::vector<Reaction> reactions = {})
+         std::vector<Reaction> reactions = {}, FluidPhase fluidPhase = FluidPhase::Gas,
+         double liquidDensity = 1000.0, PHMode pHMode = PHMode::Fixed, double pHValue = 7.0,
+         double pKw = 14.0, size_t pHComponent = 0)
       : physisorptionMixture(std::move(physisorptionMixture)),
         components(std::move(components)),
         boundaryCondition(boundaryCondition),
+        fluidPhase(fluidPhase),
+        pHMode(pHMode),
         energyBalance(energyBalance),
         geometry(std::move(geometry)),
         reactions(std::move(reactions)),
@@ -163,6 +182,7 @@ struct Column
         maxChemisorptionSites(maximumChemisorptionSites(this->components)),
         numberOfCalls(0),
         carrierGasComponent(carrierGasComponent),
+        pHComponent(pHComponent),
         externalTemperature(temperature),
         inletPressure(inletPressure),
         outletPressure(outletPressure),
@@ -173,6 +193,9 @@ struct Column
         columnLength(columnLength),
         dynamicViscosity(dynamicViscosity),
         particleDiameter(particleDiameter),
+        liquidDensity(liquidDensity),
+        pHValue(pHValue),
+        pKw(pKw),
         influxTemperature(influxTemperature),
         internalDiameter(internalDiameter),
         outerDiameter(outerDiameter),
@@ -197,6 +220,7 @@ struct Column
         gasDensity(this->numberOfGridPoints + 1),
         totalConcentration(this->numberOfGridPoints + 1),
         totalPressure(this->numberOfGridPoints + 1),
+        pH(this->numberOfGridPoints + 1, pHValue),
         moleFraction((this->numberOfGridPoints + 1) * this->numberOfComponents),
         partialPressure((this->numberOfGridPoints + 1) * this->numberOfComponents),
         equilibriumPhysisorption((this->numberOfGridPoints + 1) * this->numberOfComponents),
@@ -246,11 +270,18 @@ struct Column
                inputReader.particleDensity, inputReader.columnEntranceVelocity, inputReader.columnLength,
                inputReader.dynamicViscosity, inputReader.particleDiameter, inputReader.influxTemperature,
                inputReader.internalDiameter, inputReader.outerDiameter, inputReader.wallDensity,
-               inputReader.gasThermalConductivity, inputReader.wallThermalConductivity,
-               inputReader.heatTransferGasSolid, inputReader.heatTransferGasWall,
-               inputReader.heatTransferWallExternal, inputReader.heatCapacityGas,
+               inputReader.fluidPhase == 1 ? inputReader.liquidThermalConductivity
+                                           : inputReader.gasThermalConductivity,
+               inputReader.wallThermalConductivity,
+               inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidSolid
+                                           : inputReader.heatTransferGasSolid,
+               inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidWall
+                                           : inputReader.heatTransferGasWall,
+               inputReader.heatTransferWallExternal,
+               inputReader.fluidPhase == 1 ? inputReader.heatCapacityLiquid : inputReader.heatCapacityGas,
                inputReader.heatCapacitySolid, inputReader.heatCapacityWall, inputReader.geometry,
-               inputReader.reactions)
+               inputReader.reactions, FluidPhase(inputReader.fluidPhase), inputReader.liquidDensity,
+               PHMode(inputReader.pHMode), inputReader.pHValue, inputReader.pKw, inputReader.pHComponent)
   {
   }
   /**
@@ -268,6 +299,8 @@ struct Column
   MixturePrediction chemisorptionMixture;  ///< Multisite competitive chemisorption equilibrium model.
   std::vector<Component> components;    ///< Component definitions and isotherm parameters; size numberOfComponents.
   BoundaryCondition boundaryCondition;  ///< Selected breakthrough boundary-condition pair.
+  FluidPhase fluidPhase;                ///< Gas or liquid mobile phase.
+  PHMode pHMode;                        ///< Fixed or transported pH representation.
   bool energyBalance;                   ///< Enables gas/solid/wall temperature dynamics when true.
   Geometry geometry;                    ///< Column/tube/monolith geometry and precomputed shape terms.
   std::vector<Reaction> reactions;      ///< Optional reactions coupled to adsorbed or pore-phase variables.
@@ -279,18 +312,22 @@ struct Column
   size_t maxChemisorptionSites;  ///< Maximum number of chemisorption sites across all components.
   size_t numberOfCalls;        ///< Counter for model/evaluation calls.
   size_t carrierGasComponent;  ///< Index of the carrier-gas component.
+  size_t pHComponent;          ///< Component used to derive transported pH.
 
   // Column operating conditions and geometry.
   double externalTemperature;     ///< External/reference gas temperature, T, in K.
   double inletPressure;           ///< Inlet pressure, P_in, in Pa.
   double outletPressure;          ///< Outlet pressure, P_out, in Pa.
-  double pressureGradient;        ///< Input pressure-gradient parameter in Pa/m.
+  double pressureGradient;        ///< Signed axial pressure gradient dP/dz in Pa/m.
   double voidFraction;            ///< Packed-bed void fraction, epsilon.
   double particleDensity;         ///< Particle density in kg/m^3.
   double columnEntranceVelocity;  ///< Inlet/interstitial velocity, v_in, in m/s.
   double columnLength;            ///< Column length, L, in m.
   double dynamicViscosity;        ///< Gas dynamic viscosity used in Ergun calculations in Pa s.
   double particleDiameter;        ///< Particle diameter used in Ergun calculations in m.
+  double liquidDensity;           ///< Constant liquid density in kg/m^3.
+  double pHValue;                 ///< Fixed pH value when pHMode is Fixed.
+  double pKw;                     ///< Water ion-product exponent used for OH- transport.
 
   // Energy-balance parameters.
   double influxTemperature;         ///< Feed/influx gas temperature in K.
@@ -324,6 +361,7 @@ struct Column
   std::vector<double> gasDensity;               ///< Gas density at each grid node in kg/m^3.
   std::vector<double> totalConcentration;       ///< Total gas concentration at each grid node in mol/m^3.
   std::vector<double> totalPressure;            ///< Total pressure at each grid node in Pa.
+  std::vector<double> pH;                       ///< Local liquid pH; fixed at 7 for gas simulations.
 
   // Size (numberOfGridPoints + 1) * numberOfComponents. Grid-major index: grid * numberOfComponents + comp.
   std::vector<double> moleFraction;          ///< Derived gas-phase mole fraction y_i.

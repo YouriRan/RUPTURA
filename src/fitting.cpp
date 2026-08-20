@@ -90,6 +90,8 @@ std::string isothermTypeName(Isotherm::Type type)
   {
     case Isotherm::Type::Langmuir:
       return "Langmuir";
+    case Isotherm::Type::Langmuir_pH:
+      return "pH-Langmuir";
     case Isotherm::Type::Anti_Langmuir:
       return "Anti-Langmuir";
     case Isotherm::Type::BET:

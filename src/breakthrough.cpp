@@ -14,9 +14,14 @@ namespace
 {
 void validateMultibedInput(const InputReader& inputReader)
 {
-  if (inputReader.adsorbentComponents.size() < 2)
+  if (inputReader.adsorbentComponents.empty())
   {
-    throw std::runtime_error("Error: MultibedColumn requires at least two adsorbents");
+    throw std::runtime_error("Error: MultibedColumn requires at least one adsorbent");
+  }
+  if (inputReader.adsorbentComponents.size() == 1 && !inputReader.debugForceMultibed)
+  {
+    throw std::runtime_error(
+        "Error: MultibedColumn requires at least two adsorbents unless DebugForceMultibed is enabled");
   }
   if (inputReader.breakthroughIntegrator == 2)
   {

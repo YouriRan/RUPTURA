@@ -11,6 +11,7 @@
 #include "compute.h"
 #include "rk3.h"
 #include "sorption.h"
+#include "transport.h"
 #include "utils.h"
 
 extern "C"
@@ -38,7 +39,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
   if (column.surfacePoreTransportEnabled)
   {
     throw std::runtime_error(
-        "SemiImplicitRungeKutta3 does not support General chemisorption with surface-pore transport; use RungeKutta3 or CVODE");
+        "SemiImplicitRungeKutta3 does not support General chemisorption with surface-pore transport; use RungeKutta3 "
+        "or CVODE");
   }
 
   size_t numberOfGridPoints = column.numberOfGridPoints;
@@ -46,6 +48,51 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
   Column newColumn(column);
 
   std::vector<double> solved(column.concentration.size());
+
+  auto finalizeStage = [&](Column& stage)
+  {
+    timings.measure(timings.updateVelocityAndPressure,
+                    [&]
+                    {
+                      computeBulkSpeciesSink(stage.components, stage.numberOfGridPoints, stage.numberOfComponents,
+                                             stage.maxChemisorptionSites, stage.geometry, stage.particleDensity,
+                                             stage.concentration, stage.physisorptionDot, stage.chemisorptionDot,
+                                             stage.surfaceConcentration, stage.bulkSpeciesSink,
+                                             stage.reactionPhysisorptionSource, stage.reactionChemisorptionSource);
+                      updateVelocityAndPressure(
+                          stage.components, stage.boundaryCondition, stage.numberOfGridPoints, stage.numberOfComponents,
+                          stage.inletPressure, stage.outletPressure, stage.pressureGradient, stage.columnLength,
+                          stage.geometry, stage.columnEntranceVelocity, stage.dynamicViscosity, stage.resolution,
+                          stage.interstitialGasVelocity, stage.gasDensity, stage.totalConcentration,
+                          stage.totalPressure, stage.concentration, stage.partialPressure, stage.moleFraction,
+                          stage.bulkSpeciesSink, stage.gasTemperature, stage.fluidPhase, stage.liquidDensity,
+                          stage.pHMode, stage.pHValue, stage.pKw, stage.pHComponent, stage.pH);
+                    });
+    timings.measure(timings.computeEquilibriumLoadings,
+                    [&]
+                    {
+                      computePhysisorptionEquilibriumLoadings(
+                          stage.physisorptionMixture, stage.numberOfGridPoints, stage.numberOfComponents,
+                          stage.maxIsothermTerms, stage.iastPerformance, stage.idealGasMolFractions,
+                          stage.adsorbedMolFractions, stage.numberOfMolecules, stage.totalPressure,
+                          stage.equilibriumPhysisorption, stage.cachedPressure, stage.cachedGrandPotential,
+                          stage.moleFraction, stage.gasTemperature,
+                          stage.fluidPhase == Column::FluidPhase::Gas
+                              ? MixturePrediction::DrivingForceInput::MoleFraction
+                              : MixturePrediction::DrivingForceInput::Concentration,
+                          stage.concentration, stage.pH);
+                      computeChemisorptionEquilibriumLoadings(
+                          stage.chemisorptionMixture, stage.numberOfGridPoints, stage.numberOfComponents,
+                          stage.maxChemisorptionSites, stage.iastPerformance, stage.idealGasMolFractions,
+                          stage.adsorbedMolFractions, stage.numberOfMolecules, stage.totalPressure,
+                          stage.equilibriumChemisorption, stage.cachedChemisorptionPressure,
+                          stage.cachedChemisorptionGrandPotential, stage.moleFraction, stage.gasTemperature,
+                          stage.fluidPhase == Column::FluidPhase::Gas
+                              ? MixturePrediction::DrivingForceInput::MoleFraction
+                              : MixturePrediction::DrivingForceInput::Concentration,
+                          stage.concentration, stage.pH);
+                    });
+  };
 
   std::vector<double> implicitInvKLs(numberOfComponents);
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
@@ -58,11 +105,14 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double tolerance = 0.0;
     for (size_t j = 0; j < numberOfComponents; ++j)
     {
-      if (column.components[j].initialGasMoleFraction <= 0.0) continue;
+      const bool gasPhase = column.fluidPhase == Column::FluidPhase::Gas;
+      const double feed = gasPhase ? column.components[j].initialGasMoleFraction
+                                   : column.components[j].inletLiquidConcentration;
+      if (feed <= 0.0) continue;
 
       const size_t outlet = numberOfGridPoints * numberOfComponents + j;
-      const double feed = column.components[j].initialGasMoleFraction;
-      tolerance = std::max(tolerance, std::abs((column.moleFraction[outlet] / feed) - 1.0));
+      const double outletValue = gasPhase ? column.moleFraction[outlet] : column.concentration[outlet];
+      tolerance = std::max(tolerance, std::abs((outletValue / feed) - 1.0));
     }
 
     if (tolerance < 0.01)
@@ -87,7 +137,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      RK3Helpers::computeSorptionDerivatives(newColumn);
+                      computeDerivatives(newColumn);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -96,7 +146,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      RK3Helpers::computeSorptionDerivatives(newColumn);
+                      computeDerivatives(newColumn);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -106,10 +156,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     newColumn.concentration[i] = solved[i];
   }
 
-  timings.measure(timings.updateVelocityAndPressure,
-                  [&] { RK3Helpers::updateVelocityAndPressure(newColumn); });
-  timings.measure(timings.computeEquilibriumLoadings,
-                  [&] { RK3Helpers::computeEquilibriumLoadings(newColumn); });
+  finalizeStage(newColumn);
 
   // SSP-RK Step 2
   for (size_t i = 0; i < column.physisorption.size(); ++i)
@@ -118,7 +165,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double kl = column.components[comp].massTransferCoefficient;
     newColumn.physisorption[i] =
         0.75 * column.physisorption[i] +
-        0.25 * (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumPhysisorption[i]) * implicitInvKLs[comp];
+        0.25 * (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumPhysisorption[i]) *
+            implicitInvKLs[comp];
   }
 
   if (newColumn.energyBalance)
@@ -126,7 +174,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      RK3Helpers::computeSorptionDerivatives(newColumn);
+                      computeDerivatives(newColumn);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -135,7 +183,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      RK3Helpers::computeSorptionDerivatives(newColumn);
+                      computeDerivatives(newColumn);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -145,20 +193,17 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     newColumn.concentration[i] = 0.75 * column.concentration[i] + 0.25 * solved[i];
   }
 
-  timings.measure(timings.updateVelocityAndPressure,
-                  [&] { RK3Helpers::updateVelocityAndPressure(newColumn); });
-  timings.measure(timings.computeEquilibriumLoadings,
-                  [&] { RK3Helpers::computeEquilibriumLoadings(newColumn); });
+  finalizeStage(newColumn);
 
   // SSP-RK Step 3
   for (size_t i = 0; i < column.physisorption.size(); ++i)
   {
     size_t comp = i % numberOfComponents;
     double kl = column.components[comp].massTransferCoefficient;
-    newColumn.physisorption[i] = (1.0 / 3.0) * column.physisorption[i] +
-                              (2.0 / 3.0) *
-                                  (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumPhysisorption[i]) *
-                                  implicitInvKLs[comp];
+    newColumn.physisorption[i] =
+        (1.0 / 3.0) * column.physisorption[i] +
+        (2.0 / 3.0) * (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumPhysisorption[i]) *
+            implicitInvKLs[comp];
   }
 
   if (newColumn.energyBalance)
@@ -166,7 +211,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      RK3Helpers::computeSorptionDerivatives(newColumn);
+                      computeDerivatives(newColumn);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -175,7 +220,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      RK3Helpers::computeSorptionDerivatives(newColumn);
+                      computeDerivatives(newColumn);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -185,10 +230,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     newColumn.concentration[i] = (1.0 / 3.0) * column.concentration[i] + (2.0 / 3.0) * solved[i];
   }
 
-  timings.measure(timings.updateVelocityAndPressure,
-                  [&] { RK3Helpers::updateVelocityAndPressure(newColumn); });
-  timings.measure(timings.computeEquilibriumLoadings,
-                  [&] { RK3Helpers::computeEquilibriumLoadings(newColumn); });
+  finalizeStage(newColumn);
 
   // final implicit physisorption update
   for (size_t i = 0; i < column.physisorption.size(); ++i)
@@ -206,7 +248,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      RK3Helpers::computeSorptionDerivatives(newColumn);
+                      computeDerivatives(newColumn);
                       computeConcentrationUpdateMatrixEnergyBalanceFinal(newColumn, timeStep, solved);
                     });
   }
@@ -215,7 +257,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      RK3Helpers::computeSorptionDerivatives(newColumn);
+                      computeDerivatives(newColumn);
                       computeConcentrationUpdateMatrixFinal(newColumn, timeStep, solved);
                     });
   }
@@ -224,11 +266,9 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
   {
     newColumn.concentration[i] = solved[i];
   }
+  clampNonnegative(newColumn.state);
 
-  timings.measure(timings.updateVelocityAndPressure,
-                  [&] { RK3Helpers::updateVelocityAndPressure(newColumn); });
-  timings.measure(timings.computeEquilibriumLoadings,
-                  [&] { RK3Helpers::computeEquilibriumLoadings(newColumn); });
+  finalizeStage(newColumn);
 
   column = newColumn;
   return (!autoNumberOfSteps && step >= numberOfSteps - 1);
@@ -263,8 +303,8 @@ void computeConcentrationUpdateMatrix(Column& column, double timeStep, std::vect
     {
       const double lowerOp = i == 0 ? 0.0 : column.interstitialGasVelocity[i] * idx + axialDispersionCoefficient * idx2;
       const double upperOp = (i > 0 && i < numberOfGridPoints) ? axialDispersionCoefficient * idx2 : 0.0;
-      const double diagOp =
-          -column.interstitialGasVelocity[i] * idx - axialDispersionCoefficient * (i < numberOfGridPoints ? 2.0 : 1.0) * idx2;
+      const double diagOp = -column.interstitialGasVelocity[i] * idx -
+                            axialDispersionCoefficient * (i < numberOfGridPoints ? 2.0 : 1.0) * idx2;
       const double adsorptionSource = -adsorptionPrefactor * sorptionDotAt(column, i * numberOfComponents + comp);
       diag[i] = 1.0 - timeStep * diagOp;
       rhs[i] = column.concentration[i * numberOfComponents + comp] + timeStep * adsorptionSource;
@@ -333,17 +373,15 @@ void computeConcentrationUpdateMatrixEnergyBalance(Column& column, double timeSt
     }
 
     {
-      double lowerOp =
-          column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * idx2;
-      double diagOp =
-          -column.interstitialGasVelocity[numberOfGridPoints] * idx - axialDispersionCoefficient * idx2;
+      double lowerOp = column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * idx2;
+      double diagOp = -column.interstitialGasVelocity[numberOfGridPoints] * idx - axialDispersionCoefficient * idx2;
       double adsorptionSource =
           -adsorptionPrefactor * sorptionDotAt(column, numberOfGridPoints * numberOfComponents + comp);
 
       lower[numberOfGridPoints - 1] = -timeStep * lowerOp;
       diag[numberOfGridPoints] = 1.0 - timeStep * diagOp;
-      rhs[numberOfGridPoints] = column.concentration[numberOfGridPoints * numberOfComponents + comp] +
-                                timeStep * adsorptionSource;
+      rhs[numberOfGridPoints] =
+          column.concentration[numberOfGridPoints * numberOfComponents + comp] + timeStep * adsorptionSource;
     }
 
     diag[0] = 1.0;
@@ -415,10 +453,10 @@ void computeConcentrationUpdateMatrixFinal(Column& column, double timeStep, std:
     }
 
     {
-      lower[numberOfGridPoints - 1] = column.interstitialGasVelocity[numberOfGridPoints] * idx +
-                                      axialDispersionCoefficient * idx2;
-      diag[numberOfGridPoints] = -column.interstitialGasVelocity[numberOfGridPoints] * idx +
-                                 -axialDispersionCoefficient * idx2;
+      lower[numberOfGridPoints - 1] =
+          column.interstitialGasVelocity[numberOfGridPoints] * idx + axialDispersionCoefficient * idx2;
+      diag[numberOfGridPoints] =
+          -column.interstitialGasVelocity[numberOfGridPoints] * idx + -axialDispersionCoefficient * idx2;
       preRHS[numberOfGridPoints] =
           -adsorptionPrefactor * sorptionDotAt(column, numberOfGridPoints * numberOfComponents + comp);
     }

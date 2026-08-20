@@ -1410,7 +1410,10 @@ void MainWindow::rebuildColumnEditor()
                  refreshColumnList();
                  refreshSimulationList();
                });
-  addComboField(form, "Column mode", column.mode, {{"Single packed bed", "single"}, {"Multi-bed column", "multibed"}},
+  addComboField(form, "Column mode", column.mode,
+                {{"Single packed bed", "single"},
+                 {"Multi-bed column", "multibed"},
+                 {"Uniform adsorbent mix", "mixed"}},
                 [this](const QString& value)
                 {
                   columns_[selectedColumnIndex_].mode = value;
@@ -1433,7 +1436,7 @@ void MainWindow::rebuildColumnEditor()
                  [this](double value) { columns_[selectedColumnIndex_].particleDensity = value; });
   addNumberField(form, "Particle diameter [m]", column.particleDiameter,
                  [this](double value) { columns_[selectedColumnIndex_].particleDiameter = value; });
-  if (column.mode == "single")
+  if (column.mode != "multibed")
   {
     addNumberField(form, "Column length [m]", column.length,
                    [this](double value) { columns_[selectedColumnIndex_].length = value; });
@@ -1455,7 +1458,7 @@ void MainWindow::rebuildColumnEditor()
 
   auto* geometry = new QGroupBox("Geometry");
   auto* geometryForm = new QFormLayout(geometry);
-  addComboField(geometryForm, "Type", column.geometryType, {{"Hollow tube", "HollowTube"}, {"Monolith", "Monolith"}},
+  addComboField(geometryForm, "Type", column.geometryType, {{"Packed bed", "PackedBed"}, {"Monolith", "Monolith"}},
                 [this](const QString& value)
                 {
                   columns_[selectedColumnIndex_].geometryType = value;
@@ -1516,7 +1519,7 @@ void MainWindow::rebuildColumnEditor()
     columnEditorLayout_->addWidget(thermal);
   }
 
-  if (column.mode == "multibed")
+  if (column.mode != "single")
   {
     auto* bedsGroup = new QGroupBox("Beds");
     auto* bedsLayout = new QVBoxLayout(bedsGroup);
@@ -1533,15 +1536,24 @@ void MainWindow::rebuildColumnEditor()
                      columns_[selectedColumnIndex_].beds[bedIndex].name = value;
                      refreshColumnList();
                    });
-      addNumberField(bedForm, "Length [m]", bed.length,
-                     [this, bedIndex](double value) { columns_[selectedColumnIndex_].beds[bedIndex].length = value; });
+      if (column.mode == "mixed")
+      {
+        addNumberField(bedForm, "Mix fraction [-]", bed.mixFraction, [this, bedIndex](double value)
+                       { columns_[selectedColumnIndex_].beds[bedIndex].mixFraction = value; });
+      }
+      else
+      {
+        addNumberField(bedForm, "Length [m]", bed.length,
+                       [this, bedIndex](double value)
+                       { columns_[selectedColumnIndex_].beds[bedIndex].length = value; });
+      }
       addNumberField(bedForm, "Void fraction [-]", bed.voidFraction, [this, bedIndex](double value)
                      { columns_[selectedColumnIndex_].beds[bedIndex].voidFraction = value; });
       addNumberField(bedForm, "Particle density [kg/m3]", bed.particleDensity, [this, bedIndex](double value)
                      { columns_[selectedColumnIndex_].beds[bedIndex].particleDensity = value; });
       addNumberField(bedForm, "Particle diameter [m]", bed.particleDiameter, [this, bedIndex](double value)
                      { columns_[selectedColumnIndex_].beds[bedIndex].particleDiameter = value; });
-      if (bedIndex + 1 < column.beds.size())
+      if (column.mode == "multibed" && bedIndex + 1 < column.beds.size())
       {
         addNumberField(bedForm, "Interface length after [m]", bed.interfaceLengthAfter, [this, bedIndex](double value)
                        { columns_[selectedColumnIndex_].beds[bedIndex].interfaceLengthAfter = value; });
@@ -2591,7 +2603,7 @@ void MainWindow::applyColumnToBreakthrough(QJsonObject& simulationJson, const Co
   }
   else
   {
-    geometry.insert("Type", "HollowTube");
+    geometry.insert("Type", "PackedBed");
     geometry.insert("ColumnVoidFraction", column.voidFraction);
     geometry.insert("ParticleDiameter", column.particleDiameter);
     geometry.insert("InternalDiameter", column.internalDiameter);
@@ -2599,7 +2611,7 @@ void MainWindow::applyColumnToBreakthrough(QJsonObject& simulationJson, const Co
   }
   simulationJson.insert("Geometry", geometry);
 
-  if (column.mode == "multibed" && column.beds.size() > 1)
+  if ((column.mode == "multibed" || column.mode == "mixed") && column.beds.size() > 1)
   {
     double length = 0.0;
     QJsonArray adsorbents;
@@ -2608,21 +2620,32 @@ void MainWindow::applyColumnToBreakthrough(QJsonObject& simulationJson, const Co
     {
       const BedConfig& bed = column.beds[i];
       const QString name = bed.name.isEmpty() ? QString("Bed %1").arg(i + 1) : bed.name;
-      length += bed.length;
-      adsorbents.append(QJsonObject{{"Name", name},
-                                    {"ColumnVoidFraction", bed.voidFraction},
-                                    {"ParticleDensity", bed.particleDensity},
-                                    {"ParticleDiameter", bed.particleDiameter}});
-      sections.append(QJsonObject{{"Adsorbent", name}, {"Length", bed.length}});
-      if (i + 1 < column.beds.size())
+      QJsonObject adsorbent{{"Name", name},
+                            {"ColumnVoidFraction", bed.voidFraction},
+                            {"ParticleDensity", bed.particleDensity},
+                            {"ParticleDiameter", bed.particleDiameter}};
+      if (column.mode == "mixed")
       {
-        sections.append(QJsonObject{{"InterfaceLength", bed.interfaceLengthAfter}});
+        adsorbent.insert("MixFraction", bed.mixFraction);
       }
+      else
+      {
+        length += bed.length;
+        sections.append(QJsonObject{{"Adsorbent", name}, {"Length", bed.length}});
+        if (i + 1 < column.beds.size())
+        {
+          sections.append(QJsonObject{{"InterfaceLength", bed.interfaceLengthAfter}});
+        }
+      }
+      adsorbents.append(adsorbent);
     }
-    simulationJson.insert("ColumnLength", length);
+    simulationJson.insert("ColumnLength", column.mode == "mixed" ? column.length : length);
     simulationJson.insert("NumberOfGridPoints", std::max(1, simulation.gridPoints));
     simulationJson.insert("Adsorbents", adsorbents);
-    simulationJson.insert("ColumnSections", sections);
+    if (column.mode == "multibed")
+    {
+      simulationJson.insert("ColumnSections", sections);
+    }
   }
   else
   {
@@ -2674,6 +2697,7 @@ QJsonObject MainWindow::buildStateJson() const
       beds.append(QJsonObject{{"Id", bed.id},
                               {"Name", bed.name},
                               {"Length", bed.length},
+                              {"MixFraction", bed.mixFraction},
                               {"VoidFraction", bed.voidFraction},
                               {"ParticleDensity", bed.particleDensity},
                               {"ParticleDiameter", bed.particleDiameter},
@@ -2848,12 +2872,13 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
     column.energyBalance = readBool(object, "EnergyBalance", false);
     column.influxTemperature = readNumber(object, "InfluxTemperature", column.influxTemperature);
     const QString geometryType = readString(object, "GeometryType", column.geometryType);
-    column.geometryType = geometryType.compare("Monolith", Qt::CaseInsensitive) == 0 ? "Monolith" : "HollowTube";
-    if (geometryType.compare("HollowTube", Qt::CaseInsensitive) != 0 &&
+    if (geometryType.compare("PackedBed", Qt::CaseInsensitive) != 0 &&
         geometryType.compare("Monolith", Qt::CaseInsensitive) != 0)
     {
-      column.geometryType = "HollowTube";
+      if (error != nullptr) *error = QString("Column %1 GeometryType must be PackedBed or Monolith.").arg(i + 1);
+      return false;
     }
+    column.geometryType = geometryType.compare("Monolith", Qt::CaseInsensitive) == 0 ? "Monolith" : "PackedBed";
     column.channelShape = readString(object, "ChannelShape", column.channelShape).toLower();
     if (column.channelShape != "triangular" && column.channelShape != "square" && column.channelShape != "hexagonal" &&
         column.channelShape != "circular")
@@ -2888,6 +2913,7 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
       bed.id = readString(bedObject, "Id", QString("bed-%1-%2").arg(i + 1).arg(bedIndex + 1));
       bed.name = readString(bedObject, "Name", QString("Bed %1").arg(bedIndex + 1));
       bed.length = readNumber(bedObject, "Length", bed.length);
+      bed.mixFraction = readNumber(bedObject, "MixFraction", bed.mixFraction);
       bed.voidFraction = readNumber(bedObject, "VoidFraction", bed.voidFraction);
       bed.particleDensity = readNumber(bedObject, "ParticleDensity", bed.particleDensity);
       bed.particleDiameter = readNumber(bedObject, "ParticleDiameter", bed.particleDiameter);
@@ -2901,7 +2927,7 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
       bed.name = "Bed 1";
       column.beds.push_back(bed);
     }
-    if (column.mode != "single" && column.mode != "multibed")
+    if (column.mode != "single" && column.mode != "multibed" && column.mode != "mixed")
     {
       column.mode = column.beds.size() > 1 ? "multibed" : "single";
     }
@@ -2909,7 +2935,6 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
   }
 
   QList<ReactionConfig> newReactions;
-  const bool hasTopLevelReactions = state.contains("Reactions");
   for (qsizetype reactionIndex = 0; reactionIndex < reactionArray.size(); ++reactionIndex)
   {
     if (reactionArray[reactionIndex].isObject())
@@ -2978,18 +3003,6 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
       simulation.swingPhases.push_back(
           SwingPhaseConfig{QString("phase-%1-2").arg(i + 1), "Regeneration", fallbackTemperature,
                            std::max(1000.0, 0.1 * fallbackInletPressure), std::max(1, simulation.timeSteps)});
-    }
-
-    const QJsonArray legacyReactionArray = object.value("Reactions").toArray();
-    for (qsizetype reactionIndex = 0; !hasTopLevelReactions && reactionIndex < legacyReactionArray.size();
-         ++reactionIndex)
-    {
-      if (legacyReactionArray[reactionIndex].isObject())
-      {
-        newReactions.push_back(reactionFromObject(legacyReactionArray[reactionIndex].toObject(),
-                                                  QString("reaction-%1-%2").arg(i + 1).arg(reactionIndex + 1),
-                                                  QString("Reaction %1").arg(reactionIndex + 1), newComponents));
-      }
     }
 
     const QJsonValue lastRunValue = object.value("LastRun");
@@ -3132,7 +3145,13 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
   if (!geometry.isEmpty())
   {
     const QString geometryType = readString(geometry, "Type", column.geometryType);
-    column.geometryType = geometryType.compare("Monolith", Qt::CaseInsensitive) == 0 ? "Monolith" : "HollowTube";
+    if (geometryType.compare("PackedBed", Qt::CaseInsensitive) != 0 &&
+        geometryType.compare("Monolith", Qt::CaseInsensitive) != 0)
+    {
+      if (error != nullptr) *error = "Geometry Type must be PackedBed or Monolith.";
+      return false;
+    }
+    column.geometryType = geometryType.compare("Monolith", Qt::CaseInsensitive) == 0 ? "Monolith" : "PackedBed";
     if (column.geometryType == "Monolith")
     {
       column.channelShape = readString(geometry, "ChannelShape", column.channelShape).toLower();
@@ -3145,7 +3164,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
     }
     else
     {
-      column.geometryType = "HollowTube";
+      column.geometryType = "PackedBed";
       column.voidFraction = readNumber(geometry, "ColumnVoidFraction", column.voidFraction);
       column.particleDiameter = readNumber(geometry, "ParticleDiameter", column.particleDiameter);
       column.internalDiameter = readNumber(geometry, "InternalDiameter", column.internalDiameter);
@@ -3166,43 +3185,66 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
 
   const QJsonArray adsorbents = simulationJson.value("Adsorbents").toArray();
   const QJsonArray sections = simulationJson.value("ColumnSections").toArray();
-  if (!adsorbents.isEmpty() && !sections.isEmpty())
+  const bool isUniformMix =
+      !adsorbents.isEmpty() && sections.isEmpty() &&
+      std::all_of(adsorbents.cbegin(), adsorbents.cend(), [](const QJsonValue& value)
+                  { return value.isObject() && value.toObject().contains("MixFraction"); });
+  if (!adsorbents.isEmpty() && (!sections.isEmpty() || isUniformMix))
   {
     column.beds.clear();
-    column.mode = "multibed";
-    for (const QJsonValue& sectionValue : sections)
+    column.mode = isUniformMix ? "mixed" : "multibed";
+    if (isUniformMix)
     {
-      if (!sectionValue.isObject())
-      {
-        continue;
-      }
-      const QJsonObject section = sectionValue.toObject();
-      if (section.contains("InterfaceLength"))
-      {
-        if (!column.beds.isEmpty())
-        {
-          column.beds.last().interfaceLengthAfter = readNumber(section, "InterfaceLength", 0.0);
-        }
-        continue;
-      }
-      const QString adsorbentName = readString(section, "Adsorbent", QString("Bed %1").arg(column.beds.size() + 1));
-      QJsonObject adsorbent;
       for (const QJsonValue& adsorbentValue : adsorbents)
       {
-        if (adsorbentValue.isObject() && readString(adsorbentValue.toObject(), "Name", {}) == adsorbentName)
-        {
-          adsorbent = adsorbentValue.toObject();
-          break;
-        }
+        const QJsonObject adsorbent = adsorbentValue.toObject();
+        BedConfig bed;
+        bed.id = QString("bed-1-%1").arg(column.beds.size() + 1);
+        bed.name = readString(adsorbent, "Name", QString("Bed %1").arg(column.beds.size() + 1));
+        bed.mixFraction = readNumber(adsorbent, "MixFraction", bed.mixFraction);
+        bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
+        bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
+        bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
+        column.beds.push_back(bed);
       }
-      BedConfig bed;
-      bed.id = QString("bed-1-%1").arg(column.beds.size() + 1);
-      bed.name = adsorbentName;
-      bed.length = readNumber(section, "Length", column.length);
-      bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
-      bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
-      bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
-      column.beds.push_back(bed);
+    }
+    else
+    {
+      for (const QJsonValue& sectionValue : sections)
+      {
+        if (!sectionValue.isObject())
+        {
+          continue;
+        }
+        const QJsonObject section = sectionValue.toObject();
+        if (section.contains("InterfaceLength"))
+        {
+          if (!column.beds.isEmpty())
+          {
+            column.beds.last().interfaceLengthAfter = readNumber(section, "InterfaceLength", 0.0);
+          }
+          continue;
+        }
+        const QString adsorbentName =
+            readString(section, "Adsorbent", QString("Bed %1").arg(column.beds.size() + 1));
+        QJsonObject adsorbent;
+        for (const QJsonValue& adsorbentValue : adsorbents)
+        {
+          if (adsorbentValue.isObject() && readString(adsorbentValue.toObject(), "Name", {}) == adsorbentName)
+          {
+            adsorbent = adsorbentValue.toObject();
+            break;
+          }
+        }
+        BedConfig bed;
+        bed.id = QString("bed-1-%1").arg(column.beds.size() + 1);
+        bed.name = adsorbentName;
+        bed.length = readNumber(section, "Length", column.length);
+        bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
+        bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
+        bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
+        column.beds.push_back(bed);
+      }
     }
     if (column.beds.size() < 2)
     {

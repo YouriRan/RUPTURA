@@ -91,7 +91,7 @@ double safeActivitySum(std::span<const double> activities)
   return sum;
 }
 
-double safePureSiteLoading(const Isotherm& isotherm, double partialPressure, double scale)
+double safePureSiteLoading(const Isotherm& isotherm, double partialPressure, double scale, double pH)
 {
   if (!isotherm.enabled()) return 0.0;
 
@@ -103,6 +103,12 @@ double safePureSiteLoading(const Isotherm& isotherm, double partialPressure, dou
     case Isotherm::Type::Langmuir:
     {
       const double activity = safeMultiply(safeMultiply(scale, parameters[1]), pressure);
+      return boundedRatioLoading(parameters[0], activity, 1.0 + activity);
+    }
+    case Isotherm::Type::Langmuir_pH:
+    {
+      const double pHFactor = std::pow(10.0, std::clamp(parameters[2] - pH, -300.0, 300.0));
+      const double activity = safeMultiply(safeMultiply(scale, parameters[1]), pressure) / (1.0 + pHFactor);
       return boundedRatioLoading(parameters[0], activity, 1.0 + activity);
     }
     case Isotherm::Type::Anti_Langmuir:
@@ -145,7 +151,7 @@ double safePureSiteLoading(const Isotherm& isotherm, double partialPressure, dou
       return boundedRatioLoading(parameters[0], activity, denominator);
     }
     default:
-      return sanitizeUnboundedLoading(isotherm.value(pressure, scale));
+      return sanitizeUnboundedLoading(isotherm.value(pressure, scale, pH));
   }
 }
 }  // namespace
@@ -188,6 +194,22 @@ MixturePrediction::MixturePrediction(const InputReader& inputreader)
       numberOfPressurePoints(inputreader.numberOfPressurePoints),
       pressureScale(PressureScale(inputreader.pressureScale))
 {
+  if (predictionMethod == PredictionMethod::MPD)
+  {
+    if (!inputreader.mpdSettings.has_value())
+    {
+      throw std::runtime_error("Error: MPD mixture prediction requires MPDSettings");
+    }
+    macrostateParticleDistribution.emplace(*inputreader.mpdSettings);
+    for (const Component& component : components)
+    {
+      if (!component.isCarrierGas) mpdComponentIds.push_back(component.id);
+    }
+    if (mpdComponentIds.size() != macrostateParticleDistribution->rank())
+    {
+      throw std::runtime_error("Error: MPD rank does not match the number of non-carrier components");
+    }
+  }
   sortComponents();
 }
 
@@ -241,7 +263,8 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
                                                             std::span<double> numberOfMolecules,
                                                             std::span<double> cachedPressure,
                                                             std::span<double> cachedGrandPotential,
-                                                            double& gasTemperature)
+                                                            double& gasTemperature, double pH,
+                                                            DrivingForceInput input)
 {
   const double tiny = 1.0e-10;
   std::fill(equilibriumSiteLoadings.begin(), equilibriumSiteLoadings.end(), 0.0);
@@ -255,12 +278,23 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
   double sumYi = 0.0;
   for (size_t i = 0; i < numberOfComponents; ++i)
   {
+    if (!std::isfinite(idealGasMolFractions[i]) ||
+        (input == DrivingForceInput::Concentration && idealGasMolFractions[i] < 0.0))
+    {
+      throw std::runtime_error("Error: mixture-prediction driving forces must be finite and non-negative");
+    }
     sumYi += idealGasMolFractions[i];
   }
-  if (std::abs(sumYi - 1.0) > 1e-15)
+  if (input == DrivingForceInput::MoleFraction && std::abs(sumYi - 1.0) > 1e-15)
   {
     printErrorStatus(0.0, sumYi, externalPressure, idealGasMolFractions, cachedPressure, gasTemperature);
     throw std::runtime_error("Error (IAST): sum idealGasMolFractions at IAST start not unity\n");
+  }
+
+  if (predictionMethod == PredictionMethod::MPD)
+  {
+    return computeMPD(idealGasMolFractions, externalPressure, adsorbedMolFractions, numberOfMolecules,
+                      gasTemperature);
   }
 
   double adsorbingGasFraction = 0.0;
@@ -290,12 +324,12 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
     const Component& component = sortedComponents.front();
     const size_t comp = component.id;
     const double partialPressure = idealGasMolFractions[comp] * externalPressure;
-    numberOfMolecules[comp] = component.isotherm.value(partialPressure, component.scale(gasTemperature));
+    numberOfMolecules[comp] = component.isotherm.value(partialPressure, component.scale(gasTemperature), pH);
     adsorbedMolFractions[comp] = numberOfMolecules[comp] > tiny ? 1.0 : 0.0;
     for (size_t site = 0; site < component.isotherm.sites.size(); ++site)
     {
       equilibriumSiteLoadings[site * numberOfComponents + comp] =
-          component.isotherm.value(site, partialPressure, component.scale(gasTemperature));
+          component.isotherm.value(site, partialPressure, component.scale(gasTemperature), pH);
     }
     return std::make_pair(0, 1);
   }
@@ -360,8 +394,107 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
                                                   numberOfMolecules, gasTemperature);
     case PredictionMethod::SPI:
       return computeSegregatedPureIsotherm(idealGasMolFractions, externalPressure, adsorbedMolFractions,
-                                           numberOfMolecules, gasTemperature);
+                                           numberOfMolecules, gasTemperature, pH);
   }
+}
+
+void MixturePrediction::predictPureComponentLoadings(double externalPressure,
+                                                     std::span<double> pureComponentLoadings,
+                                                     double gasTemperature)
+{
+  if (pureComponentLoadings.size() != numberOfComponents)
+  {
+    throw std::runtime_error("Error: pure-component loading output size does not match the component count");
+  }
+
+  std::fill(pureComponentLoadings.begin(), pureComponentLoadings.end(), 0.0);
+  if (predictionMethod != PredictionMethod::MPD)
+  {
+    for (const Component& component : components)
+    {
+      if (component.id >= pureComponentLoadings.size())
+      {
+        throw std::runtime_error("Error: component index is outside the pure-component loading vector");
+      }
+      pureComponentLoadings[component.id] =
+          component.isotherm.value(externalPressure, component.scale(gasTemperature));
+    }
+    return;
+  }
+
+  std::vector<double> oneHotMoleFractions(numberOfComponents, 0.0);
+  std::vector<double> adsorbedMolFractions(numberOfComponents, 0.0);
+  std::vector<double> numberOfMolecules(numberOfComponents, 0.0);
+  std::vector<double> cachedPressure(numberOfComponents * maxIsothermTerms, 0.0);
+  std::vector<double> cachedGrandPotential(maxIsothermTerms, 0.0);
+
+  for (const Component& component : components)
+  {
+    if (component.isCarrierGas) continue;
+    if (component.id >= numberOfComponents)
+    {
+      throw std::runtime_error("Error: component index is outside the one-hot gas-composition vector");
+    }
+
+    oneHotMoleFractions[component.id] = 1.0;
+    double pureTemperature = gasTemperature;
+    predictMixture(oneHotMoleFractions, externalPressure, adsorbedMolFractions, numberOfMolecules, cachedPressure,
+                   cachedGrandPotential, pureTemperature);
+    pureComponentLoadings[component.id] = numberOfMolecules[component.id];
+    oneHotMoleFractions[component.id] = 0.0;
+  }
+}
+
+std::pair<size_t, size_t> MixturePrediction::computeMPD(std::span<const double> idealGasMolFractions,
+                                                         double fugacity,
+                                                         std::span<double> adsorbedMolFractions,
+                                                         std::span<double> numberOfMolecules,
+                                                         double gasTemperature)
+{
+  if (!macrostateParticleDistribution.has_value())
+  {
+    throw std::runtime_error("Error: MPD mixture prediction has no loaded particle distribution");
+  }
+
+  std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
+  std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
+  std::fill(equilibriumSiteLoadings.begin(), equilibriumSiteLoadings.end(), 0.0);
+
+  std::vector<double> mpdGasMoleFractions;
+  mpdGasMoleFractions.reserve(mpdComponentIds.size());
+  for (size_t component : mpdComponentIds)
+  {
+    if (component >= idealGasMolFractions.size())
+    {
+      throw std::runtime_error("Error: MPD component index is outside the gas-composition vector");
+    }
+    mpdGasMoleFractions.push_back(idealGasMolFractions[component]);
+  }
+
+  const std::vector<double> meanParticleNumbers =
+      macrostateParticleDistribution->meanParticleNumbers(mpdGasMoleFractions, fugacity, gasTemperature);
+  constexpr double avogadroConstant = 6.02214076e23;  // mol^-1, exact SI definition
+  const double loadingConversion =
+      1.0 / (avogadroConstant * macrostateParticleDistribution->referenceFrameworkMass());
+
+  double totalLoading = 0.0;
+  for (size_t dimension = 0; dimension < mpdComponentIds.size(); ++dimension)
+  {
+    const size_t component = mpdComponentIds[dimension];
+    const double loading = meanParticleNumbers[dimension] * loadingConversion;
+    numberOfMolecules[component] = loading;
+    if (component < equilibriumSiteLoadings.size()) equilibriumSiteLoadings[component] = loading;
+    totalLoading += loading;
+  }
+  if (totalLoading > 0.0)
+  {
+    for (size_t component : mpdComponentIds)
+    {
+      adsorbedMolFractions[component] = numberOfMolecules[component] / totalLoading;
+    }
+  }
+
+  return {0, 1};
 }
 
 // idealGasMolFractions  = gas phase molefraction
@@ -1514,7 +1647,7 @@ std::pair<size_t, size_t> MixturePrediction::computeSegregatedPureIsotherm(std::
                                                                            const double& externalPressure,
                                                                            std::span<double> adsorbedMolFractions,
                                                                            std::span<double> numberOfMolecules,
-                                                                           double& gasTemperature)
+                                                                           double& gasTemperature, double pH)
 {
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
   std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
@@ -1531,7 +1664,7 @@ std::pair<size_t, size_t> MixturePrediction::computeSegregatedPureIsotherm(std::
       const Component& component = siteComponents[i];
       const Isotherm& isotherm = component.isotherm.sites.front();
       const double partialPressure = idealGasMolFractions[component.id] * externalPressure;
-      const double loading = safePureSiteLoading(isotherm, partialPressure, component.scale(gasTemperature));
+      const double loading = safePureSiteLoading(isotherm, partialPressure, component.scale(gasTemperature), pH);
       numberOfMolecules[component.id] += loading;
       equilibriumSiteLoadings[site * numberOfComponents + component.id] = loading;
     }
@@ -1568,6 +1701,7 @@ void MixturePrediction::run()
   std::vector<double> idealGasMolFractions(numberOfComponents);
   std::vector<double> adsorbedMolFractions(numberOfComponents);
   std::vector<double> numberOfMolecules(numberOfComponents);
+  std::vector<double> pureComponentLoadings(numberOfComponents);
   std::vector<double> cachedPressure(numberOfComponents * maxIsothermTerms);
   std::vector<double> cachedGrandPotential(maxIsothermTerms);
 
@@ -1588,17 +1722,34 @@ void MixturePrediction::run()
 
   for (size_t i = 0; i < numberOfComponents; i++)
   {
-    std::print(streams[i], "# column 1: total pressure [Pa]\n");
-    std::print(streams[i], "# column 2: pure component isotherm value\n");
+    if (predictionMethod == PredictionMethod::MPD)
+    {
+      std::print(streams[i], "# column 1: target fugacity [Pa]\n");
+      std::print(streams[i], "# column 2: pure-component MPD loading (one-hot gas composition)\n");
+    }
+    else
+    {
+      std::print(streams[i], "# column 1: total pressure [Pa]\n");
+      std::print(streams[i], "# column 2: pure component isotherm value\n");
+    }
     std::print(streams[i], "# column 3: mixture component isotherm value\n");
     std::print(streams[i], "# column 4: gas-phase mol-fraction y_i\n");
     std::print(streams[i], "# column 5: adsorbed phase mol-fraction x_i\n");
-    std::print(streams[i], "# column 6: hypothetical pressure p_i^*\n");
-    std::print(streams[i], "# column 7: reduced grand potential psi_i\n");
+    if (predictionMethod == PredictionMethod::MPD)
+    {
+      std::print(streams[i], "# column 6: not applicable for MPD (zero)\n");
+      std::print(streams[i], "# column 7: not applicable for MPD (zero)\n");
+    }
+    else
+    {
+      std::print(streams[i], "# column 6: hypothetical pressure p_i^*\n");
+      std::print(streams[i], "# column 7: reduced grand potential psi_i\n");
+    }
   }
 
   for (size_t i = 0; i < numberOfPressurePoints; ++i)
   {
+    predictPureComponentLoadings(pressures[i], pureComponentLoadings, temperature);
     std::pair<double, double> performance =
         predictMixture(idealGasMolFractions, pressures[i], adsorbedMolFractions, numberOfMolecules, cachedPressure,
                        cachedGrandPotential, temperature);
@@ -1606,11 +1757,18 @@ void MixturePrediction::run()
 
     for (size_t j = 0; j < numberOfComponents; j++)
     {
-      double p_star = idealGasMolFractions[j] * pressures[i] / adsorbedMolFractions[j];
-      double scale = components[j].scale(temperature);
-      std::print(streams[j], "{:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g}\n", pressures[i],
-                 components[j].isotherm.value(pressures[i], scale), numberOfMolecules[j], idealGasMolFractions[j],
-                 adsorbedMolFractions[j], components[j].isotherm.psiForPressure(p_star, scale));
+      const bool hasHypotheticalPressure =
+          predictionMethod != PredictionMethod::MPD && adsorbedMolFractions[j] > 0.0;
+      const double p_star = hasHypotheticalPressure
+                                ? idealGasMolFractions[j] * pressures[i] / adsorbedMolFractions[j]
+                                : 0.0;
+      const double scale = components[j].scale(temperature);
+      const double pureLoading = pureComponentLoadings[j];
+      const double grandPotential =
+          hasHypotheticalPressure ? components[j].isotherm.psiForPressure(p_star, scale) : 0.0;
+      std::print(streams[j], "{:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g}\n", pressures[i],
+                 pureLoading, numberOfMolecules[j], idealGasMolFractions[j], adsorbedMolFractions[j], p_star,
+                 grandPotential);
     }
   }
 }
@@ -1670,8 +1828,11 @@ void MixturePrediction::printErrorStatus(double psi_value, double sum, double ex
 
 void MixturePrediction::sortComponents()
 {
-  const auto isActiveAdsorbate = [](const Component& component)
-  { return !component.isCarrierGas && component.isotherm.enabled(); };
+  const auto isActiveAdsorbate = [this](const Component& component)
+  {
+    return !component.isCarrierGas &&
+           (predictionMethod == PredictionMethod::MPD || component.isotherm.enabled());
+  };
 
   if (predictionMethod == PredictionMethod::EI)
   {

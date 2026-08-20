@@ -475,6 +475,7 @@ static const IsothermSpec* findIsothermSpec(const std::string& typeString)
 {
   static const std::vector<std::pair<std::string_view, IsothermSpec>> specs{
       {"Langmuir", {Isotherm::Type::Langmuir, 2, true}},
+      {"pH-Langmuir", {Isotherm::Type::Langmuir_pH, 3, true}},
       {"Anti-Langmuir", {Isotherm::Type::Anti_Langmuir, 2, false}},
       {"BET", {Isotherm::Type::BET, 3, false}},
       {"Henry", {Isotherm::Type::Henry, 1, false}},
@@ -482,7 +483,7 @@ static const IsothermSpec* findIsothermSpec(const std::string& typeString)
       {"Sips", {Isotherm::Type::Sips, 3, true}},
       {"Langmuir-Freundlich", {Isotherm::Type::Langmuir_Freundlich, 3, true}},
       {"Redlich-Peterson", {Isotherm::Type::Redlich_Peterson, 3, false}},
-      {"Toth", {Isotherm::Type::Toth, 3, false}},
+      {"Toth", {Isotherm::Type::Toth, 3, true}},
       {"Unilan", {Isotherm::Type::Unilan, 3, false}},
       {"OBrien&Myers", {Isotherm::Type::OBrien_Myers, 3, false}},
       {"Quadratic", {Isotherm::Type::Quadratic, 3, false}},
@@ -602,7 +603,8 @@ static Component parseComponentObject(std::size_t componentId, const nlohmann::j
 
   std::string context = "Component " + std::to_string(componentId);
   requireOnlyKnownKeys(item,
-                       {"Name", "FileName", "CarrierGas", "GasPhaseMolFraction", "MassTransferCoefficient",
+                       {"Name", "FileName", "CarrierGas", "GasPhaseMolFraction", "LiquidPhaseConcentration",
+                        "InitialLiquidPhaseConcentration", "MassTransferCoefficient",
                         "AxialDispersionCoefficient", "MolecularWeight", "HeatOfAdsorption", "referenceTemperature",
                         "nonIsothermal", "ChemisorptionSites", "PhysisorptionSites"},
                        context);
@@ -614,6 +616,8 @@ static Component parseComponentObject(std::size_t componentId, const nlohmann::j
   readOptionalString(item, "FileName", comp.filename);
   readOptionalBool(item, "CarrierGas", comp.isCarrierGas);
   readOptionalNumber<double>(item, "GasPhaseMolFraction", comp.initialGasMoleFraction);
+  readOptionalNumber<double>(item, "LiquidPhaseConcentration", comp.inletLiquidConcentration);
+  readOptionalNumber<double>(item, "InitialLiquidPhaseConcentration", comp.initialLiquidConcentration);
   readOptionalNumber<double>(item, "MassTransferCoefficient", comp.massTransferCoefficient);
   readOptionalNumber<double>(item, "AxialDispersionCoefficient", comp.axialDispersionCoefficient);
   readOptionalNumber<double>(item, "MolecularWeight", comp.molecularWeight);
@@ -788,12 +792,20 @@ InputReader::InputReader(const std::string fileName) : components()
   requireOnlyKnownKeys(parsed_data,
                        {"SimulationType",
                         "MixturePredictionMethod",
+                        "MPDSettings",
                         "IASTMethod",
                         "BreakthroughIntegrator",
                         "BoundaryCondition",
+                        "FluidPhase",
+                        "LiquidDensity",
+                        "pHMode",
+                        "pHValue",
+                        "pKw",
+                        "pHComponent",
                         "PressureScale",
                         "ReadColumnFile",
                         "DisplayName",
+                        "DebugForceMultibed",
                         "Temperature",
                         "ColumnVoidFraction",
                         "DynamicViscosity",
@@ -826,6 +838,10 @@ InputReader::InputReader(const std::string fileName) : components()
                         "heatTransferGasSolid",
                         "heatTransferWallExternal",
                         "heatCapacityGas",
+                        "liquidThermalConductivity",
+                        "heatTransferLiquidSolid",
+                        "heatTransferLiquidWall",
+                        "heatCapacityLiquid",
                         "heatCapacitySolid",
                         "heatCapacityWall",
                         "energyBalance",
@@ -852,7 +868,124 @@ InputReader::InputReader(const std::string fileName) : components()
                             {"Test", SimulationType::Test}});
 
   readOptionalMappedString(parsed_data, "MixturePredictionMethod", mixturePredictionMethod,
-                           {{"IAST", 0}, {"SIAST", 1}, {"EI", 2}, {"SEI", 3}, {"SCI", 4}, {"SPI", 5}});
+                           {{"IAST", 0}, {"SIAST", 1}, {"EI", 2}, {"SEI", 3}, {"SCI", 4}, {"SPI", 5}, {"MPD", 6}});
+
+  const nlohmann::json* mpdJson = findKeyCaseInsensitive(parsed_data, "MPDSettings");
+  if (mixturePredictionMethod == 6 && mpdJson == nullptr)
+  {
+    throw std::runtime_error("Error: MixturePredictionMethod MPD requires MPDSettings");
+  }
+  if (mpdJson != nullptr)
+  {
+    if (!mpdJson->is_object()) throw std::runtime_error("Error: MPDSettings must be an object");
+    requireOnlyKnownKeys(*mpdJson,
+                         {"FileName", "ReferenceTemperature", "ReferenceFugacity", "ReferenceFrameworkMass",
+                          "FrameworkMass", "ComponentBounds"},
+                         "MPDSettings");
+
+    MPDSettings settings;
+    settings.fileName = getStringOrThrow(requireKeyCaseInsensitive(*mpdJson, "FileName", "MPDSettings"),
+                                         "FileName", "MPDSettings");
+    settings.referenceTemperature = getNumberOrThrow<double>(
+        requireKeyCaseInsensitive(*mpdJson, "ReferenceTemperature", "MPDSettings"), "ReferenceTemperature",
+        "MPDSettings");
+    settings.referenceFugacity =
+        getNumberOrThrow<double>(requireKeyCaseInsensitive(*mpdJson, "ReferenceFugacity", "MPDSettings"),
+                                 "ReferenceFugacity", "MPDSettings");
+
+    const nlohmann::json* referenceMass = findKeyCaseInsensitive(*mpdJson, "ReferenceFrameworkMass");
+    const nlohmann::json* frameworkMass = findKeyCaseInsensitive(*mpdJson, "FrameworkMass");
+    if (referenceMass != nullptr && frameworkMass != nullptr)
+    {
+      throw std::runtime_error(
+          "Error: MPDSettings must use only one of ReferenceFrameworkMass or FrameworkMass");
+    }
+    if (referenceMass == nullptr && frameworkMass == nullptr)
+    {
+      throw std::runtime_error("Error: required key 'ReferenceFrameworkMass' missing (MPDSettings)");
+    }
+    settings.referenceFrameworkMass = getNumberOrThrow<double>(
+        referenceMass != nullptr ? *referenceMass : *frameworkMass, "ReferenceFrameworkMass", "MPDSettings");
+
+    const nlohmann::json& boundsJson =
+        requireKeyCaseInsensitive(*mpdJson, "ComponentBounds", "MPDSettings");
+    if (!boundsJson.is_array() || boundsJson.empty())
+    {
+      throw std::runtime_error("Error: MPD ComponentBounds must be a non-empty array");
+    }
+
+    const auto readParticleNumber = [](const nlohmann::json& value, const std::string& key,
+                                       const std::string& context) -> size_t
+    {
+      try
+      {
+        if (value.is_number_unsigned()) return value.get<size_t>();
+        if (value.is_number_integer())
+        {
+          const std::int64_t integer = value.get<std::int64_t>();
+          if (integer >= 0) return static_cast<size_t>(integer);
+        }
+      }
+      catch (const nlohmann::json::exception&)
+      {
+      }
+      throw std::runtime_error("Error: key '" + key + "' must be a non-negative integer (" + context + ")");
+    };
+
+    settings.componentBounds.reserve(boundsJson.size());
+    for (size_t component = 0; component < boundsJson.size(); ++component)
+    {
+      const nlohmann::json& item = boundsJson[component];
+      const std::string context = "MPDSettings ComponentBounds " + std::to_string(component);
+      if (!item.is_object()) throw std::runtime_error("Error: MPD ComponentBounds entries must be objects");
+      requireOnlyKnownKeys(item, {"Component", "NMin", "NMax", "DeltaN"}, context);
+
+      MPDComponentBounds bounds;
+      readOptionalString(item, "Component", bounds.component);
+      bounds.nMin = readParticleNumber(requireKeyCaseInsensitive(item, "NMin", context), "NMin", context);
+      bounds.nMax = readParticleNumber(requireKeyCaseInsensitive(item, "NMax", context), "NMax", context);
+      bounds.deltaN = readParticleNumber(requireKeyCaseInsensitive(item, "DeltaN", context), "DeltaN", context);
+      settings.componentBounds.push_back(std::move(bounds));
+    }
+
+    if (!(settings.referenceTemperature > 0.0))
+    {
+      throw std::runtime_error("Error: MPD ReferenceTemperature must be positive");
+    }
+    if (!(settings.referenceFugacity > 0.0))
+    {
+      throw std::runtime_error("Error: MPD ReferenceFugacity must be positive");
+    }
+    if (!(settings.referenceFrameworkMass > 0.0))
+    {
+      throw std::runtime_error("Error: MPD ReferenceFrameworkMass must be positive");
+    }
+    for (const MPDComponentBounds& bounds : settings.componentBounds)
+    {
+      if (bounds.deltaN == 0) throw std::runtime_error("Error: MPD DeltaN must be positive");
+      if (bounds.nMax < bounds.nMin) throw std::runtime_error("Error: MPD NMax must be at least NMin");
+      if ((bounds.nMax - bounds.nMin) % bounds.deltaN != 0)
+      {
+        throw std::runtime_error("Error: MPD [NMin, NMax] must be exactly divisible by DeltaN");
+      }
+    }
+
+    std::filesystem::path distributionPath{settings.fileName};
+    if (distributionPath.is_relative())
+    {
+      distributionPath = std::filesystem::path{fileName}.parent_path() / distributionPath;
+    }
+    settings.fileName = distributionPath.lexically_normal().string();
+    mpdSettings = std::move(settings);
+
+    if (!hasTemperature)
+    {
+      std::print(stderr,
+                 "Warning: MPD ReferenceTemperature is set, but target Temperature is not; using the default target "
+                 "temperature of {} K.\n",
+                 temperature);
+    }
+  }
 
   readOptionalMappedString(parsed_data, "IASTMethod", IASTMethod, {{"FastIAST", 0}, {"NestedLoopBisection", 1}});
 
@@ -866,14 +999,21 @@ InputReader::InputReader(const std::string fileName) : components()
                             {"FixedVelocity", 3},
                             {"FixedPressureInletVelocity", 4}});
 
+  readOptionalMappedString(parsed_data, "FluidPhase", fluidPhase, {{"Gas", 0}, {"Liquid", 1}});
+  readOptionalMappedString(parsed_data, "pHMode", pHMode, {{"Fixed", 0}, {"HPlus", 1}, {"OHMinus", 2}});
+
   readOptionalMappedString(parsed_data, "PressureScale", pressureScale, {{"Log", 0}, {"Linear", 1}});
 
   readOptionalString(parsed_data, "ReadColumnFile", readColumnFile);
   readOptionalString(parsed_data, "DisplayName", displayName);
+  readOptionalBool(parsed_data, "DebugForceMultibed", debugForceMultibed);
 
   readOptionalNumber<double>(parsed_data, "Temperature", temperature);
   readOptionalNumber<double>(parsed_data, "ColumnVoidFraction", columnVoidFraction);
   readOptionalNumber<double>(parsed_data, "DynamicViscosity", dynamicViscosity);
+  readOptionalNumber<double>(parsed_data, "LiquidDensity", liquidDensity);
+  readOptionalNumber<double>(parsed_data, "pHValue", pHValue);
+  readOptionalNumber<double>(parsed_data, "pKw", pKw);
   readOptionalNumber<double>(parsed_data, "ParticleDiameter", particleDiameter);
   readOptionalNumber<double>(parsed_data, "ParticleDensity", particleDensity);
 
@@ -944,6 +1084,10 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalNumber<double>(parsed_data, "heatTransferGasSolid", heatTransferGasSolid);
   readOptionalNumber<double>(parsed_data, "heatTransferWallExternal", heatTransferWallExternal);
   readOptionalNumber<double>(parsed_data, "heatCapacityGas", heatCapacityGas);
+  readOptionalNumber<double>(parsed_data, "liquidThermalConductivity", liquidThermalConductivity);
+  readOptionalNumber<double>(parsed_data, "heatTransferLiquidSolid", heatTransferLiquidSolid);
+  readOptionalNumber<double>(parsed_data, "heatTransferLiquidWall", heatTransferLiquidWall);
+  readOptionalNumber<double>(parsed_data, "heatCapacityLiquid", heatCapacityLiquid);
   readOptionalNumber<double>(parsed_data, "heatCapacitySolid", heatCapacitySolid);
   readOptionalNumber<double>(parsed_data, "heatCapacityWall", heatCapacityWall);
   readOptionalBool(parsed_data, "energyBalance", energyBalance);
@@ -972,13 +1116,14 @@ InputReader::InputReader(const std::string fileName) : components()
     requireOnlyKnownKeys(
         *geometryJson,
         {"Type", "ColumnVoidFraction", "ParticleDiameter", "InternalDiameter", "OuterDiameter", "ChannelShape",
-         "InternalChannelDimension", "NumberOfChannels", "WashcoatThickness", "WashcoatVolumePerChannelVolume"},
+         "InternalChannelDimension", "NumberOfChannels", "WashcoatThickness", "WashcoatVolumePerChannelVolume",
+         "ForchheimerCoefficient"},
         "Geometry");
 
     const std::string geometryType =
         getStringOrThrow(requireKeyCaseInsensitive(*geometryJson, "Type", "Geometry"), "Type", "Geometry");
 
-    if (caseInSensStringCompare(geometryType, "HollowTube"))
+    if (caseInSensStringCompare(geometryType, "PackedBed"))
     {
       const double eps = geometryDoubleOrDefault(*geometryJson, {"ColumnVoidFraction"}, columnVoidFraction);
       const double dp = geometryDoubleOrDefault(*geometryJson, {"ParticleDiameter"}, particleDiameter);
@@ -1025,6 +1170,8 @@ InputReader::InputReader(const std::string fileName) : components()
       }
 
       const double washcoatThickness = geometryDoubleOrDefault(*geometryJson, {"WashcoatThickness"}, 0.0);
+      const double forchheimerCoefficient =
+          geometryDoubleOrDefault(*geometryJson, {"ForchheimerCoefficient"}, 0.0);
       const nlohmann::json* washcoatVolumeValue =
           findFirstKeyCaseInsensitive(*geometryJson, {"WashcoatVolumePerChannelVolume"});
       std::optional<double> washcoatVolume;
@@ -1039,11 +1186,12 @@ InputReader::InputReader(const std::string fileName) : components()
                                            .outerDiameter = dOut,
                                            .numberOfChannels = numberOfChannels,
                                            .washcoatThickness = washcoatThickness,
-                                           .washcoatVolumePerChannelVolume = washcoatVolume});
+                                           .washcoatVolumePerChannelVolume = washcoatVolume,
+                                           .forchheimerCoefficient = forchheimerCoefficient});
     }
     else
     {
-      throw std::runtime_error("Error: Geometry Type must be HollowTube or Monolith");
+      throw std::runtime_error("Error: Geometry Type must be PackedBed or Monolith");
     }
   }
 
@@ -1174,8 +1322,31 @@ InputReader::InputReader(const std::string fileName) : components()
     }
   }
 
-  // Normalize feed gas fractions for non-fitting runs.
-  if (simulationType != SimulationType::Fitting)
+  if (mpdSettings.has_value())
+  {
+    std::vector<const Component*> mpdComponents;
+    for (const Component& component : components)
+    {
+      if (!component.isCarrierGas) mpdComponents.push_back(&component);
+    }
+    if (mpdSettings->componentBounds.size() != mpdComponents.size())
+    {
+      throw std::runtime_error("Error: MPD ComponentBounds must contain one entry for each non-carrier component");
+    }
+    for (size_t component = 0; component < mpdComponents.size(); ++component)
+    {
+      const MPDComponentBounds& bounds = mpdSettings->componentBounds[component];
+      if (!bounds.component.empty() && bounds.component != mpdComponents[component]->name)
+      {
+        throw std::runtime_error("Error: MPD ComponentBounds entry " + std::to_string(component) + " names '" +
+                                 bounds.component + "', but C-order dimension " + std::to_string(component) +
+                                 " corresponds to component '" + mpdComponents[component]->name + "'");
+      }
+    }
+  }
+
+  // Gas equilibrium receives mole fractions. Liquid equilibrium receives concentrations directly.
+  if (fluidPhase == 0 && simulationType != SimulationType::Fitting)
   {
     double sum = 0.0;
     for (size_t j = 0; j < components.size(); ++j)
@@ -1196,7 +1367,7 @@ InputReader::InputReader(const std::string fileName) : components()
   carrierGasComponent = 0;
   for (size_t j = 0; j < components.size(); ++j)
   {
-    if (components[j].isCarrierGas)
+    if (fluidPhase == 0 && components[j].isCarrierGas)
     {
       carrierGasComponent = j;
       std::vector<double> values{1.0, 0.0};
@@ -1204,6 +1375,44 @@ InputReader::InputReader(const std::string fileName) : components()
       components[carrierGasComponent].isotherm.add(isotherm);
 
       ++numberOfCarrierGases;
+    }
+  }
+
+  if (fluidPhase == 1)
+  {
+    for (const Component& component : components)
+    {
+      if (component.isCarrierGas)
+      {
+        throw std::runtime_error("Error: liquid simulations do not use CarrierGas components");
+      }
+      if (!std::isfinite(component.inletLiquidConcentration) || component.inletLiquidConcentration < 0.0 ||
+          !std::isfinite(component.initialLiquidConcentration) || component.initialLiquidConcentration < 0.0)
+      {
+        throw std::runtime_error("Error: liquid concentrations must be finite and non-negative");
+      }
+    }
+
+    if (!std::isfinite(liquidDensity) || liquidDensity <= 0.0)
+    {
+      throw std::runtime_error("Error: LiquidDensity must be a positive finite number");
+    }
+
+    if (pHMode != 0)
+    {
+      const nlohmann::json* pHComponentValue = findKeyCaseInsensitive(parsed_data, "pHComponent");
+      if (pHComponentValue == nullptr)
+      {
+        throw std::runtime_error("Error: transported pH mode requires pHComponent");
+      }
+      const std::string pHComponentName = getStringOrThrow(*pHComponentValue, "pHComponent", "");
+      const auto component = std::find_if(components.begin(), components.end(), [&](const Component& candidate)
+                                          { return candidate.name == pHComponentName; });
+      if (component == components.end())
+      {
+        throw std::runtime_error("Error: pHComponent '" + pHComponentName + "' was not found");
+      }
+      pHComponent = static_cast<size_t>(std::distance(components.begin(), component));
     }
   }
 
@@ -1426,10 +1635,12 @@ InputReader::InputReader(const std::string fileName) : components()
   adsorbentComponents.clear();
   adsorbentLengths.clear();
   adsorbentInterfaceLengths.clear();
+  adsorbentMixFractions.clear();
   adsorbentGridPoints.clear();
   adsorbentVoidFractions.clear();
   adsorbentParticleDensities.clear();
   adsorbentParticleDiameters.clear();
+  adsorbentGeometries.clear();
 
   if (containsKeyCaseInsensitive(parsed_data, "Adsorbents"))
   {
@@ -1448,6 +1659,8 @@ InputReader::InputReader(const std::string fileName) : components()
     std::vector<std::string> adsorbentNames;
     adsorbentNames.reserve(adsorbentsJson.size());
     std::unordered_map<std::string, std::size_t> adsorbentIndexByName;
+    std::vector<bool> hasMixFraction;
+    hasMixFraction.reserve(adsorbentsJson.size());
 
     for (std::size_t ads = 0; ads < adsorbentsJson.size(); ++ads)
     {
@@ -1459,7 +1672,7 @@ InputReader::InputReader(const std::string fileName) : components()
       }
       requireOnlyKnownKeys(adsorbent,
                            {"Name", "ParticleDiameter", "ColumnVoidFraction", "ParticleDensity", "AdsorbentLength",
-                            "ComponentParameters", "Components"},
+                            "MixFraction", "ComponentParameters", "Components"},
                            context);
 
       std::string adsorbentName = std::to_string(ads);
@@ -1474,15 +1687,27 @@ InputReader::InputReader(const std::string fileName) : components()
       double adsorbentVoidFraction = columnVoidFraction;
       double adsorbentParticleDensity = particleDensity;
       double adsorbentLength = -1.0;
+      double adsorbentMixFraction = 0.0;
       readOptionalNumber<double>(adsorbent, "ParticleDiameter", adsorbentParticleDiameter);
       readOptionalNumber<double>(adsorbent, "ColumnVoidFraction", adsorbentVoidFraction);
       readOptionalNumber<double>(adsorbent, "ParticleDensity", adsorbentParticleDensity);
       readOptionalNumber<double>(adsorbent, "AdsorbentLength", adsorbentLength);
+      const bool hasAdsorbentMixFraction = containsKeyCaseInsensitive(adsorbent, "MixFraction");
+      readOptionalNumber<double>(adsorbent, "MixFraction", adsorbentMixFraction);
 
       adsorbentParticleDiameters.push_back(adsorbentParticleDiameter);
       adsorbentVoidFractions.push_back(adsorbentVoidFraction);
       adsorbentParticleDensities.push_back(adsorbentParticleDensity);
       adsorbentLengths.push_back(adsorbentLength);
+      adsorbentMixFractions.push_back(adsorbentMixFraction);
+      hasMixFraction.push_back(hasAdsorbentMixFraction);
+      adsorbentGeometries.push_back(
+          geometry.kind == GeometryKind::PackedBed
+              ? makeGeometry(PackedBedTubeSpec{.voidFraction = adsorbentVoidFraction,
+                                               .particleDiameter = adsorbentParticleDiameter,
+                                               .internalDiameter = geometry.dimensions.internalDiameter,
+                                               .outerDiameter = geometry.dimensions.outerDiameter})
+              : geometry);
 
       std::vector<Component> componentsForAdsorbent = components;
 
@@ -1559,7 +1784,48 @@ InputReader::InputReader(const std::string fileName) : components()
       adsorbentComponents.push_back(std::move(componentsForAdsorbent));
     }
 
-    if (containsKeyCaseInsensitive(parsed_data, "ColumnSections"))
+    const bool usesUniformAdsorbentMix =
+        std::any_of(hasMixFraction.begin(), hasMixFraction.end(), [](bool present) { return present; });
+    if (!usesUniformAdsorbentMix)
+    {
+      adsorbentMixFractions.clear();
+    }
+    if (usesUniformAdsorbentMix)
+    {
+      if (!std::all_of(hasMixFraction.begin(), hasMixFraction.end(), [](bool present) { return present; }))
+      {
+        throw std::runtime_error("Error: MixFraction must be set for every adsorbent in a uniform adsorbent mix");
+      }
+      if (containsKeyCaseInsensitive(parsed_data, "ColumnSections"))
+      {
+        throw std::runtime_error("Error: MixFraction cannot be combined with ColumnSections");
+      }
+
+      double fractionSum = 0.0;
+      for (std::size_t ads = 0; ads < adsorbentMixFractions.size(); ++ads)
+      {
+        const double fraction = adsorbentMixFractions[ads];
+        if (!std::isfinite(fraction) || fraction < 0.0 || fraction > 1.0)
+        {
+          throw std::runtime_error("Error: MixFraction must be between 0 and 1 for adsorbent '" +
+                                   adsorbentNames[ads] + "'");
+        }
+        if (containsKeyCaseInsensitive(adsorbentsJson[ads], "AdsorbentLength"))
+        {
+          throw std::runtime_error("Error: MixFraction cannot be combined with AdsorbentLength for adsorbent '" +
+                                   adsorbentNames[ads] + "'");
+        }
+        fractionSum += fraction;
+      }
+      if (std::abs(fractionSum - 1.0) > 1.0e-12)
+      {
+        throw std::runtime_error("Error: adsorbent MixFraction values must sum to 1");
+      }
+
+      adsorbentLengths.clear();
+      adsorbentInterfaceLengths.clear();
+    }
+    else if (containsKeyCaseInsensitive(parsed_data, "ColumnSections"))
     {
       const nlohmann::json& sections = requireKeyCaseInsensitive(parsed_data, "ColumnSections", "");
       if (!sections.is_array())
@@ -1635,9 +1901,9 @@ InputReader::InputReader(const std::string fileName) : components()
       adsorbentInterfaceLengths.assign(adsorbentsJson.size() - 1, 0.0);
     }
 
-    for (std::size_t ads = 0; ads < adsorbentLengths.size(); ++ads)
+    for (std::size_t ads = 0; ads < adsorbentsJson.size(); ++ads)
     {
-      if (adsorbentLengths[ads] <= 0.0)
+      if (!usesUniformAdsorbentMix && adsorbentLengths[ads] <= 0.0)
       {
         throw std::runtime_error("Error: AdsorbentLength/ColumnSections Length must be positive for adsorbent '" +
                                  adsorbentNames[ads] + "'");
@@ -1659,12 +1925,15 @@ InputReader::InputReader(const std::string fileName) : components()
       }
     }
 
-    if (adsorbentInterfaceLengths.size() != adsorbentsJson.size() - 1)
+    if (!usesUniformAdsorbentMix && adsorbentInterfaceLengths.size() != adsorbentsJson.size() - 1)
     {
       throw std::runtime_error("Error: ColumnSections must define Adsorbents size minus one interfaces");
     }
 
-    columnLength = std::reduce(adsorbentLengths.begin(), adsorbentLengths.end(), 0.0);
+    if (!usesUniformAdsorbentMix)
+    {
+      columnLength = std::reduce(adsorbentLengths.begin(), adsorbentLengths.end(), 0.0);
+    }
 
     if (!columnDistances.empty())
     {
@@ -1708,10 +1977,12 @@ InputReader::InputReader(const std::string fileName) : components()
     adsorbentComponents.push_back(components);
     adsorbentLengths.push_back(columnLength);
     adsorbentInterfaceLengths.clear();
+    adsorbentMixFractions.clear();
     adsorbentGridPoints.push_back(numberOfGridPoints);
     adsorbentVoidFractions.push_back(columnVoidFraction);
     adsorbentParticleDensities.push_back(particleDensity);
     adsorbentParticleDiameters.push_back(particleDiameter);
+    adsorbentGeometries.push_back(geometry);
   }
 
   if (columnDistances.empty())
@@ -1724,12 +1995,29 @@ InputReader::InputReader(const std::string fileName) : components()
   {
     for (const Component& comp : componentsForAdsorbent)
     {
-      if (!comp.isCarrierGas && comp.isotherm.sites.empty())
+      if (mixturePredictionMethod != 6 && !comp.isCarrierGas && comp.isotherm.sites.empty())
       {
         throw std::runtime_error("Error: non-carrier component '" + comp.name +
                                  "' has no isotherm for at least one adsorbent");
       }
+      for (const Isotherm& isotherm : comp.isotherm.sites)
+      {
+        if (isotherm.type != Isotherm::Type::Langmuir_pH) continue;
+        if (fluidPhase != 1)
+        {
+          throw std::runtime_error("Error: pH-Langmuir is available only for liquid simulations");
+        }
+        if (mixturePredictionMethod != 5)
+        {
+          throw std::runtime_error("Error: pH-Langmuir requires MixturePredictionMethod SPI");
+        }
+      }
     }
+  }
+
+  if (fluidPhase == 1 && mixturePredictionMethod == 6)
+  {
+    throw std::runtime_error("Error: MPD mixture prediction is available only for gas simulations");
   }
 
   for (size_t reactionId = 0; reactionId < reactions.size(); ++reactionId)
@@ -1882,6 +2170,7 @@ InputReader::InputReader(const std::string fileName) : components()
       maxIsothermTerms = std::max(maxIsothermTerms, maxIsothermTermsIterator->isotherm.sites.size());
     }
   }
+  if (mixturePredictionMethod == 6) maxIsothermTerms = std::max(maxIsothermTerms, size_t{1});
 
   if (simulationType == SimulationType::Breakthrough || simulationType == SimulationType::SwingAdsorption)
   {
@@ -1899,14 +2188,23 @@ InputReader::InputReader(const std::string fileName) : components()
         boundaryCondition == inletPressureOutletPressure || boundaryCondition == inletVelocityOutletPressure;
     const bool boundaryNeedsInletVelocity =
         boundaryCondition == inletPressureInletVelocity || boundaryCondition == inletVelocityOutletPressure ||
-        boundaryCondition == fixedVelocity || boundaryCondition == fixedPressureInletVelocity;
+        boundaryCondition == fixedVelocity;
     const bool effectiveHasInletPressure =
         hasInletPressure || (simulationType == SimulationType::SwingAdsorption && !swingAdsorptionPhases.empty() &&
                              swingAdsorptionPhases.front().inletPressure.has_value());
 
-    requireConfigured(numberOfCarrierGases != 0, "Error: no carrier gas component present");
-    requireConfigured(numberOfCarrierGases == 1,
-                      "Error: multiple carrier gas component present (there can be only one)");
+    if (fluidPhase == 0)
+    {
+      requireConfigured(numberOfCarrierGases != 0, "Error: no carrier gas component present");
+      requireConfigured(numberOfCarrierGases == 1,
+                        "Error: multiple carrier gas component present (there can be only one)");
+    }
+    else
+    {
+      requireConfigured(numberOfCarrierGases == 0, "Error: liquid simulations do not use CarrierGas components");
+      requireConfigured(std::isfinite(pHValue), "Error: pHValue must be finite");
+      requireConfigured(std::isfinite(pKw), "Error: pKw must be finite");
+    }
 
     requireConfigured(temperature >= 0.0, "Error: temperature not set (Use e.g.: 'Temperature 300')");
     requireConfigured(columnVoidFraction > 0.0,
@@ -1938,7 +2236,7 @@ InputReader::InputReader(const std::string fileName) : components()
               "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) + " has invalid inlet pressure");
           if (boundaryCondition == fixedPressureInletVelocity)
           {
-            requireConfigured(*phase.inletPressure + pressureGradient / columnLength > 0.0,
+            requireConfigured(*phase.inletPressure + pressureGradient * columnLength > 0.0,
                               "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) +
                                   " fixed pressure profile becomes non-positive");
           }
@@ -1977,8 +2275,13 @@ InputReader::InputReader(const std::string fileName) : components()
     if (boundaryCondition == fixedPressureInletVelocity)
     {
       requireConfigured(hasPressureGradient, "Error: FixedPressureInletVelocity requires PressureGradient");
-      requireConfigured(inletPressure + pressureGradient / columnLength > 0.0,
+      requireConfigured(inletPressure + pressureGradient * columnLength > 0.0,
                         "Error: fixed pressure profile becomes non-positive");
     }
   }
+}
+
+bool InputReader::isMultibed() const
+{
+  return debugForceMultibed || adsorbentComponents.size() > 1;
 }

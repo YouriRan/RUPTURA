@@ -57,7 +57,6 @@ class RupturaRunner : public QObject
   QString cliExecutable_;
   QString jupyterUrl_;
 
-  bool writeAnalysisNotebook(RunRecord& record, QString* errorMessage);
   QString startJupyter(const RunRecord& record, QString* errorMessage);
   void stopJupyter();
 

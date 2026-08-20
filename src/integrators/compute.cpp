@@ -37,6 +37,7 @@ double isothermMaximumLoading(const Isotherm& isotherm) noexcept
   switch (isotherm.type)
   {
     case Isotherm::Type::Langmuir:
+    case Isotherm::Type::Langmuir_pH:
     case Isotherm::Type::Sips:
     case Isotherm::Type::Langmuir_Freundlich:
     case Isotherm::Type::Toth:
@@ -175,20 +176,6 @@ double limitedPoreRate(const Reaction& reaction, std::span<const double> activit
   return std::copysign(std::min(std::abs(rate), extentLimit), rate);
 }
 
-void addComponentSource(size_t grid, size_t comp, double source, mdspan2d_mut targetDot,
-                        mdspan2d_mut reactionSource)
-{
-  targetDot[grid, comp] += source;
-  reactionSource[grid, comp] += source;
-}
-
-void addComponentSource(size_t site, size_t grid, size_t comp, double source,
-                        mdspan3d_mut targetDot, mdspan3d_mut reactionSource)
-{
-  targetDot[site, grid, comp] += source;
-  reactionSource[site, grid, comp] += source;
-}
-
 }  // namespace
 
 void computeReactionDerivatives(
@@ -290,44 +277,67 @@ void computeReactionDerivatives(
       }
       if (rate == 0.0) continue;
 
-      auto addSourceForReactants = [&](auto addSource)
-      {
-        for (size_t i = 0; i < reaction.reactants.size(); ++i)
-        {
-          const double stoichiometry =
-              i < reaction.reactantStoichiometry.size() ? reaction.reactantStoichiometry[i] : 1.0;
-          addSource(reaction.reactants[i], -stoichiometry * rate);
-        }
-        for (size_t i = 0; i < reaction.products.size(); ++i)
-        {
-          const double stoichiometry =
-              i < reaction.productStoichiometry.size() ? reaction.productStoichiometry[i] : 1.0;
-          addSource(reaction.products[i], stoichiometry * rate);
-        }
-      };
-
       switch (reaction.phase)
       {
         case Reaction::Phase::Physisorbed:
-          addSourceForReactants(
-              [&](size_t comp, double source)
-              { addComponentSource(grid, comp, source, spanPhysisorptionDot, spanReactionPhysisorptionSource); });
+          for (size_t i = 0; i < reaction.reactants.size(); ++i)
+          {
+            const size_t comp = reaction.reactants[i];
+            const double stoichiometry =
+                i < reaction.reactantStoichiometry.size() ? reaction.reactantStoichiometry[i] : 1.0;
+            const double source = -stoichiometry * rate;
+            spanPhysisorptionDot[grid, comp] += source;
+            spanReactionPhysisorptionSource[grid, comp] += source;
+          }
+          for (size_t i = 0; i < reaction.products.size(); ++i)
+          {
+            const size_t comp = reaction.products[i];
+            const double stoichiometry =
+                i < reaction.productStoichiometry.size() ? reaction.productStoichiometry[i] : 1.0;
+            const double source = stoichiometry * rate;
+            spanPhysisorptionDot[grid, comp] += source;
+            spanReactionPhysisorptionSource[grid, comp] += source;
+          }
           break;
         case Reaction::Phase::Chemisorbed:
-          addSourceForReactants(
-              [&](size_t comp, double source)
-              {
-                addComponentSource(reaction.site, grid, comp, source, spanChemisorptionDot,
-                                   spanReactionChemisorptionSource);
-              });
+          for (size_t i = 0; i < reaction.reactants.size(); ++i)
+          {
+            const size_t comp = reaction.reactants[i];
+            const double stoichiometry =
+                i < reaction.reactantStoichiometry.size() ? reaction.reactantStoichiometry[i] : 1.0;
+            const double source = -stoichiometry * rate;
+            spanChemisorptionDot[reaction.site, grid, comp] += source;
+            spanReactionChemisorptionSource[reaction.site, grid, comp] += source;
+          }
+          for (size_t i = 0; i < reaction.products.size(); ++i)
+          {
+            const size_t comp = reaction.products[i];
+            const double stoichiometry =
+                i < reaction.productStoichiometry.size() ? reaction.productStoichiometry[i] : 1.0;
+            const double source = stoichiometry * rate;
+            spanChemisorptionDot[reaction.site, grid, comp] += source;
+            spanReactionChemisorptionSource[reaction.site, grid, comp] += source;
+          }
           break;
         case Reaction::Phase::PoreConcentration:
-          addSourceForReactants(
-              [&](size_t comp, double source)
-              {
-                addComponentSource(reaction.site, grid, comp, source, spanPoreConcentrationDot,
-                                   spanReactionPoreConcentrationSource);
-              });
+          for (size_t i = 0; i < reaction.reactants.size(); ++i)
+          {
+            const size_t comp = reaction.reactants[i];
+            const double stoichiometry =
+                i < reaction.reactantStoichiometry.size() ? reaction.reactantStoichiometry[i] : 1.0;
+            const double source = -stoichiometry * rate;
+            spanPoreConcentrationDot[reaction.site, grid, comp] += source;
+            spanReactionPoreConcentrationSource[reaction.site, grid, comp] += source;
+          }
+          for (size_t i = 0; i < reaction.products.size(); ++i)
+          {
+            const size_t comp = reaction.products[i];
+            const double stoichiometry =
+                i < reaction.productStoichiometry.size() ? reaction.productStoichiometry[i] : 1.0;
+            const double source = stoichiometry * rate;
+            spanPoreConcentrationDot[reaction.site, grid, comp] += source;
+            spanReactionPoreConcentrationSource[reaction.site, grid, comp] += source;
+          }
           break;
       }
 
@@ -345,7 +355,9 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
                                std::span<double> totalConcentration, std::span<double> totalPressure,
                                std::span<const double> concentration, std::span<double> partialPressure,
                                std::span<double> moleFraction, std::span<const double> bulkSpeciesSink,
-                               std::span<const double> gasTemperature)
+                               std::span<const double> gasTemperature, Column::FluidPhase fluidPhase,
+                               double liquidDensity, Column::PHMode pHMode, double pHValue, double pKw,
+                               size_t pHComponent, std::span<double> pH)
 {
   for (size_t grid = 0; grid < numberOfGridPoints + 1; grid++)
   {
@@ -356,14 +368,40 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
     }
 
     totalConcentration[grid] = concentrationSum;
-    totalPressure[grid] = totalConcentration[grid] * R * std::max(1e-10, gasTemperature[grid]);
-    gasDensity[grid] = 0.0;
+    if (fluidPhase == Column::FluidPhase::Gas)
+    {
+      totalPressure[grid] = totalConcentration[grid] * R * std::max(1e-10, gasTemperature[grid]);
+      gasDensity[grid] = 0.0;
+    }
+    else
+    {
+      gasDensity[grid] = liquidDensity;
+    }
     for (size_t comp = 0; comp < numberOfComponents; comp++)
     {
       const size_t index = grid * numberOfComponents + comp;
       moleFraction[index] = concentrationSum > 0.0 ? std::max(0.0, concentration[index]) / concentrationSum : 0.0;
-      partialPressure[index] = concentration[index] * R * std::max(1e-10, gasTemperature[grid]);
-      gasDensity[grid] += concentration[index] * components[comp].molecularWeight;
+      partialPressure[index] = fluidPhase == Column::FluidPhase::Gas
+                                   ? concentration[index] * R * std::max(1e-10, gasTemperature[grid])
+                                   : concentration[index];
+      if (fluidPhase == Column::FluidPhase::Gas)
+      {
+        gasDensity[grid] += concentration[index] * components[comp].molecularWeight;
+      }
+    }
+
+    if (pHMode == Column::PHMode::HPlus)
+    {
+      pH[grid] = -std::log10(std::max(1.0e-300, concentration[grid * numberOfComponents + pHComponent] / 1000.0));
+    }
+    else if (pHMode == Column::PHMode::OHMinus)
+    {
+      pH[grid] = pKw +
+                 std::log10(std::max(1.0e-300, concentration[grid * numberOfComponents + pHComponent] / 1000.0));
+    }
+    else
+    {
+      pH[grid] = pHValue;
     }
   }
 
@@ -441,6 +479,51 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
 
     return c;
   };
+
+  if (fluidPhase == Column::FluidPhase::Liquid)
+  {
+    if (boundaryCondition == Column::BoundaryCondition::InletPressureOutletPressure)
+    {
+      columnEntranceVelocity = geometry.pressureDrop.velocity(
+          dynamicViscosity, liquidDensity, (outletPressure - inletPressure) / columnLength);
+    }
+
+    std::fill(interstitialGasVelocity.begin(), interstitialGasVelocity.end(), columnEntranceVelocity);
+
+    if (boundaryCondition == Column::BoundaryCondition::InletVelocityOutletPressure ||
+        (boundaryCondition == Column::BoundaryCondition::FixedVelocity && inletPressure <= 0.0))
+    {
+      totalPressure[numberOfGridPoints] = outletPressure;
+      for (size_t grid = numberOfGridPoints; grid > 0; --grid)
+      {
+        const size_t current = grid - 1;
+        totalPressure[current] = totalPressure[current + 1] + ergunGrad(current) * resolution;
+      }
+    }
+    else if (boundaryCondition == Column::BoundaryCondition::FixedPressureInletVelocity)
+    {
+      for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+      {
+        totalPressure[grid] = inletPressure + pressureGradient * columnLength * gridRatio(grid);
+      }
+      columnEntranceVelocity = geometry.pressureDrop.velocity(dynamicViscosity, liquidDensity, pressureGradient);
+      std::fill(interstitialGasVelocity.begin(), interstitialGasVelocity.end(), columnEntranceVelocity);
+    }
+    else
+    {
+      totalPressure[0] = inletPressure;
+      for (size_t grid = 1; grid < numberOfGridPoints + 1; ++grid)
+      {
+        totalPressure[grid] = totalPressure[grid - 1] - ergunGrad(grid - 1) * resolution;
+      }
+    }
+
+    if (totalPressure[numberOfGridPoints] <= 0.0)
+    {
+      throw std::runtime_error("Error: pressure gradient is too large (negative outlet pressure)\n");
+    }
+    return;
+  }
 
   if (boundaryCondition == Column::BoundaryCondition::InletPressureInletVelocity)
   {
@@ -522,19 +605,15 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
   }
   else if (boundaryCondition == Column::BoundaryCondition::FixedPressureInletVelocity)
   {
-    interstitialGasVelocity[0] = columnEntranceVelocity;
     for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
     {
-      totalPressure[grid] = inletPressure + pressureGradient * gridRatio(grid) / columnLength;
+      const double position = columnLength * gridRatio(grid);
+      totalPressure[grid] = inletPressure + pressureGradient * position;
       refreshNode(grid);
-    }
-
-    for (size_t grid = 1; grid < numberOfGridPoints + 1; ++grid)
-    {
       interstitialGasVelocity[grid] =
-          (interstitialGasVelocity[grid - 1] * totalConcentration[grid - 1] - sinkTerm(grid)) /
-          std::max(1e-10, totalConcentration[grid]);
+          geometry.pressureDrop.velocity(dynamicViscosity, gasDensity[grid], pressureGradient);
     }
+    columnEntranceVelocity = interstitialGasVelocity[0];
   }
 
   if (totalPressure[numberOfGridPoints] <= 0.0)
