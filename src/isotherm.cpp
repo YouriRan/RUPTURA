@@ -145,6 +145,16 @@ std::string Isotherm::repr() const
       appendParameter("b:", parameters[2]);
       break;
     }
+    case Isotherm::Type::GAB:
+    {
+      s += "    Guggenheim-Anderson-de Boer (GAB) isotherm\n";
+      appendParameter("q_mono:", parameters[0]);
+      appendParameter("C_0:", parameters[1]);
+      appendParameter("K_0:", parameters[2]);
+      appendParameter("dH_C:", parameters[3]);
+      appendParameter("dH_K:", parameters[4]);
+      break;
+    }
     default:
       break;
   }
@@ -234,6 +244,11 @@ bool Isotherm::isUnphysical() const
     {
       if (parameters[0] <= 0.0 || (parameters[1] + parameters[2]) < 1e-3) return true;
       return false;
+    }
+    case Isotherm::Type::GAB:
+    {
+      return parameters.size() != 5 || parameters[0] <= 0.0 || parameters[1] <= 0.0 || parameters[2] <= 0.0 ||
+             !std::isfinite(parameters[3]) || !std::isfinite(parameters[4]);
     }
     default:
       throw std::runtime_error("Error: unkown isotherm type");
@@ -336,6 +351,15 @@ void Isotherm::randomize(double maximumLoading)
       parameters[0] = 1.1 * maximumLoading * RandomNumber::Uniform();
       parameters[1] = 0.1 + 2.0 * RandomNumber::Uniform();
       parameters[2] = 0.1 + 2.0 * RandomNumber::Uniform();
+      break;
+    }
+    case Isotherm::Type::GAB:
+    {
+      parameters[0] = 1.1 * maximumLoading * RandomNumber::Uniform();
+      parameters[1] = 0.01 + 2.0 * RandomNumber::Uniform();
+      parameters[2] = 0.5 + 0.49 * RandomNumber::Uniform();
+      parameters[3] = 20000.0 * RandomNumber::Uniform();
+      parameters[4] = -10000.0 * RandomNumber::Uniform();
       break;
     }
     default:

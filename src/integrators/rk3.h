@@ -5,8 +5,8 @@
 
 struct MultibedColumn;
 
-void computeDerivatives(Column& column);
-void computeDerivatives(MultibedColumn& column);
+void computeDerivatives(Column& column, double elapsedTime = 0.0);
+void computeDerivatives(MultibedColumn& column, double elapsedTime = 0.0);
 void precompute(Column& column, Timing& timings);
 void precompute(MultibedColumn& column, Timing& timings);
 bool reactionAutoStopReached(const Column& column, double timeStep) noexcept;

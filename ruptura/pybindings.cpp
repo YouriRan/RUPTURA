@@ -32,7 +32,9 @@
 #include "reaction.h"
 #include "rk3.h"
 #include "rk3_si.h"
+#include "sorption.h"
 #include "swing_adsorption.h"
+#include "transport.h"
 
 namespace nb = nanobind;
 
@@ -93,7 +95,9 @@ nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough<Col
         {
           const size_t index = grid * self.numberOfComponents + comp;
           const double normalizedPartialPressureDenominator =
-              column.totalPressure[grid] * column.components[comp].initialGasMoleFraction;
+              column.fluidPhase == decltype(column.fluidPhase)::Gas
+                  ? column.totalPressure[grid] * column.components[comp].initialGasMoleFraction
+                  : column.components[comp].inletLiquidConcentration;
 
           buffer->push_back(column.physisorption[index]);
           buffer->push_back(column.equilibriumPhysisorption[index]);
@@ -179,7 +183,7 @@ void bindBreakthrough(nb::module_& module, const char* name)
               for (size_t i = 0; i < mixture.numberOfComponents; ++i)
               {
                 mixture.components[i].initialGasMoleFraction = molfracs[i];
-                const size_t numberOfParameters = mixture.components[i].isotherm.parameters.size();
+                const size_t numberOfParameters = mixture.components[i].isotherm.numberOfParameters;
                 std::vector<double> slicedVec(params.begin() + static_cast<std::ptrdiff_t>(index),
                                               params.begin() + static_cast<std::ptrdiff_t>(index + numberOfParameters));
                 index += numberOfParameters;
@@ -211,7 +215,9 @@ void bindSwingAdsorption(nb::module_& module, const char* name)
   using Simulation = SwingAdsorption<ColumnType>;
   nb::class_<Simulation>(module, name)
       .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
-      .def_rw("breakthrough", &Simulation::breakthrough)
+      .def_prop_ro(
+          "breakthrough", [](Simulation& self) -> Breakthrough<ColumnType>& { return self.breakthrough; },
+          nb::rv_policy::reference_internal)
       .def_rw("sub_stages", &Simulation::subStages)
       .def("run", &Simulation::run)
       .def("print", &Simulation::print)
@@ -277,7 +283,15 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("iast_method", &InputReader::IASTMethod)
       .def_rw("breakthrough_integrator", &InputReader::breakthroughIntegrator)
       .def_rw("boundary_condition", &InputReader::boundaryCondition)
+      .def_rw("fluid_phase", &InputReader::fluidPhase)
+      .def_rw("liquid_density", &InputReader::liquidDensity)
+      .def_rw("ph_mode", &InputReader::pHMode)
+      .def_rw("ph_value", &InputReader::pHValue)
+      .def_rw("pkw", &InputReader::pKw)
+      .def_rw("ph_component", &InputReader::pHComponent)
       .def_rw("display_name", &InputReader::displayName)
+      .def_rw("debug_force_multibed", &InputReader::debugForceMultibed)
+      .def("is_multibed", &InputReader::isMultibed)
       .def_rw("temperature", &InputReader::temperature)
       .def_rw("column_void_fraction", &InputReader::columnVoidFraction)
       .def_rw("dynamic_viscosity", &InputReader::dynamicViscosity)
@@ -291,6 +305,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("column_distances", &InputReader::columnDistances)
       .def_rw("adsorbent_lengths", &InputReader::adsorbentLengths)
       .def_rw("adsorbent_interface_lengths", &InputReader::adsorbentInterfaceLengths)
+      .def_rw("adsorbent_mix_fractions", &InputReader::adsorbentMixFractions)
       .def_rw("adsorbent_grid_points", &InputReader::adsorbentGridPoints)
       .def_rw("adsorbent_void_fractions", &InputReader::adsorbentVoidFractions)
       .def_rw("adsorbent_particle_densities", &InputReader::adsorbentParticleDensities)
@@ -305,6 +320,10 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("heat_transfer_gas_wall", &InputReader::heatTransferGasWall)
       .def_rw("heat_transfer_wall_external", &InputReader::heatTransferWallExternal)
       .def_rw("heat_capacity_gas", &InputReader::heatCapacityGas)
+      .def_rw("liquid_thermal_conductivity", &InputReader::liquidThermalConductivity)
+      .def_rw("heat_transfer_liquid_solid", &InputReader::heatTransferLiquidSolid)
+      .def_rw("heat_transfer_liquid_wall", &InputReader::heatTransferLiquidWall)
+      .def_rw("heat_capacity_liquid", &InputReader::heatCapacityLiquid)
       .def_rw("heat_capacity_solid", &InputReader::heatCapacitySolid)
       .def_rw("heat_capacity_wall", &InputReader::heatCapacityWall)
       .def_rw("energy_balance", &InputReader::energyBalance)
@@ -341,22 +360,20 @@ EXPAND_MODULE(MODULE_NAME)
       .value("OBRIEN_MYERS", Isotherm::Type::OBrien_Myers)
       .value("QUADRATIC", Isotherm::Type::Quadratic)
       .value("TEMKIN", Isotherm::Type::Temkin)
-      .value("BINGEL_WALTON", Isotherm::Type::BingelWalton);
+      .value("BINGEL_WALTON", Isotherm::Type::BingelWalton)
+      .value("LANGMUIR_PH", Isotherm::Type::Langmuir_pH)
+      .value("GAB", Isotherm::Type::GAB);
 
   isotherm
       .def(nb::init<Isotherm::Type, std::vector<double>, bool>(), nb::arg("type"), nb::arg("parameters"),
            nb::arg("non_isothermal") = false)
-      .def(nb::init<Isotherm::Type, const std::vector<double>&, std::size_t, bool>(), nb::arg("type"),
-           nb::arg("parameters"), nb::arg("number_of_parameters"), nb::arg("non_isothermal") = false)
-      .def(nb::init<std::size_t, const std::vector<double>&, std::size_t, bool>(), nb::arg("type"),
-           nb::arg("parameters"), nb::arg("number_of_parameters"), nb::arg("non_isothermal") = false)
       .def_rw("type", &Isotherm::type)
       .def_rw("parameters", &Isotherm::parameters)
       .def_rw("number_of_parameters", &Isotherm::numberOfParameters)
       .def_rw("non_isothermal", &Isotherm::nonIsothermal)
       .def("print", &Isotherm::print)
       .def("__repr__", &Isotherm::repr)
-      .def("value", &Isotherm::value, nb::arg("pressure"), nb::arg("scale") = 1.0)
+      .def("value", &Isotherm::value, nb::arg("pressure"), nb::arg("scale") = 1.0, nb::arg("ph") = 7.0)
       .def("psi_for_pressure", &Isotherm::psiForPressure, nb::arg("pressure"), nb::arg("scale") = 1.0)
       .def(
           "inverse_pressure_for_psi",
@@ -380,11 +397,14 @@ EXPAND_MODULE(MODULE_NAME)
       .def("print", &MultiSiteIsotherm::print)
       .def("__repr__", &MultiSiteIsotherm::repr)
       .def(
-          "value", [](const MultiSiteIsotherm& self, double pressure, double scale)
-          { return self.value(pressure, scale); }, nb::arg("pressure"), nb::arg("scale") = 1.0)
+          "value", [](const MultiSiteIsotherm& self, double pressure, double scale, double pH)
+          { return self.value(pressure, scale, pH); }, nb::arg("pressure"), nb::arg("scale") = 1.0,
+          nb::arg("ph") = 7.0)
       .def(
-          "value_site", [](const MultiSiteIsotherm& self, std::size_t site, double pressure, double scale)
-          { return self.value(site, pressure, scale); }, nb::arg("site"), nb::arg("pressure"), nb::arg("scale") = 1.0)
+          "value_site",
+          [](const MultiSiteIsotherm& self, std::size_t site, double pressure, double scale, double pH)
+          { return self.value(site, pressure, scale, pH); }, nb::arg("site"), nb::arg("pressure"),
+          nb::arg("scale") = 1.0, nb::arg("ph") = 7.0)
       .def(
           "psi_for_pressure", [](const MultiSiteIsotherm& self, double pressure, double scale)
           { return self.psiForPressure(pressure, scale); }, nb::arg("pressure"), nb::arg("scale") = 1.0)
@@ -445,7 +465,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("use_pore_surface_transport", &Chemisorption::usePoreSurfaceTransport)
       .def_rw("isotherm", &Chemisorption::isotherm)
       .def("rate", &Chemisorption::rate, nb::arg("equilibrium_loading"), nb::arg("loading"),
-           nb::arg("concentration") = 0.0, nb::arg("temperature") = 298.15)
+           nb::arg("concentration") = 0.0, nb::arg("temperature") = 298.15, nb::arg("elapsed_time") = 0.0)
       .def("uses_surface_pore_transport", &Chemisorption::usesSurfacePoreTransport)
       .def("__repr__", &Chemisorption::repr);
 
@@ -473,6 +493,8 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("filename", &Component::filename)
       .def_rw("isotherm", &Component::isotherm)
       .def_rw("yi0", &Component::initialGasMoleFraction)
+      .def_rw("inlet_liquid_concentration", &Component::inletLiquidConcentration)
+      .def_rw("initial_liquid_concentration", &Component::initialLiquidConcentration)
       .def_rw("kl", &Component::massTransferCoefficient)
       .def_rw("diffusion", &Component::axialDispersionCoefficient)
       .def_rw("heat_of_adsorption", &Component::heatOfAdsorption)
@@ -500,7 +522,8 @@ EXPAND_MODULE(MODULE_NAME)
       .value("EI", MixturePrediction::PredictionMethod::EI)
       .value("SEI", MixturePrediction::PredictionMethod::SEI)
       .value("SCI", MixturePrediction::PredictionMethod::SCI)
-      .value("SPI", MixturePrediction::PredictionMethod::SPI);
+      .value("SPI", MixturePrediction::PredictionMethod::SPI)
+      .value("MPD", MixturePrediction::PredictionMethod::MPD);
 
   nb::enum_<MixturePrediction::IASTMethod>(mixturePrediction, "IASTMethod", nb::is_arithmetic())
       .value("FAST_IAST", MixturePrediction::IASTMethod::FastIAST)
@@ -510,16 +533,11 @@ EXPAND_MODULE(MODULE_NAME)
       .value("LOG", MixturePrediction::PressureScale::Log)
       .value("LINEAR", MixturePrediction::PressureScale::Linear);
 
+  nb::enum_<MixturePrediction::DrivingForceInput>(mixturePrediction, "DrivingForceInput", nb::is_arithmetic())
+      .value("MOLE_FRACTION", MixturePrediction::DrivingForceInput::MoleFraction)
+      .value("CONCENTRATION", MixturePrediction::DrivingForceInput::Concentration);
+
   mixturePrediction.def(nb::init<const InputReader&>(), nb::arg("input_reader"))
-      .def(nb::init<std::string, std::vector<Component>, std::size_t, std::size_t, MixturePrediction::PredictionMethod,
-                    MixturePrediction::IASTMethod, std::size_t, double, double, double, std::size_t,
-                    MixturePrediction::PressureScale>(),
-           nb::arg("display_name"), nb::arg("components"), nb::arg("number_of_carrier_gases"),
-           nb::arg("carrier_gas_component"), nb::arg("prediction_method") = MixturePrediction::PredictionMethod::IAST,
-           nb::arg("iast_method") = MixturePrediction::IASTMethod::FastIAST, nb::arg("max_isotherm_terms"),
-           nb::arg("temperature") = 300.0, nb::arg("pressure_start") = 1.0e3, nb::arg("pressure_end") = 1.0e8,
-           nb::arg("number_of_pressure_points") = 100,
-           nb::arg("pressure_scale") = MixturePrediction::PressureScale::Log)
       .def("print", &MixturePrediction::print)
       .def("__repr__", &MixturePrediction::repr)
       .def_rw("display_name", &MixturePrediction::displayName)
@@ -552,6 +570,10 @@ EXPAND_MODULE(MODULE_NAME)
       .def("run", &MixturePrediction::run)
       .def("init_pressures", &MixturePrediction::initPressures)
       .def("sort_components", &MixturePrediction::sortComponents)
+      .def(
+          "make_chemisorption_prediction",
+          [](const MixturePrediction& self)
+          { return MixturePrediction::makeChemisorptionPrediction(self, self.components); })
       .def("compute",
            [](MixturePrediction& self) -> nb::ndarray<nb::numpy, double, nb::ndim<3>>
            {
@@ -560,6 +582,7 @@ EXPAND_MODULE(MODULE_NAME)
              std::vector<double> idealGasMolFractions(self.numberOfComponents);
              std::vector<double> adsorbedMolFractions(self.numberOfComponents);
              std::vector<double> numberOfMolecules(self.numberOfComponents);
+             std::vector<double> pureComponentLoadings(self.numberOfComponents);
              std::vector<double> cachedPressure(self.numberOfComponents * self.maxIsothermTerms);
              std::vector<double> cachedGrandPotential(self.maxIsothermTerms);
 
@@ -584,37 +607,108 @@ EXPAND_MODULE(MODULE_NAME)
                }
 
                double gasTemperature = self.temperature;
+               self.predictPureComponentLoadings(pressures[i], pureComponentLoadings, gasTemperature);
                self.predictMixture(idealGasMolFractions, pressures[i], adsorbedMolFractions, numberOfMolecules,
                                    cachedPressure, cachedGrandPotential, gasTemperature);
 
                for (size_t j = 0; j < self.numberOfComponents; j++)
                {
-                 double pStar = idealGasMolFractions[j] * pressures[i] / adsorbedMolFractions[j];
+                 const bool hasHypotheticalPressure =
+                     self.predictionMethod != MixturePrediction::PredictionMethod::MPD &&
+                     adsorbedMolFractions[j] > 0.0;
+                 const double pStar = hasHypotheticalPressure
+                                          ? idealGasMolFractions[j] * pressures[i] / adsorbedMolFractions[j]
+                                          : 0.0;
                  size_t index = (i * self.numberOfComponents + j) * 6;
                  data[index] = pressures[i];
-                 data[index + 1] = self.components[j].isotherm.value(pressures[i], gasTemperature);
+                 data[index + 1] = pureComponentLoadings[j];
                  data[index + 2] = numberOfMolecules[j];
                  data[index + 3] = idealGasMolFractions[j];
                  data[index + 4] = adsorbedMolFractions[j];
-                 data[index + 5] = self.components[j].isotherm.psiForPressure(pStar, gasTemperature);
+                 data[index + 5] = hasHypotheticalPressure
+                                       ? self.components[j].isotherm.psiForPressure(pStar, gasTemperature)
+                                       : 0.0;
                }
              }
 
              return nb::ndarray<nb::numpy, double, nb::ndim<3>>(
                  buffer->data(), {self.numberOfPressurePoints, self.numberOfComponents, static_cast<size_t>(6)}, owner);
            })
+      .def(
+          "compute_sorption",
+          [](MixturePrediction& self) -> nb::ndarray<nb::numpy, double, nb::ndim<3>>
+          {
+            // Return physical, chemical, and summed equilibrium loadings without
+            // changing the long-standing six-column compute() result.
+            MixturePrediction chemical = MixturePrediction::makeChemisorptionPrediction(self, self.components);
+            std::vector<double> pressures = self.initPressures();
+            const size_t componentCount = self.numberOfComponents;
+
+            std::vector<double> idealGasMolFractions(componentCount, 0.0);
+            for (size_t comp = 0; comp < componentCount; ++comp)
+            {
+              idealGasMolFractions[comp] = self.components[comp].initialGasMoleFraction;
+            }
+
+            std::vector<double> physicalPure(componentCount, 0.0);
+            std::vector<double> chemicalPure(componentCount, 0.0);
+            std::vector<double> physicalAdsorbedFractions(componentCount, 0.0);
+            std::vector<double> chemicalAdsorbedFractions(componentCount, 0.0);
+            std::vector<double> physicalMixture(componentCount, 0.0);
+            std::vector<double> chemicalMixture(componentCount, 0.0);
+            std::vector<double> physicalCachedPressure(componentCount * self.maxIsothermTerms, 0.0);
+            std::vector<double> physicalCachedGrandPotential(self.maxIsothermTerms, 0.0);
+            std::vector<double> chemicalCachedPressure(componentCount * chemical.maxIsothermTerms, 0.0);
+            std::vector<double> chemicalCachedGrandPotential(chemical.maxIsothermTerms, 0.0);
+
+            auto* buffer = new std::vector<double>(self.numberOfPressurePoints * componentCount * 7, 0.0);
+            nb::capsule owner(buffer,
+                              [](void* pointer) noexcept { delete static_cast<std::vector<double>*>(pointer); });
+
+            for (size_t pressureIndex = 0; pressureIndex < self.numberOfPressurePoints; ++pressureIndex)
+            {
+              if (PyErr_CheckSignals() != 0) throw nb::python_error();
+
+              double physicalTemperature = self.temperature;
+              double chemicalTemperature = chemical.temperature;
+              self.predictPureComponentLoadings(pressures[pressureIndex], physicalPure, physicalTemperature);
+              chemical.predictPureComponentLoadings(pressures[pressureIndex], chemicalPure, chemicalTemperature);
+              self.predictMixture(idealGasMolFractions, pressures[pressureIndex], physicalAdsorbedFractions,
+                                  physicalMixture, physicalCachedPressure, physicalCachedGrandPotential,
+                                  physicalTemperature);
+              chemical.predictMixture(idealGasMolFractions, pressures[pressureIndex], chemicalAdsorbedFractions,
+                                      chemicalMixture, chemicalCachedPressure, chemicalCachedGrandPotential,
+                                      chemicalTemperature);
+
+              for (size_t comp = 0; comp < componentCount; ++comp)
+              {
+                const size_t index = (pressureIndex * componentCount + comp) * 7;
+                (*buffer)[index] = pressures[pressureIndex];
+                (*buffer)[index + 1] = physicalPure[comp];
+                (*buffer)[index + 2] = chemicalPure[comp];
+                (*buffer)[index + 3] = physicalPure[comp] + chemicalPure[comp];
+                (*buffer)[index + 4] = physicalMixture[comp];
+                (*buffer)[index + 5] = chemicalMixture[comp];
+                (*buffer)[index + 6] = physicalMixture[comp] + chemicalMixture[comp];
+              }
+            }
+
+            return nb::ndarray<nb::numpy, double, nb::ndim<3>>(
+                buffer->data(), {self.numberOfPressurePoints, componentCount, static_cast<size_t>(7)}, owner);
+          })
       .def("get_max_isotherm_terms", &MixturePrediction::getMaxIsothermTerms)
       .def(
           "predict_mixture",
-          [](MixturePrediction& self, const std::vector<double>& idealGasMolFractions, double externalPressure,
-             double gasTemperature, std::vector<double> cachedPressure, std::vector<double> cachedGrandPotential)
+          [](MixturePrediction& self, const std::vector<double>& drivingForces, double externalPressure,
+             double gasTemperature, std::vector<double> cachedPressure, std::vector<double> cachedGrandPotential,
+             double pH, MixturePrediction::DrivingForceInput input)
           {
-            if (idealGasMolFractions.empty())
+            if (drivingForces.empty())
             {
-              throw std::invalid_argument("ideal_gas_mol_fractions must not be empty");
+              throw std::invalid_argument("driving_forces must not be empty");
             }
 
-            const std::size_t numberOfComponents = idealGasMolFractions.size();
+            const std::size_t numberOfComponents = drivingForces.size();
             const std::size_t maxIsothermTerms = self.getMaxIsothermTerms();
 
             if (cachedPressure.empty())
@@ -640,16 +734,18 @@ EXPAND_MODULE(MODULE_NAME)
             double gasTemperatureValue = gasTemperature;
 
             std::pair<std::size_t, std::size_t> performance = self.predictMixture(
-                std::span<const double>(idealGasMolFractions.data(), idealGasMolFractions.size()), externalPressure,
+                std::span<const double>(drivingForces.data(), drivingForces.size()), externalPressure,
                 std::span<double>(adsorbedMolFractions.data(), adsorbedMolFractions.size()),
                 std::span<double>(numberOfMolecules.data(), numberOfMolecules.size()), cachedPressure,
-                cachedGrandPotential, gasTemperatureValue);
+                cachedGrandPotential, gasTemperatureValue, pH, input);
 
             return nb::make_tuple(performance, adsorbedMolFractions, numberOfMolecules, cachedPressure,
                                   cachedGrandPotential, gasTemperatureValue);
           },
-          nb::arg("ideal_gas_mol_fractions"), nb::arg("external_pressure"), nb::arg("gas_temperature"),
-          nb::arg("cached_pressure") = std::vector<double>(), nb::arg("cached_grand_potential") = std::vector<double>())
+          nb::arg("driving_forces"), nb::arg("external_pressure"), nb::arg("gas_temperature"),
+          nb::arg("cached_pressure") = std::vector<double>(), nb::arg("cached_grand_potential") = std::vector<double>(),
+          nb::arg("ph") = 7.0,
+          nb::arg("input") = MixturePrediction::DrivingForceInput::MoleFraction)
       .def(
           "set_pressure",
           [](MixturePrediction& self, double pressureStart, double pressureEnd)
@@ -666,7 +762,7 @@ EXPAND_MODULE(MODULE_NAME)
             for (size_t i = 0; i < self.numberOfComponents; ++i)
             {
               self.components[i].initialGasMoleFraction = molfracs[i];
-              size_t numberOfParameters = self.components[i].isotherm.parameters.size();
+              size_t numberOfParameters = self.components[i].isotherm.numberOfParameters;
               std::vector<double> slicedVec(params.begin() + index, params.begin() + index + numberOfParameters);
               index += numberOfParameters;
               self.components[i].isotherm.setParameters(slicedVec);
@@ -698,6 +794,14 @@ EXPAND_MODULE(MODULE_NAME)
       .value("FIXED_VELOCITY", Column::BoundaryCondition::FixedVelocity)
       .value("FIXED_PRESSURE_INLET_VELOCITY", Column::BoundaryCondition::FixedPressureInletVelocity);
 
+  nb::enum_<Column::FluidPhase>(column, "FluidPhase", nb::is_arithmetic())
+      .value("GAS", Column::FluidPhase::Gas)
+      .value("LIQUID", Column::FluidPhase::Liquid);
+  nb::enum_<Column::PHMode>(column, "PHMode", nb::is_arithmetic())
+      .value("FIXED", Column::PHMode::Fixed)
+      .value("H_PLUS", Column::PHMode::HPlus)
+      .value("OH_MINUS", Column::PHMode::OHMinus);
+
   column.def(nb::init<const InputReader&>(), nb::arg("input_reader"))
       .def(
           nb::init<MixturePrediction, std::vector<Component>, Column::BoundaryCondition, bool, std::size_t, std::size_t,
@@ -717,6 +821,13 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("components", &Column::components)
       .def_rw("reactions", &Column::reactions)
       .def_rw("boundary_condition", &Column::boundaryCondition)
+      .def_rw("fluid_phase", &Column::fluidPhase)
+      .def_rw("liquid_density", &Column::liquidDensity)
+      .def_rw("ph_mode", &Column::pHMode)
+      .def_rw("ph_value", &Column::pHValue)
+      .def_rw("pkw", &Column::pKw)
+      .def_rw("ph_component", &Column::pHComponent)
+      .def_rw("ph", &Column::pH)
       .def_rw("energy_balance", &Column::energyBalance)
       .def_rw("number_of_grid_points", &Column::numberOfGridPoints)
       .def_rw("number_of_components", &Column::numberOfComponents)
@@ -768,9 +879,6 @@ EXPAND_MODULE(MODULE_NAME)
                    [](const Column& self) { return spanToVector(std::span<const double>(self.moleFraction)); })
       .def_rw("cached_pressure", &Column::cachedPressure)
       .def_rw("cached_grand_potential", &Column::cachedGrandPotential)
-      .def_rw("coeff_gas_gas", &Column::coeffGasGas)
-      .def_rw("coeff_gas_solid", &Column::coeffGasSolid)
-      .def_rw("coeff_gas_wall", &Column::coeffGasWall)
       .def_rw("coeff_diffusion", &Column::coeffDiffusion)
       .def_rw("face_pressures", &Column::facePressures)
       .def_rw("mass_flux", &Column::massFlux)
@@ -829,12 +937,27 @@ EXPAND_MODULE(MODULE_NAME)
       .value("FIXED_VELOCITY", MultibedColumn::BoundaryCondition::FixedVelocity)
       .value("FIXED_PRESSURE_INLET_VELOCITY", MultibedColumn::BoundaryCondition::FixedPressureInletVelocity);
 
+  nb::enum_<MultibedColumn::FluidPhase>(multibedColumn, "FluidPhase", nb::is_arithmetic())
+      .value("GAS", MultibedColumn::FluidPhase::Gas)
+      .value("LIQUID", MultibedColumn::FluidPhase::Liquid);
+  nb::enum_<MultibedColumn::PHMode>(multibedColumn, "PHMode", nb::is_arithmetic())
+      .value("FIXED", MultibedColumn::PHMode::Fixed)
+      .value("H_PLUS", MultibedColumn::PHMode::HPlus)
+      .value("OH_MINUS", MultibedColumn::PHMode::OHMinus);
+
   multibedColumn.def(nb::init<const InputReader&>(), nb::arg("input_reader"))
       .def_rw("physisorption_mixtures", &MultibedColumn::physisorptionMixtures)
       .def_rw("chemisorption_mixtures", &MultibedColumn::chemisorptionMixtures)
       .def_rw("components", &MultibedColumn::components)
       .def_rw("reactions", &MultibedColumn::reactions)
       .def_rw("boundary_condition", &MultibedColumn::boundaryCondition)
+      .def_rw("fluid_phase", &MultibedColumn::fluidPhase)
+      .def_rw("liquid_density", &MultibedColumn::liquidDensity)
+      .def_rw("ph_mode", &MultibedColumn::pHMode)
+      .def_rw("ph_value", &MultibedColumn::pHValue)
+      .def_rw("pkw", &MultibedColumn::pKw)
+      .def_rw("ph_component", &MultibedColumn::pHComponent)
+      .def_rw("ph", &MultibedColumn::pH)
       .def_rw("energy_balance", &MultibedColumn::energyBalance)
       .def_rw("number_of_grid_points", &MultibedColumn::numberOfGridPoints)
       .def_rw("number_of_components", &MultibedColumn::numberOfComponents)
@@ -844,6 +967,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("carrier_gas_component", &MultibedColumn::carrierGasComponent)
       .def_rw("adsorbent_lengths", &MultibedColumn::adsorbentLengths)
       .def_rw("adsorbent_interface_lengths", &MultibedColumn::adsorbentInterfaceLengths)
+      .def_rw("adsorbent_mix_fractions", &MultibedColumn::adsorbentMixFractions)
       .def_rw("adsorbent_void_fractions", &MultibedColumn::adsorbentVoidFractions)
       .def_rw("particle_densities", &MultibedColumn::particleDensities)
       .def_rw("particle_diameters", &MultibedColumn::particleDiameters)
@@ -912,11 +1036,53 @@ EXPAND_MODULE(MODULE_NAME)
       .def("write_json", &MultibedColumn::writeJSON, nb::arg("file_name"))
       .def("read_json", &MultibedColumn::readJSON, nb::arg("file_name"));
 
-  m.def("update_velocity_and_pressure", &RK3Helpers::updateVelocityAndPressure, nb::arg("column"));
+  m.def(
+      "update_velocity_and_pressure",
+      [](Column& column)
+      {
+        computeBulkSpeciesSink(column.components, column.numberOfGridPoints, column.numberOfComponents,
+                               column.maxChemisorptionSites, column.geometry, column.particleDensity,
+                               column.concentration, column.physisorptionDot, column.chemisorptionDot,
+                               column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
+                               column.reactionChemisorptionSource);
+        updateVelocityAndPressure(
+            column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
+            column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength, column.geometry,
+            column.columnEntranceVelocity, column.dynamicViscosity, column.resolution, column.interstitialGasVelocity,
+            column.gasDensity, column.totalConcentration, column.totalPressure, column.concentration,
+            column.partialPressure, column.moleFraction, column.bulkSpeciesSink, column.gasTemperature,
+            column.fluidPhase, column.liquidDensity, column.pHMode, column.pHValue, column.pKw,
+            column.pHComponent, column.pH);
+      },
+      nb::arg("column"));
 
-  m.def("compute_equilibrium_loadings", &RK3Helpers::computeEquilibriumLoadings, nb::arg("column"));
+  m.def(
+      "compute_equilibrium_loadings",
+      [](Column& column)
+      {
+        computePhysisorptionEquilibriumLoadings(
+            column.physisorptionMixture, column.numberOfGridPoints, column.numberOfComponents, column.maxIsothermTerms,
+            column.iastPerformance, column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules,
+            column.totalPressure, column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
+            column.moleFraction, column.gasTemperature,
+            column.fluidPhase == Column::FluidPhase::Gas
+                ? MixturePrediction::DrivingForceInput::MoleFraction
+                : MixturePrediction::DrivingForceInput::Concentration,
+            column.concentration, column.pH);
+        computeChemisorptionEquilibriumLoadings(
+            column.chemisorptionMixture, column.numberOfGridPoints, column.numberOfComponents,
+            column.maxChemisorptionSites, column.iastPerformance, column.idealGasMolFractions,
+            column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
+            column.equilibriumChemisorption, column.cachedChemisorptionPressure,
+            column.cachedChemisorptionGrandPotential, column.moleFraction, column.gasTemperature,
+            column.fluidPhase == Column::FluidPhase::Gas
+                ? MixturePrediction::DrivingForceInput::MoleFraction
+                : MixturePrediction::DrivingForceInput::Concentration,
+            column.concentration, column.pH);
+      },
+      nb::arg("column"));
 
-  m.def("compute_first_derivatives", &RK3Helpers::computeDerivatives, nb::arg("column"));
+  m.def("compute_first_derivatives", [](Column& column) { computeDerivatives(column); }, nb::arg("column"));
 
   m.def(
       "compute_weno",
@@ -1027,7 +1193,6 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("pressure_scale", &Fitting::pressureScale)
       .def_rw("raw_data", &Fitting::rawData)
       .def("read_data", &Fitting::readData, nb::arg("component"))
-      .def("print_solution", &Fitting::printSolution, nb::arg("component"))
       .def("run", &Fitting::run)
       .def("write_components_json", &Fitting::writeComponentsJson, nb::arg("path"));
 
@@ -1051,7 +1216,7 @@ EXPAND_MODULE(MODULE_NAME)
         switch (inputReader.simulationType)
         {
           case InputReader::SimulationType::Breakthrough:
-            if (inputReader.adsorbentComponents.size() > 1)
+            if (inputReader.isMultibed())
             {
               return nb::cast(Breakthrough<MultibedColumn>(inputReader));
             }
@@ -1061,7 +1226,7 @@ EXPAND_MODULE(MODULE_NAME)
           case InputReader::SimulationType::Fitting:
             return nb::cast(Fitting(inputReader));
           case InputReader::SimulationType::SwingAdsorption:
-            if (inputReader.adsorbentComponents.size() > 1)
+            if (inputReader.isMultibed())
             {
               return nb::cast(SwingAdsorption<MultibedColumn>(inputReader));
             }

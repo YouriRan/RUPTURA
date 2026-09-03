@@ -141,7 +141,7 @@ struct MultiSiteIsotherm
    *
    * \return A vector containing all parameter values.
    */
-  std::vector<double> getParameters();
+  std::vector<double> getParameters() const;
 
   /**
    * \brief Computes the total adsorption value at a given pressure.

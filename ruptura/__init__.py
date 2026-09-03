@@ -70,6 +70,37 @@ MIXTURE_RESULT_COLUMNS = (
     "reduced_grand_potential",
 )
 
+MIXTURE_SORPTION_RESULT_COLUMNS = (
+    "pressure",
+    "pure_physisorption_loading",
+    "pure_chemisorption_loading",
+    "pure_total_loading",
+    "mixture_physisorption_loading",
+    "mixture_chemisorption_loading",
+    "mixture_total_loading",
+)
+
+# Columns of the ``component_<index>_<name>.data`` files written by
+# ``MixturePrediction::run()``. The last four are appended only when a component
+# defines a nested chemisorption equilibrium isotherm; in that case columns 2 and
+# 3 hold the physisorption contribution alone.
+MIXTURE_FILE_COLUMNS = (
+    "pressure",
+    "pure_physisorption_loading",
+    "mixture_physisorption_loading",
+    "gas_mol_fraction",
+    "adsorbed_mol_fraction",
+    "hypothetical_pressure",
+    "reduced_grand_potential",
+)
+
+MIXTURE_FILE_CHEMISORPTION_COLUMNS = (
+    "pure_chemisorption_loading",
+    "mixture_chemisorption_loading",
+    "pure_total_loading",
+    "mixture_total_loading",
+)
+
 BREAKTHROUGH_BASE_COLUMNS = (
     "dimensionless_time",
     "time_min",
@@ -176,6 +207,51 @@ def compute(simulation: Any, *, labeled: bool = True) -> np.ndarray | Simulation
     return SimulationResult(data=data, columns=(), kind=type(simulation).__name__)
 
 
+def compute_sorption(simulation: Any, *, labeled: bool = True) -> np.ndarray | SimulationResult:
+    """Compute physical, chemical, and total equilibrium mixture loadings.
+
+    ``simulation`` must be a :class:`MixturePrediction`. The returned array has
+    pressure points on axis 0, components on axis 1, and the columns listed in
+    :data:`MIXTURE_SORPTION_RESULT_COLUMNS` on axis 2.
+    """
+
+    core = _require_core()
+    if not isinstance(simulation, core.MixturePrediction):
+        raise TypeError("compute_sorption requires a MixturePrediction")
+    data = np.asarray(simulation.compute_sorption())
+    if not labeled:
+        return data
+    return SimulationResult(
+        data=data,
+        columns=MIXTURE_SORPTION_RESULT_COLUMNS,
+        kind="mixture_sorption_prediction",
+    )
+
+
+def read_mixture_prediction(file_name: str | Path) -> SimulationResult:
+    """Read one MixturePrediction ``component_<index>_<name>.data`` output file.
+
+    The returned SimulationResult has pressure points on axis 0 and the columns
+    listed in :data:`MIXTURE_FILE_COLUMNS`, extended by
+    :data:`MIXTURE_FILE_CHEMISORPTION_COLUMNS` when the simulation included a
+    chemisorption equilibrium isotherm.
+    """
+
+    data = np.loadtxt(file_name, comments="#", ndmin=2)
+    physical_width = len(MIXTURE_FILE_COLUMNS)
+    total_width = physical_width + len(MIXTURE_FILE_CHEMISORPTION_COLUMNS)
+    if data.shape[1] == total_width:
+        columns = MIXTURE_FILE_COLUMNS + MIXTURE_FILE_CHEMISORPTION_COLUMNS
+    elif data.shape[1] == physical_width:
+        columns = MIXTURE_FILE_COLUMNS
+    else:
+        raise ValueError(
+            f"{file_name} has {data.shape[1]} columns; expected "
+            f"{physical_width} or {total_width} from MixturePrediction"
+        )
+    return SimulationResult(data=data, columns=columns, kind="mixture_prediction_file")
+
+
 def run(file_name: str | Path, *, compute_result: bool = True) -> Any:
     """Start a simulation from Python using a JSON input file.
 
@@ -210,13 +286,18 @@ __all__ = [
     *_CORE_EXPORTS,
     "BREAKTHROUGH_BASE_COLUMNS",
     "BREAKTHROUGH_COMPONENT_COLUMNS",
+    "MIXTURE_FILE_CHEMISORPTION_COLUMNS",
+    "MIXTURE_FILE_COLUMNS",
     "MIXTURE_RESULT_COLUMNS",
+    "MIXTURE_SORPTION_RESULT_COLUMNS",
     "SimulationResult",
     "asarray",
     "breakthrough_columns",
     "compute",
+    "compute_sorption",
     "load_input",
     "load_simulation",
+    "read_mixture_prediction",
     "result_columns",
     "run",
 ]

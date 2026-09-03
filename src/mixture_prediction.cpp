@@ -213,6 +213,71 @@ MixturePrediction::MixturePrediction(const InputReader& inputreader)
   sortComponents();
 }
 
+MixturePrediction MixturePrediction::makeChemisorptionPrediction(
+    const MixturePrediction& physisorptionPrediction, const std::vector<Component>& sourceComponents)
+{
+  std::vector<Component> chemicalComponents = sourceComponents;
+  size_t numberOfCarrierGases = 0;
+  size_t carrierGasComponent = 0;
+  bool foundCarrierGas = false;
+
+  for (size_t comp = 0; comp < sourceComponents.size(); ++comp)
+  {
+    Component& chemicalComponent = chemicalComponents[comp];
+    chemicalComponent.isotherm = MultiSiteIsotherm{};
+
+    if (!sourceComponents[comp].isCarrierGas)
+    {
+      for (const Chemisorption& kinetics : sourceComponents[comp].chemisorption.sites)
+      {
+        if (kinetics.isotherm.has_value()) chemicalComponent.isotherm.add(*kinetics.isotherm);
+      }
+    }
+
+    chemicalComponent.isCarrierGas = chemicalComponent.isotherm.sites.empty();
+    if (chemicalComponent.isCarrierGas)
+    {
+      ++numberOfCarrierGases;
+      if (!foundCarrierGas)
+      {
+        carrierGasComponent = comp;
+        foundCarrierGas = true;
+      }
+    }
+    else
+    {
+      const auto& sites = sourceComponents[comp].chemisorption.sites;
+      const auto firstEquilibriumSite = std::find_if(
+          sites.begin(), sites.end(), [](const Chemisorption& site) { return site.isotherm.has_value(); });
+      if (firstEquilibriumSite != sites.end())
+      {
+        chemicalComponent.heatOfAdsorption = firstEquilibriumSite->heatOfChemisorption;
+      }
+    }
+  }
+
+  return MixturePrediction(
+      physisorptionPrediction.displayName + " chemisorption", std::move(chemicalComponents), numberOfCarrierGases,
+      carrierGasComponent, physisorptionPrediction.temperature, physisorptionPrediction.pressureStart,
+      physisorptionPrediction.pressureEnd, physisorptionPrediction.numberOfPressurePoints,
+      static_cast<size_t>(physisorptionPrediction.pressureScale),
+      static_cast<size_t>(physisorptionPrediction.predictionMethod == PredictionMethod::MPD
+                              ? PredictionMethod::IAST
+                              : physisorptionPrediction.predictionMethod),
+      static_cast<size_t>(physisorptionPrediction.iastMethod));
+}
+
+bool MixturePrediction::hasChemisorptionEquilibrium() const noexcept
+{
+  return std::any_of(components.begin(), components.end(),
+                     [](const Component& component)
+                     {
+                       if (component.isCarrierGas) return false;
+                       return std::any_of(component.chemisorption.sites.begin(), component.chemisorption.sites.end(),
+                                          [](const Chemisorption& site) { return site.isotherm.has_value(); });
+                     });
+}
+
 MixturePrediction::MixturePrediction(std::string _displayName, std::vector<Component> _components,
                                      size_t _numberOfCarrierGases, size_t _carrierGasComponent, double _temperature,
                                      double _pressureStart, double _pressureEnd, size_t _numberOfPressurePoints,
@@ -416,8 +481,7 @@ void MixturePrediction::predictPureComponentLoadings(double externalPressure,
       {
         throw std::runtime_error("Error: component index is outside the pure-component loading vector");
       }
-      pureComponentLoadings[component.id] =
-          component.isotherm.value(externalPressure, component.scale(gasTemperature));
+      pureComponentLoadings[component.id] = component.isotherm.value(externalPressure, component.scale(gasTemperature));
     }
     return;
   }
@@ -1710,6 +1774,25 @@ void MixturePrediction::run()
     idealGasMolFractions[i] = components[i].initialGasMoleFraction;
   }
 
+  // Nested chemisorption isotherms form a second, independent equilibrium mixture that is solved on
+  // the same pressure grid. Mixtures without one keep the historical seven-column output layout.
+  const bool writeChemisorption = hasChemisorptionEquilibrium();
+  std::optional<MixturePrediction> chemical;
+  std::vector<double> chemicalAdsorbedMolFractions;
+  std::vector<double> chemicalNumberOfMolecules;
+  std::vector<double> chemicalPureComponentLoadings;
+  std::vector<double> chemicalCachedPressure;
+  std::vector<double> chemicalCachedGrandPotential;
+  if (writeChemisorption)
+  {
+    chemical.emplace(MixturePrediction::makeChemisorptionPrediction(*this, components));
+    chemicalAdsorbedMolFractions.assign(numberOfComponents, 0.0);
+    chemicalNumberOfMolecules.assign(numberOfComponents, 0.0);
+    chemicalPureComponentLoadings.assign(numberOfComponents, 0.0);
+    chemicalCachedPressure.assign(numberOfComponents * chemical->maxIsothermTerms, 0.0);
+    chemicalCachedGrandPotential.assign(chemical->maxIsothermTerms, 0.0);
+  }
+
   std::vector<double> pressures = initPressures();
 
   // create the output files
@@ -1745,6 +1828,14 @@ void MixturePrediction::run()
       std::print(streams[i], "# column 6: hypothetical pressure p_i^*\n");
       std::print(streams[i], "# column 7: reduced grand potential psi_i\n");
     }
+    if (writeChemisorption)
+    {
+      std::print(streams[i], "# columns 2 and 3 are the physisorption contribution only\n");
+      std::print(streams[i], "# column 8: pure component chemisorption isotherm value\n");
+      std::print(streams[i], "# column 9: mixture component chemisorption isotherm value\n");
+      std::print(streams[i], "# column 10: pure component total loading (physisorption + chemisorption)\n");
+      std::print(streams[i], "# column 11: mixture component total loading (physisorption + chemisorption)\n");
+    }
   }
 
   for (size_t i = 0; i < numberOfPressurePoints; ++i)
@@ -1754,6 +1845,15 @@ void MixturePrediction::run()
         predictMixture(idealGasMolFractions, pressures[i], adsorbedMolFractions, numberOfMolecules, cachedPressure,
                        cachedGrandPotential, temperature);
     std::print("Pressure: {} iterations: {}\n", pressures[i], performance.first);
+
+    if (writeChemisorption)
+    {
+      double chemicalTemperature = chemical->temperature;
+      chemical->predictPureComponentLoadings(pressures[i], chemicalPureComponentLoadings, chemicalTemperature);
+      chemical->predictMixture(idealGasMolFractions, pressures[i], chemicalAdsorbedMolFractions,
+                               chemicalNumberOfMolecules, chemicalCachedPressure, chemicalCachedGrandPotential,
+                               chemicalTemperature);
+    }
 
     for (size_t j = 0; j < numberOfComponents; j++)
     {
@@ -1766,9 +1866,22 @@ void MixturePrediction::run()
       const double pureLoading = pureComponentLoadings[j];
       const double grandPotential =
           hasHypotheticalPressure ? components[j].isotherm.psiForPressure(p_star, scale) : 0.0;
-      std::print(streams[j], "{:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g}\n", pressures[i],
-                 pureLoading, numberOfMolecules[j], idealGasMolFractions[j], adsorbedMolFractions[j], p_star,
-                 grandPotential);
+      if (writeChemisorption)
+      {
+        const double pureChemicalLoading = chemicalPureComponentLoadings[j];
+        const double mixtureChemicalLoading = chemicalNumberOfMolecules[j];
+        std::print(streams[j],
+                   "{:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g}\n",
+                   pressures[i], pureLoading, numberOfMolecules[j], idealGasMolFractions[j], adsorbedMolFractions[j],
+                   p_star, grandPotential, pureChemicalLoading, mixtureChemicalLoading,
+                   pureLoading + pureChemicalLoading, numberOfMolecules[j] + mixtureChemicalLoading);
+      }
+      else
+      {
+        std::print(streams[j], "{:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g} {:.14g}\n", pressures[i],
+                   pureLoading, numberOfMolecules[j], idealGasMolFractions[j], adsorbedMolFractions[j], p_star,
+                   grandPotential);
+      }
     }
   }
 }

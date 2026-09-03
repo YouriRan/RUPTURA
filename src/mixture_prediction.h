@@ -63,6 +63,27 @@ struct MixturePrediction
   MixturePrediction(const InputReader& inputreader);
 
   /**
+   * \brief Builds the equilibrium mixture represented by the nested chemisorption isotherms.
+   *
+   * Components without a configured chemisorption equilibrium isotherm become carrier components.
+   * The returned object uses the same pressure grid, temperature, and prediction method as the
+   * physical mixture (MPD falls back to IAST for the chemical contribution).
+   */
+  static MixturePrediction makeChemisorptionPrediction(
+      const MixturePrediction& physisorptionPrediction, const std::vector<Component>& components);
+
+  /**
+   * \brief Reports whether any component carries an equilibrium chemisorption isotherm.
+   *
+   * Only chemisorption sites that define a nested \c Isotherm contribute an equilibrium
+   * loading. Kinetic-only sites are ignored, so a mixture built exclusively from those
+   * behaves exactly like a pure physisorption mixture.
+   *
+   * \return True when at least one non-carrier component has a chemisorption equilibrium isotherm.
+   */
+  [[nodiscard]] bool hasChemisorptionEquilibrium() const noexcept;
+
+  /**
    * \brief Constructs a MixturePrediction object with specified parameters.
    *
    * Initializes the MixturePrediction instance using the provided parameters.
@@ -102,6 +123,9 @@ struct MixturePrediction
    * \brief Runs the mixture prediction simulation.
    *
    * Performs the mixture prediction calculations and writes the results to output files.
+   * When hasChemisorptionEquilibrium() is true the physical mixture is solved alongside the
+   * chemical mixture returned by makeChemisorptionPrediction(), and four extra columns hold
+   * the pure and mixture chemisorption loadings and the physisorption + chemisorption totals.
    */
   void run();
 

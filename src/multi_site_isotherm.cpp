@@ -52,7 +52,7 @@ void MultiSiteIsotherm::setParameters(std::vector<double> params)
   }
 }
 
-std::vector<double> MultiSiteIsotherm::getParameters()
+std::vector<double> MultiSiteIsotherm::getParameters() const
 {
   std::vector<double> params;
   for (size_t i = 0; i < numberOfParameters; ++i)

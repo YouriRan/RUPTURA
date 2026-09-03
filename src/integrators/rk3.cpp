@@ -140,7 +140,7 @@ void precompute(MultibedColumn& column, Timing& timings)
       });
 }
 
-void computeDerivatives(Column& column)
+void computeDerivatives(Column& column, double elapsedTime)
 {
   std::fill(column.physisorptionDot.begin(), column.physisorptionDot.end(), 0.0);
   std::fill(column.chemisorptionDot.begin(), column.chemisorptionDot.end(), 0.0);
@@ -152,7 +152,7 @@ void computeDerivatives(Column& column)
 
   ::computeChemisorption(column.components, column.numberOfGridPoints, column.numberOfComponents,
                          column.maxChemisorptionSites, column.externalTemperature, column.geometry,
-                         column.particleDensity, column.equilibriumChemisorption, column.concentration,
+                         column.particleDensity, elapsedTime, column.equilibriumChemisorption, column.concentration,
                          column.chemisorption, column.chemisorptionDot, column.poreConcentration,
                          column.solidTemperature);
 
@@ -194,7 +194,7 @@ void computeDerivatives(Column& column)
   }
 }
 
-void computeDerivatives(MultibedColumn& column)
+void computeDerivatives(MultibedColumn& column, double elapsedTime)
 {
   ::computePhysisorption(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
                          column.numberOfAdsorbents, column.fractionOfAdsorbent, column.equilibriumPhysisorption,
@@ -202,7 +202,7 @@ void computeDerivatives(MultibedColumn& column)
 
   ::computeChemisorption(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
                          column.numberOfAdsorbents, column.maxChemisorptionSites, column.externalTemperature,
-                         column.fractionOfAdsorbent, column.adsorbentVoidFractions, column.particleDensities,
+                         elapsedTime, column.fractionOfAdsorbent, column.adsorbentVoidFractions, column.particleDensities,
                          column.equilibriumChemisorption, column.concentration, column.chemisorption,
                          column.chemisorptionDot, column.poreConcentration, column.solidTemperature);
 
@@ -389,22 +389,23 @@ bool RungeKutta3::propagate(ColumnType& column, size_t step, Timing& timings)
     autoNumberOfSteps = false;
   }
 
-  auto evaluateDerivatives = [&](ColumnType& stage)
-  { timings.measure(timings.computeDerivatives, [&] { computeDerivatives(stage); }); };
+  const double startTime = static_cast<double>(step) * timeStep;
+  auto evaluateDerivatives = [&](ColumnType& stage, double elapsedTime)
+  { timings.measure(timings.computeDerivatives, [&] { computeDerivatives(stage, elapsedTime); }); };
 
   auto finalizeStage = [&](ColumnType& stage) { precompute(stage, timings); };
 
-  evaluateDerivatives(column);
+  evaluateDerivatives(column, startTime);
   ColumnType newColumn(column);
 
   updateStateRK(column, newColumn, 0.0, 1.0, timeStep);
   finalizeStage(newColumn);
 
-  evaluateDerivatives(newColumn);
+  evaluateDerivatives(newColumn, startTime + timeStep);
   updateStateRK(column, newColumn, 0.75, 0.25, timeStep);
   finalizeStage(newColumn);
 
-  evaluateDerivatives(newColumn);
+  evaluateDerivatives(newColumn, startTime + 0.5 * timeStep);
   updateStateRK(column, newColumn, 1.0 / 3.0, 2.0 / 3.0, timeStep);
   clampNonnegative(newColumn.state);
   finalizeStage(newColumn);
@@ -413,7 +414,7 @@ bool RungeKutta3::propagate(ColumnType& column, size_t step, Timing& timings)
 
   if (autoNumberOfSteps && !column.reactions.empty())
   {
-    computeDerivatives(column);
+    computeDerivatives(column, startTime + timeStep);
     if (reactionAutoStopReached(column, timeStep))
     {
       std::print("\nReaction convergence criteria reached, running 10% longer\n\n\n");

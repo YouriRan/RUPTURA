@@ -121,6 +121,13 @@ Notebook defaultMixturePredictionNotebook(std::string_view runId, const std::fil
   cells.push_back(codeCell("display(plotter.mixture_loading(include_carrier_gas=False))\n"));
   cells.push_back(markdownCell("## Adsorbed-phase mole fractions"));
   cells.push_back(codeCell("display(plotter.mixture_adsorbed_molfractions(include_carrier_gas=False))\n"));
+  cells.push_back(markdownCell("## Chemisorption and total loadings"));
+  cells.push_back(
+      codeCell("if plotter.has_chemisorption():\n"
+               "    display(plotter.mixture_chemisorption_loading(include_carrier_gas=False))\n"
+               "    display(plotter.mixture_total_loading(include_carrier_gas=False))\n"
+               "else:\n"
+               "    print('This simulation has no chemisorption equilibrium isotherm.')\n"));
   return notebook(cells);
 }
 
@@ -143,7 +150,7 @@ Notebook defaultBreakthroughNotebook(std::string_view runId, const std::filesyst
   cells.push_back(
       codeCell("display(plotter.breakthrough(\n"
                "    x_units='min',\n"
-               "    y_units='normalized concentration',\n"
+               "    y_units='normalized_concentration',\n"
                "    include_carrier_gas=False,\n"
                "    show_markers=True,\n"
                "))\n"));

@@ -45,6 +45,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
 
   size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
+  const double startTime = static_cast<double>(step) * timeStep;
   Column newColumn(column);
 
   std::vector<double> solved(column.concentration.size());
@@ -137,7 +138,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn);
+                      computeDerivatives(newColumn, startTime + timeStep);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -146,7 +147,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn);
+                      computeDerivatives(newColumn, startTime + timeStep);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -174,7 +175,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn);
+                      computeDerivatives(newColumn, startTime + 0.5 * timeStep);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -183,7 +184,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn);
+                      computeDerivatives(newColumn, startTime + 0.5 * timeStep);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -211,7 +212,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn);
+                      computeDerivatives(newColumn, startTime + timeStep);
                       computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
                     });
   }
@@ -220,7 +221,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn);
+                      computeDerivatives(newColumn, startTime + timeStep);
                       computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
                     });
   }
@@ -248,7 +249,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn);
+                      computeDerivatives(newColumn, startTime + timeStep);
                       computeConcentrationUpdateMatrixEnergyBalanceFinal(newColumn, timeStep, solved);
                     });
   }
@@ -257,7 +258,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn);
+                      computeDerivatives(newColumn, startTime + timeStep);
                       computeConcentrationUpdateMatrixFinal(newColumn, timeStep, solved);
                     });
   }

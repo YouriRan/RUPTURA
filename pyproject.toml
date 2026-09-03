@@ -1,10 +1,17 @@
 [build-system]
-requires = ["setuptools>=61"]
-build-backend = "setuptools.build_meta"
+requires = [
+  "scikit-build-core>=0.10",
+  "nanobind>=2.2",
+]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "ruptura"
 version = "2.0.0"
+description = "Breakthrough, mixture-prediction, isotherm-fitting and swing-adsorption simulations for adsorption processes"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE.md" }
 dependencies = [
   "numpy",
 ]
@@ -20,17 +27,49 @@ authors = [
   { name = "David Dubbeldam" },
 ]
 
-[tool.setuptools]
-zip-safe = false
-packages = ["ruptura"]
-
 [project.optional-dependencies]
 lab = [
   "ipywidgets",
   "jupyterlab",
+  "matplotlib",
   "pandas",
   "plotly",
 ]
 
-[tool.setuptools.package-dir]
-ruptura = "ruptura"
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+
+build-dir = "build/pip-{wheel_tag}"
+
+cmake.version = ">=3.28"
+cmake.build-type = "Release"
+ninja.make-fallback = true
+
+wheel.packages = ["ruptura"]
+wheel.exclude = [
+  "ruptura/CMakeLists.txt",
+  "ruptura/pybindings.cpp",
+  "**/__pycache__/**",
+]
+
+build.verbose = true
+logging.level = "INFO"
+
+[tool.scikit-build.cmake.define]
+BUILD_PYTHON = "ON"
+BUILD_SUNDIALS = "ON"
+BUILD_CLI = "ON"
+BUILD_DOCS = "OFF"
+BUILD_TESTING = "OFF"
+BUILD_APP = "OFF"
+BUILD_BENCHMARKS = "OFF"
+
+[tool.scikit-build.sdist]
+exclude = [
+  "build/",
+  "build-python/",
+  "simulations/",
+  "*.egg-info/",
+  "**/__pycache__/",
+  "*.bak",
+]

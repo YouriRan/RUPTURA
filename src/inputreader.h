@@ -137,6 +137,15 @@ struct InputReader
   size_t numberOfInitTimeSteps{0};   ///< The number of initialization time steps.
   bool autoNumberOfTimeSteps{true};  ///< Whether to automatically determine the number of time steps.
   double timeStep{0.0005};           ///< The time step size in s.
+
+  // CVODE integrator controls (only used when BreakthroughIntegrator is CVODE).
+  double cvodeRelativeTolerance{1.0e-6};  ///< CVODE relative tolerance, applied to every state component.
+  double cvodeAbsoluteToleranceConcentration{1.0e-8};   ///< CVODE absolute tolerance for concentrations in mol/m^3.
+  double cvodeAbsoluteToleranceLoading{1.0e-10};        ///< CVODE absolute tolerance for loadings in mol/kg.
+  double cvodeAbsoluteToleranceTemperature{1.0e-6};     ///< CVODE absolute tolerance for temperatures in K.
+  double cvodeMaximumTimeStep{-1.0};  ///< CVODE maximum internal step in s: <0 = auto (dz/v), 0 = unlimited, >0 = explicit.
+  size_t cvodeLinearSolver{0};      ///< CVODE linear solver: 0 = Dense (direct), 1 = SPGMR (matrix-free Krylov).
+  size_t cvodeKrylovDimension{30};  ///< Krylov subspace dimension used by the SPGMR linear solver.
   size_t printEvery{10000};          ///< The interval at which to print output.
   size_t writeEvery{10000};          ///< The interval at which to write output.
   size_t numberOfGridPoints{100};    ///< The number of grid points in the column.

@@ -61,7 +61,7 @@ void computePhysisorption(const std::vector<MixturePrediction>& physisorptionMix
  */
 void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
                           size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
-                          double externalTemperature, std::span<const double> fractionOfAdsorbent,
+                          double externalTemperature, double elapsedTime, std::span<const double> fractionOfAdsorbent,
                           std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
                           std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
                           std::span<const double> chemisorption, std::span<double> chemisorptionDot,

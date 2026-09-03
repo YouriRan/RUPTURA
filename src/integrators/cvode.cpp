@@ -3,8 +3,12 @@
 
 #include <algorithm>
 #include <cmath>
+#include <format>
 #include <iostream>
+#include <limits>
 #include <print>
+#include <span>
+#include <string>
 #include <type_traits>
 
 #include "column_multibed.h"
@@ -20,6 +24,7 @@ CVODE::~CVODE()
   if (linSolver) SUNLinSolFree(linSolver);
   if (linearMatrix) SUNMatDestroy(linearMatrix);
   if (solver) SUNNonlinSolFree(solver);
+  if (absoluteToleranceVector) N_VDestroy(absoluteToleranceVector);
   if (stateDerivativeVector) N_VDestroy(stateDerivativeVector);
   if (stateVector) N_VDestroy(stateVector);
   if (cvodeMem) CVodeFree(&cvodeMem);
@@ -90,6 +95,83 @@ bool propagateCVODE(CVODE& integrator, ColumnType& column, size_t step, Timing& 
   return (!integrator.autoNumberOfSteps && step >= integrator.numberOfSteps - 1);
 }
 
+/**
+ * \brief Smallest spacing between neighbouring grid nodes in m.
+ */
+double minimumGridSpacing(const Column& column) { return column.resolution; }
+
+/**
+ * \brief Smallest spacing between neighbouring grid nodes in m, honouring a non-uniform multibed grid.
+ */
+double minimumGridSpacing(const MultibedColumn& column)
+{
+  double spacing = std::numeric_limits<double>::max();
+  for (size_t grid = 1; grid < column.columnDistances.size(); ++grid)
+  {
+    const double delta = column.columnDistances[grid] - column.columnDistances[grid - 1];
+    if (delta > 0.0) spacing = std::min(spacing, delta);
+  }
+  return spacing == std::numeric_limits<double>::max() ? column.resolution : spacing;
+}
+
+/**
+ * \brief Largest advective speed available at initialization in m/s.
+ */
+template <typename ColumnType>
+double characteristicVelocity(const ColumnType& column)
+{
+  double velocity = std::abs(column.columnEntranceVelocity);
+  for (const double v : column.interstitialGasVelocity) velocity = std::max(velocity, std::abs(v));
+  return velocity;
+}
+
+/**
+ * \brief Resolves the step cap handed to CVODE, in s. Returns 0.0 when the integrator should stay uncapped.
+ *
+ * A negative CVODE::maximumTimeStep selects the automatic value: the time the front needs to traverse a
+ * single grid cell. Without a cap CVODE grows its step freely while the outlet is quiescent, and the first
+ * step that meets the breakthrough front is then taken at high order from a history built entirely before
+ * the front existed, which shows up as a non-monotonic hook in the breakthrough curve.
+ */
+template <typename ColumnType>
+double resolveMaximumTimeStep(const CVODE& integrator, const ColumnType& column)
+{
+  if (integrator.maximumTimeStep > 0.0) return integrator.maximumTimeStep;
+  if (integrator.maximumTimeStep == 0.0) return 0.0;
+
+  const double spacing = minimumGridSpacing(column);
+  const double velocity = characteristicVelocity(column);
+  if (!(spacing > 0.0) || !(velocity > 0.0)) return 0.0;
+
+  return spacing / velocity;
+}
+
+/**
+ * \brief Fills the per-component absolute tolerance vector from the column's state layout.
+ *
+ * The state vector mixes mol/m^3, mol/kg and K, so a single scalar absolute tolerance is meaningless for at
+ * least one of the blocks. Each block gets the tolerance appropriate to its own units instead.
+ */
+template <typename ColumnType>
+void fillAbsoluteTolerances(const CVODE& integrator, const ColumnType& column, N_Vector tolerances)
+{
+  // Concentration, surface-concentration and pore-concentration blocks all share mol/m^3, so seed the whole
+  // vector with that value and overwrite only the blocks carrying different units.
+  N_VConst(integrator.absoluteToleranceConcentration, tolerances);
+
+  double* base = static_cast<double*>(N_VGetArrayPointer(tolerances));
+  const auto layout = column.stateLayout();
+
+  const auto fill = [](std::span<double> block, double value)
+  { std::fill(block.begin(), block.end(), value); };
+
+  fill(layout.physisorption(base), integrator.absoluteToleranceLoading);
+  fill(layout.chemisorption(base), integrator.absoluteToleranceLoading);
+  fill(layout.gasTemperature(base), integrator.absoluteToleranceTemperature);
+  fill(layout.solidTemperature(base), integrator.absoluteToleranceTemperature);
+  fill(layout.wallTemperature(base), integrator.absoluteToleranceTemperature);
+}
+
 template <typename ColumnType, typename EvaluationFunction>
 void initializeCVODE(CVODE& integrator, ColumnType& column, EvaluationFunction evaluateDerivatives)
 {
@@ -115,19 +197,62 @@ void initializeCVODE(CVODE& integrator, ColumnType& column, EvaluationFunction e
   int flag = CVodeInit(integrator.cvodeMem, evaluateDerivatives, integrator.currentTime, integrator.stateVector);
   if (flag != CV_SUCCESS) throw std::runtime_error("CVodeInit failed");
 
-  flag = CVodeSStolerances(integrator.cvodeMem, integrator.relativeTolerance, integrator.absoluteTolerance);
-  if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSStolerances failed");
+  integrator.absoluteToleranceVector = N_VNew_Serial(totalSize, integrator.sunContext);
+  if (!integrator.absoluteToleranceVector)
+  {
+    throw std::runtime_error("Failed to allocate CVODE absolute-tolerance vector");
+  }
+  fillAbsoluteTolerances(integrator, column, integrator.absoluteToleranceVector);
+
+  flag = CVodeSVtolerances(integrator.cvodeMem, integrator.relativeTolerance, integrator.absoluteToleranceVector);
+  if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSVtolerances failed");
+
+  integrator.appliedMaximumTimeStep = resolveMaximumTimeStep(integrator, column);
+  if (integrator.appliedMaximumTimeStep > 0.0)
+  {
+    flag = CVodeSetMaxStep(integrator.cvodeMem, integrator.appliedMaximumTimeStep);
+    if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSetMaxStep failed");
+  }
+
+  std::print("CVODE: {} solver, rtol {:.3e}, atol {:.3e} [mol/m^3] / {:.3e} [mol/kg] / {:.3e} [K], max step {}\n",
+             integrator.linearSolverType == CVODE::LinearSolverType::SPGMR
+                 ? std::format("SPGMR (matrix-free, Krylov dim {})", integrator.krylovDimension)
+                 : std::string("dense"),
+             integrator.relativeTolerance, integrator.absoluteToleranceConcentration,
+             integrator.absoluteToleranceLoading, integrator.absoluteToleranceTemperature,
+             integrator.appliedMaximumTimeStep > 0.0 ? std::format("{:.3e} s", integrator.appliedMaximumTimeStep)
+                                                     : std::string("unlimited"));
 
   integrator.solver = SUNNonlinSol_Newton(integrator.stateVector, integrator.sunContext);
   flag = CVodeSetNonlinearSolver(integrator.cvodeMem, integrator.solver);
   if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSetNonlinearSolver failed");
 
-  integrator.linearMatrix = SUNDenseMatrix(totalSize, totalSize, integrator.sunContext);
-  integrator.linSolver = SUNLinSol_Dense(integrator.stateVector, integrator.linearMatrix, integrator.sunContext);
-  flag = CVodeSetLinearSolver(integrator.cvodeMem, integrator.linSolver, integrator.linearMatrix);
-  if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSetLinearSolver failed");
+  if (integrator.linearSolverType == CVODE::LinearSolverType::SPGMR)
+  {
+    // Matrix-free: no SUNMatrix is created and none is handed to CVODE, which then forms Jacobian-vector
+    // products by difference quotients (one right-hand-side evaluation each) instead of assembling and
+    // factoring J. Left unpreconditioned for now; a node-local block preconditioner goes here next.
+    integrator.linSolver =
+        SUNLinSol_SPGMR(integrator.stateVector, SUN_PREC_NONE, integrator.krylovDimension, integrator.sunContext);
+    if (!integrator.linSolver) throw std::runtime_error("SUNLinSol_SPGMR failed");
 
-  CVodeSetJacFn(integrator.cvodeMem, nullptr);
+    if (SUNLinSol_SPGMRSetGSType(integrator.linSolver, SUN_MODIFIED_GS) != SUN_SUCCESS)
+    {
+      throw std::runtime_error("SUNLinSol_SPGMRSetGSType failed");
+    }
+
+    flag = CVodeSetLinearSolver(integrator.cvodeMem, integrator.linSolver, nullptr);
+    if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSetLinearSolver failed");
+  }
+  else
+  {
+    integrator.linearMatrix = SUNDenseMatrix(totalSize, totalSize, integrator.sunContext);
+    integrator.linSolver = SUNLinSol_Dense(integrator.stateVector, integrator.linearMatrix, integrator.sunContext);
+    flag = CVodeSetLinearSolver(integrator.cvodeMem, integrator.linSolver, integrator.linearMatrix);
+    if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSetLinearSolver failed");
+
+    CVodeSetJacFn(integrator.cvodeMem, nullptr);
+  }
 }
 }  // namespace
 
@@ -151,12 +276,60 @@ void CVODE::reinitialize()
   if (flag != CV_SUCCESS) throw std::runtime_error("CVodeReInit failed");
 }
 
+void CVODE::printStatistics() const
+{
+  if (!cvodeMem) return;
+
+  // Every getter returns a CVODE flag; a counter that is unavailable for the active linear solver reports
+  // as -1 rather than aborting the report.
+  // Deduced rather than typed as int(*)(void*, long int*): the SUNDIALS getters have C language linkage,
+  // and a pointer to them is formally a distinct type from the C++-linkage equivalent.
+  const auto counter = [this](auto getter)
+  {
+    long int value = 0;
+    return getter(cvodeMem, &value) == CV_SUCCESS ? value : -1L;
+  };
+
+  int lastOrder = 0;
+  CVodeGetLastOrder(cvodeMem, &lastOrder);
+  sunrealtype lastStep = 0.0;
+  CVodeGetLastStep(cvodeMem, &lastStep);
+
+  std::print("CVODE statistics:\n");
+  std::print("  internal steps:            {}\n", counter(CVodeGetNumSteps));
+  std::print("  rhs evaluations:           {} (+{} inside the linear solver)\n", counter(CVodeGetNumRhsEvals),
+             counter(CVodeGetNumLinRhsEvals));
+  std::print("  linear solver setups:      {}\n", counter(CVodeGetNumLinSolvSetups));
+  std::print("  newton iterations:         {} (convergence failures: {})\n", counter(CVodeGetNumNonlinSolvIters),
+             counter(CVodeGetNumNonlinSolvConvFails));
+  std::print("  error test failures:       {}\n", counter(CVodeGetNumErrTestFails));
+  std::print("  last order / step:         {} / {:.6e} s\n", lastOrder, lastStep);
+
+  if (linearSolverType == LinearSolverType::SPGMR)
+  {
+    const long int iterations = counter(CVodeGetNumLinIters);
+    const long int setups = counter(CVodeGetNumLinSolvSetups);
+    std::print("  krylov iterations:         {} (convergence failures: {})\n", iterations,
+               counter(CVodeGetNumLinConvFails));
+    if (setups > 0 && iterations >= 0)
+    {
+      std::print("  krylov iterations / setup: {:.2f}\n",
+                 static_cast<double>(iterations) / static_cast<double>(setups));
+    }
+    std::print("  preconditioner evals:      {}\n", counter(CVodeGetNumPrecEvals));
+  }
+  else
+  {
+    std::print("  jacobian evaluations:      {}\n", counter(CVodeGetNumJacEvals));
+  }
+}
+
 /*
  * CVODE evaluates intermediate trial states in storage owned by SUNDIALS. The
  * callbacks below therefore bind layout views to the supplied N_Vector rather
  * than using the column's accepted-state spans directly.
  */
-int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector stateDerivativeVector, void* user_data)
+int CVODE::evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector stateDerivativeVector, void* user_data)
 {
   auto* column = static_cast<Column*>(user_data);
   N_VConst(0.0, stateDerivativeVector);
@@ -243,7 +416,7 @@ int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector
                          column->equilibriumPhysisorption, spanPhysisorption, spanPhysisorptionDot);
     computeChemisorption(column->components, column->numberOfGridPoints, column->numberOfComponents,
                          column->maxChemisorptionSites, column->externalTemperature, column->geometry,
-                         column->particleDensity, column->equilibriumChemisorption, spanConcentration,
+                         column->particleDensity, t, column->equilibriumChemisorption, spanConcentration,
                          spanChemisorption, spanChemisorptionDot, spanPoreConcentration, spanSolidTemperature);
     computeChemisorptionTransportDerivatives(
         column->components, column->numberOfGridPoints, column->numberOfComponents, column->maxChemisorptionSites,
@@ -282,7 +455,7 @@ int CVODE::evaluateDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector
   return 0;
 }
 
-int CVODE::evaluateMultibedDerivatives(sunrealtype /*t*/, N_Vector stateVector, N_Vector stateDerivativeVector,
+int CVODE::evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Vector stateDerivativeVector,
                                        void* user_data)
 {
   auto* column = static_cast<MultibedColumn*>(user_data);
@@ -374,7 +547,7 @@ int CVODE::evaluateMultibedDerivatives(sunrealtype /*t*/, N_Vector stateVector, 
                          spanPhysisorption, spanPhysisorptionDot);
     computeChemisorption(column->physisorptionMixtures, column->numberOfGridPoints, column->numberOfComponents,
                          column->numberOfAdsorbents, column->maxChemisorptionSites, column->externalTemperature,
-                         column->fractionOfAdsorbent, column->adsorbentVoidFractions, column->particleDensities,
+                         t, column->fractionOfAdsorbent, column->adsorbentVoidFractions, column->particleDensities,
                          column->equilibriumChemisorption, spanConcentration, spanChemisorption, spanChemisorptionDot,
                          spanPoreConcentration, spanSolidTemperature);
     computeChemisorptionTransportDerivatives(
@@ -444,5 +617,7 @@ void CVODE::initialize(Column&) {}
 void CVODE::initialize(MultibedColumn&) {}
 
 void CVODE::reinitialize() {}
+
+void CVODE::printStatistics() const {}
 
 #endif

@@ -186,49 +186,25 @@ TEMPERATURE_Y_SPECS: Dict[str, TemperatureUnitSpec] = {
 X_UNITS = set(BREAKTHROUGH_X_SPECS)
 Y_UNITS = set(BREAKTHROUGH_Y_SPECS)
 TEMPERATURE_Y_UNITS = set(TEMPERATURE_Y_SPECS)
+COMPONENT_DATA_COLUMNS = 14
 
 
-def _canonicalize_component_blocks(
-    blocks: List[np.ndarray],
-    column_blocks: Optional[List[np.ndarray]] = None,
-) -> List[np.ndarray]:
-    """Upgrade legacy 10-column multibed output to the 14-column component schema."""
-
-    canonical_blocks: List[np.ndarray] = []
-    for block_index, block in enumerate(blocks):
-        if block.ndim != 2 or block.shape[1] != 10:
-            canonical_blocks.append(block)
-            continue
-
-        canonical = np.zeros((block.shape[0], 14), dtype=float)
-        canonical[:, :5] = block[:, :5]
-        canonical[:, 6] = block[:, 5]  # physisorption
-        canonical[:, 7] = block[:, 6]  # physisorption derivative
-        canonical[:, 10] = block[:, 7]  # partial pressure
-        canonical[:, 11] = block[:, 8]  # equilibrium physisorption
-        canonical[:, 12] = block[:, 9]  # normalized partial pressure
-        canonical[:, 5] = np.nan
-
-        if column_blocks is not None and block_index < len(column_blocks):
-            column_block = column_blocks[block_index]
-            matching_grid = (
-                column_block.ndim == 2
-                and column_block.shape[0] == block.shape[0]
-                and column_block.shape[1] >= 5
-                and np.allclose(column_block[:, :3], block[:, :3], equal_nan=True)
-            )
-            if matching_grid:
-                total_pressure = column_block[:, COLUMN_METRICS["Pt"].col_0based]
-                with np.errstate(divide="ignore", invalid="ignore"):
-                    canonical[:, 5] = np.where(
-                        total_pressure != 0.0,
-                        canonical[:, COMPONENT_METRICS["P"].col_0based] / total_pressure,
-                        np.nan,
-                    )
-
-        canonical_blocks.append(canonical)
-
-    return canonical_blocks
+def _read_current_component_blocks(fileName: Union[str, Path]) -> List[np.ndarray]:
+    blocks = read_blocks(fileName)
+    invalid_column_counts = sorted(
+        {
+            block.shape[1] if block.ndim == 2 else 0
+            for block in blocks
+            if block.ndim != 2 or block.shape[1] < COMPONENT_DATA_COLUMNS
+        }
+    )
+    if invalid_column_counts:
+        counts = ", ".join(str(count) for count in invalid_column_counts)
+        raise ValueError(
+            f"Invalid component data in {fileName}; expected the current "
+            f"{COMPONENT_DATA_COLUMNS}-column schema but found column counts: {counts}"
+        )
+    return blocks
 
 
 def _canonical_key(value: str, allowed_values: set[str], option_name: str) -> str:
@@ -349,16 +325,10 @@ class BreakthroughPlotly(BasePlotly):
         )
 
     def _read_component_data(self, fileName: Union[str, Path]):
-        return super()._read_component_data(fileName, min_columns=11)
+        return super()._read_component_data(fileName, min_columns=COMPONENT_DATA_COLUMNS)
 
     def _read_component_blocks(self, fileName: Union[str, Path]) -> List[np.ndarray]:
-        blocks = read_blocks(fileName)
-        column_blocks = None
-        if any(block.ndim == 2 and block.shape[1] == 10 for block in blocks):
-            column_path = self.data_dir / "column.data"
-            if column_path.exists():
-                column_blocks = read_blocks(column_path)
-        return _canonicalize_component_blocks(blocks, column_blocks)
+        return _read_current_component_blocks(fileName)
 
     def _read_column_data(self, fileName: Union[str, Path] = "column.data") -> List[np.ndarray]:
         return read_blocks(self.data_dir / fileName)
@@ -445,7 +415,12 @@ class BreakthroughPlotly(BasePlotly):
         grid_index: Optional[int] = -1,
     ) -> np.ndarray:
         blocks = self._read_component_blocks(fileName)
-        return self._rows_at_grid(blocks, grid_index=grid_index, fileName=fileName, min_columns=11)
+        return self._rows_at_grid(
+            blocks,
+            grid_index=grid_index,
+            fileName=fileName,
+            min_columns=COMPONENT_DATA_COLUMNS,
+        )
 
     def _breakthrough_column_data(
         self,
@@ -936,9 +911,7 @@ class ColumnDataExplorer:
             if comp.index not in self.component_file_names:
                 raise KeyError(f"Missing component file name for component index {comp.index}")
             fileName = self.data_dir / self.component_file_names[comp.index]
-            self.component_blocks[comp.index] = _canonicalize_component_blocks(
-                read_blocks(fileName), self.column_blocks
-            )
+            self.component_blocks[comp.index] = _read_current_component_blocks(fileName)
 
         self.dt = dt
         self.time0 = time0

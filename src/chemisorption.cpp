@@ -8,7 +8,8 @@
 
 #include "utils.h"
 
-double Chemisorption::rate(double equilibriumLoading, double loading, double concentration, double temperature) const
+double Chemisorption::rate(double equilibriumLoading, double loading, double concentration, double temperature,
+                           double elapsedTime) const
 {
   if (type == Type::None) return 0.0;
 
@@ -24,7 +25,11 @@ double Chemisorption::rate(double equilibriumLoading, double loading, double con
     case Type::PseudoNth:
       return rateCoefficient * std::pow(driving, order);
     case Type::Avrami:
-      return rateCoefficient * std::copysign(std::pow(std::abs(driving), order), driving);
+      if (elapsedTime <= 0.0)
+      {
+        return order == 1.0 ? rateCoefficient * driving : 0.0;
+      }
+      return order * std::pow(rateCoefficient, order) * std::pow(elapsedTime, order - 1.0) * driving;
     case Type::General:
     {
       const double c = std::max(0.0, concentration);
