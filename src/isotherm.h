@@ -31,6 +31,13 @@ constexpr size_t maxTerms = 5;
 // parameter 0: K
 // parameter 1: N
 // parameter 2: power
+//
+// GAB
+// parameter 0: q_m,mono [mol/kg]
+// parameter 1: C_0 [-]
+// parameter 2: K_0 [-]
+// parameter 3: Delta H_C [J/mol]
+// parameter 4: Delta H_K [J/mol]
 
 /**
  * \brief Represents an isotherm model for adsorption processes.
@@ -60,7 +67,8 @@ struct Isotherm
     Quadratic = 11,           ///< Quadratic isotherm model
     Temkin = 12,              ///< Temkin isotherm model
     BingelWalton = 13,        ///< Bingel and Walton isotherm model
-    Langmuir_pH = 14          ///< pH-dependent Langmuir isotherm model
+    Langmuir_pH = 14,         ///< pH-dependent Langmuir isotherm model
+    GAB = 15                  ///< Guggenheim-Anderson-de Boer water isotherm model
   };
 
   /**
@@ -116,7 +124,7 @@ struct Isotherm
    * Calculates the adsorption loading based on the isotherm model and parameters for the specified pressure.
    *
    * \param pressure The pressure at which to evaluate the isotherm.
-   * \param scale Scales heat of Adsorption or Henry coefficient for non-isothermal purposes.
+   * \param scale Scales heat of adsorption or Henry coefficient for non-isothermal purposes.
    * \return The adsorption amount at the given pressure.
    */
   inline double value(double pressure, double scale, double pH = 7.0) const
@@ -201,6 +209,31 @@ struct Isotherm
       {
         return parameters[0] * (1.0 - std::exp(-(parameters[1] + parameters[2]) * pressure)) /
                (1.0 + (parameters[2] / parameters[1]) * std::exp(-(parameters[1] + parameters[2]) * pressure));
+      }
+      case Isotherm::Type::GAB:
+      {
+        if (pressure <= 0.0) return 0.0;
+        if (!std::isfinite(scale) || scale <= 1.0)
+        {
+          throw std::domain_error("Error: GAB scale must equal exp(1 / (R T))");
+        }
+
+        const double temperature = 1.0 / (R * std::log(scale));
+        // Kelvin form of the Antoine correlation over 274.15--373.15 K. The
+        // result is converted from mmHg to Pa so both pressures share units.
+        const double saturationPressure =
+            std::pow(10.0, 8.07131 - 1730.63 / (temperature - 39.724)) * 133.32236842105263;
+        const double relativePressure = pressure / saturationPressure;
+        const double c = parameters[1] * std::pow(scale, parameters[3]);
+        const double k = parameters[2] * std::pow(scale, parameters[4]);
+        const double kRelativePressure = k * relativePressure;
+        if (kRelativePressure >= 1.0)
+        {
+          throw std::domain_error("Error: GAB isotherm is undefined for K p/p_sat >= 1");
+        }
+        const double denominator =
+            (1.0 - kRelativePressure) * (1.0 + kRelativePressure * (c - 1.0));
+        return parameters[0] * c * kRelativePressure / denominator;
       }
       default:
         throw std::runtime_error("Error: unknown isotherm type");
@@ -367,6 +400,8 @@ struct Isotherm
         }
         return Rp[max_steps - 1];  // return our best guess
       }
+      case Isotherm::Type::GAB:
+        throw std::runtime_error("Error: GAB is compatible only with pure-isotherm methods such as SPI");
       default:
         throw std::runtime_error("Error: unknown isotherm type");
     }

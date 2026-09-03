@@ -1,0 +1,92 @@
+{
+  "BreakthroughIntegrator": "RungeKutta3",
+  "ColumnEntranceVelocity": 0.1,
+  "ColumnLength": 0.3,
+  "ColumnVoidFraction": 0.4,
+  "Components": [
+    {
+      "CarrierGas": true,
+      "GasPhaseMolFraction": 0.7,
+      "MolecularWeight": 1.0,
+      "Name": "Carrier"
+    },
+    {
+      "AxialDispersionCoefficient": 0.0,
+      "GasPhaseMolFraction": 0.15,
+      "HeatOfAdsorption": 20000.0,
+      "MassTransferCoefficient": 0.06,
+      "MolecularWeight": 1.0,
+      "Name": "Adsorbate1",
+      "PhysisorptionSites": [
+        {
+          "Parameters": [
+            4.620000000000001,
+            0.00027714285714285715
+          ],
+          "Type": "Langmuir"
+        },
+        {
+          "Parameters": [
+            10.5,
+            6.628571428571428e-07
+          ],
+          "Type": "Langmuir"
+        }
+      ],
+      "referenceTemperature": 300.0
+    },
+    {
+      "AxialDispersionCoefficient": 0.0,
+      "GasPhaseMolFraction": 0.15,
+      "HeatOfAdsorption": 22000.0,
+      "MassTransferCoefficient": 0.06,
+      "MolecularWeight": 1.0,
+      "Name": "Adsorbate2",
+      "PhysisorptionSites": [
+        {
+          "Parameters": [
+            5.4670000000000005,
+            8.454545454545455e-09
+          ],
+          "Type": "Langmuir"
+        },
+        {
+          "Parameters": [
+            3.2890000000000006,
+            0.00025363636363636365
+          ],
+          "Type": "Langmuir"
+        }
+      ],
+      "referenceTemperature": 300.0
+    }
+  ],
+  "DisplayName": "MOR",
+  "Geometry": {
+    "ColumnVoidFraction": 0.4,
+    "InternalDiameter": 0.01,
+    "OuterDiameter": 0.012,
+    "Type": "PackedBed"
+  },
+  "InletPressure": 2500000.0,
+  "MixturePredictionMethod": "IAST",
+  "NumberOfGridPoints": 50,
+  "NumberOfTimeSteps": 100,
+  "ParticleDensity": 1693.89,
+  "PressureGradient": 0.0,
+  "PrintEvery": 100,
+  "SimulationType": "Breakthrough",
+  "Temperature": 300.0,
+  "TimeStep": 0.0005,
+  "WriteEvery": 1,
+  "energyBalance": false,
+  "gasThermalConductivity": 0.025,
+  "heatCapacityGas": 1000.0,
+  "heatCapacitySolid": 900.0,
+  "heatCapacityWall": 500.0,
+  "heatTransferGasSolid": 20.0,
+  "heatTransferGasWall": 10.0,
+  "heatTransferWallExternal": 5.0,
+  "wallDensity": 7800.0,
+  "wallThermalConductivity": 15.0
+}

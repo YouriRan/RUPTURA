@@ -247,14 +247,14 @@ QList<ParameterDefinition> chemDefs(const QString& type)
   if (type == "PseudoNth")
   {
     return {{"rateCoefficient", "Rate coefficient k", 0.04},
-            {"order", "Reaction order n [-]", 1.0, true},
+            {"order", "Reaction order n [-]", 1.0},
             {"maximumLoading", "Maximum chemisorption loading q_max [mol/kg]", 0.8},
             {"heatOfChemisorption", "Heat of chemisorption Delta H [J/mol]", 42000.0}};
   }
   if (type == "Avrami")
   {
     return {{"rateCoefficient", "Rate coefficient k", 0.04},
-            {"order", "Avrami order n [-]", 1.0, true},
+            {"order", "Avrami order n [-]", 1.0},
             {"maximumLoading", "Maximum chemisorption loading q_max [mol/kg]", 0.8},
             {"heatOfChemisorption", "Heat of chemisorption Delta H [J/mol]", 42000.0}};
   }

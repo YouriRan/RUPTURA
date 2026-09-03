@@ -66,10 +66,18 @@ void updateVelocityAndPressure(
 
   auto bisection = [&](auto&& func)
   {
+    // The bracket width is tested relative to the velocity scale, so the criterion no longer depends on the
+    // magnitude of the flow: an absolute 1e-6 m/s was ~2e-5 relative at 0.05 m/s but a 1e-2 relative error at
+    // 1e-4 m/s. The residual staircase this leaves in the right-hand side has to stay well below the
+    // difference-quotient increment CVODE uses (~1e-8 relative), otherwise every J*v product is noise.
+    // The absolute floor guarantees termination as the bracket approaches zero; the iteration cap is a
+    // safety net, since bisection reaches the relative tolerance in roughly 40 halvings.
+    constexpr double relativeTolerance = 1.0e-12;
+    constexpr double absoluteFloor = 1.0e-15;
+    constexpr size_t maximumIterations = 200;
+
     double a = 1e-7;
     double b = std::max(10.0 * std::abs(columnEntranceVelocity), 1e-6);
-    double tolerance = 1e-6;
-    double c = a;
     double fa = func(a);
     double fb = func(b);
 
@@ -84,10 +92,13 @@ void updateVelocityAndPressure(
       throw std::runtime_error("Bounds for bisection method to solve for velocity improperly set.\n");
     }
 
-    while ((b - a) > tolerance)
+    double c = 0.5 * (a + b);
+    for (size_t iteration = 0; iteration < maximumIterations; ++iteration)
     {
+      if ((b - a) <= std::max(relativeTolerance * std::max(std::abs(a), std::abs(b)), absoluteFloor)) break;
+
       c = 0.5 * (a + b);
-      double fc = func(c);
+      const double fc = func(c);
 
       if (fc == 0.0) break;
 
@@ -477,7 +488,7 @@ void computePhysisorption(const std::vector<MixturePrediction>& physisorptionMix
 
 void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
                           size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
-                          double externalTemperature, std::span<const double> fractionOfAdsorbent,
+                          double externalTemperature, double elapsedTime, std::span<const double> fractionOfAdsorbent,
                           std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
                           std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
                           std::span<const double> chemisorption, std::span<double> chemisorptionDot,
@@ -521,8 +532,8 @@ void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMix
           {
             equilibriumLoading = std::min(equilibriumLoading, kinetics.maximumLoading);
           }
-          double rate =
-              kinetics.rate(equilibriumLoading, spanChemisorption[site, grid, comp], drivingConcentration, temperature);
+          double rate = kinetics.rate(equilibriumLoading, spanChemisorption[site, grid, comp], drivingConcentration,
+                                      temperature, elapsedTime);
           if (kinetics.usesSurfacePoreTransport())
           {
             const double gamma = (1.0 - adsorbentVoidFractions[ads]) * particleDensities[ads] /

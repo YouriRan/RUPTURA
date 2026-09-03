@@ -32,7 +32,7 @@ void computePhysisorption(const std::vector<Component>& components, size_t numbe
 
 void computeChemisorption(const std::vector<Component>& components, size_t numberOfGridPoints,
                           size_t numberOfComponents, size_t maxChemisorptionSites, double externalTemperature,
-                          const Geometry& geometry, double particleDensity,
+                          const Geometry& geometry, double particleDensity, double elapsedTime,
                           std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
                           std::span<const double> chemisorption, std::span<double> chemisorptionDot,
                           std::span<const double> poreConcentration, std::span<const double> solidTemperature);

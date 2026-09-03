@@ -55,6 +55,7 @@ double isothermMaximumLoading(const Isotherm& isotherm) noexcept
     case Isotherm::Type::Henry:
     case Isotherm::Type::Freundlich:
     case Isotherm::Type::Redlich_Peterson:
+    case Isotherm::Type::GAB:
       return unboundedLoading;
   }
   return unboundedLoading;
@@ -440,10 +441,18 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
 
   auto bisection = [&](auto&& func)
   {
+    // The bracket width is tested relative to the velocity scale, so the criterion no longer depends on the
+    // magnitude of the flow: an absolute 1e-6 m/s was ~2e-5 relative at 0.05 m/s but a 1e-2 relative error at
+    // 1e-4 m/s. The residual staircase this leaves in the right-hand side has to stay well below the
+    // difference-quotient increment CVODE uses (~1e-8 relative), otherwise every J*v product is noise.
+    // The absolute floor guarantees termination as the bracket approaches zero; the iteration cap is a
+    // safety net, since bisection reaches the relative tolerance in roughly 40 halvings.
+    constexpr double relativeTolerance = 1.0e-12;
+    constexpr double absoluteFloor = 1.0e-15;
+    constexpr size_t maximumIterations = 200;
+
     double a = 1e-7;
     double b = std::max(10.0 * std::abs(columnEntranceVelocity), 1e-6);
-    double tolerance = 1e-6;
-    double c = a;
     double fa = func(a);
     double fb = func(b);
 
@@ -458,10 +467,13 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
       throw std::runtime_error("Bounds for bisection method to solve for velocity improperly set.\n");
     }
 
-    while ((b - a) > tolerance)
+    double c = 0.5 * (a + b);
+    for (size_t iteration = 0; iteration < maximumIterations; ++iteration)
     {
+      if ((b - a) <= std::max(relativeTolerance * std::max(std::abs(a), std::abs(b)), absoluteFloor)) break;
+
       c = 0.5 * (a + b);
-      double fc = func(c);
+      const double fc = func(c);
 
       if (fc == 0.0) break;
 

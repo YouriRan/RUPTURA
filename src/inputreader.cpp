@@ -351,7 +351,11 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
       }
 
       readOptionalNumber<double>(params, "rateCoefficient", siteChemisorption.rateCoefficient);
-      readOptionalNonNegativeInteger(params, "order", siteChemisorption.order);
+      readOptionalNumber<double>(params, "order", siteChemisorption.order);
+      if (siteChemisorption.order < 0.0)
+      {
+        throw std::runtime_error("Error: order must be non-negative (" + parametersContext + ")");
+      }
       readOptionalNumber<double>(params, "maximumLoading", siteChemisorption.maximumLoading);
       readOptionalNumber<double>(params, "heatOfChemisorption", siteChemisorption.heatOfChemisorption);
       readOptionalNumber<double>(params, "adsorptionRateCoefficient", siteChemisorption.adsorptionRateCoefficient);
@@ -489,6 +493,7 @@ static const IsothermSpec* findIsothermSpec(const std::string& typeString)
       {"Quadratic", {Isotherm::Type::Quadratic, 3, false}},
       {"Temkin", {Isotherm::Type::Temkin, 3, false}},
       {"Bingel&Walton", {Isotherm::Type::BingelWalton, 3, false}},
+      {"GAB", {Isotherm::Type::GAB, 5, true}},
   };
 
   for (const auto& [name, spec] : specs)
@@ -820,6 +825,13 @@ InputReader::InputReader(const std::string fileName) : components()
                         "ColumnEntranceVelocity",
                         "NumberOfInitTimeSteps",
                         "TimeStep",
+                        "CVODERelativeTolerance",
+                        "CVODEAbsoluteToleranceConcentration",
+                        "CVODEAbsoluteToleranceLoading",
+                        "CVODEAbsoluteToleranceTemperature",
+                        "CVODEMaximumTimeStep",
+                        "CVODELinearSolver",
+                        "CVODEKrylovDimension",
                         "PrintEvery",
                         "WriteEvery",
                         "ColumnLength",
@@ -1027,6 +1039,13 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalNumber<double>(parsed_data, "ColumnEntranceVelocity", columnEntranceVelocity);
   readOptionalNumber<size_t>(parsed_data, "NumberOfInitTimeSteps", numberOfInitTimeSteps);
   readOptionalNumber<double>(parsed_data, "TimeStep", timeStep);
+  readOptionalNumber<double>(parsed_data, "CVODERelativeTolerance", cvodeRelativeTolerance);
+  readOptionalNumber<double>(parsed_data, "CVODEAbsoluteToleranceConcentration", cvodeAbsoluteToleranceConcentration);
+  readOptionalNumber<double>(parsed_data, "CVODEAbsoluteToleranceLoading", cvodeAbsoluteToleranceLoading);
+  readOptionalNumber<double>(parsed_data, "CVODEAbsoluteToleranceTemperature", cvodeAbsoluteToleranceTemperature);
+  readOptionalNumber<double>(parsed_data, "CVODEMaximumTimeStep", cvodeMaximumTimeStep);
+  readOptionalMappedString(parsed_data, "CVODELinearSolver", cvodeLinearSolver, {{"Dense", 0}, {"SPGMR", 1}});
+  readOptionalNumber<size_t>(parsed_data, "CVODEKrylovDimension", cvodeKrylovDimension);
   readOptionalNumber<size_t>(parsed_data, "PrintEvery", printEvery);
   readOptionalNumber<size_t>(parsed_data, "WriteEvery", writeEvery);
   readOptionalNumber<double>(parsed_data, "ColumnLength", columnLength);
@@ -2002,12 +2021,19 @@ InputReader::InputReader(const std::string fileName) : components()
       }
       for (const Isotherm& isotherm : comp.isotherm.sites)
       {
-        if (isotherm.type != Isotherm::Type::Langmuir_pH) continue;
-        if (fluidPhase != 1)
+        if (isotherm.type == Isotherm::Type::GAB && mixturePredictionMethod != 5)
+        {
+          throw std::runtime_error("Error: GAB requires MixturePredictionMethod SPI");
+        }
+        if (isotherm.type == Isotherm::Type::GAB && fluidPhase != 0)
+        {
+          throw std::runtime_error("Error: GAB is available only for gas simulations");
+        }
+        if (isotherm.type == Isotherm::Type::Langmuir_pH && fluidPhase != 1)
         {
           throw std::runtime_error("Error: pH-Langmuir is available only for liquid simulations");
         }
-        if (mixturePredictionMethod != 5)
+        if (isotherm.type == Isotherm::Type::Langmuir_pH && mixturePredictionMethod != 5)
         {
           throw std::runtime_error("Error: pH-Langmuir requires MixturePredictionMethod SPI");
         }

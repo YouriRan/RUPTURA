@@ -28,6 +28,104 @@ void writeMPDFile(const std::filesystem::path& path, const std::string& contents
 }
 }  // namespace
 
+TEST(Isotherm, GABImplementsElfvingEquationsFiveThroughSeven)
+{
+  const Isotherm gab(Isotherm::Type::GAB, {2.58, 0.155, 0.871, 6600.0, 0.0}, true);
+  constexpr double temperature = 298.15;
+  constexpr double pressure = 0.019 * 105000.0;
+  const double scale = std::exp(1.0 / (R * temperature));
+  const double temperatureFromScale = 1.0 / (R * std::log(scale));
+  const double saturationPressure =
+      std::pow(10.0, 8.07131 - 1730.63 / (temperatureFromScale - 39.724)) * 133.32236842105263;
+  const double relativePressure = pressure / saturationPressure;
+  const double c = 0.155 * std::pow(scale, 6600.0);
+  const double k = 0.871 * std::pow(scale, 0.0);
+  const double expected =
+      2.58 * c * k * relativePressure /
+      ((1.0 - k * relativePressure) * (1.0 + k * relativePressure * (c - 1.0)));
+
+  EXPECT_DOUBLE_EQ(gab.value(0.0, scale), 0.0);
+  EXPECT_NEAR(gab.value(pressure, scale), expected, 1.0e-13);
+  EXPECT_THROW(gab.value(pressure, 1.0), std::domain_error);
+
+  const Isotherm gabWithTemperatureDependentK(Isotherm::Type::GAB, {2.58, 0.155, 0.8, 6600.0, -1200.0}, true);
+  constexpr double secondTemperature = 308.15;
+  constexpr double secondPressure = 1200.0;
+  const double secondScale = std::exp(1.0 / (R * secondTemperature));
+  const double secondTemperatureFromScale = 1.0 / (R * std::log(secondScale));
+  const double secondSaturationPressure =
+      std::pow(10.0, 8.07131 - 1730.63 / (secondTemperatureFromScale - 39.724)) * 133.32236842105263;
+  const double secondRelativePressure = secondPressure / secondSaturationPressure;
+  const double secondC = 0.155 * std::pow(secondScale, 6600.0);
+  const double secondK = 0.8 * std::pow(secondScale, -1200.0);
+  const double secondExpected =
+      2.58 * secondC * secondK * secondRelativePressure /
+      ((1.0 - secondK * secondRelativePressure) *
+       (1.0 + secondK * secondRelativePressure * (secondC - 1.0)));
+  EXPECT_NEAR(gabWithTemperatureDependentK.value(secondPressure, secondScale), secondExpected, 1.0e-13);
+}
+
+TEST(MixturePrediction, SPIPassesTemperatureScaleToGAB)
+{
+  const Isotherm gab(Isotherm::Type::GAB, {2.58, 0.155, 0.871, 6600.0, 0.0}, true);
+  std::vector<Component> components;
+  components.emplace_back(0, "H2O", std::vector<Isotherm>{gab}, 1.0, 1.0, 0.0);
+  components.front().nonIsothermal = true;
+  components.front().heatOfAdsorption = 1.0;
+  components.emplace_back(1, "N2", std::vector<Isotherm>{}, 0.0, 0.0, 0.0, true);
+  MixturePrediction prediction("GAB temperature", components, 1, 1, 298.15, 1.0e3, 1.0e5, 2, 0,
+                               static_cast<size_t>(MixturePrediction::PredictionMethod::SPI), 0);
+
+  std::vector<double> adsorbedFractions(2, 0.0);
+  std::vector<double> loadings(2, 0.0);
+  std::vector<double> cachedPressure(2, 0.0);
+  std::vector<double> cachedGrandPotential(1, 0.0);
+  const std::vector<double> gasFractions{1.0, 0.0};
+  constexpr double pressure = 1500.0;
+  double temperature = 308.15;
+
+  prediction.predictMixture(gasFractions, pressure, adsorbedFractions, loadings, cachedPressure,
+                            cachedGrandPotential, temperature);
+
+  EXPECT_NEAR(loadings[0], gab.value(pressure, components.front().scale(temperature)), 1.0e-13);
+  EXPECT_NE(loadings[0], gab.value(pressure, components.front().scale(298.15)));
+}
+
+TEST(MixturePrediction, BuildsEquilibriumPredictionFromChemisorptionSites)
+{
+  const Isotherm physical(Isotherm::Type::Langmuir, {1.0, 1.0e-5}, false);
+  const Isotherm firstChemical(Isotherm::Type::Langmuir, {2.0, 2.0e-5}, false);
+  const Isotherm secondChemical(Isotherm::Type::Henry, {1.0e-6}, false);
+
+  std::vector<Component> components;
+  components.emplace_back(0, "CO2", std::vector<Isotherm>{physical}, 1.0, 1.0, 0.0);
+  Chemisorption firstSite;
+  firstSite.type = Chemisorption::Type::FirstOrder;
+  firstSite.isotherm = firstChemical;
+  Chemisorption secondSite;
+  secondSite.type = Chemisorption::Type::Avrami;
+  secondSite.isotherm = secondChemical;
+  components.front().chemisorption.add(firstSite);
+  components.front().chemisorption.add(secondSite);
+  components.emplace_back(1, "N2", std::vector<Isotherm>{}, 0.0, 0.0, 0.0, true);
+
+  MixturePrediction physicalPrediction(
+      "combined sorption", components, 1, 1, 298.15, 1.0e3, 1.0e5, 2, 0,
+      static_cast<size_t>(MixturePrediction::PredictionMethod::SPI), 0);
+  MixturePrediction chemicalPrediction =
+      MixturePrediction::makeChemisorptionPrediction(physicalPrediction, components);
+
+  ASSERT_EQ(chemicalPrediction.components[0].isotherm.sites.size(), 2U);
+  EXPECT_FALSE(chemicalPrediction.components[0].isCarrierGas);
+  EXPECT_TRUE(chemicalPrediction.components[1].isCarrierGas);
+
+  std::vector<double> pureLoadings(2, 0.0);
+  constexpr double pressure = 1.0e5;
+  chemicalPrediction.predictPureComponentLoadings(pressure, pureLoadings, 298.15);
+  EXPECT_NEAR(pureLoadings[0], firstChemical.value(pressure, 1.0) + secondChemical.value(pressure, 1.0), 1.0e-14);
+  EXPECT_DOUBLE_EQ(pureLoadings[1], 0.0);
+}
+
 TEST(MacrostateParticleDistribution, ReweightsCOrderedTwoComponentDistribution)
 {
   const std::filesystem::path path = mpdTemporaryPath("c_order.data");
@@ -161,6 +259,47 @@ TEST(MixturePrediction, LoadsAndUsesMPDSettings)
   EXPECT_NEAR(adsorbedFractions[0] + adsorbedFractions[1], 1.0, 1.0e-14);
   EXPECT_NEAR(prediction.equilibriumSiteLoadings[0], loadings[0], 1.0e-14);
   EXPECT_NEAR(prediction.equilibriumSiteLoadings[1], loadings[1], 1.0e-14);
+}
+
+TEST(MixturePrediction, BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir)
+{
+  const std::filesystem::path exampleDirectory =
+      std::filesystem::path(RUPTURA_SOURCE_DIR) / "examples" / "MPD" / "BEA-alkanes";
+  InputReader mpdReader((exampleDirectory / "mpd" / "simulation.json").string());
+  InputReader langmuirReader((exampleDirectory / "langmuir" / "simulation.json").string());
+  MixturePrediction mpd(mpdReader);
+  MixturePrediction langmuir(langmuirReader);
+
+  std::vector<double> gasFractions;
+  gasFractions.reserve(mpdReader.components.size());
+  for (const Component& component : mpdReader.components)
+  {
+    gasFractions.push_back(component.initialGasMoleFraction);
+  }
+
+  const auto predict = [&gasFractions](MixturePrediction& prediction, double fugacity)
+  {
+    std::vector<double> adsorbedFractions(prediction.numberOfComponents, 0.0);
+    std::vector<double> loadings(prediction.numberOfComponents, 0.0);
+    std::vector<double> cachedPressure(prediction.numberOfComponents * prediction.maxIsothermTerms, 0.0);
+    std::vector<double> cachedGrandPotential(prediction.maxIsothermTerms, 0.0);
+    double temperature = 552.0;
+    prediction.predictMixture(gasFractions, fugacity, adsorbedFractions, loadings, cachedPressure,
+                              cachedGrandPotential, temperature);
+    return loadings;
+  };
+
+  for (double fugacity : {1.0e3, 1.0e5, 1.0e7})
+  {
+    const std::vector<double> mpdLoadings = predict(mpd, fugacity);
+    const std::vector<double> langmuirLoadings = predict(langmuir, fugacity);
+    ASSERT_EQ(mpdLoadings.size(), langmuirLoadings.size());
+    for (std::size_t component = 0; component < mpdLoadings.size(); ++component)
+    {
+      EXPECT_NEAR(mpdLoadings[component], langmuirLoadings[component], 2.0e-13)
+          << "component " << component << " at fugacity " << fugacity;
+    }
+  }
 }
 
 TEST(MixturePrediction, EvaluatesMPDPureComponentsThroughOneHotMixtures)

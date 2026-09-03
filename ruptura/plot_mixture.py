@@ -107,6 +107,7 @@ class MixturePredictionPlotly(BasePlotly):
         yaxis_title: str,
         include_yi: bool,
         include_carrier_gas: bool,
+        show_markers: bool,
         title_mode: str,
         force_zero_ymin: bool = True,
     ) -> go.Figure:
@@ -131,17 +132,18 @@ class MixturePredictionPlotly(BasePlotly):
             line_width = 3.6 if comp.isCarrierGas else 3.2
             label = self._component_label(comp, include_yi=include_yi)
 
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=y,
-                    mode="lines+markers",
-                    name=label,
-                    line=dict(width=line_width),
-                    marker=dict(symbol="circle", size=8, line=dict(width=1, color="Black")),
-                    hovertemplate=(f"{label}<br>" + "P=%{x:.4g} Pa<br>" + "y=%{y:.6g}<extra></extra>"),
-                )
-            )
+            trace_kwargs = {
+                "x": x,
+                "y": y,
+                "mode": "lines+markers" if show_markers else "lines",
+                "name": label,
+                "line": dict(width=line_width),
+                "hovertemplate": (f"{label}<br>" + "P=%{x:.4g} Pa<br>" + "y=%{y:.6g}<extra></extra>"),
+            }
+            if show_markers:
+                trace_kwargs["marker"] = dict(symbol="circle", size=8, line=dict(width=1, color="Black"))
+
+            fig.add_trace(go.Scatter(**trace_kwargs))
 
         if not np.isfinite(ymax):
             ymax = 1.0
@@ -167,34 +169,132 @@ class MixturePredictionPlotly(BasePlotly):
         )
         return fig
 
-    def pure_components(self, include_carrier_gas: bool = True) -> go.Figure:
+    def pure_components(
+        self,
+        include_carrier_gas: bool = True,
+        show_markers: bool = True,
+    ) -> go.Figure:
         return self._build_figure(
             y_col="col_2",
             yaxis_title="Absolute loading, q_i",
             include_yi=False,
             include_carrier_gas=include_carrier_gas,
+            show_markers=show_markers,
             title_mode="Pure-component isotherms",
             force_zero_ymin=True,
         )
 
-    def mixture_loading(self, include_carrier_gas: bool = True) -> go.Figure:
+    def mixture_loading(
+        self,
+        include_carrier_gas: bool = True,
+        show_markers: bool = True,
+    ) -> go.Figure:
         return self._build_figure(
             y_col="col_3",
             yaxis_title="Absolute loading, q_i",
             include_yi=True,
             include_carrier_gas=include_carrier_gas,
+            show_markers=show_markers,
             title_mode="Mixture prediction",
             force_zero_ymin=True,
         )
 
-    def mixture_adsorbed_molfractions(self, include_carrier_gas: bool = True) -> go.Figure:
+    def mixture_adsorbed_molfractions(
+        self,
+        include_carrier_gas: bool = True,
+        show_markers: bool = True,
+    ) -> go.Figure:
         fig = self._build_figure(
             y_col="col_5",
             yaxis_title="Adsorbed mol-fraction, x_i [-]",
             include_yi=True,
             include_carrier_gas=include_carrier_gas,
+            show_markers=show_markers,
             title_mode="Mixture adsorbed mol-fractions",
             force_zero_ymin=True,
         )
         fig.update_yaxes(range=[0.0, 1.02])
         return fig
+
+    def has_chemisorption(self) -> bool:
+        """Report whether the output files carry the chemisorption columns 8-11.
+
+        ``MixturePrediction::run`` appends those columns only when at least one
+        component defines a nested chemisorption equilibrium isotherm.
+        """
+        for comp in self.components:
+            path = self._component_file_name(comp.index, comp.name)
+            if Path(path).is_file():
+                return self._read_component_data(path).shape[1] >= 11
+        return False
+
+    def _require_chemisorption(self) -> None:
+        if not self.has_chemisorption():
+            raise ValueError(
+                "the MixturePrediction output files have no chemisorption columns; "
+                "add a ChemisorptionSites entry with a nested Isotherm and rerun the simulation"
+            )
+
+    def pure_components_chemisorption(
+        self,
+        include_carrier_gas: bool = True,
+        show_markers: bool = True,
+    ) -> go.Figure:
+        self._require_chemisorption()
+        return self._build_figure(
+            y_col="col_8",
+            yaxis_title="Absolute chemisorption loading, q_i",
+            include_yi=False,
+            include_carrier_gas=include_carrier_gas,
+            show_markers=show_markers,
+            title_mode="Pure-component chemisorption isotherms",
+            force_zero_ymin=True,
+        )
+
+    def mixture_chemisorption_loading(
+        self,
+        include_carrier_gas: bool = True,
+        show_markers: bool = True,
+    ) -> go.Figure:
+        self._require_chemisorption()
+        return self._build_figure(
+            y_col="col_9",
+            yaxis_title="Absolute chemisorption loading, q_i",
+            include_yi=True,
+            include_carrier_gas=include_carrier_gas,
+            show_markers=show_markers,
+            title_mode="Mixture chemisorption prediction",
+            force_zero_ymin=True,
+        )
+
+    def pure_components_total_loading(
+        self,
+        include_carrier_gas: bool = True,
+        show_markers: bool = True,
+    ) -> go.Figure:
+        self._require_chemisorption()
+        return self._build_figure(
+            y_col="col_10",
+            yaxis_title="Absolute total loading, q_i",
+            include_yi=False,
+            include_carrier_gas=include_carrier_gas,
+            show_markers=show_markers,
+            title_mode="Pure-component physisorption + chemisorption isotherms",
+            force_zero_ymin=True,
+        )
+
+    def mixture_total_loading(
+        self,
+        include_carrier_gas: bool = True,
+        show_markers: bool = True,
+    ) -> go.Figure:
+        self._require_chemisorption()
+        return self._build_figure(
+            y_col="col_11",
+            yaxis_title="Absolute total loading, q_i",
+            include_yi=True,
+            include_carrier_gas=include_carrier_gas,
+            show_markers=show_markers,
+            title_mode="Mixture physisorption + chemisorption prediction",
+            force_zero_ymin=True,
+        )

@@ -200,6 +200,7 @@ void Breakthrough<ColumnType>::run()
 
   std::print("Final timestep {}, time: {:6.5f} [s]\n\n", step, realTime);
   timings.print();
+  if (integrationScheme == BreakthroughIntegrationScheme::CVODE) cvode.printStatistics();
 }
 
 template <typename ColumnType>

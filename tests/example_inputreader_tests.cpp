@@ -3,7 +3,9 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <string>
+#include <tuple>
 
 #include "column.h"
 #include "component.h"
@@ -342,6 +344,50 @@ TEST(ExampleInputReader, LoadsBeaAlkanesMixturePrediction)
   EXPECT_EQ(reader.columnDistances.size(), reader.numberOfGridPoints + 1);
   EXPECT_DOUBLE_EQ(reader.columnDistances.front(), 0.0);
   EXPECT_DOUBLE_EQ(reader.columnDistances.back(), reader.columnLength);
+}
+
+TEST(ExampleInputReader, LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix)
+{
+  const std::filesystem::path benchmarkDirectory =
+      std::filesystem::path(RUPTURA_SOURCE_DIR) / "examples" / "MPD" / "BEA-alkanes" / "breakthrough";
+  std::set<std::tuple<size_t, size_t, size_t, int>> combinations;
+
+  for (const std::filesystem::directory_entry& entry : std::filesystem::directory_iterator(benchmarkDirectory))
+  {
+    const std::filesystem::path inputPath = entry.path() / "simulation.json";
+    if (!entry.is_directory() || !std::filesystem::is_regular_file(inputPath)) continue;
+
+    InputReader reader(inputPath.string());
+    EXPECT_EQ(reader.simulationType, InputReader::SimulationType::Breakthrough);
+    EXPECT_EQ(reader.components.size(), 8U);
+    EXPECT_EQ(reader.numberOfCarrierGases, 1U);
+    EXPECT_TRUE(reader.numberOfTimeSteps > 1U);
+    EXPECT_TRUE(reader.breakthroughIntegrator == 0U || reader.breakthroughIntegrator == 1U);
+    EXPECT_TRUE(reader.numberOfGridPoints == 20U || reader.numberOfGridPoints == 50U ||
+                reader.numberOfGridPoints == 100U);
+
+    const int velocityMilliMetresPerSecond = static_cast<int>(std::lround(1000.0 * reader.columnEntranceVelocity));
+    EXPECT_TRUE(velocityMilliMetresPerSecond == 19 || velocityMilliMetresPerSecond == 190);
+    const auto [_, inserted] = combinations.emplace(reader.mixturePredictionMethod, reader.breakthroughIntegrator,
+                                                     reader.numberOfGridPoints, velocityMilliMetresPerSecond);
+    EXPECT_TRUE(inserted) << "duplicate benchmark combination in " << inputPath;
+  }
+
+  EXPECT_EQ(combinations.size(), 24U);
+  for (size_t method : {static_cast<size_t>(MixturePrediction::PredictionMethod::SCI),
+                        static_cast<size_t>(MixturePrediction::PredictionMethod::MPD)})
+  {
+    for (size_t integrator : {0U, 1U})
+    {
+      for (size_t gridPoints : {20U, 50U, 100U})
+      {
+        for (int velocity : {19, 190})
+        {
+          EXPECT_TRUE(combinations.contains({method, integrator, gridPoints, velocity}));
+        }
+      }
+    }
+  }
 }
 
 TEST(ExampleInputReader, LoadsCoBdpAlkanesBreakthrough)
@@ -796,6 +842,24 @@ TEST(ChemisorptionRate, GeneralAndElovichUseUnifiedRate)
   EXPECT_NEAR(elovich.rate(0.0, 4.0, 3.0), 6.0 * std::exp(-2.0), 1.0e-14);
 }
 
+TEST(ChemisorptionRate, AvramiMatchesDerivativeOfIntegratedModel)
+{
+  Chemisorption avrami;
+  avrami.type = Chemisorption::Type::Avrami;
+  avrami.rateCoefficient = 3.92e-2;
+  avrami.order = 1.46;
+
+  constexpr double equilibriumLoading = 2.06;
+  constexpr double elapsedTime = 25.0;
+  const double exponent = std::pow(avrami.rateCoefficient * elapsedTime, avrami.order);
+  const double loading = equilibriumLoading * (1.0 - std::exp(-exponent));
+  const double expected = avrami.order * std::pow(avrami.rateCoefficient, avrami.order) *
+                          std::pow(elapsedTime, avrami.order - 1.0) * (equilibriumLoading - loading);
+
+  EXPECT_NEAR(avrami.rate(equilibriumLoading, loading, 0.0, 298.15, elapsedTime), expected, 1.0e-14);
+  EXPECT_DOUBLE_EQ(avrami.rate(equilibriumLoading, 0.0, 0.0, 298.15, 0.0), 0.0);
+}
+
 TEST(ReactionsInput, ParsesGeneralPowerLawReaction)
 {
   const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_reaction_parse.json";
@@ -944,7 +1008,7 @@ TEST(ReactionsInput, RejectsLHOutsidePoreConcentration)
       std::runtime_error);
 }
 
-TEST(ChemisorptionInput, RejectsFractionalOrders)
+TEST(ChemisorptionInput, RejectsFractionalGeneralOrders)
 {
   const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_fractional_chem_order.json";
   writeGeneralChemisorptionInput(path, false, "1.5");
@@ -962,6 +1026,35 @@ TEST(ChemisorptionInput, RejectsFractionalOrders)
         }
       },
       std::runtime_error);
+}
+
+TEST(ChemisorptionInput, AcceptsFractionalAvramiOrder)
+{
+  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_fractional_avrami_order.json";
+  writeGeneralChemisorptionInput(path, false);
+
+  std::ifstream input(path);
+  nlohmann::json data = nlohmann::json::parse(input);
+  input.close();
+
+  auto& site = data["Components"][1]["ChemisorptionSites"][0];
+  const nlohmann::json isotherm = site["Parameters"]["Isotherm"];
+  site = {{"Type", "Avrami"},
+          {"Parameters",
+           {{"rateCoefficient", 3.92e-2},
+            {"order", 1.46},
+            {"maximumLoading", 2.0},
+            {"heatOfChemisorption", 42000.0},
+            {"Isotherm", isotherm}}}};
+
+  std::ofstream output(path);
+  output << data;
+  output.close();
+
+  InputReader reader(path.string());
+  ASSERT_EQ(reader.components[1].chemisorption.numberOfSites, 1U);
+  EXPECT_EQ(reader.components[1].chemisorption.sites[0].type, Chemisorption::Type::Avrami);
+  EXPECT_DOUBLE_EQ(reader.components[1].chemisorption.sites[0].order, 1.46);
 }
 
 TEST(ChemisorptionInput, RequiresExactlyTheParametersForTheSelectedModel)

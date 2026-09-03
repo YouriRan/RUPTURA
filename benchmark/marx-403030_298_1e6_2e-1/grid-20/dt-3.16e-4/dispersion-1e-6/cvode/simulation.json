@@ -1,0 +1,107 @@
+{
+  "SimulationType": "Breakthrough",
+  "BreakthroughIntegrator": "CVODE",
+  "MixturePredictionMethod": "IAST",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "PressureGradient": 0,
+  "energyBalance": true,
+  "NumberOfTimeSteps": 317,
+  "PrintEvery": 7000,
+  "WriteEvery": 7000,
+  "TimeStep": 0.000316,
+  "NumberOfGridPoints": 20,
+  "DisplayName": "BEA",
+  "Temperature": 298.0,
+  "ColumnVoidFraction": 0.403,
+  "ParticleDensity": 502,
+  "InletPressure": 1000000.0,
+  "ColumnEntranceVelocity": 0.027455300156014287,
+  "ColumnLength": 1.2,
+  "InfluxTemperature": 298,
+  "wallDensity": 4000,
+  "gasThermalConductivity": 0.028,
+  "heatTransferGasSolid": 20.0,
+  "heatTransferGasWall": 25.6,
+  "heatTransferWallExternal": 5.0,
+  "heatCapacityGas": 29.51,
+  "heatCapacitySolid": 1000.0,
+  "heatCapacityWall": 1000,
+  "DynamicViscosity": 1.92e-05,
+  "ParticleDiameter": 0.003,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.0,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.004,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.4,
+      "MassTransferCoefficient": 0.11,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.044,
+      "HeatOfAdsorption": 24860.0,
+      "referenceTemperature": 318,
+      "nonIsothermal": true,
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            12.45,
+            4.39e-07,
+            1.36
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.3,
+      "MassTransferCoefficient": 0.3,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.028,
+      "HeatOfAdsorption": 16360.0,
+      "referenceTemperature": 298,
+      "nonIsothermal": true,
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            5.65,
+            2.77e-07,
+            1.18
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "H2",
+      "GasPhaseMolFraction": 0.3,
+      "MassTransferCoefficient": 1.0,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.002016,
+      "HeatOfAdsorption": 9730.0,
+      "referenceTemperature": 298,
+      "nonIsothermal": true,
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            7.54,
+            2.94e-08,
+            1.08
+          ]
+        }
+      ]
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.403,
+    "ParticleDiameter": 0.003,
+    "InternalDiameter": 0.025,
+    "OuterDiameter": 0.04
+  }
+}

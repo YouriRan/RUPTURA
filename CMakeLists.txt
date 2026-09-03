@@ -1,13 +1,33 @@
-cmake_minimum_required(VERSION 4.3)
+cmake_minimum_required(VERSION 3.28...4.3)
 project(ruptura LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if(DEFINED SKBUILD_PROJECT_NAME)
+  set(RUPTURA_BUILDING_WHEEL ON)
+else()
+  set(RUPTURA_BUILDING_WHEEL OFF)
+endif()
+
+if(RUPTURA_BUILDING_WHEEL)
+  set(_ruptura_default_python ON)
+  set(_ruptura_default_docs OFF)
+  set(_ruptura_default_testing OFF)
+else()
+  set(_ruptura_default_python OFF)
+  set(_ruptura_default_docs ON)
+  set(_ruptura_default_testing ON)
+endif()
+
 find_package(LAPACK)
 
 option(BUILD_SUNDIALS "Build with SUNDIALS-based CVODE integrator support" ON)
-option(BUILD_PYTHON "Build nanobind-based Python module" OFF)
+option(BUILD_PYTHON "Build nanobind-based Python module" ${_ruptura_default_python})
+option(BUILD_CLI "Build the ruptura command-line executable" ON)
+option(BUILD_DOCS "Configure the Doxygen documentation target" ${_ruptura_default_docs})
+
+set(BUILD_TESTING ${_ruptura_default_testing} CACHE BOOL "Build the C++ unit tests")
 include(CTest)
 
 set(SUNDIALS_ROOT "" CACHE PATH
@@ -35,21 +55,24 @@ option(RUPTURA_USE_SYSTEM_SUNDIALS
 
 if(BUILD_SUNDIALS)
 
-  # ---- SuiteSparse / KLU (system dependency) ----
   find_path(KLU_INCLUDE_DIR
     NAMES klu.h
     HINTS
       ${KLU_ROOT}
+      $ENV{CONDA_PREFIX}
+      $ENV{PREFIX}
       /opt/homebrew
       /usr/local
       /usr
-    PATH_SUFFIXES include/suitesparse suitesparse
+    PATH_SUFFIXES include/suitesparse suitesparse include
   )
 
   find_library(KLU_LIBRARY
     NAMES klu
     HINTS
       ${KLU_ROOT}
+      $ENV{CONDA_PREFIX}
+      $ENV{PREFIX}
       /opt/homebrew
       /usr/local
       /usr
@@ -95,7 +118,11 @@ if(BUILD_SUNDIALS)
     set(EXAMPLES_ENABLE OFF CACHE BOOL "" FORCE)
     set(ENABLE_TESTS OFF CACHE BOOL "" FORCE)
 
-    # Enable KLU inside the vendored SUNDIALS build.
+    if(RUPTURA_BUILDING_WHEEL)
+      set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+      set(BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
+    endif()
+
     set(ENABLE_KLU ON CACHE BOOL "" FORCE)
     set(KLU_INCLUDE_DIR "${KLU_INCLUDE_DIR}" CACHE PATH "" FORCE)
     set(KLU_LIBRARY_DIR "${KLU_LIBRARY_DIR}" CACHE PATH "" FORCE)
@@ -112,9 +139,6 @@ if(BUILD_PYTHON)
     "Exact Python interpreter to use for the Python module"
   )
 
-  # Prefer the active virtualenv/conda environment when one is activated.
-  # Use ONLY instead of FIRST if you want configuration to fail rather than
-  # silently fall back to a system Python.
   set(Python_FIND_VIRTUALENV FIRST)
   set(Python_FIND_STRATEGY LOCATION)
 
@@ -122,7 +146,40 @@ if(BUILD_PYTHON)
     set(Python_EXECUTABLE "${RUPTURA_PYTHON_EXECUTABLE}" CACHE FILEPATH "" FORCE)
   endif()
 
-  find_package(Python 3.12 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
+  find_package(Python 3.11 COMPONENTS Interpreter REQUIRED)
+
+  find_package(Python 3.11 COMPONENTS Interpreter ${DEV_MODULE} QUIET)
+
+  if(NOT Python_Development.Module_FOUND)
+    execute_process(
+      COMMAND "${Python_EXECUTABLE}" -c
+              "import sysconfig; print(sysconfig.get_paths()['include'])"
+      OUTPUT_VARIABLE _ruptura_python_include
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      ERROR_QUIET
+    )
+
+    if(EXISTS "${_ruptura_python_include}/Python.h")
+      message(STATUS
+        "FindPython did not locate the Python headers; using ${_ruptura_python_include} "
+        "as reported by sysconfig."
+      )
+      set(Python_INCLUDE_DIR "${_ruptura_python_include}" CACHE PATH "" FORCE)
+      find_package(Python 3.11 COMPONENTS Interpreter ${DEV_MODULE} QUIET)
+    endif()
+  endif()
+
+  if(NOT Python_Development.Module_FOUND)
+    message(FATAL_ERROR
+      "Found the Python interpreter (${Python_EXECUTABLE}, version ${Python_VERSION}) "
+      "but not its development headers (Python.h). Install the Python development "
+      "files into the environment you are building against -- for conda/micromamba "
+      "that means the environment must contain the 'python' package itself "
+      "(conda install -n <env> python), for Debian/Ubuntu 'python3-dev'. "
+      "Alternatively pass -DPython_ROOT_DIR=<prefix> or build with `pip install .`, "
+      "which supplies the correct hints automatically."
+    )
+  endif()
 
   message(STATUS "Using Python executable: ${Python_EXECUTABLE}")
   message(STATUS "Using Python version: ${Python_VERSION}")
@@ -185,8 +242,6 @@ set(RUPTURA_SOURCES
   src/integrators/transport.cpp
 )
 
-# MPD normalization and validation rely on IEEE non-finite handling and must
-# not inherit the library-wide finite-math assumptions.
 set_source_files_properties(src/macrostate_particle_distribution.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math")
 
 set(RUPTURA_COMPILE_OPTIONS
@@ -210,13 +265,6 @@ set(RUPTURA_LINK_LIBRARIES
   $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::sunmatrixsparse>
 )
 
-# ---------------------------------------------------------------------------
-# Stage 1: build the reusable core library.
-#
-# Keep this target free of BUILD_PYTHON so it remains a normal C++ library that can
-# be linked into both the executable and the Python module. Python-specific
-# wrappers should live in ruptura/pybindings.cpp.
-# ---------------------------------------------------------------------------
 add_library(rupturalib STATIC
   ${RUPTURA_SOURCES}
 )
@@ -241,33 +289,37 @@ target_link_libraries(rupturalib PUBLIC
   ${RUPTURA_LINK_LIBRARIES}
 )
 
+if(BUILD_CLI)
+  add_executable(${PROJECT_NAME}
+    src/main.cpp
+  )
 
-# ---------------------------------------------------------------------------
-# Stage 2: executable, app, and pybuild
-# ---------------------------------------------------------------------------
-add_executable(${PROJECT_NAME}
-  src/main.cpp
-)
+  target_compile_options(${PROJECT_NAME} PRIVATE
+    ${RUPTURA_COMPILE_OPTIONS}
+  )
 
-target_compile_options(${PROJECT_NAME} PRIVATE
-  ${RUPTURA_COMPILE_OPTIONS}
-)
+  target_compile_definitions(${PROJECT_NAME} PRIVATE
+    RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+  )
 
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-  RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
-)
+  target_link_libraries(${PROJECT_NAME} PRIVATE
+    rupturalib
+  )
 
-target_link_libraries(${PROJECT_NAME} PRIVATE
-  rupturalib
-)
+  if(BUILD_MAC_PACKAGE)
+    install(CODE "execute_process(COMMAND
+      codesign --force --options runtime --timestamp --sign \"Developer ID Application: David Dubbeldam (24U2ZRZ6SC)\"
+      \"$<TARGET_FILE:${PROJECT_NAME}>\")" COMPONENT app)
+  endif()
 
-if(BUILD_MAC_PACKAGE)
-  install(CODE "execute_process(COMMAND
-    codesign --force --options runtime --timestamp --sign \"Developer ID Application: David Dubbeldam (24U2ZRZ6SC)\"
-    \"$<TARGET_FILE:${PROJECT_NAME}>\")" COMPONENT app)
+  if(RUPTURA_BUILDING_WHEEL)
+    set(RUPTURA_CLI_INSTALL_DIR "${SKBUILD_SCRIPTS_DIR}")
+  else()
+    set(RUPTURA_CLI_INSTALL_DIR "bin")
+  endif()
+
+  install(TARGETS ${PROJECT_NAME} DESTINATION "${RUPTURA_CLI_INSTALL_DIR}" COMPONENT app)
 endif()
-
-install(TARGETS ${PROJECT_NAME} DESTINATION bin COMPONENT app)
 
 option(BUILD_APP "Build the native Qt application for local Ruptura experiments" OFF)
 option(BUILD_BENCHMARKS "Build Google Benchmark performance comparisons" OFF)
@@ -288,4 +340,6 @@ if(BUILD_BENCHMARKS)
   add_subdirectory(benchmark/multibed)
 endif()
 
-add_subdirectory(docs)
+if(BUILD_DOCS)
+  add_subdirectory(docs)
+endif()

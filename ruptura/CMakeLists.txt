@@ -14,20 +14,21 @@ set(RUPTURA_PYTHON_EXECUTABLE "" CACHE FILEPATH
 
 set(DEV_MODULE Development.Module)
 
-# Prefer the active virtualenv/conda environment when one is activated.
-set(Python_FIND_VIRTUALENV FIRST)
-set(Python_FIND_STRATEGY LOCATION)
+if(NOT Python_FOUND)
+  set(Python_FIND_VIRTUALENV FIRST)
+  set(Python_FIND_STRATEGY LOCATION)
 
-if(RUPTURA_PYTHON_EXECUTABLE)
-  set(Python_EXECUTABLE "${RUPTURA_PYTHON_EXECUTABLE}" CACHE FILEPATH "" FORCE)
+  if(RUPTURA_PYTHON_EXECUTABLE)
+    set(Python_EXECUTABLE "${RUPTURA_PYTHON_EXECUTABLE}" CACHE FILEPATH "" FORCE)
+  endif()
+
+  find_package(Python 3.11 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
 endif()
-
-find_package(Python 3.12 COMPONENTS Interpreter ${DEV_MODULE} REQUIRED)
 
 message(STATUS "Using Python executable: ${Python_EXECUTABLE}")
 message(STATUS "Using Python version: ${Python_VERSION}")
 
-if(NANOBIND_SOURCE_DIR)
+if(NANOBIND_SOURCE_DIR AND NOT COMMAND nanobind_add_module)
   add_subdirectory("${NANOBIND_SOURCE_DIR}" "${CMAKE_BINARY_DIR}/nanobind")
 endif()
 
@@ -77,3 +78,17 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
   rupturalib
 )
+
+if(RUPTURA_BUILDING_WHEEL)
+  install(TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION ruptura
+    COMPONENT python
+  )
+else()
+  add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:${PROJECT_NAME}>"
+            "${CMAKE_CURRENT_SOURCE_DIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+    COMMENT "Copying ${RUPTURA_PYTHON_MODULE_NAME} into the ruptura source package"
+  )
+endif()

@@ -118,6 +118,8 @@ std::string isothermTypeName(Isotherm::Type type)
       return "Temkin";
     case Isotherm::Type::BingelWalton:
       return "Bingel&Walton";
+    case Isotherm::Type::GAB:
+      return "GAB";
     default:
       throw std::runtime_error("Error: unknown isotherm type");
   }

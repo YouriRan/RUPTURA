@@ -60,51 +60,7 @@ size_t Column::maximumChemisorptionSites(const std::vector<Component>& component
 MixturePrediction Column::makeChemisorptionMixture(const MixturePrediction& physisorptionMixture,
                                                    const std::vector<Component>& components)
 {
-  std::vector<Component> chemicalComponents = components;
-  size_t numberOfCarrierGases = 0;
-  size_t carrierGasComponent = 0;
-  bool foundCarrierGas = false;
-
-  for (size_t comp = 0; comp < components.size(); ++comp)
-  {
-    Component& chemicalComponent = chemicalComponents[comp];
-    chemicalComponent.isotherm = MultiSiteIsotherm{};
-
-    if (!components[comp].isCarrierGas)
-    {
-      for (const Chemisorption& kinetics : components[comp].chemisorption.sites)
-      {
-        if (kinetics.isotherm.has_value())
-        {
-          chemicalComponent.isotherm.add(*kinetics.isotherm);
-        }
-      }
-    }
-    chemicalComponent.isCarrierGas = chemicalComponent.isotherm.sites.empty();
-    if (chemicalComponent.isCarrierGas)
-    {
-      ++numberOfCarrierGases;
-      if (!foundCarrierGas)
-      {
-        carrierGasComponent = comp;
-        foundCarrierGas = true;
-      }
-    }
-    else
-    {
-      chemicalComponent.heatOfAdsorption = components[comp].chemisorption.sites.front().heatOfChemisorption;
-    }
-  }
-
-  return MixturePrediction(
-      physisorptionMixture.displayName + " chemisorption", std::move(chemicalComponents), numberOfCarrierGases,
-      carrierGasComponent, physisorptionMixture.temperature, physisorptionMixture.pressureStart,
-      physisorptionMixture.pressureEnd, physisorptionMixture.numberOfPressurePoints,
-      static_cast<size_t>(physisorptionMixture.pressureScale),
-      static_cast<size_t>(physisorptionMixture.predictionMethod == MixturePrediction::PredictionMethod::MPD
-                              ? MixturePrediction::PredictionMethod::IAST
-                              : physisorptionMixture.predictionMethod),
-      static_cast<size_t>(physisorptionMixture.iastMethod));
+  return MixturePrediction::makeChemisorptionPrediction(physisorptionMixture, components);
 }
 
 ColumnStateLayout Column::stateLayout() const noexcept

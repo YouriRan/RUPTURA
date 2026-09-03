@@ -1,0 +1,7 @@
+results.csv
+**/run.log
+**/column.data
+**/column.json
+**/component_*.data
+**/failed_state.json
+.ipynb_checkpoints/

@@ -20,7 +20,7 @@ struct Chemisorption
 
   Type type{Type::None};
   double rateCoefficient{0.0};
-  size_t order{1};
+  double order{1.0};
   double maximumLoading{0.0};
   double heatOfChemisorption{0.0};
   double adsorptionRateCoefficient{0.0};
@@ -38,7 +38,7 @@ struct Chemisorption
   std::optional<Isotherm> isotherm{std::nullopt};
 
   [[nodiscard]] double rate(double equilibriumLoading, double loading, double concentration = 0.0,
-                            double temperature = 298.15) const;
+                            double temperature = 298.15, double elapsedTime = 0.0) const;
   [[nodiscard]] bool enabled() const noexcept { return type != Type::None; }
   [[nodiscard]] bool usesEquilibriumLoading() const noexcept
   {
