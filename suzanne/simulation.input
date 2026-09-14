@@ -1,0 +1,50 @@
+SimulationType           Breakthrough
+  
+// Column settings
+DisplayName              TAMOF-1
+Temperature              298.0           // [K]
+ColumnVoidFraction       0.4             // [-]
+ParticleDensity          1153.80        // [kg/m^3]
+TotalPressure            1.01e5           // [Pa]
+PressureGradient         0.0             // [Pa/m]
+ColumnEntranceVelocity   0.1           // [m/s]
+ColumnLength             0.06            // [m]
+
+// Run settings
+NumberOfTimeSteps       auto
+PrintEvery              10000
+WriteEvery              10000
+TimeStep                0.0005           // [s]
+NumberOfGridPoints      100
+
+
+Component 0 MoleculeName               He
+            GasPhaseMolFraction        0.9    // [-]
+            CarrierGas                 yes
+
+Component 0 MoleculeName               CO2
+            GasPhaseMolFraction        0.01   // [-]
+            MassTransferCoefficient    0.06    // [1/s]
+            AxialDispersionCoefficient 0.0     // [m^2/s]
+            NumberOfIsothermSites      3
+	    Sips		       3.11379      6.60851e-06      0.605746
+	    Sips		       3.76111      4.45477e-06      1.66226
+	    Sips		       0.875703      0.000735416      0.776997
+
+Component 4 MoleculeName               H2O
+            GasPhaseMolFraction        0.00001   // [-]
+            MassTransferCoefficient    0.06    // [1/s]
+            AxialDispersionCoefficient 0.0     // [m^2/s]
+            NumberOfIsothermSites      3
+            Sips 		       7.92635      0.00482443      1.53922
+            Sips  		       6.85442      0.00810286      0.106539
+            Sips  		       5.43381      0.000717805      0.124875
+
+
+Component 5 MoleculeName               N2
+            GasPhaseMolFraction        0.08999    // [-]
+            MassTransferCoefficient    0.06    // [1/s]
+            AxialDispersionCoefficient 0.0     // [m^2/s]
+            NumberOfIsothermSites      2
+            Sips		       2.24398      1.62017e-06      0.901466
+            Sips		       0.737445      1.02756e-06      0.456003
