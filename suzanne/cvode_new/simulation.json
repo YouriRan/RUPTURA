@@ -1,0 +1,117 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "TAMOF-1",
+  "Temperature": 298.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1153.8,
+  "InletPressure": 101000.0,
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "BreakthroughIntegrator": "CVODE",
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "ColumnLength": 0.06,
+  "NumberOfTimeSteps": "auto",
+  "PrintEvery": 10000,
+  "WriteEvery": 10000,
+  "TimeStep": 0.0005,
+  "NumberOfGridPoints": 50,
+  "Components": [
+    {
+      "Name": "He",
+      "GasPhaseMolFraction": 0.9,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            3.11379,
+            6.60851e-06,
+            0.605746
+          ]
+        },
+        {
+          "Type": "Sips",
+          "Parameters": [
+            3.76111,
+            4.45477e-06,
+            1.66226
+          ]
+        },
+        {
+          "Type": "Sips",
+          "Parameters": [
+            0.875703,
+            0.000735416,
+            0.776997
+          ]
+        }
+      ],
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0
+    },
+    {
+      "Name": "H2O",
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            7.92635,
+            0.00482443,
+            1.53922
+          ]
+        },
+        {
+          "Type": "Sips",
+          "Parameters": [
+            6.85442,
+            0.00810286,
+            0.106539
+          ]
+        },
+        {
+          "Type": "Sips",
+          "Parameters": [
+            5.43381,
+            0.000717805,
+            0.124875
+          ]
+        }
+      ],
+      "GasPhaseMolFraction": 1e-05,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0
+    },
+    {
+      "Name": "N2",
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            2.24398,
+            1.62017e-06,
+            0.901466
+          ]
+        },
+        {
+          "Type": "Sips",
+          "Parameters": [
+            0.737445,
+            1.02756e-06,
+            0.456003
+          ]
+        }
+      ],
+      "GasPhaseMolFraction": 0.08999,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4
+  }
+}
