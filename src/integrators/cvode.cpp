@@ -190,7 +190,7 @@ void initializeCVODE(CVODE& integrator, ColumnType& column, EvaluationFunction e
   }
 
   integrator.cvodeMem = CVodeCreate(CV_BDF, integrator.sunContext);
-  CVodeSetMaxNumSteps(integrator.cvodeMem, 1000000);
+  CVodeSetMaxNumSteps(integrator.cvodeMem, 100000);
   CVodeSetUserData(integrator.cvodeMem, &column);
   integrator.currentTime = 0.0;
 

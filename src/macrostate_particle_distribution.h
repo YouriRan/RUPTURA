@@ -53,7 +53,7 @@ class MacrostateParticleDistribution
                                           double temperature) const;
 
   [[nodiscard]] std::size_t rank() const noexcept { return settings_.componentBounds.size(); }
-  [[nodiscard]] std::size_t numberOfMacrostates() const noexcept { return probabilities_.size(); }
+  [[nodiscard]] std::size_t numberOfMacrostates() const noexcept { return numberOfMacrostates_; }
   [[nodiscard]] bool hasMeanEnergies() const noexcept { return !meanEnergies_.empty(); }
   [[nodiscard]] double referenceFrameworkMass() const noexcept { return settings_.referenceFrameworkMass; }
   [[nodiscard]] const MPDSettings& settings() const noexcept { return settings_; }
@@ -62,8 +62,13 @@ class MacrostateParticleDistribution
   MPDSettings settings_;
   std::vector<std::size_t> extents_;
   std::vector<std::size_t> strides_;
-  std::vector<double> probabilities_;
-  std::vector<double> meanEnergies_;
+  std::size_t numberOfMacrostates_{0};  ///< Dense macrostate count, including Pi_ref = 0 entries.
+
+  // Only the populated macrostates (Pi_ref > 0) are stored, in file order.
+  std::vector<long double> logProbabilities_;     ///< log Pi_ref(n).
+  std::vector<std::size_t> particleNumbers_;      ///< n, flattened with stride rank().
+  std::vector<std::size_t> totalParticleNumbers_; ///< N = sum_j n_j.
+  std::vector<double> meanEnergies_;              ///< <H>_n,ref in J; empty without an energy column.
 
   [[nodiscard]] std::size_t particleNumber(std::size_t linearIndex, std::size_t component) const noexcept;
 };
