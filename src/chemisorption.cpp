@@ -29,7 +29,8 @@ double Chemisorption::rate(double equilibriumLoading, double loading, double con
       {
         return order == 1.0 ? rateCoefficient * driving : 0.0;
       }
-      return order * std::pow(rateCoefficient, order) * std::pow(elapsedTime, order - 1.0) * driving;
+      return std::pow(rateCoefficient, order) * std::pow(elapsedTime, order - 1.0) * driving;
+      // return order * std::pow(rateCoefficient, order) * std::pow(elapsedTime, order - 1.0) * driving;
     case Type::General:
     {
       const double c = std::max(0.0, concentration);

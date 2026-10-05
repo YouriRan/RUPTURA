@@ -75,7 +75,8 @@ MacrostateParticleDistribution::MacrostateParticleDistribution(MPDSettings setti
     throw std::runtime_error("Error: MPD distribution file '" + settings_.fileName + "' could not be opened");
   }
 
-  probabilities_.reserve(numberOfStates);
+  std::vector<double> probabilities;
+  probabilities.reserve(numberOfStates);
   std::vector<double> parsedEnergies;
   parsedEnergies.reserve(numberOfStates);
   std::size_t expectedColumns = 0;
@@ -118,20 +119,37 @@ MacrostateParticleDistribution::MacrostateParticleDistribution(MPDSettings setti
                                rowContext(settings_.fileName, lineNumber));
     }
 
-    probabilities_.push_back(values[0]);
+    probabilities.push_back(values[0]);
     if (values.size() == 2) parsedEnergies.push_back(values[1]);
   }
 
-  if (probabilities_.size() != numberOfStates)
+  if (probabilities.size() != numberOfStates)
   {
-    throw std::runtime_error("Error: MPD distribution file contains " + std::to_string(probabilities_.size()) +
+    throw std::runtime_error("Error: MPD distribution file contains " + std::to_string(probabilities.size()) +
                              " entries, but ComponentBounds require " + std::to_string(numberOfStates));
   }
   bool hasPositiveProbability = false;
-  for (double probability : probabilities_) hasPositiveProbability = hasPositiveProbability || probability > 0.0;
+  for (double probability : probabilities) hasPositiveProbability = hasPositiveProbability || probability > 0.0;
   if (!hasPositiveProbability) throw std::runtime_error("Error: MPD distribution has zero total probability");
 
-  if (expectedColumns == 2) meanEnergies_ = std::move(parsedEnergies);
+  // Reweighting only ever visits populated macrostates, so keep just those, with their particle numbers decoded
+  // from the linear index once here instead of at every evaluation.
+  numberOfMacrostates_ = numberOfStates;
+  for (std::size_t state = 0; state < numberOfStates; ++state)
+  {
+    if (probabilities[state] == 0.0) continue;
+
+    logProbabilities_.push_back(std::log(static_cast<long double>(probabilities[state])));
+    std::size_t totalParticleNumber = 0;
+    for (std::size_t component = 0; component < rank(); ++component)
+    {
+      const std::size_t n = particleNumber(state, component);
+      particleNumbers_.push_back(n);
+      totalParticleNumber += n;
+    }
+    totalParticleNumbers_.push_back(totalParticleNumber);
+    if (expectedColumns == 2) meanEnergies_.push_back(parsedEnergies[state]);
+  }
 }
 
 std::size_t MacrostateParticleDistribution::particleNumber(std::size_t linearIndex,
@@ -170,31 +188,39 @@ std::vector<double> MacrostateParticleDistribution::meanParticleNumbers(std::spa
   const long double logBetaRatio = std::log(static_cast<long double>(settings_.referenceTemperature) / temperature);
   const long double betaDifference = (1.0L / temperature - 1.0L / settings_.referenceTemperature) / boltzmannConstant;
 
+  // log y_j only depends on the call; components with y_j = 0 are never read through this table.
+  std::vector<long double> logMoleFractions(rank(), 0.0L);
+  for (std::size_t component = 0; component < rank(); ++component)
+  {
+    if (gasMoleFractions[component] > 0.0)
+    {
+      logMoleFractions[component] = std::log(static_cast<long double>(gasMoleFractions[component]));
+    }
+  }
+
   bool hasAccumulatedWeight = false;
   long double maximumLogWeight = 0.0L;
   long double normalization = 0.0L;
   std::vector<long double> weightedParticleNumbers(rank(), 0.0L);
 
-  for (std::size_t state = 0; state < probabilities_.size(); ++state)
+  for (std::size_t state = 0; state < logProbabilities_.size(); ++state)
   {
-    const double probability = probabilities_[state];
-    if (probability == 0.0) continue;
+    const std::span<const std::size_t> counts(particleNumbers_.data() + state * rank(), rank());
 
-    long double logWeight = std::log(static_cast<long double>(probability));
-    long double totalParticleNumber = 0.0L;
+    long double logWeight = logProbabilities_[state];
     bool compatible = true;
     for (std::size_t component = 0; component < rank(); ++component)
     {
-      const std::size_t n = particleNumber(state, component);
-      totalParticleNumber += static_cast<long double>(n);
+      const std::size_t n = counts[component];
       if (n == 0) continue;
       if (gasMoleFractions[component] == 0.0)
       {
         compatible = false;
         break;
       }
-      logWeight += static_cast<long double>(n) * std::log(static_cast<long double>(gasMoleFractions[component]));
+      logWeight += static_cast<long double>(n) * logMoleFractions[component];
     }
+    const long double totalParticleNumber = static_cast<long double>(totalParticleNumbers_[state]);
     if (!compatible || (fugacity == 0.0 && totalParticleNumber != 0.0L)) continue;
 
     logWeight += totalParticleNumber * (logFugacityRatio + logBetaRatio);
@@ -206,8 +232,7 @@ std::vector<double> MacrostateParticleDistribution::meanParticleNumbers(std::spa
       normalization = normalization * scale + 1.0L;
       for (std::size_t component = 0; component < rank(); ++component)
       {
-        weightedParticleNumbers[component] =
-            weightedParticleNumbers[component] * scale + particleNumber(state, component);
+        weightedParticleNumbers[component] = weightedParticleNumbers[component] * scale + counts[component];
       }
       maximumLogWeight = logWeight;
       hasAccumulatedWeight = true;
@@ -218,7 +243,7 @@ std::vector<double> MacrostateParticleDistribution::meanParticleNumbers(std::spa
       normalization += weight;
       for (std::size_t component = 0; component < rank(); ++component)
       {
-        weightedParticleNumbers[component] += weight * particleNumber(state, component);
+        weightedParticleNumbers[component] += weight * counts[component];
       }
     }
   }

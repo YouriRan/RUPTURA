@@ -113,13 +113,13 @@ struct CVODE
   SUNLinearSolver linSolver = nullptr;       ///< Linear solver handle.
   sunrealtype currentTime = 0.0;             ///< Current absolute CVODE time.
 
-  sunrealtype relativeTolerance = 1.0e-5;  ///< Relative integration tolerance, applied to every component.
+  sunrealtype relativeTolerance = 1.0e-4;  ///< Relative integration tolerance, applied to every component.
 
   // The state vector mixes units (mol/m^3, mol/kg, K), so a single scalar absolute tolerance cannot serve
   // all blocks. These are applied per ColumnStateLayout block via CVodeSVtolerances.
-  sunrealtype absoluteToleranceConcentration = 1.0e-6;  ///< Absolute tolerance for bulk/surface/pore concentrations.
-  sunrealtype absoluteToleranceLoading = 1.0e-8;       ///< Absolute tolerance for physisorption/chemisorption loadings.
-  sunrealtype absoluteToleranceTemperature = 1.0e-4;    ///< Absolute tolerance for gas/solid/wall temperatures.
+  sunrealtype absoluteToleranceConcentration = 1.0e-5;  ///< Absolute tolerance for bulk/surface/pore concentrations.
+  sunrealtype absoluteToleranceLoading = 1.0e-6;       ///< Absolute tolerance for physisorption/chemisorption loadings.
+  sunrealtype absoluteToleranceTemperature = 1.0e-3;    ///< Absolute tolerance for gas/solid/wall temperatures.
 
   /// Maximum internal step in s: negative selects the automatic value (one grid-cell advection time, dz/v),
   /// zero leaves CVODE uncapped, positive is used verbatim.

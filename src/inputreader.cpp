@@ -271,7 +271,34 @@ struct IsothermSpec
 
 static const IsothermSpec* findIsothermSpec(const std::string& typeString);
 
+/**
+ * \brief Parses the shared "Type"/"Parameters" isotherm pair used by both PhysisorptionSites and
+ *        ChemisorptionSites entries.
+ */
+static Isotherm parseSiteIsotherm(const nlohmann::json& site, bool nonIsothermal, const std::string& siteContext)
+{
+  const std::string typeString =
+      getStringOrThrow(requireKeyCaseInsensitive(site, "Type", siteContext), "Type", siteContext);
+  const nlohmann::json& params = requireKeyCaseInsensitive(site, "Parameters", siteContext);
+  const IsothermSpec* spec = findIsothermSpec(typeString);
+  if (spec == nullptr)
+  {
+    throw std::runtime_error("Error: unknown isotherm type '" + typeString + "' (" + siteContext + ")");
+  }
+
+  std::vector<double> values = requireDoubleParameterCount(
+      getNumberListOrThrow<double>(params, typeString, siteContext), spec->parameterCount, typeString, siteContext);
+
+  if (nonIsothermal && !spec->nonIsothermalImplemented)
+  {
+    throw std::logic_error("Error: nonIsothermal not implemented for " + typeString);
+  }
+
+  return Isotherm(spec->type, values, nonIsothermal);
+}
+
 static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohmann::json& object, bool nonIsothermal,
+                              double defaultMassTransferCoefficient, double defaultHeatOfAdsorption,
                               const std::string& context)
 {
   const nlohmann::json* sites = findKeyCaseInsensitive(object, "ChemisorptionSites");
@@ -292,110 +319,147 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
         throw std::runtime_error("Error: Chemisorption site must be an object (" + siteContext + ")");
       }
 
-      requireOnlyExactKeys(value, {"Type", "Parameters"}, siteContext);
+      requireOnlyKnownKeys(
+          value,
+          {"Type", "Parameters", "RateEquation", "RateEquationParameters", "HeatOfAdsorption", "MaximumLoading"},
+          siteContext, false);
 
-      const std::string chemisorptionTypeString =
-          getStringOrThrow(requireKeyCaseInsensitive(value, "Type", siteContext), "Type", siteContext);
       Chemisorption siteChemisorption;
-      if (caseInSensStringCompare(chemisorptionTypeString, "None"))
+      siteChemisorption.isotherm = parseSiteIsotherm(value, nonIsothermal, siteContext);
+
+      std::string rateEquationString = "FirstOrder";
+      readOptionalString(value, "RateEquation", rateEquationString);
+
+      if (caseInSensStringCompare(rateEquationString, "None"))
         siteChemisorption.type = Chemisorption::Type::None;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "FirstOrder"))
+      else if (caseInSensStringCompare(rateEquationString, "FirstOrder"))
         siteChemisorption.type = Chemisorption::Type::FirstOrder;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "PseudoNth"))
+      else if (caseInSensStringCompare(rateEquationString, "PseudoNth"))
         siteChemisorption.type = Chemisorption::Type::PseudoNth;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "Avrami"))
+      else if (caseInSensStringCompare(rateEquationString, "Avrami"))
         siteChemisorption.type = Chemisorption::Type::Avrami;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "General"))
+      else if (caseInSensStringCompare(rateEquationString, "General"))
         siteChemisorption.type = Chemisorption::Type::General;
-      else if (caseInSensStringCompare(chemisorptionTypeString, "Elovich"))
+      else if (caseInSensStringCompare(rateEquationString, "Elovich"))
         siteChemisorption.type = Chemisorption::Type::Elovich;
       else
       {
-        throw std::runtime_error("Error: invalid Chemisorption Type '" + chemisorptionTypeString + "'");
+        throw std::runtime_error("Error: invalid RateEquation '" + rateEquationString + "' (" + siteContext + ")");
       }
 
-      const nlohmann::json& params = requireKeyCaseInsensitive(value, "Parameters", siteContext);
-      if (!params.is_object())
+      if (siteChemisorption.type == Chemisorption::Type::None)
       {
-        throw std::runtime_error("Error: Chemisorption Parameters must be an object (" + siteContext + ")");
+        throw std::runtime_error("Error: RateEquation 'None' is not valid for a ChemisorptionSites entry (" +
+                                 siteContext + ")");
       }
 
-      const std::string parametersContext = siteContext + " Chemisorption Parameters";
+      const nlohmann::json* rateParams = findKeyCaseInsensitive(value, "RateEquationParameters");
+      const std::string parametersContext = siteContext + " RateEquationParameters";
+      if (rateParams != nullptr && !rateParams->is_object())
+      {
+        throw std::runtime_error("Error: RateEquationParameters must be an object (" + siteContext + ")");
+      }
+
       switch (siteChemisorption.type)
       {
         case Chemisorption::Type::None:
-          throw std::runtime_error("Error: None is not a valid ChemisorptionSites model (" + siteContext + ")");
+          break;
         case Chemisorption::Type::FirstOrder:
-          requireExactKeys(params, {"rateCoefficient", "maximumLoading", "heatOfChemisorption", "Isotherm"},
-                           parametersContext);
+          if (rateParams != nullptr)
+          {
+            requireOnlyExactKeys(*rateParams, {"MassTransferCoefficient"}, parametersContext);
+            siteChemisorption.rateCoefficient = getNumberOrThrow<double>(
+                requireKeyCaseInsensitive(*rateParams, "MassTransferCoefficient", parametersContext),
+                "MassTransferCoefficient", parametersContext);
+          }
+          else
+          {
+            siteChemisorption.rateCoefficient = defaultMassTransferCoefficient;
+          }
           break;
         case Chemisorption::Type::PseudoNth:
         case Chemisorption::Type::Avrami:
-          requireExactKeys(params, {"rateCoefficient", "order", "maximumLoading", "heatOfChemisorption", "Isotherm"},
-                           parametersContext);
+          if (rateParams == nullptr)
+          {
+            throw std::runtime_error("Error: RateEquationParameters is required for RateEquation '" +
+                                     rateEquationString + "' (" + siteContext + ")");
+          }
+          requireExactKeys(*rateParams, {"RateCoefficient", "Order"}, parametersContext);
+          siteChemisorption.rateCoefficient = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "RateCoefficient", parametersContext), "RateCoefficient",
+              parametersContext);
+          siteChemisorption.order = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "Order", parametersContext), "Order", parametersContext);
           break;
         case Chemisorption::Type::General:
-          requireExactKeys(params,
-                           {"maximumLoading", "heatOfChemisorption", "adsorptionRateCoefficient",
-                            "adsorptionActivationEnergy", "desorptionRateCoefficient", "desorptionActivationEnergy",
-                            "poreConcentrationOrder", "capacityOrder", "desorptionOrder", "filmMassTransferCoefficient",
-                            "poreDiffusivity", "usePoreSurfaceTransport", "Isotherm"},
+          if (rateParams == nullptr)
+          {
+            throw std::runtime_error("Error: RateEquationParameters is required for RateEquation '" +
+                                     rateEquationString + "' (" + siteContext + ")");
+          }
+          requireExactKeys(*rateParams,
+                           {"AdsorptionRateCoefficient", "AdsorptionActivationEnergy", "DesorptionRateCoefficient",
+                            "DesorptionActivationEnergy", "PoreConcentrationOrder", "CapacityOrder", "DesorptionOrder",
+                            "FilmMassTransferCoefficient", "PoreDiffusivity", "UsePoreSurfaceTransport"},
                            parametersContext);
+          siteChemisorption.adsorptionRateCoefficient = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "AdsorptionRateCoefficient", parametersContext),
+              "AdsorptionRateCoefficient", parametersContext);
+          siteChemisorption.adsorptionActivationEnergy = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "AdsorptionActivationEnergy", parametersContext),
+              "AdsorptionActivationEnergy", parametersContext);
+          siteChemisorption.desorptionRateCoefficient = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "DesorptionRateCoefficient", parametersContext),
+              "DesorptionRateCoefficient", parametersContext);
+          siteChemisorption.desorptionActivationEnergy = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "DesorptionActivationEnergy", parametersContext),
+              "DesorptionActivationEnergy", parametersContext);
+          readOptionalNonNegativeInteger(*rateParams, "PoreConcentrationOrder",
+                                         siteChemisorption.poreConcentrationOrder);
+          readOptionalNonNegativeInteger(*rateParams, "CapacityOrder", siteChemisorption.capacityOrder);
+          readOptionalNonNegativeInteger(*rateParams, "DesorptionOrder", siteChemisorption.desorptionOrder);
+          siteChemisorption.filmMassTransferCoefficient = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "FilmMassTransferCoefficient", parametersContext),
+              "FilmMassTransferCoefficient", parametersContext);
+          siteChemisorption.poreDiffusivity = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "PoreDiffusivity", parametersContext), "PoreDiffusivity",
+              parametersContext);
+          readOptionalBool(*rateParams, "UsePoreSurfaceTransport", siteChemisorption.usePoreSurfaceTransport);
           break;
         case Chemisorption::Type::Elovich:
-          requireExactKeys(params,
-                           {"maximumLoading", "heatOfChemisorption", "alpha", "beta", "filmMassTransferCoefficient",
-                            "poreDiffusivity", "usePoreSurfaceTransport", "Isotherm"},
+          if (rateParams == nullptr)
+          {
+            throw std::runtime_error("Error: RateEquationParameters is required for RateEquation '" +
+                                     rateEquationString + "' (" + siteContext + ")");
+          }
+          requireExactKeys(*rateParams,
+                           {"Alpha", "Beta", "FilmMassTransferCoefficient", "PoreDiffusivity",
+                            "UsePoreSurfaceTransport"},
                            parametersContext);
+          siteChemisorption.elovichAlpha = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "Alpha", parametersContext), "Alpha", parametersContext);
+          siteChemisorption.elovichBeta = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "Beta", parametersContext), "Beta", parametersContext);
+          siteChemisorption.filmMassTransferCoefficient = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "FilmMassTransferCoefficient", parametersContext),
+              "FilmMassTransferCoefficient", parametersContext);
+          siteChemisorption.poreDiffusivity = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(*rateParams, "PoreDiffusivity", parametersContext), "PoreDiffusivity",
+              parametersContext);
+          readOptionalBool(*rateParams, "UsePoreSurfaceTransport", siteChemisorption.usePoreSurfaceTransport);
           break;
       }
 
-      readOptionalNumber<double>(params, "rateCoefficient", siteChemisorption.rateCoefficient);
-      readOptionalNumber<double>(params, "order", siteChemisorption.order);
       if (siteChemisorption.order < 0.0)
       {
-        throw std::runtime_error("Error: order must be non-negative (" + parametersContext + ")");
-      }
-      readOptionalNumber<double>(params, "maximumLoading", siteChemisorption.maximumLoading);
-      readOptionalNumber<double>(params, "heatOfChemisorption", siteChemisorption.heatOfChemisorption);
-      readOptionalNumber<double>(params, "adsorptionRateCoefficient", siteChemisorption.adsorptionRateCoefficient);
-      readOptionalNumber<double>(params, "adsorptionActivationEnergy", siteChemisorption.adsorptionActivationEnergy);
-      readOptionalNumber<double>(params, "desorptionRateCoefficient", siteChemisorption.desorptionRateCoefficient);
-      readOptionalNumber<double>(params, "desorptionActivationEnergy", siteChemisorption.desorptionActivationEnergy);
-      readOptionalNonNegativeInteger(params, "poreConcentrationOrder", siteChemisorption.poreConcentrationOrder);
-      readOptionalNonNegativeInteger(params, "capacityOrder", siteChemisorption.capacityOrder);
-      readOptionalNonNegativeInteger(params, "desorptionOrder", siteChemisorption.desorptionOrder);
-      readOptionalNumber<double>(params, "alpha", siteChemisorption.elovichAlpha);
-      readOptionalNumber<double>(params, "beta", siteChemisorption.elovichBeta);
-      readOptionalNumber<double>(params, "filmMassTransferCoefficient", siteChemisorption.filmMassTransferCoefficient);
-      readOptionalNumber<double>(params, "poreDiffusivity", siteChemisorption.poreDiffusivity);
-      readOptionalBool(params, "usePoreSurfaceTransport", siteChemisorption.usePoreSurfaceTransport);
-
-      const std::string isothermContext = siteContext + " Isotherm";
-      const nlohmann::json& isothermValue = requireKeyCaseInsensitive(params, "Isotherm", siteContext);
-      if (!isothermValue.is_object())
-      {
-        throw std::runtime_error("Error: Isotherm must be an object (" + isothermContext + ")");
-      }
-      requireOnlyExactKeys(isothermValue, {"Type", "Parameters"}, isothermContext);
-
-      const std::string isothermTypeString =
-          getStringOrThrow(requireKeyCaseInsensitive(isothermValue, "Type", isothermContext), "Type", isothermContext);
-      const IsothermSpec* spec = findIsothermSpec(isothermTypeString);
-      if (spec == nullptr)
-      {
-        throw std::runtime_error("Error: unknown isotherm type '" + isothermTypeString + "' (" + isothermContext + ")");
-      }
-      if (nonIsothermal && !spec->nonIsothermalImplemented)
-      {
-        throw std::logic_error("Error: nonIsothermal not implemented for " + isothermTypeString);
+        throw std::runtime_error("Error: Order must be non-negative (" + parametersContext + ")");
       }
 
-      const nlohmann::json& parameters = requireKeyCaseInsensitive(isothermValue, "Parameters", isothermContext);
-      std::vector<double> values =
-          requireDoubleParameterCount(getNumberListOrThrow<double>(parameters, isothermTypeString, isothermContext),
-                                      spec->parameterCount, isothermTypeString, isothermContext);
-      siteChemisorption.isotherm = Isotherm(spec->type, values, nonIsothermal);
+      siteChemisorption.heatOfChemisorption = defaultHeatOfAdsorption;
+      readOptionalNumber<double>(value, "HeatOfAdsorption", siteChemisorption.heatOfChemisorption);
+
+      siteChemisorption.maximumLoading = getNumberOrThrow<double>(
+          requireKeyCaseInsensitive(value, "MaximumLoading", siteContext), "MaximumLoading", siteContext);
 
       if (siteChemisorption.type == Chemisorption::Type::General)
       {
@@ -419,11 +483,12 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
       }
       else if (siteChemisorption.rateCoefficient < 0.0)
       {
-        throw std::runtime_error("Error: Chemisorption rateCoefficient must be non-negative (" + siteContext + ")");
+        throw std::runtime_error("Error: Chemisorption MassTransferCoefficient/RateCoefficient must be non-negative (" +
+                                 siteContext + ")");
       }
       if (siteChemisorption.maximumLoading <= 0.0)
       {
-        throw std::runtime_error("Error: Chemisorption maximumLoading must be positive (" + siteContext + ")");
+        throw std::runtime_error("Error: MaximumLoading must be positive (" + siteContext + ")");
       }
       chemisorption.add(siteChemisorption);
     }
@@ -560,42 +625,79 @@ static void readPhysisorptionSites(Component& comp, const nlohmann::json& item, 
     throw std::runtime_error("Error: PhysisorptionSites must be an array (" + context + ")");
   }
 
+  std::optional<double> massTransferCoefficientOverride;
+  std::optional<double> heatOfAdsorptionOverride;
+
   for (std::size_t siteId = 0; siteId < sites.size(); ++siteId)
   {
     const nlohmann::json& site = sites[siteId];
     std::string siteContext = context + ", PhysisorptionSite " + std::to_string(siteId);
 
-    if (site.is_object() && containsKeyCaseInsensitive(site, "Type") && containsKeyCaseInsensitive(site, "Parameters"))
-    {
-      requireOnlyKnownKeys(site, {"Type", "Parameters"}, siteContext);
-
-      std::string typeString =
-          getStringOrThrow(requireKeyCaseInsensitive(site, "Type", siteContext), "Type", siteContext);
-      const nlohmann::json& params = requireKeyCaseInsensitive(site, "Parameters", siteContext);
-      const IsothermSpec* spec = findIsothermSpec(typeString);
-      if (spec == nullptr)
-      {
-        throw std::runtime_error("Error: unknown isotherm type '" + typeString + "'" +
-                                 (siteContext.empty() ? "" : (" (" + siteContext + ")")));
-      }
-
-      std::vector<double> values = requireDoubleParameterCount(
-          getNumberListOrThrow<double>(params, typeString, siteContext), spec->parameterCount, typeString, siteContext);
-
-      if (comp.nonIsothermal)
-      {
-        if (!spec->nonIsothermalImplemented)
-        {
-          throw std::logic_error("Error: nonIsothermal not implemented for " + typeString);
-        }
-      }
-
-      comp.isotherm.add(Isotherm(spec->type, values, comp.nonIsothermal));
-    }
-    else
+    if (!site.is_object())
     {
       throw std::runtime_error("Error: invalid PhysisorptionSites entry (" + siteContext + ")");
     }
+
+    requireOnlyKnownKeys(site, {"Type", "Parameters", "RateEquation", "RateEquationParameters", "HeatOfAdsorption"},
+                         siteContext);
+
+    comp.isotherm.add(parseSiteIsotherm(site, comp.nonIsothermal, siteContext));
+
+    if (containsKeyCaseInsensitive(site, "RateEquation"))
+    {
+      const std::string rateEquation = getStringOrThrow(
+          requireKeyCaseInsensitive(site, "RateEquation", siteContext), "RateEquation", siteContext);
+      if (!caseInSensStringCompare(rateEquation, "FirstOrder"))
+      {
+        throw std::runtime_error(
+            "Error: RateEquation '" + rateEquation +
+            "' is not supported for PhysisorptionSites; only 'FirstOrder' is currently implemented (" + siteContext +
+            "). Use ChemisorptionSites for a site with independent kinetics.");
+      }
+    }
+
+    if (containsKeyCaseInsensitive(site, "RateEquationParameters"))
+    {
+      const nlohmann::json& params = requireKeyCaseInsensitive(site, "RateEquationParameters", siteContext);
+      if (!params.is_object())
+      {
+        throw std::runtime_error("Error: RateEquationParameters must be an object (" + siteContext + ")");
+      }
+      requireOnlyExactKeys(params, {"MassTransferCoefficient"}, siteContext + " RateEquationParameters");
+
+      const double value = getNumberOrThrow<double>(
+          requireKeyCaseInsensitive(params, "MassTransferCoefficient", siteContext), "MassTransferCoefficient",
+          siteContext);
+      if (massTransferCoefficientOverride.has_value() && *massTransferCoefficientOverride != value)
+      {
+        throw std::runtime_error(
+            "Error: conflicting MassTransferCoefficient values across PhysisorptionSites of the same component (" +
+            context + ")");
+      }
+      massTransferCoefficientOverride = value;
+    }
+
+    if (containsKeyCaseInsensitive(site, "HeatOfAdsorption"))
+    {
+      const double value = getNumberOrThrow<double>(
+          requireKeyCaseInsensitive(site, "HeatOfAdsorption", siteContext), "HeatOfAdsorption", siteContext);
+      if (heatOfAdsorptionOverride.has_value() && *heatOfAdsorptionOverride != value)
+      {
+        throw std::runtime_error(
+            "Error: conflicting HeatOfAdsorption values across PhysisorptionSites of the same component (" + context +
+            ")");
+      }
+      heatOfAdsorptionOverride = value;
+    }
+  }
+
+  if (massTransferCoefficientOverride.has_value())
+  {
+    comp.massTransferCoefficient = *massTransferCoefficientOverride;
+  }
+  if (heatOfAdsorptionOverride.has_value())
+  {
+    comp.heatOfAdsorption = *heatOfAdsorptionOverride;
   }
 }
 
@@ -629,7 +731,8 @@ static Component parseComponentObject(std::size_t componentId, const nlohmann::j
   readOptionalNumber<double>(item, "HeatOfAdsorption", comp.heatOfAdsorption);
   readOptionalNumber<double>(item, "referenceTemperature", comp.referenceTemperature);
   readOptionalBool(item, "nonIsothermal", comp.nonIsothermal);
-  readChemisorption(comp.chemisorption, item, comp.nonIsothermal, context);
+  readChemisorption(comp.chemisorption, item, comp.nonIsothermal, comp.massTransferCoefficient, comp.heatOfAdsorption,
+                    context);
 
   if (comp.nonIsothermal)
   {
@@ -1766,7 +1869,8 @@ InputReader::InputReader(const std::string fileName) : components()
           readOptionalNumber<double>(params, "HeatOfAdsorption", comp.heatOfAdsorption);
           readOptionalNumber<double>(params, "referenceTemperature", comp.referenceTemperature);
           readOptionalBool(params, "nonIsothermal", comp.nonIsothermal);
-          readChemisorption(comp.chemisorption, params, comp.nonIsothermal, componentContext);
+          readChemisorption(comp.chemisorption, params, comp.nonIsothermal, comp.massTransferCoefficient,
+                            comp.heatOfAdsorption, componentContext);
 
           const bool hasIsothermOverride = containsKeyCaseInsensitive(params, "PhysisorptionSites");
 

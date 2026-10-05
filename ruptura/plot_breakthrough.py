@@ -187,6 +187,115 @@ X_UNITS = set(BREAKTHROUGH_X_SPECS)
 Y_UNITS = set(BREAKTHROUGH_Y_SPECS)
 TEMPERATURE_Y_UNITS = set(TEMPERATURE_Y_SPECS)
 COMPONENT_DATA_COLUMNS = 14
+BREAKTHROUGH_MAX_POINTS = 200
+
+
+def _stream_blocks(path: Union[str, Path], chunk_bytes: int = 1 << 23):
+    """
+    Yield the raw bytes of every blank-line separated block in a data file.
+
+    The file is read in chunks and split on raw bytes, so a breakthrough run of
+    many gigabytes can be traversed with bounded memory and without the
+    per-line Python loop of read_blocks.
+    """
+    with open(path, "rb") as handle:
+        pending = b""
+        while True:
+            chunk = handle.read(chunk_bytes)
+            if not chunk:
+                break
+
+            pending += chunk
+            start = 0
+            while True:
+                end = pending.find(b"\n\n", start)
+                if end < 0:
+                    break
+                block = pending[start:end]
+                if block.strip():
+                    yield block
+                start = end + 1
+            pending = pending[start:]
+
+    if pending.strip():
+        yield pending
+
+
+def _subsampled_rows_at_grid(
+    path: Union[str, Path],
+    grid_index: Optional[int],
+    min_columns: int,
+    max_points: int,
+) -> np.ndarray:
+    """
+    Stream a block file and return one row per block, evenly subsampled to at
+    most max_points rows.
+
+    Only the sampled blocks are parsed, and whenever the sample buffer is full
+    every second sample is dropped and the sampling stride doubles. A run with
+    millions of blocks therefore costs one sequential read and a fixed amount
+    of memory. The tail of the run can be cut short by at most one stride,
+    which is below plotting resolution.
+    """
+    max_points = max(2, int(max_points))
+    rows: List[np.ndarray] = []
+    column_counts = set()
+    expected_rows: Optional[int] = None
+    expected_columns: Optional[int] = None
+    stride = 1
+
+    for block_index, block in enumerate(_stream_blocks(path)):
+        if block_index % stride:
+            continue
+
+        lines = [
+            line
+            for line in block.split(b"\n")
+            if line.strip() and not line.lstrip().startswith(b"#")
+        ]
+        if not lines:
+            continue
+
+        if expected_rows is None:
+            expected_rows = len(lines)
+        elif len(lines) != expected_rows:
+            continue
+
+        if grid_index is None:
+            idx = len(lines) // 2
+        else:
+            idx = grid_index if grid_index >= 0 else len(lines) + grid_index
+            if idx < 0 or idx >= len(lines):
+                raise IndexError(
+                    f"grid_index {grid_index} out of range for block with {len(lines)} grid points"
+                )
+
+        try:
+            values = [float(value) for value in lines[idx].decode("utf-8", "replace").split()]
+        except ValueError:
+            continue
+
+        column_counts.add(len(values))
+        if len(values) < min_columns:
+            continue
+        if expected_columns is None:
+            expected_columns = len(values)
+        elif len(values) != expected_columns:
+            continue
+
+        rows.append(np.asarray(values, dtype=float))
+        if len(rows) == max_points:
+            del rows[1::2]
+            stride *= 2
+
+    if len(rows) == 0:
+        counts = ", ".join(str(count) for count in sorted(column_counts)) or "none"
+        raise ValueError(
+            f"No complete blocks found in {path}; expected at least {min_columns} columns "
+            f"but found column counts: {counts}"
+        )
+
+    return np.asarray(rows, dtype=float)
 
 
 def _read_current_component_blocks(fileName: Union[str, Path]) -> List[np.ndarray]:
@@ -413,22 +522,27 @@ class BreakthroughPlotly(BasePlotly):
         self,
         fileName: Union[str, Path],
         grid_index: Optional[int] = -1,
+        max_points: int = BREAKTHROUGH_MAX_POINTS,
     ) -> np.ndarray:
-        blocks = self._read_component_blocks(fileName)
-        return self._rows_at_grid(
-            blocks,
+        return _subsampled_rows_at_grid(
+            fileName,
             grid_index=grid_index,
-            fileName=fileName,
             min_columns=COMPONENT_DATA_COLUMNS,
+            max_points=max_points,
         )
 
     def _breakthrough_column_data(
         self,
         grid_index: Optional[int] = -1,
         fileName: Union[str, Path] = "column.data",
+        max_points: int = BREAKTHROUGH_MAX_POINTS,
     ) -> np.ndarray:
-        blocks = self._read_column_data(fileName)
-        return self._rows_at_grid(blocks, grid_index=grid_index, fileName=fileName, min_columns=12)
+        return _subsampled_rows_at_grid(
+            self.data_dir / fileName,
+            grid_index=grid_index,
+            min_columns=12,
+            max_points=max_points,
+        )
 
     def _x_values(self, data: np.ndarray, x_units: str) -> np.ndarray:
         spec = BREAKTHROUGH_X_SPECS[x_units]
@@ -470,6 +584,7 @@ class BreakthroughPlotly(BasePlotly):
         include_carrier_gas: bool = True,
         show_markers: bool = True,
         grid_index: int = -1,
+        max_points: int = BREAKTHROUGH_MAX_POINTS,
     ) -> go.Figure:
         """
         Plot breakthrough curves with explicit axis selections.
@@ -487,6 +602,10 @@ class BreakthroughPlotly(BasePlotly):
             If True, traces are rendered as lines plus markers.
         grid_index:
             Grid row to extract from each block. The default, -1, is the outlet.
+        max_points:
+            Upper bound on the number of points drawn per curve. Blocks are
+            streamed and evenly subsampled while reading, so multi-gigabyte
+            runs never have to be held in memory.
         """
         x_key = _canonical_key(x_units, X_UNITS, "x_units")
         y_key = _canonical_key(y_units, Y_UNITS, "y_units")
@@ -505,7 +624,7 @@ class BreakthroughPlotly(BasePlotly):
                 continue
 
             fileName = self._component_file_name(comp.index, comp.name)
-            data = self._breakthrough_component_data(fileName, grid_index=grid_index)
+            data = self._breakthrough_component_data(fileName, grid_index=grid_index, max_points=max_points)
 
             x = self._x_values(data, x_key)
             y = self._y_values(data, y_key, column_data)
@@ -558,6 +677,7 @@ class BreakthroughPlotly(BasePlotly):
         x_units: str = "min",
         y_units: str = "kelvin",
         show_markers: bool = True,
+        max_points: int = BREAKTHROUGH_MAX_POINTS,
     ) -> go.Figure:
         """
         Plot gas, solid, and wall temperature histories at a selected grid row.
@@ -573,13 +693,17 @@ class BreakthroughPlotly(BasePlotly):
             One of: "kelvin", "celsius".
         show_markers:
             If True, traces are rendered as lines plus markers.
+        max_points:
+            Upper bound on the number of points drawn per curve. Blocks are
+            streamed and evenly subsampled while reading, so multi-gigabyte
+            runs never have to be held in memory.
         """
         x_key = _canonical_key(x_units, X_UNITS, "x_units")
         y_key = _canonical_key(y_units, TEMPERATURE_Y_UNITS, "y_units")
         x_spec = BREAKTHROUGH_X_SPECS[x_key]
         y_spec = TEMPERATURE_Y_SPECS[y_key]
 
-        data = self._breakthrough_column_data(grid_index=grid_index)
+        data = self._breakthrough_column_data(grid_index=grid_index, max_points=max_points)
 
         x = self._x_values(data, x_key)
         tg = self._temperature_values(data[:, COLUMN_METRICS["Tg"].col_0based], y_key)
