@@ -1,0 +1,100 @@
+{
+  "Components": [
+    {
+      "Name": "p-xylene",
+      "GasPhaseMolFraction": 0.0,
+      "MassTransferCoefficient": 0.0,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.0247333757150552,
+            6.03564426379128e-06,
+            0.9518554991397057
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.001577810247622,
+            6.909372808545403e-14,
+            1.8978883847476933
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            4.493581823333155,
+            1.173491153675915e-05,
+            1.4758052861436795
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "o-xylene",
+      "GasPhaseMolFraction": 0.0,
+      "MassTransferCoefficient": 0.0,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.0566381416819075,
+            0.0011259763114538335,
+            0.6512303031686261
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.5829765548599272,
+            5.229501091803436e-07,
+            0.9704720789409251
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            3.5608841902593302,
+            1.0785380386854833e-07,
+            2.0492265074230636
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "m-xylene",
+      "GasPhaseMolFraction": 0.0,
+      "MassTransferCoefficient": 0.0,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            1.8737548899473404,
+            4.4082444395725055e-05,
+            1.0144818586082551
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.18511243065535826,
+            3.0317342834290275e-05,
+            1.9900050431451168
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.8979695631567193,
+            1.1220168240839531e-10,
+            2.976603443862256
+          ]
+        }
+      ]
+    }
+  ]
+}

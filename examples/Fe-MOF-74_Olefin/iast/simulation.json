@@ -10,8 +10,7 @@
     {
       "Name": "1-3-butadiene",
       "GasPhaseMolFraction": 0.25,
-      "NumberOfIsothermSites": 3,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -41,8 +40,7 @@
     {
       "Name": "1-butene",
       "GasPhaseMolFraction": 0.25,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -64,8 +62,7 @@
     {
       "Name": "2-cis-butene",
       "GasPhaseMolFraction": 0.25,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -87,8 +84,7 @@
     {
       "Name": "2-trans-butene",
       "GasPhaseMolFraction": 0.25,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [

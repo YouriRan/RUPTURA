@@ -4,11 +4,10 @@
   "Temperature": 443.0,
   "ColumnVoidFraction": 0.4,
   "ParticleDensity": 954.29,
-  "TotalPressure": 2500000.0,
   "PressureGradient": 0.0,
   "ColumnEntranceVelocity": 0.1,
   "ColumnLength": 0.3,
-  "BreakthroughIntegrator": "SIRK3",
+  "BreakthroughIntegrator": "CVODE",
   "NumberOfTimeSteps": "auto",
   "PrintEvery": 10000,
   "WriteEvery": 10000,
@@ -25,8 +24,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -50,8 +48,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -75,8 +72,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -100,8 +96,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -119,5 +114,10 @@
         }
       ]
     }
-  ]
+  ],
+  "InletPressure": 2500000.0,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4
+  }
 }

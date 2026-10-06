@@ -8,8 +8,7 @@
     {
       "Name": "nC7",
       "FileName": "Results.dat-ZIF-77-433K-nC7",
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [

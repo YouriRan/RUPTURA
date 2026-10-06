@@ -1,0 +1,84 @@
+{
+  "SimulationType": "Breakthrough",
+  "MixturePredictionMethod": "IAST",
+  "DisplayName": "BEA nC7 / C6m2 breakthrough - dual-site Langmuir with IAST",
+  "Temperature": 552.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1508.52,
+  "PressureGradient": -1000.0,
+  "ColumnEntranceVelocity": 0.019,
+  "ColumnLength": 0.1,
+  "InletPressure": 120000.0,
+  "NumberOfTimeSteps": "auto",
+  "BreakthroughIntegrator": "CVODE",
+  "BoundaryCondition": "FixedPressureInletVelocity",
+  "PrintEvery": 5000,
+  "WriteEvery": 100,
+  "DynamicViscosity": 3e-05,
+  "ParticleDiameter": 0.001,
+  "TimeStep": 0.10526315789473686,
+  "NumberOfGridPoints": 20,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.98,
+      "MolecularWeight": 0.0040026,
+      "CarrierGas": true
+    },
+    {
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.1238142754761353,
+            6.281437229568552e-05
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.22207108437552373,
+            4.020022626214619e-07
+          ]
+        }
+      ],
+      "HeatOfAdsorption": 23190.52509622149,
+      "referenceTemperature": 552.0
+    },
+    {
+      "Name": "C6m2",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.1238142754761353,
+            4.493406698348068e-05
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.22207108437552373,
+            2.3199588088438675e-06
+          ]
+        }
+      ],
+      "HeatOfAdsorption": 24847.483754170815,
+      "referenceTemperature": 552.0
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  }
+}
