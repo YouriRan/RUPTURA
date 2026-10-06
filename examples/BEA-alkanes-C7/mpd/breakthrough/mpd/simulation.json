@@ -1,0 +1,68 @@
+{
+  "SimulationType": "Breakthrough",
+  "MixturePredictionMethod": "MPD",
+  "DisplayName": "BEA nC7 / C6m2 breakthrough - macrostate particle distribution",
+  "Temperature": 552.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1508.52,
+  "PressureGradient": -1000.0,
+  "ColumnEntranceVelocity": 0.019,
+  "ColumnLength": 0.1,
+  "InletPressure": 120000.0,
+  "NumberOfTimeSteps": "auto",
+  "BreakthroughIntegrator": "CVODE",
+  "BoundaryCondition": "FixedPressureInletVelocity",
+  "PrintEvery": 5000,
+  "WriteEvery": 100,
+  "DynamicViscosity": 3e-05,
+  "ParticleDiameter": 0.001,
+  "TimeStep": 0.10526315789473686,
+  "NumberOfGridPoints": 20,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.98,
+      "MolecularWeight": 0.0040026,
+      "CarrierGas": true
+    },
+    {
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198
+    },
+    {
+      "Name": "C6m2",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.100198
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  },
+  "MPDSettings": {
+    "FileName": "../../particle_distribution.data",
+    "ReferenceTemperature": 552.0,
+    "ReferenceFugacity": 100000.0,
+    "ReferenceFrameworkMass": 2.4675787651882448e-22,
+    "ComponentBounds": [
+      {
+        "Component": "nC7",
+        "NMin": 0,
+        "NMax": 200,
+        "DeltaN": 2
+      },
+      {
+        "Component": "C6m2",
+        "NMin": 0,
+        "NMax": 200,
+        "DeltaN": 2
+      }
+    ]
+  }
+}

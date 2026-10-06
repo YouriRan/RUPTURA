@@ -1,0 +1,58 @@
+{
+  "SimulationType": "MixturePrediction",
+  "MixturePredictionMethod": "IAST",
+  "DisplayName": "BEA nC7 / C6m2 - dual-site Langmuir with IAST",
+  "Temperature": 552.0,
+  "PressureStart": 1000.0,
+  "PressureEnd": 10000000.0,
+  "NumberOfPressurePoints": 64,
+  "PressureScale": "Log",
+  "Components": [
+    {
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.5,
+      "MolecularWeight": 0.100198,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.1238142754761353,
+            6.281437229568552e-05
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.22207108437552373,
+            4.020022626214619e-07
+          ]
+        }
+      ],
+      "HeatOfAdsorption": 23190.52509622149,
+      "referenceTemperature": 552.0
+    },
+    {
+      "Name": "C6m2",
+      "GasPhaseMolFraction": 0.5,
+      "MolecularWeight": 0.100198,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.1238142754761353,
+            4.493406698348068e-05
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.22207108437552373,
+            2.3199588088438675e-06
+          ]
+        }
+      ],
+      "HeatOfAdsorption": 24847.483754170815,
+      "referenceTemperature": 552.0
+    }
+  ]
+}

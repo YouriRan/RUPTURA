@@ -4,21 +4,23 @@
   "Temperature": 552.0,
   "ColumnVoidFraction": 0.4,
   "ParticleDensity": 1508.52,
-  "TotalPressure": 1200.0,
   "PressureGradient": -1000.0,
-  "ColumnEntranceVelocity": 0.2,
+  "ColumnEntranceVelocity": 0.019,
   "ColumnLength": 0.1,
-  "BreakthroughIntegrator": "SIRK3",
   "NumberOfTimeSteps": "auto",
+  "BreakthroughIntegrator": "SIRK3",
+  "BoundaryCondition": "FixedPressureInletVelocity",
   "PrintEvery": 10000,
   "WriteEvery": 10000,
-  "TimeStep": 0.005,
+  "DynamicViscosity": 3e-05,
+  "ParticleDiameter": 0.001,
+  "TimeStep": 0.001,
   "NumberOfGridPoints": 100,
   "Components": [
     {
       "Name": "Helium",
       "GasPhaseMolFraction": 0.93,
-      "MolecularWeight": 0.004,
+      "MolecularWeight": 0.0040026,
       "CarrierGas": true
     },
     {
@@ -27,8 +29,7 @@
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
       "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -51,8 +52,7 @@
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
       "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -75,8 +75,7 @@
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
       "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -99,8 +98,7 @@
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
       "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -116,8 +114,7 @@
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
       "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -133,8 +130,7 @@
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
       "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -150,8 +146,7 @@
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
       "MolecularWeight": 0.100198,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -161,5 +156,11 @@
         }
       ]
     }
-  ]
+  ],
+  "InletPressure": 120000.0,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  }
 }

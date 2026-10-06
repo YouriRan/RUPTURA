@@ -8,8 +8,7 @@
     {
       "Name": "nC7",
       "FileName": "Results.dat-BEA-Repeat-552K-nC7",
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Toth",
           "Parameters": [

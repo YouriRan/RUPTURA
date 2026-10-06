@@ -16,8 +16,7 @@
     {
       "Name": "CO2",
       "GasPhaseMolFraction": 0.5,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -37,8 +36,7 @@
     {
       "Name": "C3H8",
       "GasPhaseMolFraction": 0.5,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [

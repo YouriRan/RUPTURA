@@ -4,7 +4,6 @@
   "Temperature": 443.0,
   "ColumnVoidFraction": 0.4,
   "ParticleDensity": 1785.22,
-  "TotalPressure": 2500000.0,
   "PressureGradient": 0.0,
   "ColumnEntranceVelocity": 0.1,
   "ColumnLength": 0.3,
@@ -25,8 +24,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -41,8 +39,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -64,8 +61,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -89,8 +85,7 @@
       "GasPhaseMolFraction": 0.01,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir",
           "Parameters": [
@@ -107,5 +102,10 @@
         }
       ]
     }
-  ]
+  ],
+  "InletPressure": 2500000.0,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4
+  }
 }

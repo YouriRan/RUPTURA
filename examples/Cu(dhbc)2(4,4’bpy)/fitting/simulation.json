@@ -3,13 +3,12 @@
   "DisplayName": "Cu(dhbc)2(4,4\u2019bpy)",
   "ColumnPressure": 1,
   "ColumnLoading": 2,
-  "PressureScale": "normal",
+  "PressureScale": "linear",
   "Components": [
     {
       "Name": "CO2",
       "FileName": "CO2.data",
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Bingel&Walton",
           "Parameters": [

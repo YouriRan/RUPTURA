@@ -8,8 +8,7 @@
     {
       "Name": "o-xylene",
       "FileName": "Results.dat-MAF-x8-P1-Repeat-433K-o-xylene",
-      "NumberOfIsothermSites": 3,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -39,8 +38,7 @@
     {
       "Name": "m-xylene",
       "FileName": "Results.dat-MAF-x8-P1-Repeat-433K-m-xylene",
-      "NumberOfIsothermSites": 3,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -70,8 +68,7 @@
     {
       "Name": "p-xylene",
       "FileName": "Results.dat-MAF-x8-P1-Repeat-433K-p-xylene",
-      "NumberOfIsothermSites": 3,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [

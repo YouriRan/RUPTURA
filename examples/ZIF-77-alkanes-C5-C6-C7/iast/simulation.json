@@ -12,8 +12,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -37,8 +36,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -62,8 +60,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -87,8 +84,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -112,8 +108,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -129,8 +124,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -154,8 +148,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -179,8 +172,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -204,8 +196,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -229,8 +220,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -254,8 +244,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -279,8 +268,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -304,8 +292,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -329,8 +316,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -346,8 +332,7 @@
       "GasPhaseMolFraction": 0.06666,
       "MassTransferCoefficient": 0.06,
       "AxialDispersionCoefficient": 0.0,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [

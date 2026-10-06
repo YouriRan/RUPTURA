@@ -10,8 +10,7 @@
     {
       "Name": "nC6",
       "GasPhaseMolFraction": 0.2,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -33,8 +32,7 @@
     {
       "Name": "2MP",
       "GasPhaseMolFraction": 0.2,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -56,8 +54,7 @@
     {
       "Name": "3MP",
       "GasPhaseMolFraction": 0.2,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -79,8 +76,7 @@
     {
       "Name": "23DMB",
       "GasPhaseMolFraction": 0.2,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [
@@ -102,8 +98,7 @@
     {
       "Name": "22DMB",
       "GasPhaseMolFraction": 0.2,
-      "NumberOfIsothermSites": 2,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Langmuir-Freundlich",
           "Parameters": [

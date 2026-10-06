@@ -10,8 +10,7 @@
     {
       "Name": "CO2",
       "GasPhaseMolFraction": 0.5,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Bingel&Walton",
           "Parameters": [
@@ -25,8 +24,7 @@
     {
       "Name": "O2",
       "GasPhaseMolFraction": 0.5,
-      "NumberOfIsothermSites": 1,
-      "IsothermSites": [
+      "PhysisorptionSites": [
         {
           "Type": "Bingel&Walton",
           "Parameters": [

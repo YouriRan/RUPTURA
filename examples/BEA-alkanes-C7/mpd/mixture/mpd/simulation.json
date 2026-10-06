@@ -1,0 +1,42 @@
+{
+  "SimulationType": "MixturePrediction",
+  "MixturePredictionMethod": "MPD",
+  "DisplayName": "BEA nC7 / C6m2 - macrostate particle distribution",
+  "Temperature": 552.0,
+  "PressureStart": 1000.0,
+  "PressureEnd": 10000000.0,
+  "NumberOfPressurePoints": 64,
+  "PressureScale": "Log",
+  "Components": [
+    {
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.5,
+      "MolecularWeight": 0.100198
+    },
+    {
+      "Name": "C6m2",
+      "GasPhaseMolFraction": 0.5,
+      "MolecularWeight": 0.100198
+    }
+  ],
+  "MPDSettings": {
+    "FileName": "../../particle_distribution.data",
+    "ReferenceTemperature": 552.0,
+    "ReferenceFugacity": 100000.0,
+    "ReferenceFrameworkMass": 2.4675787651882448e-22,
+    "ComponentBounds": [
+      {
+        "Component": "nC7",
+        "NMin": 0,
+        "NMax": 200,
+        "DeltaN": 2
+      },
+      {
+        "Component": "C6m2",
+        "NMin": 0,
+        "NMax": 200,
+        "DeltaN": 2
+      }
+    ]
+  }
+}

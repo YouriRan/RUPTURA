@@ -1,0 +1,35 @@
+{
+  "source": "examples/BEA-alkanes-C7/fitting (GCMC, BEA, 552 K)",
+  "components": [
+    "nC7",
+    "C6m2"
+  ],
+  "referenceTemperature": 552.0,
+  "totalSiteCount": 200,
+  "frameworkMass": 2.4675787651882448e-22,
+  "siteFamilies": [
+    {
+      "sites": 167,
+      "saturationCapacityFitted": 1.1228499616505865,
+      "saturationCapacity": 1.1238142754761353,
+      "affinities": {
+        "nC7": 6.281437229568552e-05,
+        "C6m2": 4.493406698348068e-05
+      }
+    },
+    {
+      "sites": 33,
+      "saturationCapacityFitted": 0.22303539820107254,
+      "saturationCapacity": 0.22207108437552373,
+      "affinities": {
+        "nC7": 4.020022626214619e-07,
+        "C6m2": 2.3199588088438675e-06
+      }
+    }
+  ],
+  "heatOfAdsorption": {
+    "nC7": 23190.52509622149,
+    "C6m2": 24847.483754170815
+  },
+  "residualSumOfSquares": 0.0015092554973610225
+}
