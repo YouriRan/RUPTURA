@@ -1,0 +1,39 @@
+# Build matrix shared by conda/ruptura and conda/rupturalib (same role as conda_build_config.yaml in a feedstock).
+# GCC 16 is the first libstdc++ with <mdspan>; libc++ has <print> and <mdspan> since LLVM 17.
+c_compiler:
+  - if: linux
+    then: gcc
+  - if: osx
+    then: clang
+cxx_compiler:
+  - if: linux
+    then: gxx
+  - if: osx
+    then: clangxx
+c_compiler_version:
+  - if: linux
+    then: 16
+  - if: osx
+    then: 21
+cxx_compiler_version:
+  - if: linux
+    then: 16
+  - if: osx
+    then: 21
+c_stdlib:
+  - if: linux
+    then: sysroot
+  - if: osx
+    then: macosx_deployment_target
+c_stdlib_version:
+  - if: linux
+    then: "2.17"
+  - if: osx and x86_64
+    then: "10.15"
+  - if: osx and arm64
+    then: "11.0"
+python:
+  - "3.11"
+  - "3.12"
+  - "3.13"
+  - "3.14"

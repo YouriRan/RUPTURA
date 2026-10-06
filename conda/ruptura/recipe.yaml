@@ -1,0 +1,67 @@
+schema_version: 1
+
+context:
+  # keep in sync with the version in pyproject.toml
+  version: "2.0.0"
+
+package:
+  name: ruptura
+  version: ${{ version }}
+
+source:
+  path: ../..
+  filter:
+    include:
+      - CMakeLists.txt
+      - CMakePresets.json
+      - LICENSE.md
+      - src/**
+      - examples/BEA-alkanes-C7/iast/simulation.json
+
+build:
+  number: 0
+  skip:
+    - win
+  script:
+    - if: osx
+      then: export CXXFLAGS="${CXXFLAGS} -D_LIBCPP_DISABLE_AVAILABILITY"
+    - cmake --preset conda-recipe-cli ${CMAKE_ARGS}
+    - cmake --build --preset conda-recipe-cli
+    - cmake --install build/conda-recipe-cli
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    - cmake >=3.28
+    - ninja
+  host:
+    - libblas
+    - liblapack
+    - suitesparse
+    - sundials 7.5.*
+
+tests:
+  - script:
+      - cd examples/BEA-alkanes-C7/iast
+      - ruptura
+      - test -s component_1_nC7.data
+    files:
+      source:
+        - examples/BEA-alkanes-C7/iast/simulation.json
+
+about:
+  homepage: https://github.com/iRASPA/RUPTURA
+  repository: https://github.com/iRASPA/RUPTURA
+  license: MIT
+  license_file: LICENSE.md
+  summary: Breakthrough, mixture-prediction, isotherm-fitting and swing-adsorption simulations (command-line program)
+  description: |
+    RUPTURA computes breakthrough curves, IAST and related mixture predictions, isotherm fits and
+    swing-adsorption cycles. This package contains the `ruptura` executable; the Python module is
+    packaged separately as `rupturalib`.
+
+extra:
+  recipe-maintainers:
+    - YouriRan

@@ -1,0 +1,353 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 28,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "description": "Ninja, Release, build/<preset>; CLI, CVODE, Python module and unit tests",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_CXX_SCAN_FOR_MODULES": false,
+        "BUILD_CLI": true,
+        "BUILD_SUNDIALS": true,
+        "BUILD_PYTHON": true,
+        "BUILD_TESTING": true,
+        "BUILD_DOCS": false,
+        "BUILD_APP": false,
+        "BUILD_BENCHMARKS": false
+      }
+    },
+    {
+      "name": "fetch-dependencies",
+      "hidden": true,
+      "description": "SUNDIALS (CVODE only) and GoogleTest are downloaded and linked statically",
+      "cacheVariables": {
+        "RUPTURA_USE_SYSTEM_SUNDIALS": false,
+        "BUILD_SHARED_LIBS": false,
+        "BUILD_STATIC_LIBS": true,
+        "BUILD_ARKODE": false,
+        "BUILD_CVODES": false,
+        "BUILD_IDA": false,
+        "BUILD_IDAS": false,
+        "BUILD_KINSOL": false,
+        "EXAMPLES_ENABLE_C": false,
+        "EXAMPLES_ENABLE_CXX": false,
+        "EXAMPLES_INSTALL": false,
+        "INSTALL_GTEST": false
+      }
+    },
+    {
+      "name": "linux",
+      "hidden": true,
+      "inherits": ["base", "fetch-dependencies"],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Linux"
+      }
+    },
+    {
+      "name": "conda",
+      "displayName": "Conda environment",
+      "description": "Compilers and libraries from the active env (env.yml); installs into $CONDA_PREFIX",
+      "inherits": "base",
+      "condition": {
+        "type": "notEquals",
+        "lhs": "$env{CONDA_PREFIX}",
+        "rhs": ""
+      },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "$env{CONDA_PREFIX}/bin/clang",
+        "CMAKE_CXX_COMPILER": "$env{CONDA_PREFIX}/bin/clang++",
+        "CMAKE_PREFIX_PATH": "$env{CONDA_PREFIX}",
+        "CMAKE_INSTALL_PREFIX": "$env{CONDA_PREFIX}",
+        "CMAKE_INSTALL_RPATH_USE_LINK_PATH": true,
+        "RUPTURA_USE_SYSTEM_SUNDIALS": true,
+        "SUNDIALS_ROOT": "$env{CONDA_PREFIX}",
+        "KLU_ROOT": "$env{CONDA_PREFIX}",
+        "RUPTURA_PYTHON_EXECUTABLE": "$env{CONDA_PREFIX}/bin/python"
+      }
+    },
+    {
+      "name": "macos",
+      "displayName": "macOS",
+      "description": "Apple Clang (Xcode 16+), SuiteSparse from Homebrew",
+      "inherits": ["base", "fetch-dependencies"],
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      }
+    },
+    {
+      "name": "linux-gcc",
+      "displayName": "Linux, GCC",
+      "description": "Any distribution whose default g++ is GCC 16 or newer",
+      "inherits": "linux",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "linux-clang",
+      "displayName": "Linux, Clang with libc++",
+      "description": "Any distribution with Clang and libc++ 17 or newer",
+      "inherits": "linux",
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++",
+        "CMAKE_CXX_FLAGS": "-stdlib=libc++",
+        "CMAKE_EXE_LINKER_FLAGS": "-stdlib=libc++",
+        "CMAKE_SHARED_LINKER_FLAGS": "-stdlib=libc++",
+        "CMAKE_MODULE_LINKER_FLAGS": "-stdlib=libc++"
+      }
+    },
+    {
+      "name": "linux-ubuntu-24",
+      "displayName": "Ubuntu 24.04",
+      "description": "Clang 18 with libc++ (GCC 13 lacks <print> and <mdspan>)",
+      "inherits": "linux-clang"
+    },
+    {
+      "name": "linux-ubuntu-26",
+      "displayName": "Ubuntu 26.04",
+      "description": "Clang 21 with libc++ (GCC 15 lacks <mdspan>)",
+      "inherits": "linux-clang"
+    },
+    {
+      "name": "linux-debian-13",
+      "displayName": "Debian 13",
+      "description": "Clang 19 with libc++ (GCC 14 lacks <mdspan>)",
+      "inherits": "linux-clang"
+    },
+    {
+      "name": "linux-fedora-44",
+      "displayName": "Fedora 44",
+      "inherits": "linux-gcc"
+    },
+    {
+      "name": "linux-redhat-9",
+      "displayName": "RHEL 9 / Rocky 9 / AlmaLinux 9",
+      "description": "Clang from AppStream with libc++ built from source (see docker/rocky-9/install.sh)",
+      "inherits": "linux-clang"
+    },
+    {
+      "name": "linux-redhat-10",
+      "displayName": "RHEL 10 / Rocky 10 / AlmaLinux 10",
+      "description": "Clang from AppStream with libc++ built from source (see docker/rocky-10/install.sh)",
+      "inherits": "linux-clang"
+    },
+    {
+      "name": "linux-opensuse-leap-15.6",
+      "displayName": "openSUSE Leap 15.6",
+      "description": "Clang 19 with libc++ (gcc15 lacks <mdspan>)",
+      "inherits": "linux-clang"
+    },
+    {
+      "name": "linux-opensuse-tumbleweed",
+      "displayName": "openSUSE Tumbleweed",
+      "inherits": "linux-gcc"
+    },
+    {
+      "name": "linux-archlinux",
+      "displayName": "Arch Linux",
+      "inherits": "linux-gcc"
+    },
+    {
+      "name": "conda-recipe",
+      "hidden": true,
+      "description": "Used by the conda recipes in conda/: builds against $PREFIX, portable code",
+      "inherits": "base",
+      "condition": {
+        "type": "equals",
+        "lhs": "$env{CONDA_BUILD}",
+        "rhs": "1"
+      },
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "$env{PREFIX}",
+        "CMAKE_INSTALL_PREFIX": "$env{PREFIX}",
+        "RUPTURA_NATIVE_ARCH": false,
+        "RUPTURA_USE_SYSTEM_SUNDIALS": true,
+        "SUNDIALS_ROOT": "$env{PREFIX}",
+        "KLU_ROOT": "$env{PREFIX}",
+        "BUILD_TESTING": false
+      }
+    },
+    {
+      "name": "conda-recipe-cli",
+      "displayName": "conda recipe: ruptura executable",
+      "inherits": "conda-recipe",
+      "cacheVariables": {
+        "BUILD_CLI": true,
+        "BUILD_PYTHON": false
+      }
+    },
+    {
+      "name": "conda-recipe-python",
+      "displayName": "conda recipe: rupturalib Python module",
+      "inherits": "conda-recipe",
+      "cacheVariables": {
+        "BUILD_CLI": false,
+        "BUILD_PYTHON": true,
+        "RUPTURA_PYTHON_EXECUTABLE": "$env{PYTHON}"
+      }
+    }
+  ],
+  "buildPresets": [
+    { "name": "conda", "configurePreset": "conda" },
+    { "name": "macos", "configurePreset": "macos" },
+    { "name": "linux-gcc", "configurePreset": "linux-gcc" },
+    { "name": "linux-clang", "configurePreset": "linux-clang" },
+    { "name": "linux-ubuntu-24", "configurePreset": "linux-ubuntu-24" },
+    { "name": "linux-ubuntu-26", "configurePreset": "linux-ubuntu-26" },
+    { "name": "linux-debian-13", "configurePreset": "linux-debian-13" },
+    { "name": "linux-fedora-44", "configurePreset": "linux-fedora-44" },
+    { "name": "linux-redhat-9", "configurePreset": "linux-redhat-9" },
+    { "name": "linux-redhat-10", "configurePreset": "linux-redhat-10" },
+    { "name": "linux-opensuse-leap-15.6", "configurePreset": "linux-opensuse-leap-15.6" },
+    { "name": "linux-opensuse-tumbleweed", "configurePreset": "linux-opensuse-tumbleweed" },
+    { "name": "linux-archlinux", "configurePreset": "linux-archlinux" },
+    { "name": "conda-recipe-cli", "configurePreset": "conda-recipe-cli" },
+    { "name": "conda-recipe-python", "configurePreset": "conda-recipe-python" }
+  ],
+  "testPresets": [
+    {
+      "name": "test-base",
+      "hidden": true,
+      "output": {
+        "outputOnFailure": true,
+        "outputJUnitFile": "ctest-junit.xml"
+      },
+      "execution": {
+        "noTestsAction": "error"
+      }
+    },
+    { "name": "conda", "configurePreset": "conda", "inherits": "test-base" },
+    { "name": "macos", "configurePreset": "macos", "inherits": "test-base" },
+    { "name": "linux-gcc", "configurePreset": "linux-gcc", "inherits": "test-base" },
+    { "name": "linux-clang", "configurePreset": "linux-clang", "inherits": "test-base" },
+    { "name": "linux-ubuntu-24", "configurePreset": "linux-ubuntu-24", "inherits": "test-base" },
+    { "name": "linux-ubuntu-26", "configurePreset": "linux-ubuntu-26", "inherits": "test-base" },
+    { "name": "linux-debian-13", "configurePreset": "linux-debian-13", "inherits": "test-base" },
+    { "name": "linux-fedora-44", "configurePreset": "linux-fedora-44", "inherits": "test-base" },
+    { "name": "linux-redhat-9", "configurePreset": "linux-redhat-9", "inherits": "test-base" },
+    { "name": "linux-redhat-10", "configurePreset": "linux-redhat-10", "inherits": "test-base" },
+    { "name": "linux-opensuse-leap-15.6", "configurePreset": "linux-opensuse-leap-15.6", "inherits": "test-base" },
+    { "name": "linux-opensuse-tumbleweed", "configurePreset": "linux-opensuse-tumbleweed", "inherits": "test-base" },
+    { "name": "linux-archlinux", "configurePreset": "linux-archlinux", "inherits": "test-base" }
+  ],
+  "workflowPresets": [
+    {
+      "name": "conda",
+      "steps": [
+        { "type": "configure", "name": "conda" },
+        { "type": "build", "name": "conda" },
+        { "type": "test", "name": "conda" }
+      ]
+    },
+    {
+      "name": "macos",
+      "steps": [
+        { "type": "configure", "name": "macos" },
+        { "type": "build", "name": "macos" },
+        { "type": "test", "name": "macos" }
+      ]
+    },
+    {
+      "name": "linux-gcc",
+      "steps": [
+        { "type": "configure", "name": "linux-gcc" },
+        { "type": "build", "name": "linux-gcc" },
+        { "type": "test", "name": "linux-gcc" }
+      ]
+    },
+    {
+      "name": "linux-clang",
+      "steps": [
+        { "type": "configure", "name": "linux-clang" },
+        { "type": "build", "name": "linux-clang" },
+        { "type": "test", "name": "linux-clang" }
+      ]
+    },
+    {
+      "name": "linux-ubuntu-24",
+      "steps": [
+        { "type": "configure", "name": "linux-ubuntu-24" },
+        { "type": "build", "name": "linux-ubuntu-24" },
+        { "type": "test", "name": "linux-ubuntu-24" }
+      ]
+    },
+    {
+      "name": "linux-ubuntu-26",
+      "steps": [
+        { "type": "configure", "name": "linux-ubuntu-26" },
+        { "type": "build", "name": "linux-ubuntu-26" },
+        { "type": "test", "name": "linux-ubuntu-26" }
+      ]
+    },
+    {
+      "name": "linux-debian-13",
+      "steps": [
+        { "type": "configure", "name": "linux-debian-13" },
+        { "type": "build", "name": "linux-debian-13" },
+        { "type": "test", "name": "linux-debian-13" }
+      ]
+    },
+    {
+      "name": "linux-fedora-44",
+      "steps": [
+        { "type": "configure", "name": "linux-fedora-44" },
+        { "type": "build", "name": "linux-fedora-44" },
+        { "type": "test", "name": "linux-fedora-44" }
+      ]
+    },
+    {
+      "name": "linux-redhat-9",
+      "steps": [
+        { "type": "configure", "name": "linux-redhat-9" },
+        { "type": "build", "name": "linux-redhat-9" },
+        { "type": "test", "name": "linux-redhat-9" }
+      ]
+    },
+    {
+      "name": "linux-redhat-10",
+      "steps": [
+        { "type": "configure", "name": "linux-redhat-10" },
+        { "type": "build", "name": "linux-redhat-10" },
+        { "type": "test", "name": "linux-redhat-10" }
+      ]
+    },
+    {
+      "name": "linux-opensuse-leap-15.6",
+      "steps": [
+        { "type": "configure", "name": "linux-opensuse-leap-15.6" },
+        { "type": "build", "name": "linux-opensuse-leap-15.6" },
+        { "type": "test", "name": "linux-opensuse-leap-15.6" }
+      ]
+    },
+    {
+      "name": "linux-opensuse-tumbleweed",
+      "steps": [
+        { "type": "configure", "name": "linux-opensuse-tumbleweed" },
+        { "type": "build", "name": "linux-opensuse-tumbleweed" },
+        { "type": "test", "name": "linux-opensuse-tumbleweed" }
+      ]
+    },
+    {
+      "name": "linux-archlinux",
+      "steps": [
+        { "type": "configure", "name": "linux-archlinux" },
+        { "type": "build", "name": "linux-archlinux" },
+        { "type": "test", "name": "linux-archlinux" }
+      ]
+    }
+  ]
+}

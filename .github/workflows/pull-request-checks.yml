@@ -1,0 +1,90 @@
+name: pull-request-checks
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-ubuntu-24:
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - name: checkout-repository
+        uses: actions/checkout@v7
+
+      - name: install-packages
+        run: |
+          sh docker/ubuntu-24/install.sh
+          echo "/opt/venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=/opt/venv" >> "$GITHUB_ENV"
+
+      - name: build-and-unit-tests
+        run: cmake --workflow --preset linux-ubuntu-24
+
+      - name: python-tests
+        if: ${{ !cancelled() }}
+        run: python -m pytest tests
+
+      - name: test-report
+        if: ${{ !cancelled() && !env.ACT }}
+        uses: dorny/test-reporter@v3
+        with:
+          name: unit-tests-linux-ubuntu-24
+          path: build/linux-ubuntu-24/ctest-junit.xml
+          reporter: java-junit
+
+  macos:
+    runs-on: macos-15
+    steps:
+      - name: checkout-repository
+        uses: actions/checkout@v7
+
+      - name: install-packages
+        run: |
+          brew install ninja suitesparse
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install nanobind numpy pandas plotly pytest
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$RUNNER_TEMP/venv" >> "$GITHUB_ENV"
+
+      - name: build-and-unit-tests
+        run: cmake --workflow --preset macos
+
+      - name: python-tests
+        if: ${{ !cancelled() }}
+        run: python -m pytest tests
+
+  conda:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: checkout-repository
+        uses: actions/checkout@v7
+
+      - name: create-conda-environment
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: env.yml
+          cache-downloads: true
+
+      - name: build-and-unit-tests
+        run: cmake --workflow --preset conda
+
+      - name: install
+        if: ${{ !cancelled() }}
+        run: cmake --build --preset conda --target install
+
+      - name: python-tests
+        if: ${{ !cancelled() }}
+        run: |
+          cd "$RUNNER_TEMP" && python -c "import ruptura; print(ruptura.__file__)" && cd -
+          python -m pytest tests

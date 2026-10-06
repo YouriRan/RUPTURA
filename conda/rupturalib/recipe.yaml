@@ -1,0 +1,84 @@
+schema_version: 1
+
+context:
+  # keep in sync with the version in pyproject.toml
+  version: "2.0.0"
+
+package:
+  name: rupturalib
+  version: ${{ version }}
+
+source:
+  path: ../..
+  filter:
+    include:
+      - CMakeLists.txt
+      - CMakePresets.json
+      - LICENSE.md
+      - src/**
+      - ruptura/**
+      - examples/BEA-alkanes-C7/iast/simulation.json
+    exclude:
+      - ruptura/__pycache__/**
+      - ruptura/_ruptura*
+
+build:
+  number: 0
+  skip:
+    - win
+  script:
+    - if: osx
+      then: export CXXFLAGS="${CXXFLAGS} -D_LIBCPP_DISABLE_AVAILABILITY"
+    - cmake --preset conda-recipe-python ${CMAKE_ARGS}
+    - cmake --build --preset conda-recipe-python
+    - cmake --install build/conda-recipe-python
+
+requirements:
+  build:
+    - ${{ compiler('c') }}
+    - ${{ compiler('cxx') }}
+    - ${{ stdlib('c') }}
+    - cmake >=3.28
+    - ninja
+    - if: build_platform != target_platform
+      then:
+        - python
+        - cross-python_${{ target_platform }}
+        - nanobind >=2.2
+  host:
+    - python
+    - nanobind >=2.2
+    - libblas
+    - liblapack
+    - suitesparse
+    - sundials 7.5.*
+  run:
+    - python
+    - numpy >=1.24
+
+tests:
+  - python:
+      imports:
+        - ruptura
+        - ruptura._ruptura
+  - script:
+      - cd examples/BEA-alkanes-C7/iast
+      - python -c "import numpy, ruptura; assert numpy.asarray(ruptura.run('simulation.json')).shape == (100, 8, 6)"
+    files:
+      source:
+        - examples/BEA-alkanes-C7/iast/simulation.json
+
+about:
+  homepage: https://github.com/iRASPA/RUPTURA
+  repository: https://github.com/iRASPA/RUPTURA
+  license: MIT
+  license_file: LICENSE.md
+  summary: Python module of RUPTURA (import ruptura)
+  description: |
+    Python bindings for RUPTURA: breakthrough curves, IAST and related mixture predictions, isotherm
+    fits and swing-adsorption cycles, with results returned as NumPy arrays. Imported as `ruptura`;
+    the command-line program is packaged separately as `ruptura`.
+
+extra:
+  recipe-maintainers:
+    - YouriRan

@@ -60,6 +60,46 @@ David Dubbeldam,        University of Amsterdam, The Netherlands<br>
 
 Compilation
 ===========
+Ruptura needs a C++ compiler with `<print>` and `<mdspan>`: GCC 16 or newer,
+Clang with libc++ 17 or newer, or Apple Clang 17 (Xcode 16.3 or newer).
+
+The simplest route is the conda environment in `env.yml`, which also provides
+the compiler. These commands build the `ruptura` executable and the `ruptura`
+Python package and install both into the environment:
+
+```
+conda env create -f env.yml
+conda activate ruptura
+cmake --preset conda
+cmake --build --preset conda --target install
+```
+
+On macOS the conda compiler uses the SDK of the Xcode Command Line Tools
+(`xcode-select --install`).
+
+Every supported setup is a CMake preset; `cmake --list-presets` shows the ones
+that apply to your machine, and
+
+```
+cmake --workflow --preset <preset>
+```
+
+configures, builds and runs the unit tests in `build/<preset>`.
+
+| Preset | Setup |
+| ------ | ----- |
+| `conda` | the `env.yml` environment on Linux or macOS; installs into `$CONDA_PREFIX` |
+| `macos` | Apple Clang with `brew install cmake ninja suitesparse` |
+| `linux-gcc` | any Linux distribution with GCC 16 or newer |
+| `linux-clang` | any Linux distribution with Clang and libc++ 17 or newer |
+| `linux-ubuntu-24`, `linux-ubuntu-26`, `linux-debian-13`, `linux-fedora-44`, `linux-redhat-9`, `linux-redhat-10`, `linux-opensuse-leap-15.6`, `linux-opensuse-tumbleweed`, `linux-archlinux` | the packages to install are listed in `docker/<distribution>/install.sh` |
+
+The presets other than `conda` download SUNDIALS and GoogleTest, and build the
+Python module for the active Python environment, which needs nanobind
+(`python3 -m venv .venv && . .venv/bin/activate && pip install nanobind numpy`).
+
+Without presets:
+
 ```
 cmake . -B build
 cmake --build build
@@ -80,6 +120,30 @@ to build and host the documentation
 cmake --build build -- documentation
 cd build/html
 python -m http.server 8000
+```
+
+Testing the build
+-----------------
+The workflows in `.github/workflows` build and test the presets:
+
+* `pull-request-checks.yml` (pull requests): Ubuntu 24.04, macOS, and the conda
+  environment.
+* `test-matrix.yml` (started by hand): every Linux image in `docker/` on x86_64
+  and aarch64, macOS on Apple silicon and Intel, the conda environment on four
+  platforms, and `pip install .`.
+* `conda-packages.yml` (started by hand, and on every GitHub release): builds
+  the conda packages `ruptura` (executable) and `rupturalib` (Python module)
+  from the recipes in `conda/`, and uploads them to anaconda.org once the
+  repository has an `ANACONDA_API_TOKEN` secret and an `ANACONDA_OWNER`
+  variable.
+
+The Linux jobs also run locally in Docker with act; see `docker/README.md`. The
+conda packages build locally with
+[rattler-build](https://rattler.build):
+
+```
+rattler-build build -r conda/ruptura -m conda/variants.yaml -c conda-forge --output-dir build/conda-packages
+rattler-build build -r conda/rupturalib -m conda/variants.yaml -c conda-forge --output-dir build/conda-packages
 ```
 
 Running
@@ -216,17 +280,15 @@ Installation
 ------------
 
 The quickest route is the bundled conda environment, which carries every
-dependency (CMake, Ninja, nanobind, scikit-build-core, BLAS/LAPACK,
-SuiteSparse/KLU, and the notebook stack):
+dependency (the Clang compiler, CMake, Ninja, nanobind, scikit-build-core,
+BLAS/LAPACK, SuiteSparse/KLU, SUNDIALS, and the notebook stack). Install with
+the two `cmake` commands under Compilation, or with pip:
 
 ```
 micromamba create -f env.yml     # or: conda env create -f env.yml
 micromamba activate ruptura
 pip install .
 ```
-
-A C++23 compiler is the one thing `env.yml` leaves to the system: Xcode Command
-Line Tools on macOS (`xcode-select --install`), GCC 13+ or Clang 17+ on Linux.
 
 More generally, from the top level of the source tree, into whatever virtual
 environment, conda or micromamba environment is currently active:
@@ -241,10 +303,11 @@ interpreter, and installs both the `ruptura` Python package and the `ruptura`
 command-line executable. `nanobind` and `cmake` are pulled in automatically as
 build requirements, so they do not have to be installed by hand.
 
-Requirements on the machine: a C++23 compiler, LAPACK/BLAS, and -- because the
-CVODE integrator is enabled by default -- SuiteSparse (KLU). These come from
-`env.yml` if you used it; otherwise `brew install suitesparse` on macOS, or
-`apt install libsuitesparse-dev` on Debian/Ubuntu. CMake looks for KLU in the
+Requirements on the machine: a compiler as described under Compilation,
+LAPACK/BLAS, and -- because the CVODE integrator is enabled by default --
+SuiteSparse (KLU). These come from `env.yml` if you used it; otherwise
+`brew install suitesparse` on macOS, or
+`apt install libsuitesparse-dev liblapack-dev` on Debian/Ubuntu. CMake looks for KLU in the
 active conda/micromamba prefix, in Homebrew and in `/usr/local`; point it
 somewhere else with `-DKLU_ROOT=<prefix>`.
 The first install also clones and builds SUNDIALS v7.5.0, which takes a few
@@ -314,7 +377,8 @@ checkout:
 ```
 pip install ruptura
 ```
-or
+or, from the anaconda.org channel that `conda-packages.yml` uploads to, where
+`ruptura` is the executable and `rupturalib` the Python module (`import ruptura`):
 ```
-conda install ruptura
+conda install -c <channel> -c conda-forge ruptura rupturalib
 ```
