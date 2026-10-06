@@ -1,0 +1,145 @@
+name: test-matrix
+on:
+  workflow_dispatch:
+
+jobs:
+  # Every preset in its Docker image (docker/<distro>/install.sh), on x86_64 and aarch64 runners.
+  linux:
+    name: ${{ matrix.preset }} ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { docker: ubuntu-24, image: "ubuntu:24.04", preset: linux-ubuntu-24, arch: x86_64 }
+          - { docker: ubuntu-24, image: "ubuntu:24.04", preset: linux-ubuntu-24, arch: aarch64 }
+          - { docker: ubuntu-26, image: "ubuntu:26.04", preset: linux-ubuntu-26, arch: x86_64 }
+          - { docker: ubuntu-26, image: "ubuntu:26.04", preset: linux-ubuntu-26, arch: aarch64 }
+          - { docker: debian-13, image: "debian:13", preset: linux-debian-13, arch: x86_64 }
+          - { docker: debian-13, image: "debian:13", preset: linux-debian-13, arch: aarch64 }
+          - { docker: fedora-44, image: "fedora:44", preset: linux-fedora-44, arch: x86_64 }
+          - { docker: fedora-44, image: "fedora:44", preset: linux-fedora-44, arch: aarch64 }
+          - { docker: fedora-44, image: "fedora:44", preset: linux-clang, arch: x86_64 }
+          - { docker: fedora-44, image: "fedora:44", preset: linux-clang, arch: aarch64 }
+          - { docker: rocky-9, image: "rockylinux/rockylinux:9", preset: linux-redhat-9, arch: x86_64 }
+          - { docker: rocky-9, image: "rockylinux/rockylinux:9", preset: linux-redhat-9, arch: aarch64 }
+          - { docker: rocky-10, image: "rockylinux/rockylinux:10", preset: linux-redhat-10, arch: x86_64 }
+          - { docker: rocky-10, image: "rockylinux/rockylinux:10", preset: linux-redhat-10, arch: aarch64 }
+          - { docker: opensuse-leap-15.6, image: "opensuse/leap:15.6", preset: linux-opensuse-leap-15.6, arch: x86_64 }
+          - { docker: opensuse-leap-15.6, image: "opensuse/leap:15.6", preset: linux-opensuse-leap-15.6, arch: aarch64 }
+          - { docker: opensuse-tumbleweed, image: "opensuse/tumbleweed", preset: linux-opensuse-tumbleweed, arch: x86_64 }
+          - { docker: opensuse-tumbleweed, image: "opensuse/tumbleweed", preset: linux-opensuse-tumbleweed, arch: aarch64 }
+          - { docker: archlinux, image: "archlinux:base", preset: linux-archlinux, arch: x86_64 }
+    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    container: ${{ matrix.image }}
+    steps:
+      - name: install-missing-tar-command
+        if: ${{ matrix.docker == 'opensuse-leap-15.6' }}
+        run: zypper --non-interactive install --no-recommends tar gzip
+
+      - name: checkout-repository
+        uses: actions/checkout@v7
+
+      - name: install-packages
+        run: |
+          sh docker/${{ matrix.docker }}/install.sh
+          echo "/opt/venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=/opt/venv" >> "$GITHUB_ENV"
+
+      - name: build-and-unit-tests
+        run: cmake --workflow --preset ${{ matrix.preset }}
+
+      - name: python-tests
+        if: ${{ !cancelled() }}
+        run: python -m pytest tests
+
+  macos:
+    name: macos ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: checkout-repository
+        uses: actions/checkout@v7
+
+      - name: install-packages
+        run: |
+          brew install ninja suitesparse
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install nanobind numpy pandas plotly pytest
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+          echo "VIRTUAL_ENV=$RUNNER_TEMP/venv" >> "$GITHUB_ENV"
+
+      - name: build-and-unit-tests
+        run: cmake --workflow --preset macos
+
+      - name: python-tests
+        if: ${{ !cancelled() }}
+        run: python -m pytest tests
+
+  # The conda instructions from the README: env.yml, the conda preset, install into the environment.
+  conda:
+    name: conda ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: checkout-repository
+        uses: actions/checkout@v7
+
+      - name: create-conda-environment
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: env.yml
+          cache-downloads: true
+
+      - name: build-and-unit-tests
+        run: cmake --workflow --preset conda
+
+      - name: install
+        if: ${{ !cancelled() }}
+        run: cmake --build --preset conda --target install
+
+      - name: python-tests
+        if: ${{ !cancelled() }}
+        run: |
+          cd "$RUNNER_TEMP" && python -c "import ruptura; print(ruptura.__file__)" && cd -
+          python -m pytest tests
+
+  # pip install . (scikit-build-core) inside the conda environment, which provides the compiler and SuiteSparse.
+  pip:
+    name: pip ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - name: checkout-repository
+        uses: actions/checkout@v7
+
+      - name: create-conda-environment
+        uses: mamba-org/setup-micromamba@v3
+        with:
+          environment-file: env.yml
+          cache-downloads: true
+
+      - name: pip-install
+        run: pip install . -v
+
+      - name: smoke-test
+        run: |
+          mkdir -p "$RUNNER_TEMP/iast" && cp examples/BEA-alkanes-C7/iast/simulation.json "$RUNNER_TEMP/iast"
+          cd "$RUNNER_TEMP/iast"
+          ruptura
+          test -s component_1_nC7.data
+          python -c "import numpy, ruptura; print(numpy.asarray(ruptura.run('simulation.json')).shape)"

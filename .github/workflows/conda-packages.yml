@@ -1,0 +1,84 @@
+name: conda-packages
+on:
+  workflow_dispatch:
+    inputs:
+      upload:
+        description: Upload to anaconda.org (needs the ANACONDA_API_TOKEN secret and the ANACONDA_OWNER variable)
+        type: boolean
+        default: false
+      label:
+        description: anaconda.org label (main is what `conda install -c <owner>` installs)
+        type: string
+        default: main
+  release:
+    types: [published]
+
+jobs:
+  # conda/ruptura (executable) and conda/rupturalib (Python module, one build per Python version in conda/variants.yaml).
+  build:
+    name: ${{ matrix.target-platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { target-platform: linux-64, runner: ubuntu-24.04 }
+          - { target-platform: linux-aarch64, runner: ubuntu-24.04-arm }
+          - { target-platform: osx-64, runner: macos-15-intel }
+          - { target-platform: osx-arm64, runner: macos-15 }
+    runs-on: ${{ matrix.runner }}
+    env:
+      RATTLER_BUILD_ENABLE_GITHUB_INTEGRATION: "true"
+    steps:
+      - name: checkout-repository
+        uses: actions/checkout@v7
+
+      - name: install-rattler-build
+        uses: prefix-dev/rattler-build-action@v0.2.39
+        with:
+          rattler-build-version: v0.76.1
+          setup-only: true
+
+      - name: build-ruptura
+        run: rattler-build build -r conda/ruptura -m conda/variants.yaml -c conda-forge --output-dir build/conda-packages
+
+      - name: build-rupturalib
+        run: rattler-build build -r conda/rupturalib -m conda/variants.yaml -c conda-forge --output-dir build/conda-packages
+
+      - name: upload-packages-artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: conda-packages-${{ matrix.target-platform }}
+          path: build/conda-packages/${{ matrix.target-platform }}/*.conda
+          if-no-files-found: error
+
+  # Uploads only after every platform built and passed its package tests.
+  upload:
+    needs: build
+    if: ${{ github.event_name == 'release' || inputs.upload }}
+    runs-on: ubuntu-24.04
+    steps:
+      - name: download-packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: conda-packages-*
+          path: output
+          merge-multiple: true
+
+      - name: install-rattler-build
+        uses: prefix-dev/rattler-build-action@v0.2.39
+        with:
+          rattler-build-version: v0.76.1
+          setup-only: true
+
+      - name: upload-to-anaconda
+        env:
+          ANACONDA_API_KEY: ${{ secrets.ANACONDA_API_TOKEN }}
+          ANACONDA_OWNER: ${{ vars.ANACONDA_OWNER }}
+          ANACONDA_CHANNEL: ${{ inputs.label || 'main' }}
+        run: |
+          if [ -z "$ANACONDA_API_KEY" ] || [ -z "$ANACONDA_OWNER" ]; then
+            echo "::error::Set the ANACONDA_API_TOKEN secret and the ANACONDA_OWNER variable in the repository settings"
+            exit 1
+          fi
+          ls -l output
+          rattler-build upload anaconda output/*.conda

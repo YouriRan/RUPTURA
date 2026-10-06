@@ -91,4 +91,21 @@ else()
             "${CMAKE_CURRENT_SOURCE_DIR}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
     COMMENT "Copying ${RUPTURA_PYTHON_MODULE_NAME} into the ruptura source package"
   )
+
+  set(RUPTURA_PYTHON_INSTALL_DIR "${Python_SITEARCH}" CACHE PATH
+    "Directory that `cmake --install` places the ruptura Python package in"
+  )
+
+  install(TARGETS ${PROJECT_NAME}
+    LIBRARY DESTINATION "${RUPTURA_PYTHON_INSTALL_DIR}/ruptura"
+    COMPONENT python
+  )
+
+  install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/"
+    DESTINATION "${RUPTURA_PYTHON_INSTALL_DIR}/ruptura"
+    COMPONENT python
+    FILES_MATCHING
+    PATTERN "*.py"
+    PATTERN "__pycache__" EXCLUDE
+  )
 endif()

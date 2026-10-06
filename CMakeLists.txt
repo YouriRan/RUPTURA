@@ -26,6 +26,10 @@ option(BUILD_SUNDIALS "Build with SUNDIALS-based CVODE integrator support" ON)
 option(BUILD_PYTHON "Build nanobind-based Python module" ${_ruptura_default_python})
 option(BUILD_CLI "Build the ruptura command-line executable" ON)
 option(BUILD_DOCS "Configure the Doxygen documentation target" ${_ruptura_default_docs})
+option(RUPTURA_NATIVE_ARCH
+  "Optimize for the build machine's CPU with -march=native; turn OFF for redistributable binaries"
+  ON
+)
 
 set(BUILD_TESTING ${_ruptura_default_testing} CACHE BOOL "Build the C++ unit tests")
 include(CTest)
@@ -248,7 +252,7 @@ set(RUPTURA_COMPILE_OPTIONS
   -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
   -Woverloaded-virtual -Wpedantic -Wconversion -Wsign-conversion -Wno-reorder-ctor
   -Wnull-dereference -Wdouble-promotion -Wformat=2
-  -O3 -march=native -ffast-math -fomit-frame-pointer -ftree-vectorize -funroll-loops
+  -O3 $<$<BOOL:${RUPTURA_NATIVE_ARCH}>:-march=native> -ffast-math -fomit-frame-pointer -ftree-vectorize -funroll-loops
 )
 
 set(RUPTURA_INCLUDE_DIRS
@@ -329,7 +333,7 @@ if(BUILD_APP)
 endif()
 
 if(BUILD_PYTHON)
-  add_subdirectory(ruptura)
+  add_subdirectory(ruptura python)
 endif()
 
 if(BUILD_TESTING)
