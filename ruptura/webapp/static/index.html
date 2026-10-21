@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#10171e">
+  <title>Ruptura Lab · Simulation workspace</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="icon" type="image/png" href="/ruptura-logo.png">
+  <script src="/vendor/plotly.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#about" data-action="about" aria-label="About Ruptura Lab"><img class="brand-logo" src="/ruptura-logo.png" width="54" height="54" alt="Ruptura molecular structure logo"><span>ruptura</span></a>
+      <div class="sidebar-label">YOUR SIMULATIONS <span id="experiment-count">01</span></div>
+      <div id="experiments" class="experiments" aria-label="Simulations"></div>
+      <button class="new-experiment" data-action="new" id="new-simulation-button"><span>＋</span> New simulation</button>
+      <div class="sidebar-note"><span class="orb"></span><div>Compute locally.<br><span>Explore in your browser.</span></div></div>
+      <div class="sidebar-bottom"><button data-action="settings" class="settings-button"><span>⚙</span> Settings <span id="engine-dot" class="status-dot"></span></button><div id="workspace-path" class="workspace-path"></div><div class="version">RUPTURA 2.0 <span>LOCAL WORKSPACE</span></div></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><div class="breadcrumb">Workspace <span>/</span> <strong id="breadcrumb-name">Simulation</strong></div><div class="topbar-actions"><span id="save-status" class="save-status" role="status">Connecting…</span><button class="button subtle" data-action="workspace" id="workspace-button">Your workspace</button><button class="button subtle mobile-settings" data-action="settings" aria-label="Settings">⚙</button><button class="button subtle" data-action="import">↥ Import</button><button class="button subtle" data-action="export-state">↧ Save workspace</button><button class="button subtle" data-action="about" id="about-button" aria-pressed="false">About</button></div></header>
+      <main>
+        <div id="simulation-page" hidden>
+        <section class="project-header"><div><div class="eyebrow"><span class="status-dot green"></span> SIMULATION WORKSPACE</div><h1 id="project-title">Ruptura Lab</h1><p id="project-description">A workspace for adsorption, transport, and separation.</p></div><div class="project-actions"><button class="button" data-action="validate" id="validate-button">✓ Validate</button><button class="button primary" data-action="run" id="run-button"><span>▶</span> Run simulation</button></div></section>
+        <div id="notice" class="notice" hidden></div>
+        <div id="metrics" class="metrics"></div>
+        <nav class="tabs" aria-label="Simulation sections">
+          <button data-tab="setup" class="active">Setup</button><button data-tab="components">Components <span id="component-count"></span></button><button data-tab="column">Column</button><button data-tab="reactions">Reactions</button><button data-tab="results">Results <span id="results-count"></span></button><button data-tab="log">Run log</button><button data-tab="notes">Notes</button><button data-tab="json" class="json-tab">{ } Input JSON</button>
+        </nav>
+        <section id="content" class="content" aria-live="polite"><div class="empty"><div class="spinner"></div><h2>Opening your workspace</h2></div></section>
+        </div>
+        <section id="about-page" class="about-page" aria-label="About Ruptura Lab" hidden></section>
+      </main>
+      <footer><span><span class="status-dot green"></span> Local engine · private workspace</span><span>From input to insight.</span></footer>
+    </div>
+  </div>
+  <dialog id="modal"><div id="modal-content"></div></dialog>
+  <div id="toast" class="toast" role="status" hidden></div>
+  <input type="file" id="upload" accept=".json,application/json" hidden>
+</body>
+</html>

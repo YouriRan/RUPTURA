@@ -1,4 +1,5 @@
 #include <exception>
+#include <cstdio>
 #include <filesystem>
 #include <print>
 
@@ -53,10 +54,31 @@ void ensureDefaultNotebook(InputReader::SimulationType simulationType)
 }
 }  // namespace
 
-int main(void)
+int main(int argc, char* argv[])
 {
+  std::setvbuf(stdout, nullptr, _IOLBF, 0);
   try
   {
+    if (argc == 2 && std::string_view(argv[1]) == "--capabilities")
+    {
+      std::println("{}", nlohmann::json{{"sundials", static_cast<bool>(BUILD_SUNDIALS)},
+                                      {"input_validation", true}, {"version", "2.0"}}.dump());
+      return 0;
+    }
+    if (argc >= 2 && std::string_view(argv[1]) == "--validate")
+    {
+      if (argc > 3) throw std::runtime_error("Usage: ruptura --validate [simulation.json]");
+      InputReader reader(argc == 3 ? argv[2] : "simulation.json");
+      std::println("Input is valid.");
+      return 0;
+    }
+    if (argc == 2 && (std::string_view(argv[1]) == "--help" || std::string_view(argv[1]) == "-h"))
+    {
+      std::println("Usage: ruptura [--validate [simulation.json] | --capabilities]\n"
+                   "Without arguments, run simulation.json in the current directory.");
+      return 0;
+    }
+    if (argc != 1) throw std::runtime_error("Unknown arguments. Use ruptura --help.");
     InputReader reader("simulation.json");
     ensureDefaultNotebook(reader.simulationType);
 

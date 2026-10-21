@@ -28,6 +28,12 @@ authors = [
 ]
 
 [project.optional-dependencies]
+web = [
+  "pandas",
+  "plotly>=5.24",
+  "matplotlib",
+  "imageio-ffmpeg",
+]
 lab = [
   "ipywidgets",
   "jupyterlab",
@@ -35,6 +41,9 @@ lab = [
   "pandas",
   "plotly",
 ]
+
+[project.scripts]
+ruptura-lab = "ruptura.webapp.server:main"
 
 [tool.scikit-build]
 minimum-version = "build-system.requires"

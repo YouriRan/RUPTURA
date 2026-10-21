@@ -427,7 +427,7 @@ class BreakthroughPlotly(BasePlotly):
         return cls(
             displayName=str(meta["displayName"]),
             externalTemperature=float(meta["temperature"]),
-            externalPressure=float(meta["pressureEnd"]) if meta["pressureEnd"] is not None else 0.0,
+            externalPressure=float(meta["inletPressure"]),
             components=meta["components"],
             data_dir=data_dir,
             carrierGasComponent=carrierGasComponent,

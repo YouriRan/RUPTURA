@@ -76,6 +76,7 @@ InputReader makeTwoIdenticalAdsorbentReader(const Setting& setting)
   reader.adsorbentInterfaceLengths = {0.0};
   const size_t firstGridPoints = reader.numberOfGridPoints / 2;
   reader.adsorbentGridPoints = {firstGridPoints, reader.numberOfGridPoints - firstGridPoints};
+  reader.adsorbentInterfaceGridPoints = {0};
   reader.adsorbentVoidFractions = {reader.columnVoidFraction, reader.columnVoidFraction};
   reader.adsorbentParticleDensities = {reader.particleDensity, reader.particleDensity};
   reader.adsorbentParticleDiameters = {reader.particleDiameter, reader.particleDiameter};

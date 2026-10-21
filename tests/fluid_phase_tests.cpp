@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 
 #include "column.h"
 #include "column_multibed.h"
@@ -9,8 +10,96 @@
 #include "integrators/cvode.h"
 #include "integrators/rk3.h"
 #include "isotherm.h"
+#include "json.h"
 #include "mixture_prediction.h"
 #include "timing.h"
+
+namespace
+{
+struct TransportedPHInput
+{
+  std::filesystem::path path =
+      std::filesystem::temp_directory_path() /
+      (std::string{"ruptura_"} + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".json");
+  nlohmann::json data;
+
+  TransportedPHInput()
+  {
+    const auto source = std::filesystem::path{RUPTURA_SOURCE_DIR} /
+                        "examples/Liquid/multibed-pH-front/simulation.json";
+    std::ifstream input(source);
+    data = nlohmann::json::parse(input);
+  }
+
+  void write() const
+  {
+    std::ofstream output(path);
+    output << data;
+  }
+
+  ~TransportedPHInput()
+  {
+    std::error_code ignored;
+    std::filesystem::remove(path, ignored);
+  }
+};
+}  // namespace
+
+TEST(LiquidPhaseInput, TransportedPHUsesZeroBasedComponentIdentifier)
+{
+  TransportedPHInput input;
+  std::swap(input.data["Components"][0], input.data["Components"][1]);
+  input.data["Components"][1]["Name"] = "transported acid";
+  for (auto& adsorbent : input.data["Adsorbents"])
+  {
+    auto& parameters = adsorbent["ComponentParameters"];
+    parameters["transported acid"] = parameters["H+"];
+    parameters.erase("H+");
+  }
+  input.data["pHComponent"] = 1;
+  input.write();
+
+  InputReader reader(input.path.string());
+  EXPECT_EQ(reader.pHComponent, 1U);
+  EXPECT_EQ(reader.components[reader.pHComponent].name, "transported acid");
+  MultibedColumn column(reader);
+  column.initialize();
+  EXPECT_EQ(column.pHComponent, 1U);
+  EXPECT_NEAR(column.pH[0], 8.0, 1.0e-14);
+  EXPECT_NEAR(column.pH[1], 7.0, 1.0e-14);
+
+  input.data["pHMode"] = "OHMinus";
+  input.data["pKw"] = 13.5;
+  input.data.erase("pHComponent");
+  input.data["phcomponent"] = 1;
+  input.write();
+  InputReader hydroxideReader(input.path.string());
+  Column hydroxideColumn(hydroxideReader);
+  hydroxideColumn.initialize();
+  EXPECT_EQ(hydroxideColumn.pHComponent, 1U);
+  EXPECT_NEAR(hydroxideColumn.pH[0], 5.5, 1.0e-14);
+  EXPECT_NEAR(hydroxideColumn.pH[1], 6.5, 1.0e-14);
+}
+
+TEST(LiquidPhaseInput, TransportedPHRejectsInvalidComponentIdentifiers)
+{
+  TransportedPHInput input;
+  for (const auto& identifier : nlohmann::json::array({"H+", "0", -1, 0.5, 0.0, true, nullptr, 2,
+                                                     18446744073709551615ULL}))
+  {
+    SCOPED_TRACE(identifier.dump());
+    input.data["pHComponent"] = identifier;
+    input.write();
+    EXPECT_THROW(InputReader reader(input.path.string()), std::runtime_error);
+  }
+  input.data.erase("pHComponent");
+  input.write();
+  EXPECT_THROW(InputReader reader(input.path.string()), std::runtime_error);
+
+  input.data["pHMode"] = "Fixed";
+  input.write();
+  EXPECT_NO_THROW(InputReader reader(input.path.string()));
+}
 
 TEST(GasMixturePredictionRegression, MoleFractionsRemainTheDrivingForceForSPI)
 {
@@ -137,6 +226,8 @@ TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInMultibedColumn)
 
   ASSERT_EQ(column.fluidPhase, MultibedColumn::FluidPhase::Liquid);
   ASSERT_EQ(column.pHMode, MultibedColumn::PHMode::HPlus);
+  EXPECT_EQ(reader.pHComponent, 0U);
+  EXPECT_EQ(column.pHComponent, 0U);
   EXPECT_NEAR(column.pH[0], 8.0, 1.0e-14);
   EXPECT_NEAR(column.pH[1], 7.0, 1.0e-14);
   EXPECT_NEAR(column.equilibriumPhysisorption[1], 0.625, 1.0e-14);

@@ -1492,9 +1492,12 @@ InputReader::InputReader(const std::string fileName) : components()
     if (fluidPhase == 0 && components[j].isCarrierGas)
     {
       carrierGasComponent = j;
-      std::vector<double> values{1.0, 0.0};
-      Isotherm isotherm = Isotherm(Isotherm::Type::Langmuir, values, false);
-      components[carrierGasComponent].isotherm.add(isotherm);
+      if (components[j].isotherm.sites.empty())
+      {
+        std::vector<double> values{1.0, 0.0};
+        Isotherm isotherm = Isotherm(Isotherm::Type::Langmuir, values, false);
+        components[j].isotherm.add(isotherm);
+      }
 
       ++numberOfCarrierGases;
     }
@@ -1527,14 +1530,12 @@ InputReader::InputReader(const std::string fileName) : components()
       {
         throw std::runtime_error("Error: transported pH mode requires pHComponent");
       }
-      const std::string pHComponentName = getStringOrThrow(*pHComponentValue, "pHComponent", "");
-      const auto component = std::find_if(components.begin(), components.end(), [&](const Component& candidate)
-                                          { return candidate.name == pHComponentName; });
-      if (component == components.end())
+      readOptionalNonNegativeInteger(parsed_data, "pHComponent", pHComponent);
+      if (pHComponent >= components.size())
       {
-        throw std::runtime_error("Error: pHComponent '" + pHComponentName + "' was not found");
+        throw std::runtime_error("Error: pHComponent must be a zero-based component identifier less than the number "
+                                 "of Components");
       }
-      pHComponent = static_cast<size_t>(std::distance(components.begin(), component));
     }
   }
 
@@ -1759,6 +1760,7 @@ InputReader::InputReader(const std::string fileName) : components()
   adsorbentInterfaceLengths.clear();
   adsorbentMixFractions.clear();
   adsorbentGridPoints.clear();
+  adsorbentInterfaceGridPoints.clear();
   adsorbentVoidFractions.clear();
   adsorbentParticleDensities.clear();
   adsorbentParticleDiameters.clear();
@@ -1959,6 +1961,8 @@ InputReader::InputReader(const std::string fileName) : components()
       std::vector<double> sectionLengths(adsorbentsJson.size(), -1.0);
       std::vector<size_t> sectionGridPoints(adsorbentsJson.size(), 0);
       std::vector<double> sectionInterfaceLengths;
+      std::vector<size_t> sectionInterfaceGridPoints;
+      bool hasSectionGridPoints = false;
       std::size_t nextAdsorbentInOrder = 0;
       for (std::size_t sectionId = 0; sectionId < sections.size(); ++sectionId)
       {
@@ -1980,13 +1984,48 @@ InputReader::InputReader(const std::string fileName) : components()
               context + ")");
         }
 
+        size_t sectionIntervals = 0;
+        if (containsKeyCaseInsensitive(section, "NumberOfGridPoints"))
+        {
+          hasSectionGridPoints = true;
+          const nlohmann::json& count = requireKeyCaseInsensitive(section, "NumberOfGridPoints", context);
+          if (!count.is_number_integer() || count < 0)
+          {
+            throw std::runtime_error("Error: ColumnSections NumberOfGridPoints must be a non-negative integer (" +
+                                     context + ")");
+          }
+          sectionIntervals = getNumberOrThrow<size_t>(count, "NumberOfGridPoints", context);
+        }
+
         if (hasInterface)
         {
-          sectionInterfaceLengths.push_back(getNumberOrThrow<double>(
-              requireKeyCaseInsensitive(section, "InterfaceLength", context), "InterfaceLength", context));
+          if (nextAdsorbentInOrder == 0 || nextAdsorbentInOrder == adsorbentsJson.size() ||
+              sectionInterfaceLengths.size() + 1 != nextAdsorbentInOrder)
+          {
+            throw std::runtime_error("Error: each interface must occur between neighboring adsorbent sections (" +
+                                     context + ")");
+          }
+          const double interfaceLength = getNumberOrThrow<double>(
+              requireKeyCaseInsensitive(section, "InterfaceLength", context), "InterfaceLength", context);
+          if (interfaceLength < 0.0)
+          {
+            throw std::runtime_error("Error: InterfaceLength must be non-negative (" + context + ")");
+          }
+          if (interfaceLength == 0.0 && sectionIntervals != 0)
+          {
+            throw std::runtime_error("Error: a zero-length interface must have zero NumberOfGridPoints (" + context +
+                                     ")");
+          }
+          sectionInterfaceLengths.push_back(interfaceLength);
+          sectionInterfaceGridPoints.push_back(sectionIntervals);
           continue;
         }
 
+        if (sectionInterfaceLengths.size() != nextAdsorbentInOrder)
+        {
+          throw std::runtime_error("Error: ColumnSections must define an interface between neighboring adsorbents (" +
+                                   context + ")");
+        }
         const std::string adsorbentName =
             getStringOrThrow(requireKeyCaseInsensitive(section, "Adsorbent", context), "Adsorbent", context);
         auto adsorbentIndex = adsorbentIndexByName.find(adsorbentName);
@@ -2001,7 +2040,7 @@ InputReader::InputReader(const std::string fileName) : components()
         }
         sectionLengths[adsorbentIndex->second] =
             getNumberOrThrow<double>(requireKeyCaseInsensitive(section, "Length", context), "Length", context);
-        readOptionalNumber<size_t>(section, "NumberOfGridPoints", sectionGridPoints[adsorbentIndex->second]);
+        sectionGridPoints[adsorbentIndex->second] = sectionIntervals;
         ++nextAdsorbentInOrder;
       }
 
@@ -2015,13 +2054,31 @@ InputReader::InputReader(const std::string fileName) : components()
             "Error: ColumnSections must define one InterfaceLength between neighboring adsorbents");
       }
 
+      if (hasSectionGridPoints)
+      {
+        if (std::ranges::any_of(sectionGridPoints, [](size_t n) { return n == 0; }))
+        {
+          throw std::runtime_error("Error: ColumnSections NumberOfGridPoints must be set for every adsorbent section");
+        }
+        for (size_t interface = 0; interface < sectionInterfaceLengths.size(); ++interface)
+        {
+          if (sectionInterfaceLengths[interface] > 0.0 && sectionInterfaceGridPoints[interface] == 0)
+          {
+            throw std::runtime_error(
+                "Error: ColumnSections NumberOfGridPoints must be set for every positive-length interface");
+          }
+        }
+      }
+
       adsorbentLengths = std::move(sectionLengths);
       adsorbentGridPoints = std::move(sectionGridPoints);
       adsorbentInterfaceLengths = std::move(sectionInterfaceLengths);
+      adsorbentInterfaceGridPoints = std::move(sectionInterfaceGridPoints);
     }
     else
     {
       adsorbentInterfaceLengths.assign(adsorbentsJson.size() - 1, 0.0);
+      adsorbentInterfaceGridPoints.assign(adsorbentsJson.size() - 1, 0);
     }
 
     for (std::size_t ads = 0; ads < adsorbentsJson.size(); ++ads)
@@ -2055,7 +2112,8 @@ InputReader::InputReader(const std::string fileName) : components()
 
     if (!usesUniformAdsorbentMix)
     {
-      columnLength = std::reduce(adsorbentLengths.begin(), adsorbentLengths.end(), 0.0);
+      columnLength = std::reduce(adsorbentLengths.begin(), adsorbentLengths.end(), 0.0) +
+                     std::reduce(adsorbentInterfaceLengths.begin(), adsorbentInterfaceLengths.end(), 0.0);
     }
 
     if (!columnDistances.empty())
@@ -2084,7 +2142,19 @@ InputReader::InputReader(const std::string fileName) : components()
           {
             columnDistances.push_back(z + static_cast<double>(grid) * dz);
           }
-          z = columnDistances.back();
+          z += adsorbentLengths[ads];
+          columnDistances.back() = z;
+          if (ads < adsorbentInterfaceLengths.size() && adsorbentInterfaceLengths[ads] > 0.0)
+          {
+            const double interfaceDz =
+                adsorbentInterfaceLengths[ads] / static_cast<double>(adsorbentInterfaceGridPoints[ads]);
+            for (size_t grid = 1; grid <= adsorbentInterfaceGridPoints[ads]; ++grid)
+            {
+              columnDistances.push_back(z + static_cast<double>(grid) * interfaceDz);
+            }
+            z += adsorbentInterfaceLengths[ads];
+            columnDistances.back() = z;
+          }
         }
         columnDistances.back() = columnLength;
         numberOfGridPoints = columnDistances.size() - 1;
@@ -2210,8 +2280,12 @@ InputReader::InputReader(const std::string fileName) : components()
         std::optional<Isotherm::Type> model;
         for (const Component& component : componentsForAdsorbent)
         {
-          if (component.isCarrierGas || site >= component.isotherm.sites.size() ||
+          if (site >= component.isotherm.sites.size() ||
               !component.isotherm.sites[site].enabled())
+            continue;
+
+          if (component.isCarrierGas && component.isotherm.sites[site].type == Isotherm::Type::Langmuir &&
+              component.isotherm.sites[site].parameters[1] == 0.0)
             continue;
 
           const Isotherm::Type type = component.isotherm.sites[site].type;

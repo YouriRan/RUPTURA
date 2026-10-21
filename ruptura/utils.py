@@ -38,13 +38,16 @@ def load_simulation_metadata(simulation_json: Union[str, Path]) -> Dict[str, obj
                 index=i,
                 name=comp.get("Name", f"component {i}"),
                 initialGasMoleFraction=comp.get("GasPhaseMolFraction"),
+                isCarrierGas=bool(comp.get("CarrierGas", False)),
             )
         )
 
     return {
         "simulationType": data.get("SimulationType"),
         "displayName": data.get("DisplayName", path.stem),
-        "temperature": data.get("Temperature"),
+        "temperature": data.get("Temperature", next((phase["Temperature"] for phase in data.get("SwingAdsorptionPhases", [])[:1] if "Temperature" in phase), 433.0)),
+        "inletPressure": data.get("InletPressure", next((phase["InletPressure"] for phase in data.get("SwingAdsorptionPhases", [])[:1] if "InletPressure" in phase), 0.0)),
+        "fluidPhase": data.get("FluidPhase", "Gas"),
         "pressureStart": data.get("PressureStart"),
         "pressureEnd": data.get("PressureEnd"),
         "numberOfPressurePoints": data.get("NumberOfPressurePoints"),

@@ -1,0 +1,74 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Monolith · 400 ppm · 1 mmol/s",
+  "Temperature": 295.15,
+  "InfluxTemperature": 295.15,
+  "ColumnVoidFraction": 0.6848989298454221,
+  "DynamicViscosity": 1.8e-05,
+  "ParticleDiameter": 0.0004,
+  "ParticleDensity": 1678.3744557329462,
+  "InletPressure": 101325.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.04204727708124175,
+  "ColumnLength": 0.13,
+  "MixturePredictionMethod": "SPI",
+  "BreakthroughIntegrator": "CVODE",
+  "BoundaryCondition": "FixedVelocity",
+  "NumberOfGridPoints": 50,
+  "NumberOfTimeSteps": 12000,
+  "TimeStep": 2,
+  "WriteEvery": 6,
+  "PrintEvery": 300,
+  "Components": [
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.9996,
+      "CarrierGas": true,
+      "MolecularWeight": 0.0280134
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.0004,
+      "MassTransferCoefficient": 0.037,
+      "AxialDispersionCoefficient": 1.8498365562930734e-05,
+      "MolecularWeight": 0.0440095,
+      "HeatOfAdsorption": 70000.0,
+      "referenceTemperature": 298.0,
+      "nonIsothermal": true,
+      "PhysisorptionSites": [
+        {
+          "Type": "Toth",
+          "Parameters": [
+            0.032287500000000004,
+            4.839,
+            0.24893782822293747
+          ]
+        }
+      ],
+      "ChemisorptionSites": [
+        {
+          "Type": "Toth",
+          "Parameters": [
+            0.010762500000000001,
+            4.839,
+            0.24893782822293747
+          ],
+          "RateEquationParameters": {
+            "MassTransferCoefficient": 0.0011
+          },
+          "HeatOfAdsorption": 70000.0,
+          "MaximumLoading": 0.010762500000000001
+        }
+      ]
+    }
+  ],
+  "Geometry": {
+    "Type": "Monolith",
+    "ChannelShape": "square",
+    "InternalChannelDimension": 0.002,
+    "NumberOfChannels": 144,
+    "OuterDiameter": 0.03272299584576987,
+    "WashcoatThickness": 0.0
+  },
+  "CVODELinearSolver": "SPGMR"
+}

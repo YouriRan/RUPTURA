@@ -235,9 +235,10 @@ liquid-phase component concentrations, and no carrier.
 
 pH, liquid only:
   "pHMode": "Fixed" (default) uses "pHValue" (default 7).
-  "pHMode": "HPlus" or "OHMinus" computes the pH from a transported component named exactly
-  (case-sensitive) by "pHComponent". "pKw" (default 14) is used with OHMinus. The H+ or OH-
-  component needs a disabled isotherm (section 4).
+  "pHMode": "HPlus" or "OHMinus" computes the pH from the transported component selected by
+  "pHComponent", a zero-based integer component identifier in Components (for example, 0 selects
+  the first component). Component names are not accepted. "pKw" (default 14) is used with OHMinus.
+  The H+ or OH- component needs a disabled isotherm (section 4).
 
 ==============================================================================================
 7. ISOTHERMS ("PhysisorptionSites", and the equilibrium isotherm of chemisorption sites)

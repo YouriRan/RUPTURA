@@ -241,3 +241,7 @@ CLAUDE.md
 .vscode/
 
 
+
+# Local Ruptura Lab state and simulation outputs
+.ruptura-lab/
+simulations/

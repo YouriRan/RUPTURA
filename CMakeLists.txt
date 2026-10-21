@@ -239,6 +239,7 @@ set(RUPTURA_SOURCES
   src/swing_adsorption.cpp
   src/integrators/rk3.cpp
   src/integrators/rk3_si.cpp
+  src/integrators/ros3.cpp
   src/integrators/cvode.cpp
   src/integrators/compute.cpp
   src/integrators/compute_multibed.cpp
@@ -247,6 +248,7 @@ set(RUPTURA_SOURCES
 )
 
 set_source_files_properties(src/macrostate_particle_distribution.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math")
+set_source_files_properties(src/integrators/ros3.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math")
 
 set(RUPTURA_COMPILE_OPTIONS
   -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
@@ -325,10 +327,11 @@ if(BUILD_CLI)
   install(TARGETS ${PROJECT_NAME} DESTINATION "${RUPTURA_CLI_INSTALL_DIR}" COMPONENT app)
 endif()
 
-option(BUILD_APP "Build the native Qt application for local Ruptura experiments" OFF)
+option(BUILD_APP "Build the local Ruptura Lab web application launcher" OFF)
+option(BUILD_QT_APP "Build the legacy Qt Ruptura Lab application" OFF)
 option(BUILD_BENCHMARKS "Build Google Benchmark performance comparisons" OFF)
 
-if(BUILD_APP)
+if(BUILD_APP OR BUILD_QT_APP)
   add_subdirectory(app)
 endif()
 

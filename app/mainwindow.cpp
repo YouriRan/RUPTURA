@@ -37,10 +37,42 @@
 #include <algorithm>
 #include <limits>
 
+#include "simulationinput.h"
+#include "inputreader.h"
+
 namespace
 {
 constexpr const char* stateFormat = "RupturaLabState";
 constexpr qsizetype savedLogLimit = 12000;
+
+QJsonObject selectSettings(const QJsonObject& object, const QStringList& keys)
+{
+  QJsonObject result;
+  for (const auto& key : keys)
+    if (object.contains(key)) result.insert(key, object.value(key));
+  return result;
+}
+
+const QStringList columnSettingKeys{
+    "FluidPhase", "LiquidDensity", "pHMode", "pHValue", "pKw", "liquidThermalConductivity",
+    "heatTransferLiquidSolid", "heatTransferLiquidWall", "heatCapacityLiquid"};
+const QStringList simulationSettingKeys{
+    "IASTMethod", "CVODERelativeTolerance", "CVODEAbsoluteToleranceConcentration", "CVODEAbsoluteToleranceLoading",
+    "CVODEAbsoluteToleranceTemperature", "CVODEMaximumTimeStep", "CVODELinearSolver", "CVODEKrylovDimension",
+    "ColumnDistances", "ReadColumnFile", "DebugForceMultibed", "ColumnPressure", "ColumnLoading", "ColumnError"};
+const QStringList componentSettingKeys{"LiquidPhaseConcentration", "InitialLiquidPhaseConcentration", "FileName"};
+
+void mergeSettings(QJsonObject& object, const QJsonObject& settings)
+{
+  for (auto it = settings.begin(); it != settings.end(); ++it) object.insert(it.key(), it.value());
+}
+
+QString choice(const QString& value, const QStringList& values)
+{
+  for (const auto& item : values)
+    if (value.compare(item, Qt::CaseInsensitive) == 0) return item;
+  return value;
+}
 
 QString numberText(double value) { return QString::number(value, 'g', 12); }
 
@@ -151,7 +183,8 @@ void sizeComboForOptions(QComboBox* combo, const QList<QPair<QString, QString>>&
 QList<QPair<QString, QString>> physisorptionTypeOptions()
 {
   return valueOptions({"Langmuir", "Anti-Langmuir", "BET", "Henry", "Freundlich", "Sips", "Langmuir-Freundlich",
-                       "Redlich-Peterson", "Toth", "Unilan", "OBrien&Myers", "Quadratic", "Temkin"});
+                       "Redlich-Peterson", "Toth", "Unilan", "OBrien&Myers", "Quadratic", "Temkin",
+                       "Bingel&Walton", "pH-Langmuir", "GAB"});
 }
 
 QList<QPair<QString, QString>> chemisorptionTypeOptions()
@@ -171,6 +204,14 @@ QList<QPair<QString, QString>> reactionStyleOptions()
 
 QList<ParameterDefinition> phyDefs(const QString& type)
 {
+  if (type == "pH-Langmuir")
+    return {{"qmax", "Maximum loading [mol/kg]", 1.0}, {"affinityConstant", "Affinity [m3/mol]", 0.5},
+            {"pKa", "pKa [-]", 7.0}};
+  if (type == "Bingel&Walton")
+    return {{"qmax", "Saturation loading [mol/kg]", 1.0}, {"a", "a [1/Pa]", 1.0e-5}, {"b", "b [1/Pa]", 1.0e-5}};
+  if (type == "GAB")
+    return {{"qmax", "Monolayer loading [mol/kg]", 1.0}, {"c0", "C_0 [-]", 1.0}, {"k0", "K_0 [-]", 0.5},
+            {"dHC", "Delta H_C [J/mol]", 0.0}, {"dHK", "Delta H_K [J/mol]", 0.0}};
   if (type == "Anti-Langmuir")
   {
     return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
@@ -383,6 +424,11 @@ PhysisorptionSiteConfig phySiteFromObject(const QJsonObject& object, const QStri
   PhysisorptionSiteConfig site;
   site.id = readString(object, "Id", fallbackId);
   site.type = readString(object, "Type", "Langmuir");
+  for (const auto& option : physisorptionTypeOptions())
+    if (site.type.compare(option.second, Qt::CaseInsensitive) == 0) site.type = option.second;
+  site.settings = object.value("Settings").toObject();
+  for (const QString& key : {QString("RateEquation"), QString("RateEquationParameters"), QString("HeatOfAdsorption")})
+    if (object.contains(key)) site.settings.insert(key, object.value(key));
   const QJsonValue parameters = object.value("Parameters");
   if (parameters.isArray())
   {
@@ -400,10 +446,33 @@ PhysisorptionSiteConfig phySiteFromObject(const QJsonObject& object, const QStri
 }
 
 ChemisorptionSiteConfig chemSiteFromObject(const QJsonObject& object, const QString& fallbackId,
-                                           const QString& fallbackIsothermId)
+                                           const QString& fallbackIsothermId, double massTransfer = 0.0,
+                                           double heatOfAdsorption = 0.0)
 {
   ChemisorptionSiteConfig site;
   site.id = readString(object, "Id", fallbackId);
+  if (object.value("Parameters").isArray())
+  {
+    site.type = readString(object, "RateEquation", "FirstOrder");
+    for (const auto& option : chemisorptionTypeOptions())
+      if (site.type.compare(option.second, Qt::CaseInsensitive) == 0) site.type = option.second;
+    site.parameters = defaultsFor(chemDefs(site.type));
+    if (site.type == "FirstOrder") site.parameters.insert("rateCoefficient", massTransfer);
+    const auto kinetics = object.value("RateEquationParameters").toObject();
+    for (const auto& definition : chemDefs(site.type))
+    {
+      QString key = definition.key;
+      if (key == "rateCoefficient" && site.type == "FirstOrder") key = "MassTransferCoefficient";
+      else key[0] = key[0].toUpper();
+      if (kinetics.contains(key)) site.parameters.insert(definition.key, kinetics.value(key).toVariant());
+    }
+    site.parameters.insert("maximumLoading", readNumber(object, "MaximumLoading", 0.8));
+    // An absent site heat inherits the component heat at import.
+    site.parameters.insert("heatOfChemisorption", readNumber(object, "HeatOfAdsorption", heatOfAdsorption));
+    site.isotherm = phySiteFromObject(object, fallbackIsothermId);
+    site.isotherm.settings = {};
+    return site;
+  }
   site.type = readString(object, "Type", "FirstOrder");
   const QJsonObject parameters = object.value("Parameters").toObject();
   site.parameters = parametersFromObject(parameters, chemDefs(site.type));
@@ -425,7 +494,8 @@ QJsonArray phySitesStateJson(const QList<PhysisorptionSiteConfig>& sites)
   for (const PhysisorptionSiteConfig& site : sites)
   {
     array.append(QJsonObject{
-        {"Id", site.id}, {"Type", site.type}, {"Parameters", parametersToObject(site.parameters, phyDefs(site.type))}});
+        {"Id", site.id}, {"Type", site.type}, {"Parameters", parametersToObject(site.parameters, phyDefs(site.type))},
+        {"Settings", site.settings}});
   }
   return array;
 }
@@ -594,7 +664,8 @@ ReactionParticipantConfig reactionParticipantFromObject(const QJsonObject& objec
     token = QString::number(object.value("Index").toInt());
   }
   return ReactionParticipantConfig{componentIdFromToken(token, components),
-                                   readNumber(object, "Stoichiometry", fallbackStoichiometry)};
+                                   readNumber(object, "Stoichiometry", fallbackStoichiometry),
+                                   readOptionalNumber(object, "Order")};
 }
 
 QList<ReactionParticipantConfig> reactionParticipantsFromValue(const QJsonValue& value,
@@ -657,7 +728,8 @@ QJsonArray reactionParticipantsStateJson(const QList<ReactionParticipantConfig>&
   {
     array.append(QJsonObject{{"ComponentId", participant.componentId},
                              {"Component", componentNameForId(components, participant.componentId)},
-                             {"Stoichiometry", participant.stoichiometry}});
+                             {"Stoichiometry", participant.stoichiometry},
+                             {"Order", participant.order ? QJsonValue(*participant.order) : QJsonValue()}});
   }
   return array;
 }
@@ -739,6 +811,13 @@ ReactionConfig reactionFromObject(const QJsonObject& object, const QString& fall
   reaction.products =
       reactionParticipantsFromValue(object.value("Products"), readString(object, "ProductStoichiometry", {}),
                                     productStoichiometryArray, components, components.size() > 1 ? 1 : 0);
+  for (const auto& pair : {qMakePair(QString("ForwardOrders"), &reaction.reactants),
+                           qMakePair(QString("BackwardOrders"), &reaction.products)})
+  {
+    const auto orders = object.value(pair.first).toArray();
+    for (qsizetype i = 0; i < orders.size() && i < pair.second->size(); ++i)
+      (*pair.second)[i].order = orders[i].toDouble();
+  }
 
   const QJsonObject kinetics = object.value("Kinetics").toObject();
   const QJsonObject& numeric = kinetics.isEmpty() ? object : kinetics;
@@ -1295,6 +1374,9 @@ void MainWindow::rebuildComponentEditor()
                          { components_[selectedComponentIndex_].referenceTemperature = value; });
   addCheckField(form, "Non-isothermal adsorption", component.nonIsothermal,
                 [this](bool value) { components_[selectedComponentIndex_].nonIsothermal = value; });
+  addSettingNumbers(form, component.settings,
+                    {{"LiquidPhaseConcentration", "Liquid inlet concentration [mol/m3]", 0.0},
+                     {"InitialLiquidPhaseConcentration", "Initial liquid concentration [mol/m3]", 0.0}});
 
   auto* physGroup = new QGroupBox("Physisorption");
   auto* physLayout = new QVBoxLayout(physGroup);
@@ -1315,6 +1397,16 @@ void MainWindow::rebuildComponentEditor()
                     QTimer::singleShot(0, this, [this]() { refreshAll(); });
                   });
     addParameterFields(siteForm, site.parameters, phyDefs(site.type));
+    addSettingNumbers(siteForm, site.settings,
+                      {{"HeatOfAdsorption", "Site heat of adsorption [J/mol]", component.heatOfAdsorption.value_or(0.0)}});
+    const auto rateParameters = site.settings.value("RateEquationParameters").toObject();
+    addOptionalNumberField(siteForm, "Site mass transfer [1/s]", readOptionalNumber(rateParameters, "MassTransferCoefficient"),
+                           [this, siteIndex](std::optional<double> value)
+                           {
+                             auto& settings = components_[selectedComponentIndex_].physisorptionSites[siteIndex].settings;
+                             if (value) settings.insert("RateEquationParameters", QJsonObject{{"MassTransferCoefficient", *value}});
+                             else settings.remove("RateEquationParameters");
+                           });
     auto* remove = new QPushButton("Remove site");
     connect(remove, &QPushButton::clicked, this,
             [this, siteIndex]()
@@ -1403,6 +1495,13 @@ void MainWindow::rebuildColumnEditor()
   ColumnConfig& column = columns_[selectedColumnIndex_];
   auto* form = new QFormLayout;
   columnEditorLayout_->addLayout(form);
+  addSettingCombo(form, "Fluid phase", column.settings, "FluidPhase", "Gas", {"Gas", "Liquid"});
+  if (column.settings.value("FluidPhase").toString().compare("Liquid", Qt::CaseInsensitive) == 0)
+  {
+    addSettingNumbers(form, column.settings, {{"LiquidDensity", "Liquid density [kg/m3]", 1000.0},
+                                             {"pHValue", "Fixed pH [-]", 7.0}, {"pKw", "pKw [-]", 14.0}});
+    addSettingCombo(form, "pH mode", column.settings, "pHMode", "Fixed", {"Fixed", "HPlus", "OHMinus"});
+  }
   addTextField(form, "Name", column.name,
                [this](const QString& value)
                {
@@ -1440,6 +1539,18 @@ void MainWindow::rebuildColumnEditor()
   {
     addNumberField(form, "Column length [m]", column.length,
                    [this](double value) { columns_[selectedColumnIndex_].length = value; });
+  }
+  QLabel* totalLengthLabel = nullptr;
+  if (column.mode == "multibed")
+  {
+    double totalLength = 0.0;
+    for (qsizetype i = 0; i < column.beds.size(); ++i)
+    {
+      totalLength += column.beds[i].length;
+      if (i + 1 < column.beds.size()) totalLength += column.beds[i].interfaceLengthAfter;
+    }
+    totalLengthLabel = new QLabel(numberText(totalLength));
+    form->addRow("Total column length [m]", totalLengthLabel);
   }
   addNumberField(form, "Inlet pressure [Pa]", column.inletPressure,
                  [this](double value) { columns_[selectedColumnIndex_].inletPressure = value; });
@@ -1490,6 +1601,9 @@ void MainWindow::rebuildColumnEditor()
     addNumberField(geometryForm, "Outer diameter [m]", column.outerDiameter,
                    [this](double value) { columns_[selectedColumnIndex_].outerDiameter = value; });
   }
+  if (column.geometryType == "Monolith")
+    addSettingNumbers(geometryForm, column.geometrySettings,
+                      {{"ForchheimerCoefficient", "Forchheimer coefficient [1/m]", 0.0}});
   columnEditorLayout_->addWidget(geometry);
 
   if (column.energyBalance)
@@ -1516,6 +1630,12 @@ void MainWindow::rebuildColumnEditor()
                    [this](double value) { columns_[selectedColumnIndex_].heatCapacitySolid = value; });
     addNumberField(thermalForm, "Wall heat capacity [J/kg/K]", column.heatCapacityWall,
                    [this](double value) { columns_[selectedColumnIndex_].heatCapacityWall = value; });
+    if (column.settings.value("FluidPhase").toString().compare("Liquid", Qt::CaseInsensitive) == 0)
+      addSettingNumbers(thermalForm, column.settings,
+                        {{"liquidThermalConductivity", "Liquid thermal conductivity [W/m/K]", 0.6},
+                         {"heatTransferLiquidSolid", "Liquid-solid heat transfer [W/m2/K]", 0.0},
+                         {"heatTransferLiquidWall", "Liquid-wall heat transfer [W/m2/K]", 0.0},
+                         {"heatCapacityLiquid", "Liquid heat capacity [J/kg/K]", 4180.0}});
     columnEditorLayout_->addWidget(thermal);
   }
 
@@ -1523,6 +1643,13 @@ void MainWindow::rebuildColumnEditor()
   {
     auto* bedsGroup = new QGroupBox("Beds");
     auto* bedsLayout = new QVBoxLayout(bedsGroup);
+    if (column.mode == "multibed")
+    {
+      auto* gridHint =
+          new QLabel("Set grid intervals for every bed and finite interface, or leave all zero for a global grid.");
+      gridHint->setWordWrap(true);
+      bedsLayout->addWidget(gridHint);
+    }
     for (qsizetype bedIndex = 0; bedIndex < column.beds.size(); ++bedIndex)
     {
       BedConfig& bed = column.beds[bedIndex];
@@ -1544,8 +1671,22 @@ void MainWindow::rebuildColumnEditor()
       else
       {
         addNumberField(bedForm, "Length [m]", bed.length,
-                       [this, bedIndex](double value)
-                       { columns_[selectedColumnIndex_].beds[bedIndex].length = value; });
+                       [this, bedIndex, totalLengthLabel](double value)
+                       {
+                         ColumnConfig& selected = columns_[selectedColumnIndex_];
+                         selected.beds[bedIndex].length = value;
+                         double totalLength = 0.0;
+                         for (qsizetype i = 0; i < selected.beds.size(); ++i)
+                         {
+                           totalLength += selected.beds[i].length;
+                           if (i + 1 < selected.beds.size()) totalLength += selected.beds[i].interfaceLengthAfter;
+                         }
+                         totalLengthLabel->setText(numberText(totalLength));
+                       });
+        addNumberField(
+            bedForm, "Grid intervals (0 = global) [-]", static_cast<double>(bed.gridPoints),
+            [this, bedIndex](double value)
+            { columns_[selectedColumnIndex_].beds[bedIndex].gridPoints = std::max(0, static_cast<int>(value)); });
       }
       addNumberField(bedForm, "Void fraction [-]", bed.voidFraction, [this, bedIndex](double value)
                      { columns_[selectedColumnIndex_].beds[bedIndex].voidFraction = value; });
@@ -1553,10 +1694,31 @@ void MainWindow::rebuildColumnEditor()
                      { columns_[selectedColumnIndex_].beds[bedIndex].particleDensity = value; });
       addNumberField(bedForm, "Particle diameter [m]", bed.particleDiameter, [this, bedIndex](double value)
                      { columns_[selectedColumnIndex_].beds[bedIndex].particleDiameter = value; });
+      addJsonField(bedForm, "Component overrides (ComponentParameters / Components)", bed.settings,
+                   [this, bedIndex](const QJsonValue& value)
+                   { columns_[selectedColumnIndex_].beds[bedIndex].settings = value.toObject(); });
       if (column.mode == "multibed" && bedIndex + 1 < column.beds.size())
       {
-        addNumberField(bedForm, "Interface length after [m]", bed.interfaceLengthAfter, [this, bedIndex](double value)
-                       { columns_[selectedColumnIndex_].beds[bedIndex].interfaceLengthAfter = value; });
+        addNumberField(bedForm, "Interface length after [m]", bed.interfaceLengthAfter,
+                       [this, bedIndex, totalLengthLabel](double value)
+                       {
+                         ColumnConfig& selected = columns_[selectedColumnIndex_];
+                         selected.beds[bedIndex].interfaceLengthAfter = std::max(0.0, value);
+                         double totalLength = 0.0;
+                         for (qsizetype i = 0; i < selected.beds.size(); ++i)
+                         {
+                           totalLength += selected.beds[i].length;
+                           if (i + 1 < selected.beds.size()) totalLength += selected.beds[i].interfaceLengthAfter;
+                         }
+                         totalLengthLabel->setText(numberText(totalLength));
+                       });
+        addNumberField(bedForm, "Interface grid intervals (0 = global) [-]",
+                       static_cast<double>(bed.interfaceGridPointsAfter),
+                       [this, bedIndex](double value)
+                       {
+                         columns_[selectedColumnIndex_].beds[bedIndex].interfaceGridPointsAfter =
+                             std::max(0, static_cast<int>(value));
+                       });
       }
       auto* remove = new QPushButton("Remove bed");
       connect(remove, &QPushButton::clicked, this,
@@ -1659,8 +1821,8 @@ void MainWindow::rebuildReactionEditor()
   {
     auto* group = new QGroupBox(title);
     auto* layout = new QVBoxLayout(group);
-    auto* table = new QTableWidget(static_cast<int>(participants.size()), 2);
-    table->setHorizontalHeaderLabels({"Component", "Stoichiometry"});
+    auto* table = new QTableWidget(static_cast<int>(participants.size()), 3);
+    table->setHorizontalHeaderLabels({"Component", "Stoichiometry", "Order (blank = stoichiometry)"});
     table->setSelectionBehavior(QAbstractItemView::SelectRows);
     table->setSelectionMode(QAbstractItemView::SingleSelection);
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
@@ -1695,21 +1857,26 @@ void MainWindow::rebuildReactionEditor()
       auto* stoichiometry = new QTableWidgetItem(numberText(participants[row].stoichiometry));
       stoichiometry->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable);
       table->setItem(static_cast<int>(row), 1, stoichiometry);
+      table->setItem(static_cast<int>(row), 2, new QTableWidgetItem(optionalText(participants[row].order)));
     }
 
     connect(table, &QTableWidget::itemChanged, this,
             [this, &participants](QTableWidgetItem* item)
             {
-              if (rebuilding_ || item == nullptr || item->column() != 1) return;
+              if (rebuilding_ || item == nullptr || item->column() < 1) return;
               const int row = item->row();
               if (row < 0 || row >= static_cast<int>(participants.size())) return;
               bool ok = false;
               const double value = item->text().toDouble(&ok);
-              if (ok)
+              if (item->column() == 2 && item->text().trimmed().isEmpty())
+                participants[row].order.reset();
+              else if (ok && item->column() == 2)
+                participants[row].order = value;
+              else if (ok)
               {
                 participants[row].stoichiometry = value;
-                updatePreview();
               }
+              updatePreview();
             });
 
     layout->addWidget(table);
@@ -1805,11 +1972,24 @@ void MainWindow::rebuildSimulationEditor()
   addComboField(form, "Mixture prediction method", simulation.mixtureMethod,
                 valueOptions({"SIAST", "IAST", "EI", "SEI", "SCI", "SPI"}),
                 [this](const QString& value) { simulations_[selectedSimulationIndex_].mixtureMethod = value; });
+  addSettingCombo(form, "IAST solver", simulation.settings, "IASTMethod", "FastIAST",
+                  {"FastIAST", "NestedLoopBisection"});
+  const auto* feedColumn = selectedColumnFor(simulation);
+  const bool liquid = feedColumn && feedColumn->settings.value("FluidPhase").toString().compare("Liquid", Qt::CaseInsensitive) == 0;
+  if (liquid)
+  {
+    auto pHOptions = componentDropdownOptions(components_, simulation.pHComponentId);
+    pHOptions.prepend({"Select component", QString{}});
+    addComboField(form, "Transported pH component", simulation.pHComponentId,
+                  pHOptions,
+                  [this](const QString& value) { simulations_[selectedSimulationIndex_].pHComponentId = value; });
+  }
 
   auto* feedGroup = new QGroupBox("Feed components");
   auto* feedLayout = new QVBoxLayout(feedGroup);
-  feedTable_ = new QTableWidget(static_cast<int>(components_.size()), 3);
-  feedTable_->setHorizontalHeaderLabels({"Use", "Component", "Gas mole fraction y_i"});
+  feedTable_ = new QTableWidget(static_cast<int>(components_.size()), liquid ? 4 : 3);
+  feedTable_->setHorizontalHeaderLabels(liquid ? QStringList{"Use", "Component", "Inlet [mol/m3]", "Initial [mol/m3]"}
+                                              : QStringList{"Use", "Component", "Gas mole fraction y_i"});
   feedTable_->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
   feedTable_->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
   feedTable_->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
@@ -1827,13 +2007,20 @@ void MainWindow::rebuildSimulationEditor()
     nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     feedTable_->setItem(tableRow, 1, nameItem);
 
-    auto* fractionItem = new QTableWidgetItem(feed >= 0 ? numberText(simulation.componentFeeds[feed].gasFraction) : "");
+    auto* fractionItem = new QTableWidgetItem(feed >= 0 ? numberText(liquid ? component.settings.value("LiquidPhaseConcentration").toDouble()
+                                                         : simulation.componentFeeds[feed].gasFraction) : "");
     fractionItem->setFlags(feed >= 0 ? Qt::ItemIsEnabled | Qt::ItemIsSelectable | Qt::ItemIsEditable
                                      : Qt::ItemIsEnabled | Qt::ItemIsSelectable);
     feedTable_->setItem(tableRow, 2, fractionItem);
+    if (liquid)
+    {
+      auto* initial = new QTableWidgetItem(numberText(component.settings.value("InitialLiquidPhaseConcentration").toDouble()));
+      initial->setFlags(fractionItem->flags());
+      feedTable_->setItem(tableRow, 3, initial);
+    }
   }
   connect(feedTable_, &QTableWidget::itemChanged, this,
-          [this](QTableWidgetItem* item)
+          [this, liquid](QTableWidgetItem* item)
           {
             if (rebuilding_ || item == nullptr || selectedSimulationIndex_ >= static_cast<int>(simulations_.size()))
               return;
@@ -1853,6 +2040,18 @@ void MainWindow::rebuildSimulationEditor()
                 current.componentFeeds.removeAt(feed);
               }
               QTimer::singleShot(0, this, [this]() { refreshAll(); });
+              return;
+            }
+            if (liquid && item->column() >= 2)
+            {
+              bool ok = false;
+              const double value = item->text().toDouble(&ok);
+              if (ok)
+              {
+                components_[row].settings.insert(item->column() == 2 ? "LiquidPhaseConcentration"
+                                                                     : "InitialLiquidPhaseConcentration", value);
+                updatePreview();
+              }
               return;
             }
             if (item->column() == 2)
@@ -1875,6 +2074,7 @@ void MainWindow::rebuildSimulationEditor()
   auto* selectAll = new QPushButton("Select all");
   auto* clear = new QPushButton("Clear");
   auto* normalize = new QPushButton("Normalize");
+  normalize->setVisible(!liquid);
   feedButtons->addWidget(selectAll);
   feedButtons->addWidget(clear);
   feedButtons->addWidget(normalize);
@@ -1935,8 +2135,46 @@ void MainWindow::rebuildSimulationEditor()
     auto* breakthrough = new QGroupBox(isSwing ? "Shared column-step settings" : "Breakthrough settings");
     auto* breakthroughForm = new QFormLayout(breakthrough);
     addComboField(breakthroughForm, "Integrator", simulation.integrator,
-                  valueOptions({"CVODE", "RungeKutta3", "SIRK3"}),
-                  [this](const QString& value) { simulations_[selectedSimulationIndex_].integrator = value; });
+                  valueOptions({
+#if BUILD_SUNDIALS
+                      "CVODE",
+#endif
+                      "RungeKutta3", "SIRK3"}),
+                  [this](const QString& value)
+                  {
+                    simulations_[selectedSimulationIndex_].integrator = value;
+                    QTimer::singleShot(0, this, [this]() { refreshAll(); });
+                  });
+    if (simulation.integrator == "CVODE")
+    {
+      addSettingNumbers(breakthroughForm, simulation.settings,
+                        {{"CVODERelativeTolerance", "Relative tolerance [-]", 1.0e-4},
+                         {"CVODEAbsoluteToleranceConcentration", "Concentration absolute tolerance [mol/m3]", 1.0e-5},
+                         {"CVODEAbsoluteToleranceLoading", "Loading absolute tolerance [mol/kg]", 1.0e-6},
+                         {"CVODEAbsoluteToleranceTemperature", "Temperature absolute tolerance [K]", 1.0e-3},
+                         {"CVODEMaximumTimeStep", "Maximum internal step [s] (-1 = auto, 0 = unlimited)", -1.0},
+                         {"CVODEKrylovDimension", "Krylov dimension [-]", 30.0, true}});
+      addSettingCombo(breakthroughForm, "CVODE linear solver", simulation.settings, "CVODELinearSolver", "Dense",
+                      {"Dense", "SPGMR"});
+    }
+    addJsonField(breakthroughForm, "Multibed grid positions [m] (empty = automatic)",
+                 simulation.settings.value("ColumnDistances").toArray(),
+                 [this](const QJsonValue& value)
+                 {
+                   auto& settings = simulations_[selectedSimulationIndex_].settings;
+                   if (value.toArray().isEmpty()) settings.remove("ColumnDistances");
+                   else settings.insert("ColumnDistances", value);
+                 });
+    addTextField(breakthroughForm, "Initial column state file", simulation.settings.value("ReadColumnFile").toString(),
+                 [this](const QString& value)
+                 {
+                   auto& settings = simulations_[selectedSimulationIndex_].settings;
+                   if (value.trimmed().isEmpty()) settings.remove("ReadColumnFile");
+                   else settings.insert("ReadColumnFile", value.trimmed());
+                 });
+    addCheckField(breakthroughForm, "Use multibed solver for one adsorbent",
+                  simulation.settings.value("DebugForceMultibed").toBool(),
+                  [this](bool value) { simulations_[selectedSimulationIndex_].settings.insert("DebugForceMultibed", value); });
     addNumberField(breakthroughForm, "Grid points [-]", static_cast<double>(simulation.gridPoints), [this](double value)
                    { simulations_[selectedSimulationIndex_].gridPoints = std::max(1, static_cast<int>(value)); });
     addNumberField(breakthroughForm, "Time step [s]", simulation.timeStep,
@@ -2055,6 +2293,13 @@ void MainWindow::updateFractionTotal()
 {
   const SimulationConfig* simulation = activeSimulation();
   const double total = simulation == nullptr ? 0.0 : feedTotal(*simulation);
+  const auto* column = simulation ? selectedColumnFor(*simulation) : nullptr;
+  if (column && column->settings.value("FluidPhase").toString().compare("Liquid", Qt::CaseInsensitive) == 0)
+  {
+    fractionTotalLabel_->setText("Liquid concentrations");
+    fractionTotalLabel_->setStyleSheet({});
+    return;
+  }
   fractionTotalLabel_->setText(QString::number(total, 'f', 3));
   fractionTotalLabel_->setStyleSheet(std::abs(total - 1.0) < 0.001 ? "color: #276749;" : "color: #b7791f;");
 }
@@ -2327,6 +2572,25 @@ double MainWindow::feedTotal(const SimulationConfig& simulation) const
 
 QJsonObject MainWindow::buildSimulationJson() const
 {
+  const auto* simulation = activeSimulation();
+  const auto modeled = buildModeledSimulationJson();
+  if (simulation == nullptr || simulation->originalInput.isEmpty()) return modeled;
+  auto result = LabInput::applyChanges(simulation->originalInput, simulation->originalModel, modeled);
+  QHash<QString, QString> names;
+  const auto originalComponents = simulation->originalInput.value("Components").toArray();
+  for (qsizetype i = 0; i < originalComponents.size(); ++i)
+  {
+    const auto id = QString("component-%1").arg(i + 1);
+    const auto component = std::find_if(components_.begin(), components_.end(),
+                                      [&id](const auto& item) { return item.id == id; });
+    const auto oldName = originalComponents[i].toObject().value("Name").toString();
+    if (component != components_.end() && component->name != oldName) names.insert(oldName, component->name);
+  }
+  return names.isEmpty() ? result : LabInput::renameComponentReferences(result, names);
+}
+
+QJsonObject MainWindow::buildModeledSimulationJson() const
+{
   const SimulationConfig* simulation = activeSimulation();
   if (simulation == nullptr)
   {
@@ -2336,7 +2600,7 @@ QJsonObject MainWindow::buildSimulationJson() const
   const double temperature = column == nullptr ? 300.0 : column->temperature;
   if (simulation->type == "MixturePrediction")
   {
-    return QJsonObject{
+    QJsonObject json{
         {"SimulationType", "MixturePrediction"},
         {"DisplayName", simulation->displayName},
         {"Temperature", temperature},
@@ -2347,6 +2611,11 @@ QJsonObject MainWindow::buildSimulationJson() const
         {"MixturePredictionMethod", simulation->mixtureMethod},
         {"Components", componentsJsonFor(*simulation)},
     };
+    if (column) mergeSettings(json, column->settings);
+    mergeSettings(json, simulation->settings);
+    if (!simulation->pHComponentId.isEmpty())
+      json.insert("pHComponent", static_cast<int>(componentExportOrderFor(*simulation).indexOf(simulation->pHComponentId)));
+    return json;
   }
 
   const bool isSwing = simulation->type == "SwingAdsorption";
@@ -2388,6 +2657,9 @@ QJsonObject MainWindow::buildSimulationJson() const
   {
     applyColumnToBreakthrough(json, *column, *simulation);
   }
+  mergeSettings(json, simulation->settings);
+  if (!simulation->pHComponentId.isEmpty())
+    json.insert("pHComponent", static_cast<int>(componentExportOrderFor(*simulation).indexOf(simulation->pHComponentId)));
   return json;
 }
 
@@ -2456,6 +2728,7 @@ QJsonArray MainWindow::reactionsJsonFor(const SimulationConfig& simulation) cons
 QJsonObject MainWindow::componentToJson(const ComponentConfig& component, double gasFraction) const
 {
   QJsonObject json{{"Name", component.name}, {"GasPhaseMolFraction", gasFraction}};
+  mergeSettings(json, component.settings);
   if (component.carrier)
   {
     json.insert("CarrierGas", true);
@@ -2529,7 +2802,7 @@ QJsonObject MainWindow::reactionToJson(const ReactionConfig& reaction, const Sim
 
   const QJsonArray reactants = participantsToJson(reaction.reactants);
   const QJsonArray products = participantsToJson(reaction.products);
-  return QJsonObject{{"Phase", reaction.phase},
+  QJsonObject json{{"Phase", reaction.phase},
                      {"Style", reaction.style},
                      {"Site", std::max(0, reaction.site)},
                      {"Reactants", reactants},
@@ -2541,6 +2814,17 @@ QJsonObject MainWindow::reactionToJson(const ReactionConfig& reaction, const Sim
                                               {"equilibriumConstant", reaction.equilibriumConstant},
                                               {"gibbsFreeEnergy", reaction.gibbsFreeEnergy}}},
                      {"RateLimitTime", reaction.rateLimitTime}};
+  for (const auto& pair : {qMakePair(QString("ForwardOrders"), &reaction.reactants),
+                           qMakePair(QString("BackwardOrders"), &reaction.products)})
+  {
+    if (std::any_of(pair.second->begin(), pair.second->end(), [](const auto& item) { return item.order.has_value(); }))
+    {
+      QJsonArray orders;
+      for (const auto& item : *pair.second) orders.append(item.order.value_or(item.stoichiometry));
+      json.insert(pair.first, orders);
+    }
+  }
+  return json;
 }
 
 QJsonObject MainWindow::phySiteToJson(const PhysisorptionSiteConfig& site) const
@@ -2550,19 +2834,30 @@ QJsonObject MainWindow::phySiteToJson(const PhysisorptionSiteConfig& site) const
   {
     parameters.append(parameterNumber(site.parameters, definition));
   }
-  return QJsonObject{{"Type", site.type}, {"Parameters", parameters}};
+  QJsonObject json = site.settings;
+  json.insert("Type", site.type);
+  json.insert("Parameters", parameters);
+  return json;
 }
 
 QJsonObject MainWindow::chemSiteToJson(const ChemisorptionSiteConfig& site) const
 {
-  QJsonObject parameters;
+  QJsonObject json = phySiteToJson(site.isotherm);
+  QJsonObject kinetics;
   for (const ParameterDefinition& definition : chemDefs(site.type))
   {
-    parameters.insert(definition.key, definition.boolean ? QJsonValue(parameterBool(site.parameters, definition))
-                                                         : QJsonValue(parameterNumber(site.parameters, definition)));
+    if (definition.key == "maximumLoading" || definition.key == "heatOfChemisorption") continue;
+    QString key = definition.key;
+    if (key == "rateCoefficient" && site.type == "FirstOrder") key = "MassTransferCoefficient";
+    else key[0] = key[0].toUpper();
+    kinetics.insert(key, definition.boolean ? QJsonValue(parameterBool(site.parameters, definition))
+                                           : QJsonValue(parameterNumber(site.parameters, definition)));
   }
-  parameters.insert("Isotherm", phySiteToJson(site.isotherm));
-  return QJsonObject{{"Type", site.type}, {"Parameters", parameters}};
+  json.insert("RateEquation", site.type);
+  json.insert("RateEquationParameters", kinetics);
+  json.insert("MaximumLoading", site.parameters.value("maximumLoading", 0.8).toDouble());
+  json.insert("HeatOfAdsorption", site.parameters.value("heatOfChemisorption", 0.0).toDouble());
+  return json;
 }
 
 QJsonArray MainWindow::swingPhasesToJson(const SimulationConfig& simulation) const
@@ -2581,6 +2876,7 @@ QJsonArray MainWindow::swingPhasesToJson(const SimulationConfig& simulation) con
 void MainWindow::applyColumnToBreakthrough(QJsonObject& simulationJson, const ColumnConfig& column,
                                            const SimulationConfig& simulation) const
 {
+  mergeSettings(simulationJson, column.settings);
   simulationJson.insert("BoundaryCondition", column.boundaryCondition);
   simulationJson.insert("DynamicViscosity", column.dynamicViscosity);
   simulationJson.insert("ColumnVoidFraction", column.voidFraction);
@@ -2609,9 +2905,10 @@ void MainWindow::applyColumnToBreakthrough(QJsonObject& simulationJson, const Co
     geometry.insert("InternalDiameter", column.internalDiameter);
     geometry.insert("OuterDiameter", column.outerDiameter);
   }
+  mergeSettings(geometry, column.geometrySettings);
   simulationJson.insert("Geometry", geometry);
 
-  if ((column.mode == "multibed" || column.mode == "mixed") && column.beds.size() > 1)
+  if ((column.mode == "multibed" || column.mode == "mixed") && !column.beds.isEmpty())
   {
     double length = 0.0;
     QJsonArray adsorbents;
@@ -2624,6 +2921,7 @@ void MainWindow::applyColumnToBreakthrough(QJsonObject& simulationJson, const Co
                             {"ColumnVoidFraction", bed.voidFraction},
                             {"ParticleDensity", bed.particleDensity},
                             {"ParticleDiameter", bed.particleDiameter}};
+      mergeSettings(adsorbent, bed.settings);
       if (column.mode == "mixed")
       {
         adsorbent.insert("MixFraction", bed.mixFraction);
@@ -2631,10 +2929,18 @@ void MainWindow::applyColumnToBreakthrough(QJsonObject& simulationJson, const Co
       else
       {
         length += bed.length;
-        sections.append(QJsonObject{{"Adsorbent", name}, {"Length", bed.length}});
+        QJsonObject section{{"Adsorbent", name}, {"Length", bed.length}};
+        if (bed.gridPoints > 0) section.insert("NumberOfGridPoints", bed.gridPoints);
+        sections.append(section);
         if (i + 1 < column.beds.size())
         {
-          sections.append(QJsonObject{{"InterfaceLength", bed.interfaceLengthAfter}});
+          length += bed.interfaceLengthAfter;
+          QJsonObject interface{{"InterfaceLength", bed.interfaceLengthAfter}};
+          if (bed.interfaceLengthAfter > 0.0 && bed.interfaceGridPointsAfter > 0)
+          {
+            interface.insert("NumberOfGridPoints", bed.interfaceGridPointsAfter);
+          }
+          sections.append(interface);
         }
       }
       adsorbents.append(adsorbent);
@@ -2678,6 +2984,7 @@ QJsonObject MainWindow::buildStateJson() const
                        {"Name", component.name},
                        {"CarrierGas", component.carrier},
                        {"NonIsothermal", component.nonIsothermal},
+                       {"Settings", component.settings},
                        {"PhysisorptionSites", phySitesStateJson(component.physisorptionSites)},
                        {"ChemisorptionSites", chemSitesStateJson(component.chemisorptionSites)}};
     addOptionalNumber(object, "MassTransferCoefficient", component.massTransfer);
@@ -2697,11 +3004,14 @@ QJsonObject MainWindow::buildStateJson() const
       beds.append(QJsonObject{{"Id", bed.id},
                               {"Name", bed.name},
                               {"Length", bed.length},
+                              {"GridPoints", bed.gridPoints},
                               {"MixFraction", bed.mixFraction},
                               {"VoidFraction", bed.voidFraction},
                               {"ParticleDensity", bed.particleDensity},
                               {"ParticleDiameter", bed.particleDiameter},
-                              {"InterfaceLengthAfter", bed.interfaceLengthAfter}});
+                              {"InterfaceLengthAfter", bed.interfaceLengthAfter},
+                              {"InterfaceGridPointsAfter", bed.interfaceGridPointsAfter},
+                              {"Settings", bed.settings}});
     }
     QJsonObject object{{"Id", column.id},
                        {"Name", column.name},
@@ -2734,7 +3044,8 @@ QJsonObject MainWindow::buildStateJson() const
                        {"HeatCapacityGas", column.heatCapacityGas},
                        {"HeatCapacitySolid", column.heatCapacitySolid},
                        {"HeatCapacityWall", column.heatCapacityWall},
-                       {"Beds", beds}};
+                       {"Beds", beds},
+                       {"Settings", column.settings}, {"GeometrySettings", column.geometrySettings}};
     addOptionalNumber(object, "OutletPressure", column.outletPressure);
     addOptionalNumber(object, "WashcoatVolumePerChannelVolume", column.washcoatVolumePerChannelVolume);
     columnArray.append(object);
@@ -2765,6 +3076,10 @@ QJsonObject MainWindow::buildStateJson() const
                                  {"TimeStep", simulation.timeStep},
                                  {"GridPoints", simulation.gridPoints},
                                  {"SelectedColumnId", simulation.selectedColumnId},
+                                 {"PHComponentId", simulation.pHComponentId},
+                                 {"Settings", simulation.settings},
+                                 {"OriginalInput", simulation.originalInput},
+                                 {"OriginalModel", simulation.originalModel},
                                  {"SwingAdsorptionPhases", swingPhasesStateJson(simulation.swingPhases)},
                                  {"ComponentFeeds", feeds}};
     if (!simulation.lastRun.id.isEmpty())
@@ -2775,7 +3090,7 @@ QJsonObject MainWindow::buildStateJson() const
   }
 
   return QJsonObject{{"Format", stateFormat},
-                     {"Version", 3},
+                     {"Version", 4},
                      {"SelectedComponentIndex", selectedComponentIndex_},
                      {"SelectedColumnIndex", selectedColumnIndex_},
                      {"SelectedReactionIndex", selectedReactionIndex_},
@@ -2822,6 +3137,7 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
     component.heatOfAdsorption = readOptionalNumber(object, "HeatOfAdsorption");
     component.referenceTemperature = readOptionalNumber(object, "ReferenceTemperature");
     component.nonIsothermal = readBool(object, "NonIsothermal", false);
+    component.settings = object.value("Settings").toObject();
 
     const QJsonArray physisorptionSites = object.value("PhysisorptionSites").toArray();
     for (qsizetype siteIndex = 0; siteIndex < physisorptionSites.size(); ++siteIndex)
@@ -2858,6 +3174,8 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
     column.id = readString(object, "Id", QString("column-%1").arg(i + 1));
     column.name = readString(object, "Name", QString("Column %1").arg(i + 1));
     column.mode = readString(object, "Mode", "single");
+    column.settings = object.value("Settings").toObject();
+    column.geometrySettings = object.value("GeometrySettings").toObject();
     column.boundaryCondition = readString(object, "BoundaryCondition", "InletPressureInletVelocity");
     column.temperature = readNumber(object, "Temperature", column.temperature);
     column.dynamicViscosity = readNumber(object, "DynamicViscosity", column.dynamicViscosity);
@@ -2912,12 +3230,15 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
       BedConfig bed;
       bed.id = readString(bedObject, "Id", QString("bed-%1-%2").arg(i + 1).arg(bedIndex + 1));
       bed.name = readString(bedObject, "Name", QString("Bed %1").arg(bedIndex + 1));
+      bed.settings = bedObject.value("Settings").toObject();
       bed.length = readNumber(bedObject, "Length", bed.length);
+      bed.gridPoints = readInt(bedObject, "GridPoints", bed.gridPoints);
       bed.mixFraction = readNumber(bedObject, "MixFraction", bed.mixFraction);
       bed.voidFraction = readNumber(bedObject, "VoidFraction", bed.voidFraction);
       bed.particleDensity = readNumber(bedObject, "ParticleDensity", bed.particleDensity);
       bed.particleDiameter = readNumber(bedObject, "ParticleDiameter", bed.particleDiameter);
       bed.interfaceLengthAfter = readNumber(bedObject, "InterfaceLengthAfter", bed.interfaceLengthAfter);
+      bed.interfaceGridPointsAfter = readInt(bedObject, "InterfaceGridPointsAfter", bed.interfaceGridPointsAfter);
       column.beds.push_back(bed);
     }
     if (column.beds.isEmpty())
@@ -2956,6 +3277,14 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
     SimulationConfig simulation;
     simulation.id = readString(object, "Id", QString("simulation-%1").arg(i + 1));
     simulation.type = readString(object, "Type", "Breakthrough");
+    simulation.settings = object.value("Settings").toObject();
+    simulation.pHComponentId = readString(object, "PHComponentId", {});
+    simulation.originalInput = object.value("OriginalInput").toObject();
+    simulation.originalModel = object.value("OriginalModel").toObject();
+    const QJsonObject supportCheck{{"SimulationType", simulation.type},
+                                  {"MixturePredictionMethod", object.value("MixturePredictionMethod")}};
+    if (!LabInput::supported(supportCheck, error) ||
+        (!simulation.originalInput.isEmpty() && !LabInput::supported(simulation.originalInput, error))) return false;
     if (simulation.type != "Breakthrough" && simulation.type != "SwingAdsorption" &&
         simulation.type != "MixturePrediction")
     {
@@ -3065,8 +3394,20 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
   return true;
 }
 
-bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString* error)
+bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, const QString& sourceDirectory)
 {
+  QJsonObject simulationJson;
+  try
+  {
+    simulationJson = LabInput::resolveFiles(LabInput::canonicalize(input), sourceDirectory);
+  }
+  catch (const std::exception& exception)
+  {
+    if (error) *error = QString::fromUtf8(exception.what());
+    return false;
+  }
+  const auto parsed = LabInput::read(simulationJson, error);
+  if (!parsed) return false;
   const QJsonArray componentArray = simulationJson.value("Components").toArray();
   if (componentArray.isEmpty())
   {
@@ -3097,6 +3438,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
     {
       component.referenceTemperature = readOptionalNumber(object, "ReferenceTemperature");
     }
+    component.settings = selectSettings(object, componentSettingKeys);
     component.nonIsothermal = readBool(object, "nonIsothermal", readBool(object, "NonIsothermal", false));
 
     const QJsonArray physisorptionSites = object.value("PhysisorptionSites").toArray();
@@ -3116,7 +3458,8 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
       {
         component.chemisorptionSites.push_back(chemSiteFromObject(
             chemisorptionSites[siteIndex].toObject(), QString("chem-%1-%2").arg(i + 1).arg(siteIndex + 1),
-            QString("chemiso-%1-%2").arg(i + 1).arg(siteIndex + 1)));
+            QString("chemiso-%1-%2").arg(i + 1).arg(siteIndex + 1),
+            component.massTransfer.value_or(0.0), component.heatOfAdsorption.value_or(0.0)));
       }
     }
 
@@ -3126,9 +3469,33 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
 
   ColumnConfig column;
   column.id = "column-1";
+  column.temperature = parsed->temperature;
+  column.dynamicViscosity = parsed->dynamicViscosity;
+  column.voidFraction = parsed->columnVoidFraction;
+  column.particleDensity = parsed->particleDensity;
+  column.particleDiameter = parsed->particleDiameter;
+  column.inletPressure = parsed->inletPressure;
+  column.pressureGradient = parsed->pressureGradient;
+  column.velocity = parsed->columnEntranceVelocity;
+  column.length = parsed->columnLength;
+  column.influxTemperature = parsed->influxTemperature;
+  column.internalDiameter = parsed->internalDiameter;
+  column.outerDiameter = parsed->outerDiameter;
+  column.wallDensity = parsed->wallDensity;
+  column.gasThermalConductivity = parsed->gasThermalConductivity;
+  column.wallThermalConductivity = parsed->wallThermalConductivity;
+  column.heatTransferGasSolid = parsed->heatTransferGasSolid;
+  column.heatTransferGasWall = parsed->heatTransferGasWall;
+  column.heatTransferWallExternal = parsed->heatTransferWallExternal;
+  column.heatCapacityGas = parsed->heatCapacityGas;
+  column.heatCapacitySolid = parsed->heatCapacitySolid;
+  column.heatCapacityWall = parsed->heatCapacityWall;
   column.name = readString(simulationJson, "ColumnName", readString(simulationJson, "DisplayName", "Imported column"));
   column.mode = "single";
-  column.boundaryCondition = readString(simulationJson, "BoundaryCondition", column.boundaryCondition);
+  column.settings = selectSettings(simulationJson, columnSettingKeys);
+  column.boundaryCondition = choice(readString(simulationJson, "BoundaryCondition", column.boundaryCondition),
+      {"InletPressureInletVelocity", "InletPressureOutletPressure", "InletVelocityOutletPressure", "FixedVelocity",
+       "FixedPressureInletVelocity"});
   column.temperature = readNumber(simulationJson, "Temperature", column.temperature);
   column.dynamicViscosity = readNumber(simulationJson, "DynamicViscosity", column.dynamicViscosity);
   column.voidFraction = readNumber(simulationJson, "ColumnVoidFraction", column.voidFraction);
@@ -3140,8 +3507,9 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
   column.velocity = readNumber(simulationJson, "ColumnEntranceVelocity", column.velocity);
   column.length = readNumber(simulationJson, "ColumnLength", column.length);
   column.energyBalance = readBool(simulationJson, "energyBalance", readBool(simulationJson, "EnergyBalance", false));
-  column.influxTemperature = readNumber(simulationJson, "InfluxTemperature", column.temperature);
+  column.influxTemperature = readNumber(simulationJson, "InfluxTemperature", column.influxTemperature);
   const QJsonObject geometry = simulationJson.value("Geometry").toObject();
+  column.geometrySettings = selectSettings(geometry, {"ForchheimerCoefficient"});
   if (!geometry.isEmpty())
   {
     const QString geometryType = readString(geometry, "Type", column.geometryType);
@@ -3204,6 +3572,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
         bed.mixFraction = readNumber(adsorbent, "MixFraction", bed.mixFraction);
         bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
         bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
+        bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components"});
         bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
         column.beds.push_back(bed);
       }
@@ -3222,6 +3591,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
           if (!column.beds.isEmpty())
           {
             column.beds.last().interfaceLengthAfter = readNumber(section, "InterfaceLength", 0.0);
+            column.beds.last().interfaceGridPointsAfter = readInt(section, "NumberOfGridPoints", 0);
           }
           continue;
         }
@@ -3240,42 +3610,63 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
         bed.id = QString("bed-1-%1").arg(column.beds.size() + 1);
         bed.name = adsorbentName;
         bed.length = readNumber(section, "Length", column.length);
+        bed.gridPoints = readInt(section, "NumberOfGridPoints", 0);
         bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
         bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
+        bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components"});
         bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
         column.beds.push_back(bed);
       }
     }
-    if (column.beds.size() < 2)
+
+  }
+
+  if (!adsorbents.isEmpty() && sections.isEmpty() && !isUniformMix)
+  {
+    column.mode = "multibed";
+    for (const auto& value : adsorbents)
     {
-      column.mode = "single";
+      const auto adsorbent = value.toObject();
+      BedConfig bed;
+      bed.id = QString("bed-1-%1").arg(column.beds.size() + 1);
+      bed.name = readString(adsorbent, "Name", QString::number(column.beds.size()));
+      bed.length = readNumber(adsorbent, "AdsorbentLength", column.length);
+      bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
+      bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
+      bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
+      bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components"});
+      column.beds.push_back(bed);
     }
   }
 
   SimulationConfig simulation;
   simulation.id = "simulation-1";
   const QString type = readString(simulationJson, "SimulationType", "Breakthrough");
-  simulation.type = type == "MixturePrediction" ? "MixturePrediction"
-                                                : (type == "SwingAdsorption" ? "SwingAdsorption" : "Breakthrough");
+  simulation.type = choice(type, {"MixturePrediction", "SwingAdsorption", "Breakthrough"});
+  if (simulation.type.compare("Test", Qt::CaseInsensitive) == 0) simulation.type = "Breakthrough";
+  simulation.settings = selectSettings(simulationJson, simulationSettingKeys);
   if (simulation.type != "MixturePrediction" && geometry.isEmpty())
   {
     if (error != nullptr) *error = "Breakthrough and SwingAdsorption simulation JSON must contain Geometry.";
     return false;
   }
   simulation.displayName = readString(simulationJson, "DisplayName", "Imported simulation");
-  simulation.mixtureMethod = readString(simulationJson, "MixturePredictionMethod", simulation.mixtureMethod);
+  simulation.mixtureMethod = choice(readString(simulationJson, "MixturePredictionMethod", "IAST"),
+                                    {"IAST", "SIAST", "EI", "SEI", "SCI", "SPI"});
   simulation.pressureStart = readNumber(simulationJson, "PressureStart", simulation.pressureStart);
   simulation.pressureEnd = readNumber(simulationJson, "PressureEnd", simulation.pressureEnd);
   simulation.pressurePoints = std::max(1, readInt(simulationJson, "NumberOfPressurePoints", simulation.pressurePoints));
   simulation.pressureScale = readString(simulationJson, "PressureScale", simulation.pressureScale);
-  simulation.integrator = readString(simulationJson, "BreakthroughIntegrator", simulation.integrator);
+  simulation.integrator = choice(readString(simulationJson, "BreakthroughIntegrator", "RungeKutta3"),
+                                 {"CVODE", "RungeKutta3", "SIRK3"});
   if (simulation.integrator != "CVODE" && simulation.integrator != "RungeKutta3" && simulation.integrator != "SIRK3")
   {
     if (error != nullptr) *error = "BreakthroughIntegrator must be CVODE, RungeKutta3, or SIRK3.";
     return false;
   }
   const QJsonValue timeSteps = simulationJson.value("NumberOfTimeSteps");
-  simulation.autoSteps = timeSteps.isString() && timeSteps.toString().compare("auto", Qt::CaseInsensitive) == 0;
+  simulation.autoSteps = timeSteps.isUndefined() ||
+                         (timeSteps.isString() && timeSteps.toString().compare("auto", Qt::CaseInsensitive) == 0);
   if (timeSteps.isDouble())
   {
     simulation.autoSteps = false;
@@ -3288,15 +3679,24 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
   simulation.gridPoints = std::max(1, readInt(simulationJson, "NumberOfGridPoints", simulation.gridPoints));
   simulation.selectedColumnId = column.id;
   simulation.componentFeeds = feeds;
+  const int pHIndex = simulationJson.value("pHComponent").toInt(-1);
+  if (pHIndex >= 0 && pHIndex < newComponents.size()) simulation.pHComponentId = newComponents[pHIndex].id;
+
   QList<ReactionConfig> newReactions;
   const QJsonArray reactionArray = simulationJson.value("Reactions").toArray();
   for (qsizetype reactionIndex = 0; reactionIndex < reactionArray.size(); ++reactionIndex)
   {
     if (reactionArray[reactionIndex].isObject())
     {
-      newReactions.push_back(reactionFromObject(reactionArray[reactionIndex].toObject(),
+      auto reaction = reactionFromObject(reactionArray[reactionIndex].toObject(),
                                                 QString("reaction-1-%1").arg(reactionIndex + 1),
-                                                QString("Reaction %1").arg(reactionIndex + 1), newComponents));
+                                                QString("Reaction %1").arg(reactionIndex + 1), newComponents);
+      const auto& resolved = parsed->reactions[static_cast<size_t>(reactionIndex)];
+      for (qsizetype i = 0; i < reaction.reactants.size(); ++i)
+        reaction.reactants[i].componentId = newComponents[static_cast<qsizetype>(resolved.reactants[static_cast<size_t>(i)])].id;
+      for (qsizetype i = 0; i < reaction.products.size(); ++i)
+        reaction.products[i].componentId = newComponents[static_cast<qsizetype>(resolved.products[static_cast<size_t>(i)])].id;
+      newReactions.push_back(reaction);
     }
   }
   if (simulation.type == "SwingAdsorption")
@@ -3327,6 +3727,8 @@ bool MainWindow::importSimulationJson(const QJsonObject& simulationJson, QString
   selectedColumnIndex_ = 0;
   selectedReactionIndex_ = 0;
   selectedSimulationIndex_ = 0;
+  simulations_[0].originalModel = buildModeledSimulationJson();
+  simulations_[0].originalInput = simulationJson;
   resetIdCounterFromState();
   refreshAll();
   return true;
@@ -3400,7 +3802,7 @@ void MainWindow::loadJsonFile()
   const QJsonObject root = document.object();
   const bool isState =
       readString(root, "Format", {}) == stateFormat || (root.contains("Simulations") && root.contains("Columns"));
-  const bool ok = isState ? loadStateJson(root, &error) : importSimulationJson(root, &error);
+  const bool ok = isState ? loadStateJson(root, &error) : importSimulationJson(root, &error, QFileInfo(path).absolutePath());
   if (!ok)
   {
     QMessageBox::warning(this, "Ruptura Lab", error);
@@ -3801,4 +4203,60 @@ void MainWindow::addParameterFields(QFormLayout* form, QVariantMap& parameters,
             });
     form->addRow(definition.label, edit);
   }
+}
+
+void MainWindow::addSettingNumbers(QFormLayout* form, QJsonObject& settings,
+                                   const QList<ParameterDefinition>& definitions)
+{
+  for (const auto& definition : definitions)
+    addNumberField(form, definition.label, readNumber(settings, definition.key, definition.defaultValue),
+                   [&settings, definition](double value)
+                   {
+                     settings.insert(definition.key, definition.integer ? QJsonValue(static_cast<int>(value))
+                                                                        : QJsonValue(value));
+                   });
+}
+
+void MainWindow::addSettingCombo(QFormLayout* form, const QString& label, QJsonObject& settings, const QString& key,
+                                 const QString& fallback, const QStringList& values)
+{
+  addComboField(form, label, choice(settings.value(key).toString(fallback), values), valueOptions(values),
+                [this, &settings, key](const QString& value)
+                {
+                  settings.insert(key, value);
+                  QTimer::singleShot(0, this, [this]() { refreshAll(); });
+                });
+}
+
+void MainWindow::addJsonField(QFormLayout* form, const QString& label, const QJsonValue& value,
+                              const std::function<void(const QJsonValue&)>& setter)
+{
+  auto* container = new QWidget;
+  auto* layout = new QVBoxLayout(container);
+  layout->setContentsMargins(0, 0, 0, 0);
+  auto* editor = new QPlainTextEdit;
+  editor->setPlainText(QString::fromUtf8(value.isArray() ? QJsonDocument(value.toArray()).toJson()
+                                                        : QJsonDocument(value.toObject()).toJson()));
+  editor->setMaximumHeight(140);
+  auto* apply = new QPushButton("Apply");
+  auto* errorLabel = new QLabel;
+  errorLabel->setWordWrap(true);
+  layout->addWidget(editor);
+  layout->addWidget(errorLabel);
+  layout->addWidget(apply);
+  connect(apply, &QPushButton::clicked, this, [this, editor, errorLabel, setter, array = value.isArray()]()
+          {
+            QJsonParseError error;
+            const auto document = QJsonDocument::fromJson(editor->toPlainText().toUtf8(), &error);
+            if (error.error != QJsonParseError::NoError || (array ? !document.isArray() : !document.isObject()))
+            {
+              errorLabel->setText(error.error == QJsonParseError::NoError
+                                      ? (array ? "Enter a JSON array." : "Enter a JSON object.") : error.errorString());
+              return;
+            }
+            setter(array ? QJsonValue(document.array()) : QJsonValue(document.object()));
+            errorLabel->setText("Applied");
+            updatePreview();
+          });
+  form->addRow(label, container);
 }

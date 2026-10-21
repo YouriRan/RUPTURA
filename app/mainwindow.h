@@ -5,6 +5,7 @@
 #include <QList>
 #include <QMainWindow>
 #include <QString>
+#include <QStringList>
 #include <QVariant>
 #include <functional>
 #include <optional>
@@ -37,6 +38,7 @@ struct PhysisorptionSiteConfig
   QString id;
   QString type{"Langmuir"};
   QVariantMap parameters;
+  QJsonObject settings{};
 };
 
 struct ChemisorptionSiteConfig
@@ -58,6 +60,7 @@ struct ComponentConfig
   std::optional<double> heatOfAdsorption;
   std::optional<double> referenceTemperature;
   bool nonIsothermal{false};
+  QJsonObject settings{};
   QList<PhysisorptionSiteConfig> physisorptionSites;
   QList<ChemisorptionSiteConfig> chemisorptionSites;
 };
@@ -67,11 +70,14 @@ struct BedConfig
   QString id;
   QString name;
   double length{0.15};
+  int gridPoints{0};
   double mixFraction{0.5};
   double voidFraction{0.4};
   double particleDensity{1000.0};
   double particleDiameter{0.001};
   double interfaceLengthAfter{0.0};
+  int interfaceGridPointsAfter{0};
+  QJsonObject settings{};
 };
 
 struct ColumnConfig
@@ -110,6 +116,8 @@ struct ColumnConfig
   double heatCapacitySolid{900.0};
   double heatCapacityWall{400.0};
   QList<BedConfig> beds;
+  QJsonObject settings{};
+  QJsonObject geometrySettings;
 };
 
 struct FeedConfig
@@ -131,6 +139,7 @@ struct ReactionParticipantConfig
 {
   QString componentId;
   double stoichiometry{1.0};
+  std::optional<double> order{};
 };
 
 struct ReactionConfig
@@ -159,7 +168,11 @@ struct SimulationConfig
   double pressureEnd{10000000.0};
   int pressurePoints{100};
   QString pressureScale{"log"};
+#if BUILD_SUNDIALS
   QString integrator{"CVODE"};
+#else
+  QString integrator{"RungeKutta3"};
+#endif
   bool autoSteps{true};
   int timeSteps{500000};
   int initSteps{0};
@@ -168,6 +181,11 @@ struct SimulationConfig
   double timeStep{0.0005};
   int gridPoints{100};
   QString selectedColumnId{"column-1"};
+  QString pHComponentId;
+  QJsonObject settings{};
+  // Retain omitted defaults and input forms until the corresponding control changes.
+  QJsonObject originalInput;
+  QJsonObject originalModel;
   QList<FeedConfig> componentFeeds;
   QList<SwingPhaseConfig> swingPhases;
   RupturaRunner::RunRecord lastRun;
@@ -182,6 +200,7 @@ class MainWindow : public QMainWindow
   explicit MainWindow(QWidget* parent = nullptr);
 
  private:
+  friend struct MainWindowTestAccess;
   RupturaRunner runner_;
   int idCounter_{10};
   bool rebuilding_{false};
@@ -258,6 +277,7 @@ class MainWindow : public QMainWindow
   double feedTotal(const SimulationConfig& simulation) const;
 
   QJsonObject buildSimulationJson() const;
+  QJsonObject buildModeledSimulationJson() const;
   QJsonObject buildStateJson() const;
   QList<QString> componentExportOrderFor(const SimulationConfig& simulation) const;
   QJsonArray componentsJsonFor(const SimulationConfig& simulation) const;
@@ -270,7 +290,7 @@ class MainWindow : public QMainWindow
   void applyColumnToBreakthrough(QJsonObject& simulationJson, const ColumnConfig& column,
                                  const SimulationConfig& simulation) const;
   bool loadStateJson(const QJsonObject& state, QString* error);
-  bool importSimulationJson(const QJsonObject& simulationJson, QString* error);
+  bool importSimulationJson(const QJsonObject& input, QString* error, const QString& sourceDirectory = {});
   void resetIdCounterFromState();
 
   void loadJsonFile();
@@ -302,4 +322,9 @@ class MainWindow : public QMainWindow
                            const QList<QPair<QString, QString>>& options,
                            const std::function<void(const QString&)>& setter);
   void addParameterFields(QFormLayout* form, QVariantMap& parameters, const QList<ParameterDefinition>& definitions);
+  void addSettingNumbers(QFormLayout* form, QJsonObject& settings, const QList<ParameterDefinition>& definitions);
+  void addSettingCombo(QFormLayout* form, const QString& label, QJsonObject& settings, const QString& key,
+                       const QString& fallback, const QStringList& values);
+  void addJsonField(QFormLayout* form, const QString& label, const QJsonValue& value,
+                    const std::function<void(const QJsonValue&)>& setter);
 };
