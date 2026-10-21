@@ -128,17 +128,16 @@ struct MultibedColumn
                  double outletPressure, double pressureGradient, std::vector<double> adsorbentVoidFractions,
                  std::vector<double> particleDensities, double columnEntranceVelocity,
                  std::vector<double> adsorbentLengths, std::vector<double> adsorbentInterfaceLengths,
-                 std::vector<size_t> adsorbentGridPoints, double dynamicViscosity,
-                 std::vector<double> particleDiameters, double influxTemperature, double internalDiameter,
-                 double outerDiameter, double wallDensity, double gasThermalConductivity,
+                 std::vector<size_t> adsorbentGridPoints, std::vector<size_t> adsorbentInterfaceGridPoints,
+                 double dynamicViscosity, std::vector<double> particleDiameters, double influxTemperature,
+                 double internalDiameter, double outerDiameter, double wallDensity, double gasThermalConductivity,
                  double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
                  double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid,
                  double heatCapacityWall, std::vector<double> columnDistances = {},
                  std::vector<Reaction> reactions = {}, std::vector<Geometry> geometries = {},
                  std::vector<double> adsorbentMixFractions = {}, double configuredColumnLength = -1.0,
-                 FluidPhase fluidPhase = FluidPhase::Gas, double liquidDensity = 1000.0,
-                 PHMode pHMode = PHMode::Fixed, double pHValue = 7.0, double pKw = 14.0,
-                 size_t pHComponent = 0)
+                 FluidPhase fluidPhase = FluidPhase::Gas, double liquidDensity = 1000.0, PHMode pHMode = PHMode::Fixed,
+                 double pHValue = 7.0, double pKw = 14.0, size_t pHComponent = 0)
       : physisorptionMixtures(std::move(physisorptionMixtures)),
         components(std::move(components)),
         boundaryCondition(boundaryCondition),
@@ -158,21 +157,23 @@ struct MultibedColumn
         adsorbentInterfaceLengths(std::move(adsorbentInterfaceLengths)),
         adsorbentMixFractions(std::move(adsorbentMixFractions)),
         adsorbentGridPoints(std::move(adsorbentGridPoints)),
+        adsorbentInterfaceGridPoints(std::move(adsorbentInterfaceGridPoints)),
         adsorbentVoidFractions(std::move(adsorbentVoidFractions)),
         particleDensities(std::move(particleDensities)),
         particleDiameters(std::move(particleDiameters)),
-        geometries(geometries.empty()
-                       ? makePackedBedGeometries(this->adsorbentVoidFractions, this->particleDiameters,
-                                                 internalDiameter, outerDiameter)
-                       : std::move(geometries)),
+        geometries(geometries.empty() ? makePackedBedGeometries(this->adsorbentVoidFractions, this->particleDiameters,
+                                                                internalDiameter, outerDiameter)
+                                      : std::move(geometries)),
         externalTemperature(temperature),
         inletPressure(inletPressure),
         outletPressure(outletPressure),
         pressureGradient(pressureGradient),
         columnEntranceVelocity(columnEntranceVelocity),
-        columnLength(configuredColumnLength > 0.0
-                         ? configuredColumnLength
-                         : std::reduce(this->adsorbentLengths.begin(), this->adsorbentLengths.end(), 0.0)),
+        columnLength(
+            !this->adsorbentMixFractions.empty() && configuredColumnLength > 0.0
+                ? configuredColumnLength
+                : std::reduce(this->adsorbentLengths.begin(), this->adsorbentLengths.end(), 0.0) +
+                      std::reduce(this->adsorbentInterfaceLengths.begin(), this->adsorbentInterfaceLengths.end(), 0.0)),
         dynamicViscosity(dynamicViscosity),
         liquidDensity(liquidDensity),
         pHValue(pHValue),
@@ -272,23 +273,19 @@ struct MultibedColumn
             inputReader.temperature, inputReader.inletPressure, inputReader.outletPressure,
             inputReader.pressureGradient, inputReader.adsorbentVoidFractions, inputReader.adsorbentParticleDensities,
             inputReader.columnEntranceVelocity, inputReader.adsorbentLengths, inputReader.adsorbentInterfaceLengths,
-            inputReader.adsorbentGridPoints, inputReader.dynamicViscosity, inputReader.adsorbentParticleDiameters,
-            inputReader.influxTemperature, inputReader.internalDiameter, inputReader.outerDiameter,
-            inputReader.wallDensity,
-            inputReader.fluidPhase == 1 ? inputReader.liquidThermalConductivity
-                                        : inputReader.gasThermalConductivity,
+            inputReader.adsorbentGridPoints, inputReader.adsorbentInterfaceGridPoints, inputReader.dynamicViscosity,
+            inputReader.adsorbentParticleDiameters, inputReader.influxTemperature, inputReader.internalDiameter,
+            inputReader.outerDiameter, inputReader.wallDensity,
+            inputReader.fluidPhase == 1 ? inputReader.liquidThermalConductivity : inputReader.gasThermalConductivity,
             inputReader.wallThermalConductivity,
-            inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidSolid
-                                        : inputReader.heatTransferGasSolid,
-            inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidWall
-                                        : inputReader.heatTransferGasWall,
+            inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidSolid : inputReader.heatTransferGasSolid,
+            inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidWall : inputReader.heatTransferGasWall,
             inputReader.heatTransferWallExternal,
             inputReader.fluidPhase == 1 ? inputReader.heatCapacityLiquid : inputReader.heatCapacityGas,
-            inputReader.heatCapacitySolid, inputReader.heatCapacityWall,
-            inputReader.columnDistances, inputReader.reactions, inputReader.adsorbentGeometries,
-            inputReader.adsorbentMixFractions, inputReader.columnLength, FluidPhase(inputReader.fluidPhase),
-            inputReader.liquidDensity, PHMode(inputReader.pHMode), inputReader.pHValue, inputReader.pKw,
-            inputReader.pHComponent)
+            inputReader.heatCapacitySolid, inputReader.heatCapacityWall, inputReader.columnDistances,
+            inputReader.reactions, inputReader.adsorbentGeometries, inputReader.adsorbentMixFractions,
+            inputReader.columnLength, FluidPhase(inputReader.fluidPhase), inputReader.liquidDensity,
+            PHMode(inputReader.pHMode), inputReader.pHValue, inputReader.pKw, inputReader.pHComponent)
   {
   }
   /**
@@ -326,6 +323,7 @@ struct MultibedColumn
   std::vector<double> adsorbentInterfaceLengths;  ///< Linear interface lengths between adsorbents in m.
   std::vector<double> adsorbentMixFractions;      ///< Uniform adsorbent volume fractions over the whole column.
   std::vector<size_t> adsorbentGridPoints;        ///< Spatial grid intervals per adsorbent section.
+  std::vector<size_t> adsorbentInterfaceGridPoints;  ///< Intervals per interface; zero for sharp interfaces.
   std::vector<double> adsorbentVoidFractions;     ///< Packed-bed void fraction for each adsorbent.
   std::vector<double> particleDensities;          ///< Particle density for each adsorbent in kg/m^3.
   std::vector<double> particleDiameters;          ///< Particle diameter for each adsorbent in m.

@@ -78,6 +78,255 @@ class WorkingDirectoryGuard
 };
 }  // namespace
 
+class MultibedInterfaces : public ::testing::Test
+{
+ protected:
+  nlohmann::json input;
+  std::filesystem::path inputPath;
+
+  void SetUp() override
+  {
+    std::ifstream source(examplePath("examples/MOR-CO2-C3H8/breakthrough/simulation.json"));
+    ASSERT_TRUE(source);
+    source >> input;
+    input["Adsorbents"] = {{{"Name", "front"}}, {{"Name", "middle"}}, {{"Name", "tail"}}};
+    input["ColumnSections"] = {{{"Adsorbent", "front"}, {"Length", 0.06}, {"NumberOfGridPoints", 3}},
+                               {{"InterfaceLength", 0.02}, {"NumberOfGridPoints", 2}},
+                               {{"Adsorbent", "middle"}, {"Length", 0.04}, {"NumberOfGridPoints", 2}},
+                               {{"InterfaceLength", 0.03}, {"NumberOfGridPoints", 3}},
+                               {{"Adsorbent", "tail"}, {"Length", 0.05}, {"NumberOfGridPoints", 5}}};
+    inputPath = std::filesystem::path{::testing::TempDir()} /
+                (std::string{"ruptura_interfaces_"} + ::testing::UnitTest::GetInstance()->current_test_info()->name() +
+                 ".json");
+  }
+
+  InputReader readInput()
+  {
+    std::ofstream output(inputPath);
+    if (!output) throw std::runtime_error("Cannot write multibed interface test input");
+    output << input;
+    output.close();
+    return InputReader(inputPath.string());
+  }
+};
+
+TEST_F(MultibedInterfaces, AddsInterfaceLengthsAndBuildsSeparateUniformGrids)
+{
+  const InputReader reader = readInput();
+  EXPECT_NEAR(reader.columnLength, 0.20, 1e-14);
+  EXPECT_EQ(reader.numberOfGridPoints, 15U);
+  EXPECT_EQ(reader.adsorbentInterfaceGridPoints, (std::vector<size_t>{2, 3}));
+  const std::vector<double> expectedNodes = {0.0,  0.02, 0.04, 0.06, 0.07, 0.08, 0.10, 0.12,
+                                             0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20};
+  ASSERT_EQ(reader.columnDistances.size(), expectedNodes.size());
+  for (size_t grid = 0; grid < expectedNodes.size(); ++grid)
+  {
+    EXPECT_NEAR(reader.columnDistances[grid], expectedNodes[grid], 1e-14);
+  }
+  EXPECT_DOUBLE_EQ(reader.columnDistances.back(), reader.columnLength);
+  MultibedColumn column(reader);
+  EXPECT_EQ(column.adsorbentInterfaceGridPoints, reader.adsorbentInterfaceGridPoints);
+  const MultibedColumn copy(column);
+  EXPECT_EQ(copy.adsorbentInterfaceGridPoints, reader.adsorbentInterfaceGridPoints);
+  MultibedColumn assigned(reader);
+  assigned.adsorbentInterfaceGridPoints = {0, 0};
+  assigned = column;
+  EXPECT_EQ(assigned.adsorbentInterfaceGridPoints, reader.adsorbentInterfaceGridPoints);
+  for (double configuredLength : {-1.0, 0.4})
+  {
+    InputReader configuredReader = reader;
+    configuredReader.columnLength = configuredLength;
+    const MultibedColumn configured(configuredReader);
+    EXPECT_NEAR(configured.columnLength, 0.20, 1e-14);
+  }
+}
+
+TEST_F(MultibedInterfaces, FractionsAreLinearAndInterfacesAddAdsorbentInventory)
+{
+  MultibedColumn column(readInput());
+  column.initialize();
+  const std::vector<std::vector<double>> expected = {{1, 0, 0},
+                                                     {1, 0, 0},
+                                                     {1, 0, 0},
+                                                     {1, 0, 0},
+                                                     {0.5, 0.5, 0},
+                                                     {0, 1, 0},
+                                                     {0, 1, 0},
+                                                     {0, 1, 0},
+                                                     {0, 2.0 / 3.0, 1.0 / 3.0},
+                                                     {0, 1.0 / 3.0, 2.0 / 3.0},
+                                                     {0, 0, 1},
+                                                     {0, 0, 1},
+                                                     {0, 0, 1},
+                                                     {0, 0, 1},
+                                                     {0, 0, 1},
+                                                     {0, 0, 1}};
+  ASSERT_EQ(column.columnDistances.size(), expected.size());
+  std::vector<double> inventories(3, 0.0);
+  for (size_t grid = 0; grid < expected.size(); ++grid)
+  {
+    double sum = 0.0;
+    for (size_t ads = 0; ads < 3; ++ads)
+    {
+      const double fraction = column.fractionOfAdsorbent[grid * 3 + ads];
+      EXPECT_NEAR(fraction, expected[grid][ads], 1e-14);
+      EXPECT_GE(fraction, 0.0);
+      EXPECT_LE(fraction, 1.0);
+      sum += fraction;
+      if (grid > 0)
+      {
+        inventories[ads] += 0.5 * (fraction + column.fractionOfAdsorbent[(grid - 1) * 3 + ads]) *
+                            (column.columnDistances[grid] - column.columnDistances[grid - 1]);
+      }
+    }
+    EXPECT_NEAR(sum, 1.0, 1e-14);
+  }
+  EXPECT_NEAR(inventories[0], 0.06 + 0.02 / 2.0, 1e-14);
+  EXPECT_NEAR(inventories[1], 0.04 + (0.02 + 0.03) / 2.0, 1e-14);
+  EXPECT_NEAR(inventories[2], 0.05 + 0.03 / 2.0, 1e-14);
+}
+
+TEST_F(MultibedInterfaces, SharpInterfacesHaveNoNodesAndBoundaryBelongsUpstream)
+{
+  input["ColumnSections"][1] = {{"InterfaceLength", 0.0}};
+  input["ColumnSections"][3] = {{"InterfaceLength", 0.0}, {"NumberOfGridPoints", 0}};
+  const InputReader reader = readInput();
+  EXPECT_NEAR(reader.columnLength, 0.15, 1e-14);
+  EXPECT_EQ(reader.columnDistances.size(), 11U);
+  MultibedColumn column(reader);
+  column.initialize();
+  for (size_t grid = 0; grid < column.columnDistances.size(); ++grid)
+  {
+    const size_t activeAdsorbent = grid <= 3 ? 0 : (grid <= 5 ? 1 : 2);
+    for (size_t ads = 0; ads < 3; ++ads)
+    {
+      EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[grid * 3 + ads], ads == activeAdsorbent ? 1.0 : 0.0);
+    }
+  }
+}
+
+TEST_F(MultibedInterfaces, EvaluatesFractionsOnGlobalAndExplicitGrids)
+{
+  for (auto& section : input["ColumnSections"]) section.erase("NumberOfGridPoints");
+  input["NumberOfGridPoints"] = 20;
+  const InputReader uniformReader = readInput();
+  EXPECT_EQ(uniformReader.columnDistances.size(), 21U);
+  MultibedColumn uniform(uniformReader);
+  uniform.initialize();
+  EXPECT_NEAR(uniform.columnDistances[7], 0.07, 1e-14);
+  EXPECT_NEAR(uniform.fractionOfAdsorbent[7 * 3], 0.5, 1e-14);
+  EXPECT_NEAR(uniform.fractionOfAdsorbent[7 * 3 + 1], 0.5, 1e-14);
+
+  input["ColumnDistances"] = {0.0, 0.06, 0.065, 0.075, 0.08, 0.12, 0.135, 0.15, 0.20};
+  const InputReader explicitReader = readInput();
+  EXPECT_EQ(explicitReader.numberOfGridPoints, 8U);
+  MultibedColumn explicitColumn(explicitReader);
+  explicitColumn.initialize();
+  EXPECT_NEAR(explicitColumn.fractionOfAdsorbent[2 * 3], 0.75, 1e-14);
+  EXPECT_NEAR(explicitColumn.fractionOfAdsorbent[3 * 3], 0.25, 1e-14);
+  EXPECT_NEAR(explicitColumn.fractionOfAdsorbent[6 * 3 + 1], 0.5, 1e-14);
+  EXPECT_NEAR(explicitColumn.fractionOfAdsorbent[6 * 3 + 2], 0.5, 1e-14);
+  input["ColumnDistances"].back() = 0.15;
+  EXPECT_THROW(readInput(), std::runtime_error);
+}
+
+TEST_F(MultibedInterfaces, SharpBoundaryRemainsUpstreamWithSectionRounding)
+{
+  input["ColumnSections"][0]["NumberOfGridPoints"] = 13;
+  input["ColumnSections"][1] = {{"InterfaceLength", 0.0}};
+  input["ColumnSections"][3] = {{"InterfaceLength", 0.0}};
+  MultibedColumn column(readInput());
+  column.initialize();
+  EXPECT_DOUBLE_EQ(column.columnDistances[13], 0.06);
+  EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[13 * 3], 1.0);
+  EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[13 * 3 + 1], 0.0);
+  EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[14 * 3 + 1], 1.0);
+}
+
+TEST_F(MultibedInterfaces, OneIntervalInterfacesKeepOnlyTheirEndpoints)
+{
+  input["ColumnSections"][1]["NumberOfGridPoints"] = 1;
+  input["ColumnSections"][3]["NumberOfGridPoints"] = 1;
+  const InputReader reader = readInput();
+  EXPECT_EQ(reader.columnDistances.size(), 13U);
+  EXPECT_EQ(reader.adsorbentInterfaceGridPoints, (std::vector<size_t>{1, 1}));
+  MultibedColumn column(reader);
+  column.initialize();
+  EXPECT_NEAR(column.columnDistances[3], 0.06, 1e-14);
+  EXPECT_NEAR(column.columnDistances[4], 0.08, 1e-14);
+  EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[3 * 3], 1.0);
+  EXPECT_NEAR(column.fractionOfAdsorbent[4 * 3 + 1], 1.0, 1e-14);
+}
+
+TEST_F(MultibedInterfaces, SingleAdsorbentHasNoInterfaces)
+{
+  input["Adsorbents"] = nlohmann::json::array({input["Adsorbents"][0]});
+  input["ColumnSections"] = nlohmann::json::array({input["ColumnSections"][0]});
+  const InputReader reader = readInput();
+  EXPECT_DOUBLE_EQ(reader.columnLength, 0.06);
+  EXPECT_EQ(reader.columnDistances.size(), 4U);
+  EXPECT_TRUE(reader.adsorbentInterfaceLengths.empty());
+  EXPECT_TRUE(reader.adsorbentInterfaceGridPoints.empty());
+  MultibedColumn column(reader);
+  column.initialize();
+  for (double fraction : column.fractionOfAdsorbent) EXPECT_DOUBLE_EQ(fraction, 1.0);
+}
+
+TEST_F(MultibedInterfaces, LongInterfacesRemainSeparateFromPureSections)
+{
+  input["ColumnSections"][1]["InterfaceLength"] = 0.2;
+  input["ColumnSections"][3]["InterfaceLength"] = 0.3;
+  MultibedColumn column(readInput());
+  column.initialize();
+  EXPECT_NEAR(column.columnLength, 0.65, 1e-14);
+  EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[3 * 3], 1.0);
+  EXPECT_NEAR(column.fractionOfAdsorbent[4 * 3], 0.5, 1e-14);
+  EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[6 * 3 + 1], 1.0);
+  EXPECT_NEAR(column.fractionOfAdsorbent[8 * 3 + 2], 1.0 / 3.0, 1e-14);
+}
+
+TEST_F(MultibedInterfaces, RejectsIncompleteOrInvalidSectionGridCounts)
+{
+  const auto validSections = input["ColumnSections"];
+  for (bool explicitGrid : {false, true})
+  {
+    if (explicitGrid) input["ColumnDistances"] = {0.0, 0.1, 0.2};
+    for (size_t section = 0; section < validSections.size(); ++section)
+    {
+      SCOPED_TRACE(section);
+      input["ColumnSections"] = validSections;
+      input["ColumnSections"][section].erase("NumberOfGridPoints");
+      EXPECT_THROW(readInput(), std::runtime_error);
+      for (const nlohmann::json& value : {nlohmann::json(0), nlohmann::json(-1), nlohmann::json(1.5)})
+      {
+        input["ColumnSections"][section]["NumberOfGridPoints"] = value;
+        EXPECT_THROW(readInput(), std::runtime_error);
+      }
+    }
+    input["ColumnSections"] = validSections;
+    input["ColumnSections"][1]["InterfaceLength"] = 0.0;
+    EXPECT_THROW(readInput(), std::runtime_error);
+  }
+  input.erase("ColumnDistances");
+  for (auto& section : input["ColumnSections"]) section.erase("NumberOfGridPoints");
+  input["ColumnSections"][1]["InterfaceLength"] = 0.02;
+  input["ColumnSections"][1]["NumberOfGridPoints"] = 2;
+  EXPECT_THROW(readInput(), std::runtime_error);
+}
+
+TEST_F(MultibedInterfaces, RejectsNegativeLengthsAndMisplacedInterfaces)
+{
+  const auto validSections = input["ColumnSections"];
+  input["ColumnSections"][1]["InterfaceLength"] = -0.01;
+  EXPECT_THROW(readInput(), std::runtime_error);
+  input["ColumnSections"] = validSections;
+  std::swap(input["ColumnSections"][0], input["ColumnSections"][1]);
+  EXPECT_THROW(readInput(), std::runtime_error);
+  input["ColumnSections"] = validSections;
+  std::swap(input["ColumnSections"][1], input["ColumnSections"][2]);
+  EXPECT_THROW(readInput(), std::runtime_error);
+}
+
 TEST(MultibedExamples, ParseAndAdvanceWithAdsorbentSpecificParameters)
 {
   const std::vector<std::pair<std::string, size_t>> examples = {

@@ -91,6 +91,15 @@ void validateAdsorbentVectors(const MultibedColumn& column)
   {
     throw std::runtime_error("Error: AdsorbentInterfaceLengths size must equal numberOfAdsorbents - 1");
   }
+  if (column.adsorbentMixFractions.empty() &&
+      column.adsorbentInterfaceGridPoints.size() != column.numberOfAdsorbents - 1)
+  {
+    throw std::runtime_error("Error: AdsorbentInterfaceGridPoints size must equal numberOfAdsorbents - 1");
+  }
+  if (std::ranges::any_of(column.adsorbentInterfaceLengths, [](double length) { return length < 0.0; }))
+  {
+    throw std::runtime_error("Error: interface lengths must be non-negative");
+  }
   if (!column.adsorbentMixFractions.empty())
   {
     if (!column.adsorbentLengths.empty())
@@ -239,6 +248,7 @@ MultibedColumn::MultibedColumn(const MultibedColumn& other)
       adsorbentInterfaceLengths(other.adsorbentInterfaceLengths),
       adsorbentMixFractions(other.adsorbentMixFractions),
       adsorbentGridPoints(other.adsorbentGridPoints),
+      adsorbentInterfaceGridPoints(other.adsorbentInterfaceGridPoints),
       adsorbentVoidFractions(other.adsorbentVoidFractions),
       particleDensities(other.particleDensities),
       particleDiameters(other.particleDiameters),
@@ -330,6 +340,7 @@ MultibedColumn& MultibedColumn::operator=(const MultibedColumn& other)
   adsorbentInterfaceLengths = other.adsorbentInterfaceLengths;
   adsorbentMixFractions = other.adsorbentMixFractions;
   adsorbentGridPoints = other.adsorbentGridPoints;
+  adsorbentInterfaceGridPoints = other.adsorbentInterfaceGridPoints;
   adsorbentVoidFractions = other.adsorbentVoidFractions;
   particleDensities = other.particleDensities;
   particleDiameters = other.particleDiameters;
@@ -402,15 +413,16 @@ void MultibedColumn::initialize()
 {
   validateAdsorbentVectors(*this);
 
-  std::vector<double> boundaries;
+  std::vector<double> interfaceStarts;
   if (adsorbentMixFractions.empty())
   {
-    boundaries.assign(numberOfAdsorbents > 1 ? numberOfAdsorbents - 1 : 0, 0.0);
+    interfaceStarts.resize(adsorbentInterfaceLengths.size());
     double cumulativeLength = 0.0;
     for (size_t ads = 0; ads + 1 < numberOfAdsorbents; ++ads)
     {
       cumulativeLength += adsorbentLengths[ads];
-      boundaries[ads] = cumulativeLength;
+      interfaceStarts[ads] = cumulativeLength;
+      cumulativeLength += adsorbentInterfaceLengths[ads];
     }
   }
 
@@ -429,7 +441,7 @@ void MultibedColumn::initialize()
     else
     {
       size_t region = 0;
-      while (region + 1 < numberOfAdsorbents && z > boundaries[region])
+      while (region + 1 < numberOfAdsorbents && z > interfaceStarts[region] + adsorbentInterfaceLengths[region])
       {
         ++region;
       }
@@ -439,25 +451,14 @@ void MultibedColumn::initialize()
         fractionOfAdsorbent[base + ads] = ads == region ? 1.0 : 0.0;
       }
 
-      for (size_t interface = 0; interface < adsorbentInterfaceLengths.size(); ++interface)
+      if (region + 1 < numberOfAdsorbents && z > interfaceStarts[region] && adsorbentInterfaceLengths[region] > 0.0)
       {
-        const double interfaceLength = adsorbentInterfaceLengths[interface];
-        if (interfaceLength <= 0.0) continue;
-
-        const double start = std::max(0.0, boundaries[interface] - 0.5 * interfaceLength);
-        const double end = std::min(columnLength, boundaries[interface] + 0.5 * interfaceLength);
-        if (z < start || z > end || end <= start) continue;
-
-        const double rightFraction = (z - start) / (end - start);
-        fractionOfAdsorbent[base + interface] = 1.0 - rightFraction;
-        fractionOfAdsorbent[base + interface + 1] = rightFraction;
-        for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
-        {
-          if (ads != interface && ads != interface + 1)
-          {
-            fractionOfAdsorbent[base + ads] = 0.0;
-          }
-        }
+        const double rightFraction =
+            z == interfaceStarts[region] + adsorbentInterfaceLengths[region]
+                ? 1.0
+                : std::clamp((z - interfaceStarts[region]) / adsorbentInterfaceLengths[region], 0.0, 1.0);
+        fractionOfAdsorbent[base + region] = 1.0 - rightFraction;
+        fractionOfAdsorbent[base + region + 1] = rightFraction;
       }
     }
 

@@ -591,3 +591,43 @@ TEST(MixturePrediction, SCISupportedModelsReduceToPureSiteLoadingWithoutCompetit
     EXPECT_DOUBLE_EQ(loadings[1], 0.0);
   }
 }
+
+TEST(MixturePrediction, AdsorbingCarrierParticipatesInEveryAnalyticalMethod)
+{
+  const Isotherm physical(Isotherm::Type::Langmuir, {2.0, 1.0e-5}, false);
+  for (size_t method = 0; method <= 5; ++method)
+  {
+    SCOPED_TRACE(method);
+    std::vector<Component> components;
+    components.emplace_back(0, "carrier", std::vector<Isotherm>{physical}, 0.8, 0.1, 0.0, true);
+    components.emplace_back(1, "adsorbate", std::vector<Isotherm>{physical}, 0.2, 0.1, 0.0);
+    MixturePrediction prediction("adsorbing carrier", components, 1, 0, 300, 1, 1e5, 2, 0, method, 0);
+    std::vector<double> fractions(2), loadings(2), cachedPressure(2), cachedPotential(1);
+    double temperature = 300;
+    prediction.predictMixture(std::vector<double>{0.8, 0.2}, 1e5, fractions, loadings, cachedPressure,
+                              cachedPotential, temperature);
+    EXPECT_NEAR(loadings[0], method == 5 ? 2.0 * 0.8 / 1.8 : 0.8, 1e-10);
+    EXPECT_NEAR(loadings[1], method == 5 ? 2.0 * 0.2 / 1.2 : 0.2, 1e-10);
+  }
+}
+
+TEST(MixturePrediction, CarrierWithOnlyChemisorptionHasChemicalEquilibrium)
+{
+  std::vector<Component> components;
+  components.emplace_back(0, "carrier", std::vector<Isotherm>{}, 0.8, 0.1, 0.0, true);
+  components.emplace_back(1, "adsorbate", std::vector<Isotherm>{Isotherm(Isotherm::Type::Langmuir, {2.0, 1e-5}, false)},
+                          0.2, 0.1, 0.0);
+  Chemisorption site;
+  site.type = Chemisorption::Type::FirstOrder;
+  site.isotherm = Isotherm(Isotherm::Type::Langmuir, {1.0, 2e-5}, false);
+  components[0].chemisorption.add(site);
+  MixturePrediction physical("chemical carrier", components, 1, 0, 300, 1, 1e5, 2, 0, 5, 0);
+  EXPECT_TRUE(physical.hasChemisorptionEquilibrium());
+  auto chemical = MixturePrediction::makeChemisorptionPrediction(physical, components);
+  std::vector<double> fractions(2), loadings(2), cachedPressure(2), cachedPotential(1);
+  double temperature = 300;
+  chemical.predictMixture(std::vector<double>{0.8, 0.2}, 1e5, fractions, loadings, cachedPressure,
+                           cachedPotential, temperature);
+  EXPECT_NEAR(loadings[0], 1.6 / 2.6, 1e-12);
+  EXPECT_DOUBLE_EQ(loadings[1], 0.0);
+}

@@ -153,33 +153,139 @@ cd examples/Silicalite-CO2-N2/breakthrough/Langmuir<br>
 ./run
 ```
 
-Qt Application
-==============
-The command-line executable is always built from `src/main.cpp`. The optional
-native Qt application lives in `app/` and provides widgets for creating components,
-columns, simulations, running the local `ruptura` executable, and opening an
-analysis notebook.
+Ruptura Lab (local web application)
+===================================
+Ruptura Lab is a browser workspace for configuring simulations, running the local
+C++ engine, and exploring its results with the same Plotly functions used by the
+analysis notebooks. It supports gas and liquid breakthrough, swing adsorption,
+analytical mixture prediction, chemisorption, reactions, and multibed columns.
+MPD and fitting remain CLI-only.
 
-Build it with Qt 6 Widgets available:
+The workspace opens in dark mode with the Ruptura molecular logo. Built-in paper
+examples include Marx T15 (CO₂/N₂/H₂ with the energy balance), seven C₇ alkane
+isomers on BEA, and one 400 ppm monolith at 2 mmol/s. They are
+added once to new and existing workspaces, preserving your edits and selection;
+removed examples stay removed. More copies are available under New simulation →
+From the paper. Inputs ship with the app and use CVODE; see the
+[preset notes](ruptura/webapp/presets/README.md) for source inputs and output settings.
 
+Examples use numbered names (`Example 1: …`), while new simulations and copies
+receive sequential names such as `untitled_1`. The generic Quick start choices
+keep their original names. Quick start includes a JSON paste
+box that validates an input before creating a simulation. The question-mark
+buttons beside the field reset controls explain each setting on hover, keyboard
+focus, or tap.
+
+Import accepts files or pasted workspace JSON and adds their simulations to the
+current workspace. Each experiment in the workspace has a three-dot menu with
+Delete, Duplicate, and Copy simulation JSON actions. Duplicate creates a new
+simulation with an independent copy of all settings and notes. Copy simulation
+JSON puts the complete input on the clipboard.
+
+The left sidebar lists simulations. Selecting one opens its settings in the main
+panel, with tabs for setup, components, column, reactions, notes, and input JSON.
+Each simulation contains its own component properties, isotherms, adsorption heats,
+column geometry, adsorbent beds, and reaction network. Editing one simulation does
+not change another. New components, beds, and reactions are configured directly
+inside the selected simulation.
+
+Previously saved modular workspaces are converted automatically: shared values
+and local overrides are resolved into complete, independent simulation inputs.
+Simulation IDs, notes, selection, and run associations are retained. Workspace
+exports save these independent simulations; simulation exports and run snapshots
+remain standalone CLI JSON.
+
+About opens on launch and when clicking the logo. It includes the original
+publication, author credits, contact information, a full MIT license dialog, and
+a downloadable BibTeX citation. Example references live in the experiment's Notes
+tab. Settings offers dark and light themes, remembered in the browser and applied
+to interactive plots.
+
+Notes use a large, resizable editor. Carrier gas selects the initial column gas;
+it may also have physisorption and chemisorption sites. When the saved run enables
+the energy balance, Results opens with breakthrough and temperature curves stacked
+vertically at the selected column position.
+
+In Column profiles, choose Position or Time for the x-axis. The other coordinate
+becomes a slider above the plot. Set Frames per second (1–60) for playback and use
+Download MP4 to export the animation with the selected metric, components, units,
+and theme. Exports keep fixed axis limits across frames and use the viewer's saved
+frames, including its sampling for large runs. MP4 export uses Matplotlib and
+FFmpeg; `ruptura[web]` includes Matplotlib and an FFmpeg package, and an existing
+`ffmpeg` on PATH is also supported.
+
+Install the plotting dependencies with the Python package:
+
+```sh
+pip install ".[web]"
+ruptura-lab
 ```
-cmake . -B build -DBUILD_APP=ON
+
+For development from this checkout, use an environment containing NumPy, pandas,
+and Plotly, and point it at a built CLI:
+
+```sh
+python -m ruptura.webapp --cli ./build/ruptura
+```
+
+The browser opens `http://127.0.0.1:8765`. Use `--no-browser` to print the address,
+`--port 0` to choose an available port, or `--workspace /path/to/project` to select
+a workspace. The service accepts local connections only and serves its Plotly
+JavaScript locally; viewing results does not require internet access or Jupyter.
+
+A native launcher can also be built without Qt:
+
+```sh
+cmake -S . -B build -DBUILD_APP=ON
 cmake --build build --target ruptura_lab
-```
-
-Run:
-
-```
 ./build/app/ruptura_lab
 ```
 
-Each run immediately receives an `analysis.ipynb` tailored to mixture prediction,
-breakthrough, or fitting. The Analysis button opens that notebook in Jupyter Lab
-without replacing any edits. Simulation run directories are created under
-`simulations/` in the current working directory. The Load JSON button can import
-an existing single-simulation `ruptura` JSON file into the editable app state.
-Save State writes a separate Ruptura Lab state JSON format that preserves all
-components, columns, and multiple simulations.
+The launcher uses `python3` on `PATH`, or the interpreter configured with
+`-DRUPTURA_LAB_PYTHON_EXECUTABLE=/path/to/environment/bin/python` (the Python module's
+interpreter is reused when `BUILD_PYTHON=ON`). Set `RUPTURA_PYTHON_EXECUTABLE` to
+override it at launch. Set `RUPTURA_CLI_EXECUTABLE`, pass
+`--cli`, or choose the engine in Settings to select a different `ruptura` binary.
+The CLI must include the `--capabilities` and `--validate` commands provided by
+this version; rebuild an older executable before using it with the web app.
+
+The editor preserves the complete simulation JSON, including settings that are
+edited through the Input JSON tab. Import accepts simulation JSON and saved Qt
+or web Lab workspaces. The server-side file browser resolves relative resources
+against the imported file's directory; browser uploads resolve them against the
+workspace. Workspace edits are saved to `.ruptura-lab/state.json` and can also be
+downloaded using Save workspace. Saved Qt libraries are retained in the exported
+workspace, and each migrated simulation has its own editable input.
+
+Each queued run receives an immutable `simulation.json` snapshot under
+`simulations/`, its own log, and an editable `analysis.ipynb`. Results include
+breakthrough curves, pure and mixture isotherms, chemisorption and total loadings,
+temperature histories, and a column explorer with metric, component, position,
+and time controls. Large column files are streamed and frame indices are sampled
+to bound memory. Interactive HTML reports, notebooks, inputs, and raw output files
+can be downloaded from Results.
+
+Submitting a simulation opens Run log and keeps it visible when the run finishes.
+Open Results when ready to explore the output; each component checkbox controls
+its curve directly, including a component marked as carrier gas.
+
+Closing the browser tab leaves the local server and runs active. Press Ctrl+C in
+the server terminal to stop it and cancel queued or active jobs. On restart,
+saved outputs remain available and previously active jobs are marked interrupted.
+The optional legacy Qt application is available with `-DBUILD_QT_APP=ON` as the
+`ruptura_lab_qt` target.
+
+Web integration tests:
+
+```sh
+python -m pytest tests/webapp_test.py tests/plot_breakthrough_test.py tests/plot_mixture_test.py
+```
+
+For an optional browser check, install Playwright and its Chromium browser, then
+run `python tests/webapp_browser_smoke.py`. It launches a disposable workspace,
+checks editing, simulation runs, plots, downloads, autosave, mobile layout, and
+cancellation, then stops its server. Use `--launcher /path/to/ruptura_lab` to
+check an installed launcher.
 
 Running the `ruptura` command-line binary also creates the matching
 `analysis.ipynb` beside `simulation.json`. If the notebook already exists, the
@@ -226,8 +332,10 @@ k_pH = k / (1 + 10^(pH0 - pH))
 
 Use `MixturePredictionMethod: "SPI"` with this isotherm. A constant-pH liquid
 uses `pHMode: "Fixed"` and `pHValue`. For a transported acid or base front, use
-`pHMode: "HPlus"` or `"OHMinus"`, name the concentration component with
-`pHComponent`, and optionally set `pKw` (default 14). The concentration is
+`pHMode: "HPlus"` or `"OHMinus"`, select the concentration component with
+`pHComponent`, a zero-based integer component identifier (for example,
+`"pHComponent": 0` selects the first entry in `Components`), and optionally
+set `pKw` (default 14). The concentration is
 converted from mol/m3 when calculating pH.
 
 Complete single-column and multibed inputs are in

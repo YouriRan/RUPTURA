@@ -226,12 +226,9 @@ MixturePrediction MixturePrediction::makeChemisorptionPrediction(
     Component& chemicalComponent = chemicalComponents[comp];
     chemicalComponent.isotherm = MultiSiteIsotherm{};
 
-    if (!sourceComponents[comp].isCarrierGas)
+    for (const Chemisorption& kinetics : sourceComponents[comp].chemisorption.sites)
     {
-      for (const Chemisorption& kinetics : sourceComponents[comp].chemisorption.sites)
-      {
-        if (kinetics.isotherm.has_value()) chemicalComponent.isotherm.add(*kinetics.isotherm);
-      }
+      if (kinetics.isotherm.has_value()) chemicalComponent.isotherm.add(*kinetics.isotherm);
     }
 
     chemicalComponent.isCarrierGas = chemicalComponent.isotherm.sites.empty();
@@ -272,7 +269,6 @@ bool MixturePrediction::hasChemisorptionEquilibrium() const noexcept
   return std::any_of(components.begin(), components.end(),
                      [](const Component& component)
                      {
-                       if (component.isCarrierGas) return false;
                        return std::any_of(component.chemisorption.sites.begin(), component.chemisorption.sites.end(),
                                           [](const Chemisorption& site) { return site.isotherm.has_value(); });
                      });
@@ -1941,6 +1937,24 @@ void MixturePrediction::printErrorStatus(double psi_value, double sum, double ex
 
 void MixturePrediction::sortComponents()
 {
+  // CarrierGas chooses the initial column gas. An explicitly adsorbing carrier
+  // participates in analytical equilibrium like every other adsorbate.
+  if (predictionMethod != PredictionMethod::MPD)
+  {
+    for (Component& component : components)
+    {
+      const bool adsorbs = std::any_of(component.isotherm.sites.begin(), component.isotherm.sites.end(),
+                                      [](const Isotherm& site)
+                                      {
+                                        // The legacy non-adsorbing carrier has a unit-capacity,
+                                        // zero-affinity Langmuir placeholder.
+                                        return site.enabled() &&
+                                               !(site.type == Isotherm::Type::Langmuir && site.parameters[1] == 0.0);
+                                      });
+      if (adsorbs) component.isCarrierGas = false;
+    }
+    sortedComponents = components;
+  }
   const auto isActiveAdsorbate = [this](const Component& component)
   {
     return !component.isCarrierGas &&

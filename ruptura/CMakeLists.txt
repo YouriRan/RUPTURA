@@ -106,6 +106,12 @@ else()
     COMPONENT python
     FILES_MATCHING
     PATTERN "*.py"
+    PATTERN "*.html"
+    PATTERN "*.css"
+    PATTERN "*.js"
+    PATTERN "LICENSE.txt"
+    PATTERN "*.png"
+    PATTERN "*.json"
     PATTERN "__pycache__" EXCLUDE
   )
 endif()

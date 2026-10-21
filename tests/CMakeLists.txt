@@ -37,3 +37,24 @@ include(GoogleTest)
 gtest_discover_tests(ruptura_tests
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
 )
+
+# A small method harness independent of column physics and SUNDIALS.
+add_executable(ruptura_ros3_tests
+  ros3_tests.cpp
+  ../src/integrators/ros3.cpp
+)
+target_include_directories(ruptura_ros3_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_compile_options(ruptura_ros3_tests PRIVATE ${RUPTURA_COMPILE_OPTIONS} -fno-fast-math)
+target_link_libraries(ruptura_ros3_tests PRIVATE ${LAPACK_LIBRARIES} GTest::gtest_main)
+gtest_discover_tests(ruptura_ros3_tests)
+
+if(TARGET ruptura_lab_support)
+  add_executable(ruptura_lab_tests lab_input_tests.cpp)
+  target_link_libraries(ruptura_lab_tests PRIVATE ruptura_lab_support GTest::gtest)
+  target_compile_definitions(ruptura_lab_tests PRIVATE RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
+  if(TARGET ruptura)
+    target_compile_definitions(ruptura_lab_tests PRIVATE LAB_CLI_EXECUTABLE="$<TARGET_FILE:ruptura>")
+  endif()
+  add_test(NAME RupturaLab.InputCompatibility COMMAND ruptura_lab_tests)
+  set_tests_properties(RupturaLab.InputCompatibility PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+endif()

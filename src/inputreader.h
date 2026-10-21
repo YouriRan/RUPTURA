@@ -86,7 +86,7 @@ struct InputReader
   size_t boundaryCondition{0};                                  ///< The breakthrough boundary condition.
   size_t fluidPhase{0};                                         ///< 0 = gas, 1 = incompressible liquid.
   size_t pHMode{0};                                             ///< 0 = fixed, 1 = H+, 2 = OH-.
-  size_t pHComponent{0};                                        ///< Transported acid/base component index.
+  size_t pHComponent{0};                                        ///< Zero-based acid/base component identifier.
   std::string displayName{"Column"};                            ///< The display name for the simulation.
   bool debugForceMultibed{false};  ///< Forces the multibed column implementation for one adsorbent.
 
@@ -107,6 +107,7 @@ struct InputReader
 
   std::vector<double> adsorbentLengths;            ///< Pure adsorbent-region lengths in m; empty for a uniform mix.
   std::vector<double> adsorbentInterfaceLengths;   ///< Linear interface lengths between adsorbents in m.
+  std::vector<size_t> adsorbentInterfaceGridPoints;  ///< Intervals per interface; zero for sharp interfaces.
   std::vector<double> adsorbentMixFractions;       ///< Uniform adsorbent volume fractions over the whole column.
   std::vector<size_t> adsorbentGridPoints;          ///< Spatial grid intervals per adsorbent section.
   std::vector<double> adsorbentVoidFractions;      ///< Packed-bed void fractions per adsorbent.

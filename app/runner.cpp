@@ -15,6 +15,7 @@
 #include <algorithm>
 
 #include "notebook_templates.h"
+#include "simulationinput.h"
 
 #ifndef RUPTURA_CLI_EXECUTABLE
 #define RUPTURA_CLI_EXECUTABLE "ruptura"
@@ -73,15 +74,11 @@ RupturaRunner::RupturaRunner(QObject* parent) : QObject(parent)
 {
   qRegisterMetaType<RupturaRunner::RunRecord>("RupturaRunner::RunRecord");
   repoRoot_ = QString::fromUtf8(RUPTURA_SOURCE_DIR);
-  cliExecutable_ = QString::fromUtf8(RUPTURA_CLI_EXECUTABLE);
+  cliExecutable_ = LabInput::findCli(QCoreApplication::applicationDirPath(), QString::fromUtf8(RUPTURA_CLI_EXECUTABLE));
 
   if (repoRoot_.isEmpty())
   {
     repoRoot_ = QDir::currentPath();
-  }
-  if (cliExecutable_.isEmpty())
-  {
-    cliExecutable_ = QStandardPaths::findExecutable("ruptura");
   }
 }
 
@@ -116,7 +113,7 @@ void RupturaRunner::rememberRun(const RunRecord& record)
   }
 }
 
-bool RupturaRunner::startRun(const QJsonObject& simulation, QString* errorMessage)
+bool RupturaRunner::startRun(const QJsonObject& input, QString* errorMessage)
 {
   if (isRunning())
   {
@@ -126,6 +123,14 @@ bool RupturaRunner::startRun(const QJsonObject& simulation, QString* errorMessag
     }
     return false;
   }
+
+  if (cliExecutable_.isEmpty())
+  {
+    if (errorMessage) *errorMessage = "Could not find ruptura. Install it beside Ruptura Lab, add it to PATH, or set RUPTURA_CLI_EXECUTABLE.";
+    return false;
+  }
+  const QJsonObject simulation = LabInput::resolveFiles(input, QDir::currentPath());
+  if (!LabInput::validate(simulation, errorMessage)) return false;
 
   const QString displayName = simulation.value("DisplayName").toString("experiment");
   const QString runId = nextRunId(displayName);
@@ -159,7 +164,12 @@ bool RupturaRunner::startRun(const QJsonObject& simulation, QString* errorMessag
     }
     return false;
   }
-  simulationFile.write(QJsonDocument(simulation).toJson(QJsonDocument::Indented));
+  const QByteArray simulationData = QJsonDocument(simulation).toJson(QJsonDocument::Indented);
+  if (simulationFile.write(simulationData) != simulationData.size())
+  {
+    if (errorMessage) *errorMessage = "Could not finish writing simulation.json: " + simulationFile.errorString();
+    return false;
+  }
   simulationFile.close();
 
   if (!ensureDefaultNotebook(record.notebookPath, simulation, record.id, repoRoot_, record.directory, errorMessage))

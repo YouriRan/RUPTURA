@@ -5,9 +5,11 @@
 #include "timing.h"
 
 /**
- * \brief Semi-implicit third-order Runge-Kutta integrator.
+ * \brief Legacy split semi-implicit column integrator, selected by SIRK3.
  *
- * Stores time-step settings and advances stiff concentration terms with linear solves.
+ * This column path predates the verified ROS3 kernel in ros3.h and is not third order
+ * even for constant-equilibrium scalar LDF relaxation. Migration requires the shared
+ * column RHS and its analytical Jacobian; see docs/SIRK3_ANALYTIC_JACOBIAN_PLAN.md.
  */
 struct SemiImplicitRungeKutta3
 {
