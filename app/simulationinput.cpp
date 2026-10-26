@@ -24,7 +24,7 @@ QString canonicalKey(const QString& key)
       "InletPressure OutletPressure PressureStart PressureEnd NumberOfPressurePoints PressureGradient "
       "ColumnEntranceVelocity NumberOfInitTimeSteps TimeStep CVODERelativeTolerance "
       "CVODEAbsoluteToleranceConcentration CVODEAbsoluteToleranceLoading CVODEAbsoluteToleranceTemperature "
-      "CVODEMaximumTimeStep CVODELinearSolver CVODEKrylovDimension PrintEvery WriteEvery ColumnLength "
+      "CVODEMaximumTimeStep CVODEMaximumOrder CVODELinearSolver CVODEKrylovDimension PrintEvery WriteEvery ColumnLength "
       "ColumnDistances NumberOfGridPoints ColumnPressure ColumnLoading ColumnError NumberOfTimeSteps Geometry "
       "InfluxTemperature wallDensity gasThermalConductivity wallThermalConductivity heatTransferGasWall "
       "heatTransferGasSolid heatTransferWallExternal heatCapacityGas liquidThermalConductivity "

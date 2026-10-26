@@ -124,9 +124,11 @@ void Breakthrough<ColumnType>::run()
     {
       const double stepTime = realTime;
 
+      // Written before the step, so that each snapshot is labelled with the time of the state it holds.
       if (step % writeEvery == 0)
       {
         column.writeJSON("column.json");
+        column.writeOutput(componentStreams, columnStream, stepTime);
       }
 
       switch (integrationScheme)
@@ -178,10 +180,6 @@ void Breakthrough<ColumnType>::run()
         cvode.timeStep = timeStep;
       }
 
-      if (step % writeEvery == 0)
-      {
-        column.writeOutput(componentStreams, columnStream, stepTime);
-      }
       if (step % printEvery == 0)
       {
         std::print("Timestep {}, time: {:6.5f} [s]\n", step, stepTime);
@@ -197,6 +195,8 @@ void Breakthrough<ColumnType>::run()
     column.writeJSON("failed_state.json");
     throw;
   }
+
+  column.writeOutput(componentStreams, columnStream, realTime);
 
   std::print("Final timestep {}, time: {:6.5f} [s]\n\n", step, realTime);
   timings.print();

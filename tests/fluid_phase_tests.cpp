@@ -13,13 +13,14 @@
 #include "json.h"
 #include "mixture_prediction.h"
 #include "timing.h"
+#include "temporary_directory.h"
 
 namespace
 {
 struct TransportedPHInput
 {
   std::filesystem::path path =
-      std::filesystem::temp_directory_path() /
+      testTemporaryDirectory() /
       (std::string{"ruptura_"} + ::testing::UnitTest::GetInstance()->current_test_info()->name() + ".json");
   nlohmann::json data;
 
@@ -161,6 +162,14 @@ TEST(GasBreakthroughRegression, ExistingColumnCvodePathRetainsItsOutcome)
   ASSERT_EQ(column.fluidPhase, Column::FluidPhase::Gas);
 
   CVODE integrator(reader.timeStep, false, 1);
+  // The tolerances of the reference values (the CVODE defaults when they were recorded), so that later changes of
+  // the defaults do not move them.
+#if BUILD_SUNDIALS
+  integrator.relativeTolerance = 1.0e-3;
+  integrator.absoluteToleranceConcentration = 1.0e-6;
+  integrator.absoluteToleranceLoading = 1.0e-6;
+  integrator.absoluteToleranceTemperature = 1.0e-6;
+#endif
   Timing timing;
   integrator.initialize(column);
   ASSERT_TRUE(integrator.propagate(column, 0, timing));
@@ -238,6 +247,13 @@ TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInMultibedColumn)
   }
 
   CVODE integrator(reader.timeStep, false, 1);
+  // The tolerances of the reference value (the CVODE defaults when it was recorded).
+#if BUILD_SUNDIALS
+  integrator.relativeTolerance = 1.0e-3;
+  integrator.absoluteToleranceConcentration = 1.0e-6;
+  integrator.absoluteToleranceLoading = 1.0e-6;
+  integrator.absoluteToleranceTemperature = 1.0e-6;
+#endif
   Timing timing;
   integrator.initialize(column);
   ASSERT_TRUE(integrator.propagate(column, 0, timing));

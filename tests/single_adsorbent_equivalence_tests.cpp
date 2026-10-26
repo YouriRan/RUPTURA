@@ -105,9 +105,15 @@ void expectNumericallyEqual(const Left& left, const Right& right, const char* qu
   const std::span<const double> leftValues{left};
   const std::span<const double> rightValues{right};
   ASSERT_EQ(leftValues.size(), rightValues.size());
+  // Relative to the largest entry of the field: near-zero entries (e.g. derivatives) result from cancelling
+  // terms of the field's magnitude, so their rounding error under -ffast-math scales with that magnitude.
+  double scale = 0.0;
   for (size_t index = 0; index < leftValues.size(); ++index)
   {
-    const double scale = std::max(std::abs(leftValues[index]), std::abs(rightValues[index]));
+    scale = std::max({scale, std::abs(leftValues[index]), std::abs(rightValues[index])});
+  }
+  for (size_t index = 0; index < leftValues.size(); ++index)
+  {
     ASSERT_NEAR(leftValues[index], rightValues[index], absoluteTolerance + relativeTolerance * scale)
         << "index " << index;
   }

@@ -68,6 +68,7 @@ struct CVODE
         absoluteToleranceLoading(inputReader.cvodeAbsoluteToleranceLoading),
         absoluteToleranceTemperature(inputReader.cvodeAbsoluteToleranceTemperature),
         maximumTimeStep(inputReader.cvodeMaximumTimeStep),
+        maximumOrder(static_cast<int>(inputReader.cvodeMaximumOrder)),
         linearSolverType(inputReader.cvodeLinearSolver == 1 ? LinearSolverType::SPGMR : LinearSolverType::Dense),
         krylovDimension(static_cast<int>(inputReader.cvodeKrylovDimension))
 #endif
@@ -125,6 +126,7 @@ struct CVODE
   /// zero leaves CVODE uncapped, positive is used verbatim.
   double maximumTimeStep = -1.0;
   double appliedMaximumTimeStep = 0.0;  ///< Step cap actually handed to CVODE in s; 0 when uncapped.
+  int maximumOrder = 5;                 ///< Maximum BDF order (1-5); CVODE's default is 5.
 
   LinearSolverType linearSolverType = LinearSolverType::Dense;  ///< Selected linear solver.
   int krylovDimension = 30;                                     ///< SPGMR Krylov subspace dimension.

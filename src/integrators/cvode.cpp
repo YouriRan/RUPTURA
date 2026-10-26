@@ -207,6 +207,9 @@ void initializeCVODE(CVODE& integrator, ColumnType& column, EvaluationFunction e
   flag = CVodeSVtolerances(integrator.cvodeMem, integrator.relativeTolerance, integrator.absoluteToleranceVector);
   if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSVtolerances failed");
 
+  flag = CVodeSetMaxOrd(integrator.cvodeMem, integrator.maximumOrder);
+  if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSetMaxOrd failed");
+
   integrator.appliedMaximumTimeStep = resolveMaximumTimeStep(integrator, column);
   if (integrator.appliedMaximumTimeStep > 0.0)
   {

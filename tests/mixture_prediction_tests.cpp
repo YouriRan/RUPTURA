@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -13,12 +14,13 @@
 #include "macrostate_particle_distribution.h"
 #include "mixture_prediction.h"
 #include "multi_site_isotherm.h"
+#include "temporary_directory.h"
 
 namespace
 {
 std::filesystem::path mpdTemporaryPath(const std::string& name)
 {
-  return std::filesystem::temp_directory_path() / ("ruptura_mpd_" + name);
+  return testTemporaryDirectory() / ("ruptura_mpd_" + name);
 }
 
 void writeMPDFile(const std::filesystem::path& path, const std::string& contents)
@@ -63,6 +65,85 @@ TEST(Isotherm, GABImplementsElfvingEquationsFiveThroughSeven)
       ((1.0 - secondK * secondRelativePressure) *
        (1.0 + secondK * secondRelativePressure * (secondC - 1.0)));
   EXPECT_NEAR(gabWithTemperatureDependentK.value(secondPressure, secondScale), secondExpected, 1.0e-13);
+}
+
+TEST(Isotherm, UnilanLoadingAndSpreadingPressureFollowTheUnilanForm)
+{
+  constexpr double saturationLoading = 3.0;
+  constexpr double affinity = 2.0e-5;
+  constexpr double heterogeneity = 1.5;
+  const Isotherm unilan(Isotherm::Type::Unilan, {saturationLoading, affinity, heterogeneity}, false);
+
+  constexpr double pressure = 4.0e4;
+  const double expected = saturationLoading / (2.0 * heterogeneity) *
+                          std::log((1.0 + affinity * std::exp(heterogeneity) * pressure) /
+                                   (1.0 + affinity * std::exp(-heterogeneity) * pressure));
+  EXPECT_NEAR(unilan.value(pressure, 1.0), expected, 1.0e-13);
+  EXPECT_GT(unilan.value(pressure, 1.0), 0.0);
+
+  // psi(p) = integral of q(p')/p' dp' from 0 to p, here by the midpoint rule in ln p'.
+  constexpr size_t intervals = 200000;
+  const double lowerLogPressure = std::log(pressure) - 40.0;
+  const double width = (std::log(pressure) - lowerLogPressure) / static_cast<double>(intervals);
+  double integral = 0.0;
+  for (size_t i = 0; i < intervals; ++i)
+  {
+    integral += unilan.value(std::exp(lowerLogPressure + (static_cast<double>(i) + 0.5) * width), 1.0) * width;
+  }
+  EXPECT_NEAR(unilan.psiForPressure(pressure, 1.0), integral, 1.0e-8 * integral);
+}
+
+TEST(Isotherm, FreundlichPhysicalityChecksOnlyItsTwoParameters)
+{
+  EXPECT_FALSE(Isotherm(Isotherm::Type::Freundlich, {0.5, 2.0}, false).isUnphysical());
+  EXPECT_TRUE(Isotherm(Isotherm::Type::Freundlich, {-0.5, 2.0}, false).isUnphysical());
+  EXPECT_TRUE(Isotherm(Isotherm::Type::Freundlich, {0.5, -2.0}, false).isUnphysical());
+}
+
+TEST(MixturePrediction, SPIAndSCIPassTemperatureScaleToToth)
+{
+  const std::vector<Isotherm> firstSites{Isotherm(Isotherm::Type::Toth, {2.0, 1.0e-5, 0.6}, true)};
+  const std::vector<Isotherm> secondSites{Isotherm(Isotherm::Type::Toth, {1.5, 4.0e-6, 0.6}, true)};
+  std::vector<Component> components;
+  components.emplace_back(0, "first", firstSites, 0.25, 1.0, 0.0);
+  components.emplace_back(1, "second", secondSites, 0.75, 1.0, 0.0);
+  for (Component& component : components)
+  {
+    component.nonIsothermal = true;
+    component.referenceTemperature = 300.0;
+  }
+  components[0].heatOfAdsorption = 30000.0;
+  components[1].heatOfAdsorption = 20000.0;
+
+  constexpr double pressure = 1.0e5;
+  const std::vector<double> gasFractions{0.25, 0.75};
+  double temperature = 340.0;
+  const std::array<double, 2> scales{components[0].scale(temperature), components[1].scale(temperature)};
+  ASSERT_LT(scales[0], 0.5);
+  ASSERT_LT(scales[1], 0.5);
+
+  std::vector<double> adsorbedFractions(2, 0.0);
+  std::vector<double> loadings(2, 0.0);
+  std::vector<double> cachedPressure(2, 0.0);
+  std::vector<double> cachedGrandPotential(1, 0.0);
+
+  MixturePrediction spi("SPI Toth", components, 0, 0, 300.0, 1.0e3, 1.0e5, 2, 0,
+                        static_cast<size_t>(MixturePrediction::PredictionMethod::SPI), 0);
+  spi.predictMixture(gasFractions, pressure, adsorbedFractions, loadings, cachedPressure, cachedGrandPotential,
+                     temperature);
+  EXPECT_NEAR(loadings[0], firstSites[0].value(gasFractions[0] * pressure, scales[0]), 1.0e-13);
+  EXPECT_NEAR(loadings[1], secondSites[0].value(gasFractions[1] * pressure, scales[1]), 1.0e-13);
+
+  MixturePrediction sci("SCI Toth", components, 0, 0, 300.0, 1.0e3, 1.0e5, 2, 0,
+                        static_cast<size_t>(MixturePrediction::PredictionMethod::SCI), 0);
+  sci.predictMixture(gasFractions, pressure, adsorbedFractions, loadings, cachedPressure, cachedGrandPotential,
+                     temperature);
+  const std::array<double, 2> activities{scales[0] * 1.0e-5 * gasFractions[0] * pressure,
+                                         scales[1] * 4.0e-6 * gasFractions[1] * pressure};
+  const double denominator =
+      std::pow(1.0 + std::pow(activities[0], 0.6) + std::pow(activities[1], 0.6), 1.0 / 0.6);
+  EXPECT_NEAR(loadings[0], 2.0 * activities[0] / denominator, 1.0e-13);
+  EXPECT_NEAR(loadings[1], 1.5 * activities[1] / denominator, 1.0e-13);
 }
 
 TEST(MixturePrediction, SPIPassesTemperatureScaleToGAB)

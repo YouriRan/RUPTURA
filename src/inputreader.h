@@ -148,6 +148,7 @@ struct InputReader
   double cvodeAbsoluteToleranceLoading{1.0e-6};        ///< CVODE absolute tolerance for loadings in mol/kg.
   double cvodeAbsoluteToleranceTemperature{1.0e-3};     ///< CVODE absolute tolerance for temperatures in K.
   double cvodeMaximumTimeStep{-1.0};  ///< CVODE maximum internal step in s: <0 = auto (dz/v), 0 = unlimited, >0 = explicit.
+  size_t cvodeMaximumOrder{5};        ///< CVODE maximum BDF order (1-5).
   size_t cvodeLinearSolver{0};      ///< CVODE linear solver: 0 = Dense (direct), 1 = SPGMR (matrix-free Krylov).
   size_t cvodeKrylovDimension{30};  ///< Krylov subspace dimension used by the SPGMR linear solver.
   size_t printEvery{10000};          ///< The interval at which to print output.

@@ -17,6 +17,7 @@
 #include "json.h"
 #include "swing_adsorption.h"
 #include "timing.h"
+#include "temporary_directory.h"
 
 namespace
 {
@@ -95,7 +96,7 @@ class MultibedInterfaces : public ::testing::Test
                                {{"Adsorbent", "middle"}, {"Length", 0.04}, {"NumberOfGridPoints", 2}},
                                {{"InterfaceLength", 0.03}, {"NumberOfGridPoints", 3}},
                                {{"Adsorbent", "tail"}, {"Length", 0.05}, {"NumberOfGridPoints", 5}}};
-    inputPath = std::filesystem::path{::testing::TempDir()} /
+    inputPath = testTemporaryDirectory() /
                 (std::string{"ruptura_interfaces_"} + ::testing::UnitTest::GetInstance()->current_test_info()->name() +
                  ".json");
   }
@@ -390,7 +391,7 @@ TEST(MultibedDebug, ForcesSingleAdsorbentThroughMultibedImplementation)
   input["DebugForceMultibed"] = true;
 
   const std::filesystem::path outputDirectory =
-      std::filesystem::path{::testing::TempDir()} / "ruptura_debug_force_multibed";
+      testTemporaryDirectory() / "ruptura_debug_force_multibed";
   std::filesystem::create_directories(outputDirectory);
   const std::filesystem::path inputPath = outputDirectory / "simulation.json";
   std::ofstream output(inputPath);
@@ -483,7 +484,7 @@ TEST(MultibedUniformMix, RejectsIncompleteOrUnnormalizedFractions)
   input["Adsorbents"][0]["MixFraction"] = 0.4;
 
   const std::filesystem::path path =
-      std::filesystem::path{::testing::TempDir()} / "ruptura_invalid_uniform_adsorbent_mix.json";
+      testTemporaryDirectory() / "ruptura_invalid_uniform_adsorbent_mix.json";
   {
     std::ofstream output(path);
     ASSERT_TRUE(output);
@@ -509,7 +510,7 @@ TEST(MultibedCvode, BreakthroughParsesInitializesAndPropagates)
   reader.numberOfTimeSteps = 1;
 
   const std::filesystem::path outputDirectory =
-      std::filesystem::path{::testing::TempDir()} / "ruptura_multibed_cvode_breakthrough";
+      testTemporaryDirectory() / "ruptura_multibed_cvode_breakthrough";
   WorkingDirectoryGuard workingDirectory(outputDirectory);
 
   Breakthrough<MultibedColumn> breakthrough(reader);
@@ -625,7 +626,7 @@ TEST(MultibedReactions, ParsesReactionTogetherWithAdsorbents)
                                                  {"gibbsFreeEnergy", -1000.0}}}}});
 
   const std::filesystem::path path =
-      std::filesystem::path{::testing::TempDir()} / "ruptura_multibed_reaction_input.json";
+      testTemporaryDirectory() / "ruptura_multibed_reaction_input.json";
   std::ofstream output(path, std::ios::trunc);
   ASSERT_TRUE(output);
   output << input;
@@ -638,7 +639,7 @@ TEST(MultibedReactions, ParsesReactionTogetherWithAdsorbents)
   EXPECT_EQ(reader.reactions.front().products, std::vector<size_t>{2U});
 
   const std::filesystem::path runDirectory =
-      std::filesystem::path{::testing::TempDir()} / "ruptura_multibed_reaction_breakthrough";
+      testTemporaryDirectory() / "ruptura_multibed_reaction_breakthrough";
   WorkingDirectoryGuard workingDirectory(runDirectory);
   Breakthrough<MultibedColumn> breakthrough(reader);
   breakthrough.computeStep(0);
@@ -817,7 +818,7 @@ TEST(MultibedSwingAdsorption, AdvancesConcreteMultibedColumnAcrossStages)
   regeneration.numberOfSteps = 2;
   reader.swingAdsorptionPhases = {adsorption, regeneration};
 
-  const std::filesystem::path outputDirectory = std::filesystem::path{::testing::TempDir()} / "ruptura_multibed_swing";
+  const std::filesystem::path outputDirectory = testTemporaryDirectory() / "ruptura_multibed_swing";
   WorkingDirectoryGuard workingDirectory(outputDirectory);
 
   SwingAdsorption<MultibedColumn> swing(reader);
@@ -856,7 +857,7 @@ TEST(MultibedSwingAdsorption, AdvancesWithCvode)
   reader.swingAdsorptionPhases = {adsorption, regeneration};
 
   const std::filesystem::path outputDirectory =
-      std::filesystem::path{::testing::TempDir()} / "ruptura_multibed_cvode_swing";
+      testTemporaryDirectory() / "ruptura_multibed_cvode_swing";
   WorkingDirectoryGuard workingDirectory(outputDirectory);
 
   SwingAdsorption<MultibedColumn> swing(reader);

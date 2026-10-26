@@ -4,6 +4,7 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
+#include <numbers>
 #include <set>
 #include <string>
 #include <tuple>
@@ -22,6 +23,7 @@
 #include "json.h"
 #include "swing_adsorption.h"
 #include "utils.h"
+#include "temporary_directory.h"
 
 namespace
 {
@@ -85,7 +87,9 @@ Column loadBeaBreakthroughColumn()
   InputReader reader(examplePath("examples/BEA-alkanes-C7/breakthrough/simulation.json"));
   Column column(reader);
   column.initialize();
-  column.readJSON(examplePath("examples/BEA-alkanes-C7/breakthrough/column.json"));
+  // Column state after 100 s of RungeKutta3 on this example (Δt = 1e-3 s); running the example overwrites its own
+  // column.json, so the snapshot is kept with the tests.
+  column.readJSON(examplePath("tests/data/bea_breakthrough_column.json"));
   return column;
 }
 
@@ -128,27 +132,25 @@ void writeGeneralChemisorptionInput(const std::filesystem::path& path, bool useP
       "AxialDispersionCoefficient": 0.0,
       "MolecularWeight": 0.044,
       "ChemisorptionSites": [{
-        "Type": "General",
-        "Parameters": {
-          "maximumLoading": 2.0,
-          "heatOfChemisorption": 42000.0,
-          "adsorptionRateCoefficient": 1.0e-4,
-          "adsorptionActivationEnergy": 0.0,
-          "desorptionRateCoefficient": 0.0,
-          "desorptionActivationEnergy": 0.0,
-          "poreConcentrationOrder": )json"
+        "Type": "Langmuir",
+        "Parameters": [2.0, 1.0e-5],
+        "RateEquation": "General",
+        "RateEquationParameters": {
+          "AdsorptionRateCoefficient": 1.0e-4,
+          "AdsorptionActivationEnergy": 0.0,
+          "DesorptionRateCoefficient": 0.0,
+          "DesorptionActivationEnergy": 0.0,
+          "PoreConcentrationOrder": )json"
       << concentrationOrder << R"json(,
-          "capacityOrder": 1,
-          "desorptionOrder": 1,
-          "filmMassTransferCoefficient": 2.0e-3,
-          "poreDiffusivity": 1.0e-10,
-          "usePoreSurfaceTransport": )json"
-      << (usePoreSurfaceTransport ? "true" : "false") << R"json(,
-          "Isotherm": {
-            "Type": "Langmuir",
-            "Parameters": [2.0, 1.0e-5]
-          }
-        }
+          "CapacityOrder": 1,
+          "DesorptionOrder": 1,
+          "FilmMassTransferCoefficient": 2.0e-3,
+          "PoreDiffusivity": 1.0e-10,
+          "UsePoreSurfaceTransport": )json"
+      << (usePoreSurfaceTransport ? "true" : "false") << R"json(
+        },
+        "HeatOfAdsorption": 42000.0,
+        "MaximumLoading": 2.0
       }],
       "PhysisorptionSites": [
         {"Type": "Langmuir", "Parameters": [1.0, 1.0e-5]}
@@ -166,16 +168,13 @@ void writeElovichChemisorptionInput(const std::filesystem::path& path, bool useP
   std::ifstream input(path);
   nlohmann::json data = nlohmann::json::parse(input);
   auto& chemisorption = data["Components"][1]["ChemisorptionSites"][0];
-  chemisorption["Type"] = "Elovich";
-  chemisorption["Parameters"] = {
-      {"maximumLoading", 2.0},
-      {"heatOfChemisorption", 42000.0},
-      {"alpha", 0.25},
-      {"beta", 0.5},
-      {"filmMassTransferCoefficient", 2.0e-3},
-      {"poreDiffusivity", 1.0e-10},
-      {"usePoreSurfaceTransport", usePoreSurfaceTransport},
-      {"Isotherm", {{"Type", "Langmuir"}, {"Parameters", {2.0, 1.0e-5}}}},
+  chemisorption["RateEquation"] = "Elovich";
+  chemisorption["RateEquationParameters"] = {
+      {"Alpha", 0.25},
+      {"Beta", 0.5},
+      {"FilmMassTransferCoefficient", 2.0e-3},
+      {"PoreDiffusivity", 1.0e-10},
+      {"UsePoreSurfaceTransport", usePoreSurfaceTransport},
   };
   input.close();
 
@@ -191,21 +190,22 @@ void writeMultiSiteChemisorptionInput(const std::filesystem::path& path, bool se
   nlohmann::json data = nlohmann::json::parse(input);
   auto& component = data["Components"][1];
   nlohmann::json general = component["ChemisorptionSites"][0];
-  general["Parameters"]["maximumLoading"] = 1.0;
-  general["Parameters"]["Isotherm"]["Parameters"] = {1.0, 1.0e-5};
+  general["MaximumLoading"] = 1.0;
+  general["Parameters"] = {1.0, 1.0e-5};
   nlohmann::json elovich = {
-      {"Type", "Elovich"},
-      {"Parameters",
+      {"Type", "Langmuir"},
+      {"Parameters", {2.0, 2.0e-5}},
+      {"RateEquation", "Elovich"},
+      {"RateEquationParameters",
        {
-           {"maximumLoading", 2.0},
-           {"heatOfChemisorption", 42000.0},
-           {"alpha", 0.25},
-           {"beta", 0.5},
-           {"filmMassTransferCoefficient", 2.0e-3},
-           {"poreDiffusivity", 1.0e-10},
-           {"usePoreSurfaceTransport", secondSiteUsesPoreSurfaceTransport},
-           {"Isotherm", {{"Type", "Langmuir"}, {"Parameters", {2.0, 2.0e-5}}}},
+           {"Alpha", 0.25},
+           {"Beta", 0.5},
+           {"FilmMassTransferCoefficient", 2.0e-3},
+           {"PoreDiffusivity", 1.0e-10},
+           {"UsePoreSurfaceTransport", secondSiteUsesPoreSurfaceTransport},
        }},
+      {"HeatOfAdsorption", 42000.0},
+      {"MaximumLoading", 2.0},
   };
   component["ChemisorptionSites"] = nlohmann::json::array({general, elovich});
   input.close();
@@ -448,7 +448,7 @@ TEST(ExampleInputReader, ParsesSemiImplicitRungeKuttaIntegrator)
   data["BreakthroughIntegrator"] = "SIRK3";
   data["NumberOfTimeSteps"] = 1;
 
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_sirk3_integrator.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_sirk3_integrator.json";
   std::ofstream output(path);
   output << data;
   output.close();
@@ -468,9 +468,69 @@ TEST(ExampleInputReader, ParsesSemiImplicitRungeKuttaIntegrator)
   EXPECT_TRUE(integrator.propagate(column, 0, timings));
 }
 
+TEST(ExampleInputReader, Sirk3RejectsReactionsAndSurfacePoreTransport)
+{
+  auto expectSirk3Rejected = [](const std::filesystem::path& path, const std::string& expectedMessage)
+  {
+    std::ifstream input(path);
+    nlohmann::json data = nlohmann::json::parse(input);
+    input.close();
+    data["BreakthroughIntegrator"] = "SIRK3";
+    std::ofstream(path) << data;
+
+    EXPECT_THROW(
+        {
+          try
+          {
+            static_cast<void>(InputReader(path.string()));
+          }
+          catch (const std::runtime_error& error)
+          {
+            EXPECT_NE(std::string(error.what()).find(expectedMessage), std::string::npos) << error.what();
+            throw;
+          }
+        },
+        std::runtime_error);
+  };
+
+  const std::filesystem::path reactionPath = testTemporaryDirectory() / "ruptura_sirk3_physisorbed_reaction.json";
+  writeReactionInput(reactionPath, "Physisorbed", "GeneralPowerLaw", false);
+  expectSirk3Rejected(reactionPath, "does not evaluate reactions");
+
+  const std::filesystem::path porePath = testTemporaryDirectory() / "ruptura_sirk3_pore_transport.json";
+  writeGeneralChemisorptionInput(porePath, true);
+  expectSirk3Rejected(porePath, "does not evaluate surface-pore transport");
+}
+
+TEST(ExampleInputReader, ParsesAndValidatesCvodeMaximumOrder)
+{
+  std::ifstream input(examplePath("examples/BEA-alkanes-C7/breakthrough/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(input);
+  input.close();
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_cvode_maximum_order.json";
+
+  std::ofstream(path) << data;
+  EXPECT_EQ(InputReader(path.string()).cvodeMaximumOrder, 5U);
+
+  data["CVODEMaximumOrder"] = 3;
+  std::ofstream(path) << data;
+  const InputReader reader(path.string());
+  EXPECT_EQ(reader.cvodeMaximumOrder, 3U);
+#if BUILD_SUNDIALS
+  EXPECT_EQ(CVODE(reader).maximumOrder, 3);
+#endif
+
+  for (int order : {0, 6})
+  {
+    data["CVODEMaximumOrder"] = order;
+    std::ofstream(path) << data;
+    EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+  }
+}
+
 TEST(SwingAdsorptionInput, ParsesStructuredPhasesAndBuildsSubStages)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_swing_structured_test.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_swing_structured_test.json";
   writeGeneralChemisorptionInput(path, false);
 
   std::ifstream input(path);
@@ -593,7 +653,7 @@ TEST(GeometryInput, RequiresGeometryForBreakthrough)
   data.erase("Geometry");
   input.close();
 
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_missing_geometry_test.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_missing_geometry_test.json";
   std::ofstream output(path);
   output << data;
   output.close();
@@ -615,7 +675,7 @@ TEST(GeometryInput, RequiresGeometryForBreakthrough)
 
 TEST(GeometryInput, ParsesMonolithSubJsonAndPrecomputesChannelTerms)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_monolith_geometry_test.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_monolith_geometry_test.json";
   writeGeneralChemisorptionInput(path, false);
 
   std::ifstream input(path);
@@ -706,9 +766,9 @@ TEST(ExampleMassBalance, RecomputesBeaColumnStateDerivatives)
   EXPECT_NEAR(column.concentrationDot[25 * n + 2], expectedMassDerivative(column, 25, 2), 1e-12);
   EXPECT_NEAR(column.concentrationDot[50 * n + 5], expectedMassDerivative(column, 50, 5), 1e-12);
 
-  EXPECT_NEAR(column.concentrationDot[25 * n + 0], -2.4276051365836119e-06, 1e-14);
-  EXPECT_NEAR(column.concentrationDot[25 * n + 2], -6.1706769254940182e-08, 1e-14);
-  EXPECT_NEAR(column.concentrationDot[50 * n + 5], 1.0247150372002965e-07, 1e-14);
+  EXPECT_NEAR(column.concentrationDot[25 * n + 0], 4.4401129708813942e-04, 1e-14);
+  EXPECT_NEAR(column.concentrationDot[25 * n + 2], 1.9394951851919610e-03, 1e-14);
+  EXPECT_NEAR(column.concentrationDot[50 * n + 5], 2.0346075380352105e-03, 1e-14);
 }
 
 TEST(ExampleMixturePrediction, RecomputesBeaBreakthroughEquilibriumLoadings)
@@ -727,16 +787,16 @@ TEST(ExampleMixturePrediction, RecomputesBeaBreakthroughEquilibriumLoadings)
 
   const size_t n = column.numberOfComponents;
   EXPECT_DOUBLE_EQ(column.equilibriumPhysisorption[0], 0.0);
-  EXPECT_NEAR(column.equilibriumPhysisorption[0 * n + 1], 0.070539163250492337, 1e-14);
-  EXPECT_NEAR(column.equilibriumPhysisorption[10 * n + 2], 0.046853375510025136, 1e-14);
-  EXPECT_NEAR(column.equilibriumPhysisorption[25 * n + 3], 0.031885705858180735, 1e-14);
-  EXPECT_NEAR(column.equilibriumPhysisorption[50 * n + 5], 0.021244052749882759, 1e-14);
-  EXPECT_NEAR(column.equilibriumPhysisorption[50 * n + 7], 0.0066257061765186923, 1e-14);
+  EXPECT_NEAR(column.equilibriumPhysisorption[0 * n + 1], 0.070539163250446624, 1e-14);
+  EXPECT_NEAR(column.equilibriumPhysisorption[10 * n + 2], 0.044465087898088139, 1e-14);
+  EXPECT_NEAR(column.equilibriumPhysisorption[25 * n + 3], 0.027130378763624827, 1e-14);
+  EXPECT_NEAR(column.equilibriumPhysisorption[50 * n + 5], 0.01358645524192777, 1e-14);
+  EXPECT_NEAR(column.equilibriumPhysisorption[50 * n + 7], 0.0080228059270143568, 1e-14);
 }
 
 TEST(ChemisorptionGeneral, DefaultsToBulkConcentrationWithoutPoreSurfaceTransport)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_general_chem_direct_test.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_general_chem_direct_test.json";
   writeGeneralChemisorptionInput(path, false);
 
   InputReader reader(path.string());
@@ -767,7 +827,7 @@ TEST(ChemisorptionGeneral, DefaultsToBulkConcentrationWithoutPoreSurfaceTranspor
 TEST(ChemisorptionGeneral, InitializesSurfacePoreStateAndFilmSinkWhenEnabled)
 {
   const std::filesystem::path path =
-      std::filesystem::temp_directory_path() / "ruptura_general_chem_transport_test.json";
+      testTemporaryDirectory() / "ruptura_general_chem_transport_test.json";
   writeGeneralChemisorptionInput(path, true);
 
   InputReader reader(path.string());
@@ -864,7 +924,7 @@ TEST(ChemisorptionRate, AvramiMatchesDerivativeOfIntegratedModel)
 
 TEST(ReactionsInput, ParsesGeneralPowerLawReaction)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_reaction_parse.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_parse.json";
   writeReactionInput(path);
 
   InputReader reader(path.string());
@@ -883,7 +943,7 @@ TEST(ReactionsInput, ParsesGeneralPowerLawReaction)
 
 TEST(ReactionsInput, ParsesParticipantNamesAsComponentIndices)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_reaction_names.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_names.json";
   writeReactionInput(path, "Physisorbed", "GeneralPowerLaw", true, R"json(["A"])json", R"json(["B"])json");
 
   InputReader reader(path.string());
@@ -895,7 +955,7 @@ TEST(ReactionsInput, ParsesParticipantNamesAsComponentIndices)
 
 TEST(ReactionsAdsorbed, AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_reaction_adsorbed.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_adsorbed.json";
   writeReactionInput(path);
 
   InputReader reader(path.string());
@@ -927,7 +987,7 @@ TEST(ReactionsAdsorbed, AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax)
 
 TEST(ReactionsPore, LangmuirHinshelwoodRequiresAndUsesPoreConcentration)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_reaction_lh_pore.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_lh_pore.json";
   writeReactionInput(path, "PoreConcentration", "LangmuirHinshelwood", false);
 
   InputReader reader(path.string());
@@ -952,7 +1012,7 @@ TEST(ReactionsPore, LangmuirHinshelwoodRequiresAndUsesPoreConcentration)
 
 TEST(ReactionsAutoStop, RequiresLowReactionSourcesAndStablePhaseStates)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_reaction_auto_stop.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_auto_stop.json";
   writeReactionInput(path);
 
   InputReader reader(path.string());
@@ -975,7 +1035,7 @@ TEST(ReactionsAutoStop, RequiresLowReactionSourcesAndStablePhaseStates)
 
 TEST(ReactionsAutoStop, RungeKuttaSchedulesAutoStopForStableReactionState)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_reaction_auto_stop_rk3.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_auto_stop_rk3.json";
   writeReactionInput(path);
 
   InputReader reader(path.string());
@@ -992,7 +1052,7 @@ TEST(ReactionsAutoStop, RungeKuttaSchedulesAutoStopForStableReactionState)
 
 TEST(ReactionsInput, RejectsLHOutsidePoreConcentration)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_reaction_lh_bad_phase.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_lh_bad_phase.json";
   writeReactionInput(path, "Physisorbed", "LangmuirHinshelwood", false);
 
   EXPECT_THROW(
@@ -1012,7 +1072,7 @@ TEST(ReactionsInput, RejectsLHOutsidePoreConcentration)
 
 TEST(ChemisorptionInput, RejectsFractionalGeneralOrders)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_fractional_chem_order.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_fractional_chem_order.json";
   writeGeneralChemisorptionInput(path, false, "1.5");
 
   EXPECT_THROW(
@@ -1032,7 +1092,7 @@ TEST(ChemisorptionInput, RejectsFractionalGeneralOrders)
 
 TEST(ChemisorptionInput, AcceptsFractionalAvramiOrder)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_fractional_avrami_order.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_fractional_avrami_order.json";
   writeGeneralChemisorptionInput(path, false);
 
   std::ifstream input(path);
@@ -1040,14 +1100,8 @@ TEST(ChemisorptionInput, AcceptsFractionalAvramiOrder)
   input.close();
 
   auto& site = data["Components"][1]["ChemisorptionSites"][0];
-  const nlohmann::json isotherm = site["Parameters"]["Isotherm"];
-  site = {{"Type", "Avrami"},
-          {"Parameters",
-           {{"rateCoefficient", 3.92e-2},
-            {"order", 1.46},
-            {"maximumLoading", 2.0},
-            {"heatOfChemisorption", 42000.0},
-            {"Isotherm", isotherm}}}};
+  site["RateEquation"] = "Avrami";
+  site["RateEquationParameters"] = {{"RateCoefficient", 3.92e-2}, {"Order", 1.46}};
 
   std::ofstream output(path);
   output << data;
@@ -1061,7 +1115,7 @@ TEST(ChemisorptionInput, AcceptsFractionalAvramiOrder)
 
 TEST(ChemisorptionInput, RequiresExactlyTheParametersForTheSelectedModel)
 {
-  const std::filesystem::path validPath = std::filesystem::temp_directory_path() / "ruptura_strict_chem_valid.json";
+  const std::filesystem::path validPath = testTemporaryDirectory() / "ruptura_strict_chem_valid.json";
   writeGeneralChemisorptionInput(validPath, false);
 
   std::ifstream input(validPath);
@@ -1071,7 +1125,7 @@ TEST(ChemisorptionInput, RequiresExactlyTheParametersForTheSelectedModel)
   auto expectRejected = [&](nlohmann::json data, const std::string& suffix, const std::string& expectedMessage)
   {
     const std::filesystem::path path =
-        std::filesystem::temp_directory_path() / ("ruptura_strict_chem_" + suffix + ".json");
+        testTemporaryDirectory() / ("ruptura_strict_chem_" + suffix + ".json");
     std::ofstream output(path);
     output << data;
     output.close();
@@ -1092,17 +1146,17 @@ TEST(ChemisorptionInput, RequiresExactlyTheParametersForTheSelectedModel)
   };
 
   nlohmann::json missing = valid;
-  missing["Components"][1]["ChemisorptionSites"][0]["Parameters"].erase("capacityOrder");
-  expectRejected(std::move(missing), "missing", "required key 'capacityOrder'");
+  missing["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"].erase("CapacityOrder");
+  expectRejected(std::move(missing), "missing", "required key 'CapacityOrder'");
 
   nlohmann::json extra = valid;
-  extra["Components"][1]["ChemisorptionSites"][0]["Parameters"]["alpha"] = 1.0;
-  expectRejected(std::move(extra), "extra", "unknown key 'alpha'");
+  extra["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"]["Alpha"] = 1.0;
+  expectRejected(std::move(extra), "extra", "unknown key 'Alpha'");
 
   nlohmann::json oldAlias = valid;
-  auto& oldAliasParameters = oldAlias["Components"][1]["ChemisorptionSites"][0]["Parameters"];
-  oldAliasParameters["Ea_ka"] = oldAliasParameters["adsorptionActivationEnergy"];
-  oldAliasParameters.erase("adsorptionActivationEnergy");
+  auto& oldAliasParameters = oldAlias["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"];
+  oldAliasParameters["Ea_ka"] = oldAliasParameters["AdsorptionActivationEnergy"];
+  oldAliasParameters.erase("AdsorptionActivationEnergy");
   expectRejected(std::move(oldAlias), "old_alias", "unknown key 'Ea_ka'");
 
   nlohmann::json explicitCompleteMixture = valid;
@@ -1167,6 +1221,49 @@ TEST(ChemisorptionTransport, FilmPoreAndChemisorptionExchangeConservesMass)
   EXPECT_LE(std::abs(residual), 1.0e-12 * scale);
 }
 
+TEST(EnergyBalance, GasWallExchangeConservesEnergyInPackedBed)
+{
+  // Per unit column length the gas (volume eps pi d_in^2 / 4) and the wall (volume pi (d_out^2 - d_in^2) / 4) only
+  // exchange heat when the temperatures are uniform, the gas is at rest, the solid is at the gas temperature, and
+  // the outer wall is insulated.
+  const PackedBedTubeSpec specification{0.4, 3.0e-3, 0.025, 0.04};
+  const Geometry geometry = makeGeometry(specification);
+  const std::vector<Component> components{Component(0, "A", std::vector<Isotherm>{}, 1.0, 0.0, 0.0)};
+
+  constexpr size_t numberOfGridPoints = 2;
+  constexpr size_t nodes = numberOfGridPoints + 1;
+  constexpr double gasDensityValue = 1.2;
+  constexpr double heatCapacityGas = 1000.0;
+  constexpr double wallDensity = 4000.0;
+  constexpr double heatCapacityWall = 500.0;
+  const std::vector<double> velocity(nodes, 0.0);
+  const std::vector<double> gasDensity(nodes, gasDensityValue);
+  std::vector<double> coeffDiffusion(nodes, 0.0);
+  const std::vector<double> physisorptionDot(nodes, 0.0);
+  const std::vector<double> gasTemperature(nodes, 320.0);
+  const std::vector<double> wallTemperature(nodes, 300.0);
+  std::vector<double> gasTemperatureDot(nodes, 0.0);
+  std::vector<double> solidTemperatureDot(nodes, 0.0);
+  std::vector<double> wallTemperatureDot(nodes, 0.0);
+
+  computeEnergyDerivatives(components, numberOfGridPoints, 1, 0, 300.0, geometry, 1000.0, wallDensity, 0.0, 0.0, 10.0,
+                           50.0, 0.0, heatCapacityGas, 900.0, heatCapacityWall, 0.05, velocity, gasDensity,
+                           coeffDiffusion, physisorptionDot, {}, gasTemperature, gasTemperatureDot, gasTemperature,
+                           solidTemperatureDot, wallTemperature, wallTemperatureDot);
+
+  const double innerArea = std::numbers::pi * specification.internalDiameter * specification.internalDiameter / 4.0;
+  const double outerArea = std::numbers::pi * specification.outerDiameter * specification.outerDiameter / 4.0;
+  const double wallHeatPerLength = 50.0 * std::numbers::pi * specification.internalDiameter * (320.0 - 300.0);
+  for (size_t grid = 1; grid < nodes; ++grid)
+  {
+    const double gasRate =
+        specification.voidFraction * innerArea * gasDensityValue * heatCapacityGas * gasTemperatureDot[grid];
+    const double wallRate = (outerArea - innerArea) * wallDensity * heatCapacityWall * wallTemperatureDot[grid];
+    EXPECT_NEAR(wallRate, wallHeatPerLength, 1.0e-12 * wallHeatPerLength);
+    EXPECT_NEAR(gasRate + wallRate, 0.0, 1.0e-12 * wallHeatPerLength);
+  }
+}
+
 TEST(ChemisorptionEquilibrium, ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption)
 {
   std::ifstream input(examplePath("examples/Chemisorption-CO2-N2/breakthrough/simulation.json"));
@@ -1176,19 +1273,17 @@ TEST(ChemisorptionEquilibrium, ComputesCompetitiveSiteLoadingsSeparatelyFromPhys
   auto& nitrogen = data["Components"][2];
   nitrogen["ChemisorptionSites"] = nlohmann::json::array({
       {
-          {"Type", "FirstOrder"},
-          {"Parameters",
-           {
-               {"rateCoefficient", 0.02},
-               {"maximumLoading", 0.40},
-               {"heatOfChemisorption", 30000.0},
-               {"Isotherm", {{"Type", "Langmuir"}, {"Parameters", {0.40, 1.0e-5}}}},
-           }},
+          {"Type", "Langmuir"},
+          {"Parameters", {0.40, 1.0e-5}},
+          {"RateEquation", "FirstOrder"},
+          {"RateEquationParameters", {{"MassTransferCoefficient", 0.02}}},
+          {"HeatOfAdsorption", 30000.0},
+          {"MaximumLoading", 0.40},
       },
   });
 
   const std::filesystem::path path =
-      std::filesystem::temp_directory_path() / "ruptura_competitive_chem_equilibrium.json";
+      testTemporaryDirectory() / "ruptura_competitive_chem_equilibrium.json";
   std::ofstream output(path);
   output << data;
   output.close();
@@ -1211,12 +1306,12 @@ TEST(ChemisorptionEquilibrium, ComputesCompetitiveSiteLoadingsSeparatelyFromPhys
   EXPECT_NE(column.equilibriumChemisorption[carbonDioxide], column.equilibriumPhysisorption[carbonDioxide]);
 
   auto secondCarbonDioxideSite = data["Components"][1]["ChemisorptionSites"][0];
-  secondCarbonDioxideSite["Parameters"]["maximumLoading"] = 0.20;
-  secondCarbonDioxideSite["Parameters"]["Isotherm"]["Parameters"] = {0.20, 1.5e-5};
+  secondCarbonDioxideSite["MaximumLoading"] = 0.20;
+  secondCarbonDioxideSite["Parameters"] = {0.20, 1.5e-5};
   data["Components"][1]["ChemisorptionSites"].push_back(secondCarbonDioxideSite);
 
   const std::filesystem::path missingSitePath =
-      std::filesystem::temp_directory_path() / "ruptura_component_missing_chem_site.json";
+      testTemporaryDirectory() / "ruptura_component_missing_chem_site.json";
   std::ofstream missingSiteOutput(missingSitePath);
   missingSiteOutput << data;
   missingSiteOutput.close();
@@ -1235,7 +1330,7 @@ TEST(ChemisorptionEquilibrium, ComputesCompetitiveSiteLoadingsSeparatelyFromPhys
   data["MixturePredictionMethod"] = "IAST";
   data["IASTMethod"] = "NestedLoopBisection";
   const std::filesystem::path completeBisectionPath =
-      std::filesystem::temp_directory_path() / "ruptura_complete_chem_iast_bisection.json";
+      testTemporaryDirectory() / "ruptura_complete_chem_iast_bisection.json";
   std::ofstream completeBisectionOutput(completeBisectionPath);
   completeBisectionOutput << data;
   completeBisectionOutput.close();
@@ -1261,7 +1356,7 @@ TEST(ChemisorptionEquilibrium, ComputesCompetitiveSiteLoadingsSeparatelyFromPhys
     data["MixturePredictionMethod"] = method;
     data["IASTMethod"] = iastMethod;
     const std::filesystem::path segregatedPath =
-        std::filesystem::temp_directory_path() / ("ruptura_segregated_chem_" + method + "_" + iastMethod + ".json");
+        testTemporaryDirectory() / ("ruptura_segregated_chem_" + method + "_" + iastMethod + ".json");
     std::ofstream segregatedOutput(segregatedPath);
     segregatedOutput << data;
     segregatedOutput.close();
@@ -1285,7 +1380,7 @@ TEST(ChemisorptionEquilibrium, ComputesCompetitiveSiteLoadingsSeparatelyFromPhys
 
 TEST(ChemisorptionElovich, ParsesAndSubtractsMassFromBulk)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_elovich_chem_test.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_elovich_chem_test.json";
   writeElovichChemisorptionInput(path, false);
 
   InputReader reader(path.string());
@@ -1307,7 +1402,7 @@ TEST(ChemisorptionElovich, ParsesAndSubtractsMassFromBulk)
 
 TEST(MultiSiteChemisorption, ParsesIndependentSitesAndSumsTheirBulkSink)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_multisite_chem_direct_test.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_multisite_chem_direct_test.json";
   writeMultiSiteChemisorptionInput(path, false);
 
   InputReader reader(path.string());
@@ -1348,7 +1443,7 @@ TEST(MultiSiteChemisorption, ParsesIndependentSitesAndSumsTheirBulkSink)
 TEST(MultiSiteChemisorption, KeepsDirectAndPoreTransportSiteBalancesIndependent)
 {
   const std::filesystem::path path =
-      std::filesystem::temp_directory_path() / "ruptura_multisite_chem_mixed_transport_test.json";
+      testTemporaryDirectory() / "ruptura_multisite_chem_mixed_transport_test.json";
   writeMultiSiteChemisorptionInput(path, true);
 
   InputReader reader(path.string());
@@ -1388,7 +1483,7 @@ TEST(MultiSiteChemisorption, KeepsDirectAndPoreTransportSiteBalancesIndependent)
             loadingPrefactor * (column.physisorptionDot[adsorbateInlet] + column.chemisorptionDot[adsorbateInlet]));
 
   const std::filesystem::path restartPath =
-      std::filesystem::temp_directory_path() / "ruptura_multisite_chem_restart_test.json";
+      testTemporaryDirectory() / "ruptura_multisite_chem_restart_test.json";
   column.writeJSON(restartPath.string());
   Column restored(reader);
   restored.initialize();
@@ -1402,7 +1497,7 @@ TEST(MultiSiteChemisorption, KeepsDirectAndPoreTransportSiteBalancesIndependent)
 #if BUILD_SUNDIALS
 TEST(MultiSiteChemisorption, PropagatesMixedSitesWithCvode)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_multisite_chem_cvode_test.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_multisite_chem_cvode_test.json";
   writeMultiSiteChemisorptionInput(path, true);
 
   InputReader reader(path.string());
@@ -1483,7 +1578,7 @@ TEST(ChemisorptionInput, ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoa
   };
   data["Components"][1]["ChemisorptionSites"] = nlohmann::json::array({site});
 
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_first_order_desorption.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_first_order_desorption.json";
   std::ofstream(path) << data;
   InputReader reader(path.string());
   const Chemisorption& kinetics = reader.components[1].chemisorption.sites[0];
@@ -1546,7 +1641,7 @@ static nlohmann::json makeBulkWaterGasShiftInput()
 
 TEST(BulkReaction, WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_bulk_wgs.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_bulk_wgs.json";
   std::ofstream(path) << makeBulkWaterGasShiftInput();
   InputReader reader(path.string());
   ASSERT_EQ(reader.reactions.size(), 1U);
@@ -1583,7 +1678,7 @@ TEST(BulkReaction, WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink)
 
 TEST(BulkReaction, RejectsEnergyBalanceAndSirk3)
 {
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_bulk_wgs_rejected.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_bulk_wgs_rejected.json";
 
   nlohmann::json withEnergy = makeBulkWaterGasShiftInput();
   withEnergy["energyBalance"] = true;
@@ -1616,7 +1711,7 @@ TEST(SwingAdsorptionInput, RepeatsCyclesWithPhaseFeedCompositionAndVelocity)
        {"NumberOfTimeSteps", 6}},
   };
 
-  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_swing_cycles.json";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_swing_cycles.json";
   std::ofstream(path) << data;
   InputReader reader(path.string());
 

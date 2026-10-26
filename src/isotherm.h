@@ -183,7 +183,7 @@ struct Isotherm
       case Isotherm::Type::Unilan:
       {
         double temp1 = 1.0 + parameters[1] * std::exp(parameters[2]) * pressure;
-        double temp2 = 1.0 + parameters[1] * std::exp(parameters[2]) * pressure;
+        double temp2 = 1.0 + parameters[1] * std::exp(-parameters[2]) * pressure;
         return parameters[0] * (0.5 / parameters[2]) * std::log(temp1 / temp2);
       }
       case Isotherm::Type::OBrien_Myers:
@@ -338,7 +338,7 @@ struct Isotherm
       }
       case Isotherm::Type::Unilan:
       {
-        return (0.5 * parameters[0] / parameters[2]) * (li2(-parameters[1] * std::exp(parameters[2]) * pressure) -
+        return (0.5 * parameters[0] / parameters[2]) * (li2(-parameters[1] * std::exp(-parameters[2]) * pressure) -
                                                         li2(-parameters[1] * std::exp(parameters[2]) * pressure));
       }
       case Isotherm::Type::OBrien_Myers:
