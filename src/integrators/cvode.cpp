@@ -276,6 +276,27 @@ void CVODE::reinitialize()
   if (flag != CV_SUCCESS) throw std::runtime_error("CVodeReInit failed");
 }
 
+namespace
+{
+template <typename ColumnType>
+void reinitializeCVODE(CVODE& integrator, const ColumnType& column)
+{
+  // Only the automatic cap (negative maximumTimeStep) follows the velocity; a user-given cap is kept.
+  if (integrator.maximumTimeStep < 0.0)
+  {
+    integrator.appliedMaximumTimeStep = resolveMaximumTimeStep(integrator, column);
+    // A zero cap restores CVODE's default, an unlimited step.
+    const int flag = CVodeSetMaxStep(integrator.cvodeMem, integrator.appliedMaximumTimeStep);
+    if (flag != CV_SUCCESS) throw std::runtime_error("CVodeSetMaxStep failed");
+  }
+  integrator.reinitialize();
+}
+}  // namespace
+
+void CVODE::reinitialize(const Column& column) { reinitializeCVODE(*this, column); }
+
+void CVODE::reinitialize(const MultibedColumn& column) { reinitializeCVODE(*this, column); }
+
 void CVODE::printStatistics() const
 {
   if (!cvodeMem) return;
@@ -368,6 +389,7 @@ int CVODE::evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector sta
   std::fill(column->reactionPhysisorptionSource.begin(), column->reactionPhysisorptionSource.end(), 0.0);
   std::fill(column->reactionChemisorptionSource.begin(), column->reactionChemisorptionSource.end(), 0.0);
   std::fill(column->reactionPoreConcentrationSource.begin(), column->reactionPoreConcentrationSource.end(), 0.0);
+  std::fill(column->reactionBulkSource.begin(), column->reactionBulkSource.end(), 0.0);
   std::fill(column->reactionHeat.begin(), column->reactionHeat.end(), 0.0);
   for (size_t iteration = 0; iteration < 2; ++iteration)
   {
@@ -375,7 +397,7 @@ int CVODE::evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector sta
                            column->maxChemisorptionSites, column->geometry, column->particleDensity, spanConcentration,
                            spanPhysisorptionDot, spanChemisorptionDot, spanSurfaceConcentration,
                            column->bulkSpeciesSink, column->reactionPhysisorptionSource,
-                           column->reactionChemisorptionSource);
+                           column->reactionChemisorptionSource, column->reactionBulkSource);
 
     updateVelocityAndPressure(
         column->components, column->boundaryCondition, column->numberOfGridPoints, column->numberOfComponents,
@@ -422,16 +444,20 @@ int CVODE::evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector sta
         column->components, column->numberOfGridPoints, column->numberOfComponents, column->maxChemisorptionSites,
         column->geometry, column->particleDensity, spanConcentration, spanChemisorptionDot, spanSurfaceConcentration,
         spanSurfaceConcentrationDot, spanPoreConcentration, spanPoreConcentrationDot);
-    computeBulkSpeciesSink(column->components, column->numberOfGridPoints, column->numberOfComponents,
-                           column->maxChemisorptionSites, column->geometry, column->particleDensity, spanConcentration,
-                           spanPhysisorptionDot, spanChemisorptionDot, spanSurfaceConcentration,
-                           column->bulkSpeciesSink);
+    // Reactions first, then the sink with the reaction sources passed in: the sink removes the reaction part of
+    // the loading rates (which do not exchange with the bulk) and adds the bulk-concentration reaction source.
     computeReactionDerivatives(column->components, column->reactions, column->numberOfGridPoints,
                                column->numberOfComponents, column->maxChemisorptionSites, column->externalTemperature,
                                spanPhysisorption, spanPhysisorptionDot, spanChemisorption, spanChemisorptionDot,
                                spanPoreConcentration, spanPoreConcentrationDot, spanSolidTemperature,
                                column->reactionPhysisorptionSource, column->reactionChemisorptionSource,
-                               column->reactionPoreConcentrationSource, column->reactionHeat);
+                               column->reactionPoreConcentrationSource, column->reactionHeat, spanConcentration,
+                               column->reactionBulkSource, std::span<const double>{}, 0);
+    computeBulkSpeciesSink(column->components, column->numberOfGridPoints, column->numberOfComponents,
+                           column->maxChemisorptionSites, column->geometry, column->particleDensity, spanConcentration,
+                           spanPhysisorptionDot, spanChemisorptionDot, spanSurfaceConcentration,
+                           column->bulkSpeciesSink, column->reactionPhysisorptionSource,
+                           column->reactionChemisorptionSource, column->reactionBulkSource);
   }
 
   computeMassDerivatives(column->components, column->numberOfGridPoints, column->numberOfComponents, column->resolution,
@@ -495,6 +521,7 @@ int CVODE::evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Ve
   std::fill(column->reactionPhysisorptionSource.begin(), column->reactionPhysisorptionSource.end(), 0.0);
   std::fill(column->reactionChemisorptionSource.begin(), column->reactionChemisorptionSource.end(), 0.0);
   std::fill(column->reactionPoreConcentrationSource.begin(), column->reactionPoreConcentrationSource.end(), 0.0);
+  std::fill(column->reactionBulkSource.begin(), column->reactionBulkSource.end(), 0.0);
   std::fill(column->reactionHeat.begin(), column->reactionHeat.end(), 0.0);
 
   for (size_t iteration = 0; iteration < 2; ++iteration)
@@ -505,7 +532,7 @@ int CVODE::evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Ve
                            column->particleDensities, column->particleDiameters, column->fractionOfAdsorbent,
                            column->totalVoidFraction, spanConcentration, spanPhysisorptionDot, spanChemisorptionDot,
                            spanSurfaceConcentration, column->bulkSpeciesSink, column->reactionPhysisorptionSource,
-                           column->reactionChemisorptionSource);
+                           column->reactionChemisorptionSource, column->reactionBulkSource);
 
     updateVelocityAndPressure(
         column->components, column->boundaryCondition, column->numberOfGridPoints, column->numberOfComponents,
@@ -563,7 +590,8 @@ int CVODE::evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Ve
         column->numberOfComponents, column->maxChemisorptionSites, column->externalTemperature, spanPhysisorption,
         spanPhysisorptionDot, spanChemisorption, spanChemisorptionDot, spanPoreConcentration, spanPoreConcentrationDot,
         spanSolidTemperature, column->reactionPhysisorptionSource, column->reactionChemisorptionSource,
-        column->reactionPoreConcentrationSource, column->reactionHeat);
+        column->reactionPoreConcentrationSource, column->reactionHeat, spanConcentration, column->reactionBulkSource,
+        column->fractionOfAdsorbent, column->numberOfAdsorbents);
 
     computeBulkSpeciesSink(column->physisorptionMixtures, column->numberOfGridPoints, column->numberOfComponents,
                            column->numberOfAdsorbents, column->maxChemisorptionSites, column->geometries,
@@ -571,7 +599,7 @@ int CVODE::evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Ve
                            column->particleDensities, column->particleDiameters, column->fractionOfAdsorbent,
                            column->totalVoidFraction, spanConcentration, spanPhysisorptionDot, spanChemisorptionDot,
                            spanSurfaceConcentration, column->bulkSpeciesSink, column->reactionPhysisorptionSource,
-                           column->reactionChemisorptionSource);
+                           column->reactionChemisorptionSource, column->reactionBulkSource);
   }
 
   computeMassDerivatives(column->physisorptionMixtures, column->numberOfGridPoints, column->numberOfComponents,
@@ -617,6 +645,10 @@ void CVODE::initialize(Column&) {}
 void CVODE::initialize(MultibedColumn&) {}
 
 void CVODE::reinitialize() {}
+
+void CVODE::reinitialize(const Column&) {}
+
+void CVODE::reinitialize(const MultibedColumn&) {}
 
 void CVODE::printStatistics() const {}
 

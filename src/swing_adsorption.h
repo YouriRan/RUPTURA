@@ -20,6 +20,8 @@ struct SwingAdsorptionSubStage
   double temperature{0.0};  ///< Sub-stage temperature in K.
   double pressure{0.0};     ///< Sub-stage inlet pressure in Pa.
   size_t numberOfSteps{0};  ///< Number of time steps in this sub-stage.
+  std::vector<double> moleFractions{};  ///< Sub-stage feed mole fractions per component; empty = Components feed.
+  double velocity{0.0};                 ///< Sub-stage inlet (interstitial) velocity in m/s.
 };
 
 /**

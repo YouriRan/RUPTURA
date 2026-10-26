@@ -32,6 +32,11 @@ struct Chemisorption
   size_t desorptionOrder{1};
   double elovichAlpha{0.0};
   double elovichBeta{0.0};
+  // Optional coverage-dependent desorption for FirstOrder (Stadler et al., Front. Chem. Eng. 4 (2022) 1000064,
+  // Eqs. 7-10): when q > q*, the coefficient is k_des = k1 exp(beta (q/q_ref)/(R T)) instead of rateCoefficient.
+  double desorptionMassTransferCoefficient{0.0};  ///< k1 in 1/s; zero keeps the symmetric FirstOrder law.
+  double desorptionCoverageEnergy{0.0};           ///< beta in J/mol.
+  double coverageReferenceLoading{0.0};           ///< q_ref in mol/kg; Stadler et al. use q*(20 bar).
   double filmMassTransferCoefficient{0.0};
   double poreDiffusivity{0.0};
   bool usePoreSurfaceTransport{false};

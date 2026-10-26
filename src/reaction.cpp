@@ -135,6 +135,8 @@ std::string Reaction::repr() const
         return "Chemisorbed";
       case Phase::PoreConcentration:
         return "PoreConcentration";
+      case Phase::BulkConcentration:
+        return "BulkConcentration";
     }
     return "Unknown";
   }();

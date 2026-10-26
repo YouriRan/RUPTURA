@@ -21,6 +21,12 @@ double Chemisorption::rate(double equilibriumLoading, double loading, double con
     case Type::None:
       return 0.0;
     case Type::FirstOrder:
+      if (driving < 0.0 && desorptionMassTransferCoefficient > 0.0)
+      {
+        const double coverage = std::max(0.0, loading) / coverageReferenceLoading;
+        const double exponent = desorptionCoverageEnergy * coverage / (R * std::max(temperature, 1.0e-10));
+        return desorptionMassTransferCoefficient * std::exp(std::min(exponent, 700.0)) * driving;
+      }
       return rateCoefficient * driving;
     case Type::PseudoNth:
       return rateCoefficient * std::pow(driving, order);
@@ -86,6 +92,14 @@ std::string Chemisorption::repr() const
       "        maximum loading:       {:8.4e} [mol/kg]\n"
       "        heat of chemisorption: {:8.4e} [J/mol]\n",
       typeName, rateCoefficient, order, maximumLoading, heatOfChemisorption);
+  if (type == Type::FirstOrder && desorptionMassTransferCoefficient > 0.0)
+  {
+    text += std::format(
+        "        desorption k1:         {:8.4e} [1/s]\n"
+        "        desorption coverage energy: {:8.4e} [J/mol]\n"
+        "        coverage reference loading: {:8.4e} [mol/kg]\n",
+        desorptionMassTransferCoefficient, desorptionCoverageEnergy, coverageReferenceLoading);
+  }
   if (type == Type::General)
   {
     text += std::format(

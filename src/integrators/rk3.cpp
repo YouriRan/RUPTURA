@@ -40,13 +40,19 @@ bool reactionAutoStopReached(const Column& column, double timeStep) noexcept
 {
   if (column.reactions.empty()) return false;
 
+  // A bulk-concentration reaction changes no adsorbed or pore state, so it is converged only once the bulk is steady.
+  const bool bulkReaction =
+      std::any_of(column.reactions.begin(), column.reactions.end(), [](const Reaction& reaction)
+                  { return reaction.phase == Reaction::Phase::BulkConcentration; });
+
   return reactionStepChangeSmall(column.physisorption, column.physisorptionDot, timeStep) &&
          reactionStepChangeSmall(column.chemisorption, column.chemisorptionDot, timeStep) &&
          reactionStepChangeSmall(column.surfaceConcentration, column.surfaceConcentrationDot, timeStep) &&
          reactionStepChangeSmall(column.poreConcentration, column.poreConcentrationDot, timeStep) &&
          reactionStepChangeSmall(column.physisorption, column.reactionPhysisorptionSource, timeStep) &&
          reactionStepChangeSmall(column.chemisorption, column.reactionChemisorptionSource, timeStep) &&
-         reactionStepChangeSmall(column.poreConcentration, column.reactionPoreConcentrationSource, timeStep);
+         reactionStepChangeSmall(column.poreConcentration, column.reactionPoreConcentrationSource, timeStep) &&
+         (!bulkReaction || reactionStepChangeSmall(column.concentration, column.concentrationDot, timeStep));
 }
 
 void precompute(Column& column, Timing& timings)
@@ -58,7 +64,8 @@ void precompute(Column& column, Timing& timings)
                                              column.maxChemisorptionSites, column.geometry, column.particleDensity,
                                              column.concentration, column.physisorptionDot, column.chemisorptionDot,
                                              column.surfaceConcentration, column.bulkSpeciesSink,
-                                             column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
+                                             column.reactionPhysisorptionSource, column.reactionChemisorptionSource,
+                                             column.reactionBulkSource);
                     ::updateVelocityAndPressure(
                         column.components, column.boundaryCondition, column.numberOfGridPoints,
                         column.numberOfComponents, column.inletPressure, column.outletPressure, column.pressureGradient,
@@ -103,7 +110,8 @@ void precompute(MultibedColumn& column, Timing& timings)
             column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries, column.adsorbentVoidFractions,
             column.particleDensities, column.particleDiameters, column.fractionOfAdsorbent, column.totalVoidFraction,
             column.concentration, column.physisorptionDot, column.chemisorptionDot, column.surfaceConcentration,
-            column.bulkSpeciesSink, column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
+            column.bulkSpeciesSink, column.reactionPhysisorptionSource, column.reactionChemisorptionSource,
+            column.reactionBulkSource);
         ::updateVelocityAndPressure(
             column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
             column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength,
@@ -167,13 +175,14 @@ void computeDerivatives(Column& column, double elapsedTime)
       column.maxChemisorptionSites, column.externalTemperature, column.physisorption, column.physisorptionDot,
       column.chemisorption, column.chemisorptionDot, column.poreConcentration, column.poreConcentrationDot,
       column.solidTemperature, column.reactionPhysisorptionSource, column.reactionChemisorptionSource,
-      column.reactionPoreConcentrationSource, column.reactionHeat);
+      column.reactionPoreConcentrationSource, column.reactionHeat, column.concentration, column.reactionBulkSource,
+      std::span<const double>{}, 0);
 
   ::computeBulkSpeciesSink(column.components, column.numberOfGridPoints, column.numberOfComponents,
                            column.maxChemisorptionSites, column.geometry, column.particleDensity, column.concentration,
                            column.physisorptionDot, column.chemisorptionDot, column.surfaceConcentration,
                            column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                           column.reactionChemisorptionSource);
+                           column.reactionChemisorptionSource, column.reactionBulkSource);
 
   ::computeMassDerivatives(column.components, column.numberOfGridPoints, column.numberOfComponents, column.resolution,
                            column.interstitialGasVelocity, column.concentration, column.concentrationDot,
@@ -219,7 +228,8 @@ void computeDerivatives(MultibedColumn& column, double elapsedTime)
       column.numberOfComponents, column.maxChemisorptionSites, column.externalTemperature, column.physisorption,
       column.physisorptionDot, column.chemisorption, column.chemisorptionDot, column.poreConcentration,
       column.poreConcentrationDot, column.solidTemperature, column.reactionPhysisorptionSource,
-      column.reactionChemisorptionSource, column.reactionPoreConcentrationSource, column.reactionHeat);
+      column.reactionChemisorptionSource, column.reactionPoreConcentrationSource, column.reactionHeat,
+      column.concentration, column.reactionBulkSource, column.fractionOfAdsorbent, column.numberOfAdsorbents);
 
   ::computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
                            column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries,
@@ -227,7 +237,8 @@ void computeDerivatives(MultibedColumn& column, double elapsedTime)
                            column.particleDensities, column.particleDiameters, column.fractionOfAdsorbent,
                            column.totalVoidFraction, column.concentration, column.physisorptionDot,
                            column.chemisorptionDot, column.surfaceConcentration, column.bulkSpeciesSink,
-                           column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
+                           column.reactionPhysisorptionSource, column.reactionChemisorptionSource,
+                           column.reactionBulkSource);
 
   ::computeMassDerivatives(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
                            column.numberOfAdsorbents, column.columnDistances, column.fractionOfAdsorbent,
@@ -255,13 +266,19 @@ bool reactionAutoStopReached(const MultibedColumn& column, double timeStep) noex
 {
   if (column.reactions.empty()) return false;
 
+  // A bulk-concentration reaction changes no adsorbed or pore state, so it is converged only once the bulk is steady.
+  const bool bulkReaction =
+      std::any_of(column.reactions.begin(), column.reactions.end(), [](const Reaction& reaction)
+                  { return reaction.phase == Reaction::Phase::BulkConcentration; });
+
   return reactionStepChangeSmall(column.physisorption, column.physisorptionDot, timeStep) &&
          reactionStepChangeSmall(column.chemisorption, column.chemisorptionDot, timeStep) &&
          reactionStepChangeSmall(column.surfaceConcentration, column.surfaceConcentrationDot, timeStep) &&
          reactionStepChangeSmall(column.poreConcentration, column.poreConcentrationDot, timeStep) &&
          reactionStepChangeSmall(column.physisorption, column.reactionPhysisorptionSource, timeStep) &&
          reactionStepChangeSmall(column.chemisorption, column.reactionChemisorptionSource, timeStep) &&
-         reactionStepChangeSmall(column.poreConcentration, column.reactionPoreConcentrationSource, timeStep);
+         reactionStepChangeSmall(column.poreConcentration, column.reactionPoreConcentrationSource, timeStep) &&
+         (!bulkReaction || reactionStepChangeSmall(column.concentration, column.concentrationDot, timeStep));
 }
 
 void updateStateRK(Column& column, Column& newColumn, double alpha, double beta, double timeStep)

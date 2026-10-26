@@ -31,7 +31,7 @@ void refreshColumnState(ColumnType& column)
                              column.maxChemisorptionSites, column.geometry, column.particleDensity,
                              column.concentration, column.physisorptionDot, column.chemisorptionDot,
                              column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                             column.reactionChemisorptionSource);
+                             column.reactionChemisorptionSource, column.reactionBulkSource);
       updateVelocityAndPressure(
           column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
           column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength, column.geometry,
@@ -68,7 +68,8 @@ void refreshColumnState(ColumnType& column)
                              column.particleDensities, column.particleDiameters, column.fractionOfAdsorbent,
                              column.totalVoidFraction, column.concentration, column.physisorptionDot,
                              column.chemisorptionDot, column.surfaceConcentration, column.bulkSpeciesSink,
-                             column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
+                             column.reactionPhysisorptionSource, column.reactionChemisorptionSource,
+                             column.reactionBulkSource);
       updateVelocityAndPressure(
           column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
           column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength,
@@ -134,7 +135,9 @@ SwingAdsorption<ColumnType>::SwingAdsorption(const InputReader& inputReader) : b
     {
       throw std::invalid_argument("SwingAdsorption: phase '" + phase.name + "' has invalid inlet pressure.");
     }
-    subStages.emplace_back(SwingAdsorptionSubStage{phase.name, temperature, pressure, phase.numberOfSteps});
+    const double velocity = phase.columnEntranceVelocity.value_or(inputReader.columnEntranceVelocity);
+    subStages.emplace_back(SwingAdsorptionSubStage{phase.name, temperature, pressure, phase.numberOfSteps,
+                                                   phase.gasPhaseMolFractions, velocity});
   }
 }
 
@@ -177,6 +180,8 @@ void SwingAdsorption<ColumnType>::run()
   {
     column.setTemperature(stage.temperature);
     column.inletPressure = stage.pressure;
+    // Boundary conditions that derive the velocity from the pressures recompute it in refreshColumnState.
+    column.columnEntranceVelocity = stage.velocity;
     if (!column.gasTemperature.empty())
     {
       column.gasTemperature[0] = stage.temperature;
@@ -195,7 +200,9 @@ void SwingAdsorption<ColumnType>::run()
       const double inletConcentration = column.inletPressure / (R * inletTemperature);
       for (size_t comp = 0; comp < column.numberOfComponents; ++comp)
       {
-        column.concentration[comp] = column.components[comp].initialGasMoleFraction * inletConcentration;
+        const double feedFraction = stage.moleFractions.empty() ? column.components[comp].initialGasMoleFraction
+                                                                 : stage.moleFractions[comp];
+        column.concentration[comp] = feedFraction * inletConcentration;
       }
     }
     refreshColumnState(column);
@@ -209,10 +216,12 @@ void SwingAdsorption<ColumnType>::run()
       applyStageConditions(stage);
       if (breakthrough.integrationScheme == BreakthroughIntegrationScheme::CVODE)
       {
-        breakthrough.cvode.reinitialize();
+        // Restart the multistep history and re-derive the dz/v step cap from this phase's velocity.
+        breakthrough.cvode.reinitialize(column);
       }
-      std::print("\nSwing phase {}: {} (T={} K, inlet pressure={} Pa, steps={})\n", stageIndex + 1, stage.name,
-                 stage.temperature, stage.pressure, stage.numberOfSteps);
+      std::print("\nSwing phase {}: {} (T={} K, inlet pressure={} Pa, inlet velocity={} m/s, steps={})\n",
+                 stageIndex + 1, stage.name, stage.temperature, stage.pressure, column.columnEntranceVelocity,
+                 stage.numberOfSteps);
 
       for (size_t subStep = 0; subStep < stage.numberOfSteps; ++subStep)
       {
@@ -314,8 +323,17 @@ std::string SwingAdsorption<ColumnType>::repr() const
   for (size_t i = 0; i < subStages.size(); ++i)
   {
     const SwingAdsorptionSubStage& stage = subStages[i];
-    result += std::format("{}: {}  T={} [K], inlet pressure={} [Pa], steps={}\n", i + 1, stage.name, stage.temperature,
-                          stage.pressure, stage.numberOfSteps);
+    result += std::format("{}: {}  T={} [K], inlet pressure={} [Pa], inlet velocity={} [m/s], steps={}\n", i + 1,
+                          stage.name, stage.temperature, stage.pressure, stage.velocity, stage.numberOfSteps);
+    if (!stage.moleFractions.empty())
+    {
+      result += "    feed mole fractions:";
+      for (size_t comp = 0; comp < stage.moleFractions.size(); ++comp)
+      {
+        result += std::format(" {}={}", breakthrough.column.components[comp].name, stage.moleFractions[comp]);
+      }
+      result += "\n";
+    }
   }
   result += "\n\n";
   return result;

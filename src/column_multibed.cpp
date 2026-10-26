@@ -309,6 +309,7 @@ MultibedColumn::MultibedColumn(const MultibedColumn& other)
       reactionPhysisorptionSource(other.reactionPhysisorptionSource),
       reactionChemisorptionSource(other.reactionChemisorptionSource),
       reactionPoreConcentrationSource(other.reactionPoreConcentrationSource),
+      reactionBulkSource(other.reactionBulkSource),
       reactionHeat(other.reactionHeat),
       state(other.state),
       stateDot(other.stateDot)
@@ -401,6 +402,7 @@ MultibedColumn& MultibedColumn::operator=(const MultibedColumn& other)
   reactionPhysisorptionSource = other.reactionPhysisorptionSource;
   reactionChemisorptionSource = other.reactionChemisorptionSource;
   reactionPoreConcentrationSource = other.reactionPoreConcentrationSource;
+  reactionBulkSource = other.reactionBulkSource;
   reactionHeat = other.reactionHeat;
   state = other.state;
   stateDot = other.stateDot;
@@ -671,7 +673,7 @@ void MultibedColumn::initialize()
                          particleDiameters,
                          fractionOfAdsorbent, totalVoidFraction, concentration, physisorptionDot, chemisorptionDot,
                          surfaceConcentration, bulkSpeciesSink, reactionPhysisorptionSource,
-                         reactionChemisorptionSource);
+                         reactionChemisorptionSource, reactionBulkSource);
   updateVelocityAndPressure(components, boundaryCondition, numberOfGridPoints, numberOfComponents, inletPressure,
                             outletPressure, pressureGradient, columnLength, numberOfAdsorbents, columnEntranceVelocity,
                             dynamicViscosity, columnDistances, fractionOfAdsorbent, geometries,

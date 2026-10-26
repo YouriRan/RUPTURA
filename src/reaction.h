@@ -17,7 +17,8 @@ struct Reaction
   {
     Physisorbed = 0,
     Chemisorbed = 1,
-    PoreConcentration = 2
+    PoreConcentration = 2,
+    BulkConcentration = 3  ///< Bulk-fluid concentrations; the rate is per fluid volume (catalyst amount folded in).
   };
 
   /**
@@ -44,6 +45,9 @@ struct Reaction
   double equilibriumConstant{1.0};
   double gibbsFreeEnergy{0.0};
   double rateLimitTime{1.0e-4};
+  /// Multibed adsorbent indices the reaction is restricted to; empty means everywhere. The rate at a node is
+  /// weighted by the summed local fraction of these adsorbents.
+  std::vector<size_t> adsorbents{};
 
   [[nodiscard]] bool enabled() const noexcept { return forwardRateCoefficient != 0.0; }
   [[nodiscard]] double stoichiometricCoefficient(size_t component) const noexcept;

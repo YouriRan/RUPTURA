@@ -188,11 +188,14 @@ void computeReactionDerivatives(
     std::span<double> poreConcentrationDot, std::span<const double> solidTemperature,
     std::span<double> reactionPhysisorptionSource,
     std::span<double> reactionChemisorptionSource,
-    std::span<double> reactionPoreConcentrationSource, std::span<double> reactionHeat)
+    std::span<double> reactionPoreConcentrationSource, std::span<double> reactionHeat,
+    std::span<const double> concentration, std::span<double> reactionBulkSource,
+    std::span<const double> fractionOfAdsorbent, size_t numberOfAdsorbents)
 {
   std::fill(reactionPhysisorptionSource.begin(), reactionPhysisorptionSource.end(), 0.0);
   std::fill(reactionChemisorptionSource.begin(), reactionChemisorptionSource.end(), 0.0);
   std::fill(reactionPoreConcentrationSource.begin(), reactionPoreConcentrationSource.end(), 0.0);
+  std::fill(reactionBulkSource.begin(), reactionBulkSource.end(), 0.0);
   std::fill(reactionHeat.begin(), reactionHeat.end(), 0.0);
 
   if (reactions.empty()) return;
@@ -215,6 +218,8 @@ void computeReactionDerivatives(
   mdspan3d_mut spanReactionPoreConcentrationSource(reactionPoreConcentrationSource.data(),
                                                    maxChemisorptionSites, numberOfGridPoints + 1,
                                                    numberOfComponents);
+  mdspan2d_const spanConcentration(concentration.data(), numberOfGridPoints + 1, numberOfComponents);
+  mdspan2d_mut spanReactionBulkSource(reactionBulkSource.data(), numberOfGridPoints + 1, numberOfComponents);
 
   std::vector<double> activity(numberOfComponents, 0.0);
   std::vector<double> maximumLoadings(numberOfComponents, unboundedLoading);
@@ -231,6 +236,14 @@ void computeReactionDerivatives(
     if (reaction.phase == Reaction::Phase::PoreConcentration && poreConcentration.empty())
     {
       throw std::runtime_error("Error: Pore concentration reaction requires pore concentration state");
+    }
+    if (reaction.phase == Reaction::Phase::BulkConcentration && (concentration.empty() || reactionBulkSource.empty()))
+    {
+      throw std::runtime_error("Error: Bulk concentration reaction requires the bulk concentration state");
+    }
+    if (!reaction.adsorbents.empty() && numberOfAdsorbents == 0)
+    {
+      throw std::runtime_error("Error: a Reaction restricted to Adsorbents requires a multibed column");
     }
 
     if (reaction.phase == Reaction::Phase::Physisorbed)
@@ -250,6 +263,18 @@ void computeReactionDerivatives(
 
     for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
     {
+      // A reaction restricted to some adsorbents (e.g. a catalyst section) acts with their local fraction.
+      double sectionWeight = 1.0;
+      if (!reaction.adsorbents.empty())
+      {
+        sectionWeight = 0.0;
+        for (size_t ads : reaction.adsorbents)
+        {
+          sectionWeight += fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
+        }
+        if (sectionWeight <= 0.0) continue;
+      }
+
       for (size_t comp = 0; comp < numberOfComponents; ++comp)
       {
         switch (reaction.phase)
@@ -263,12 +288,16 @@ void computeReactionDerivatives(
           case Reaction::Phase::PoreConcentration:
             activity[comp] = spanPoreConcentration[reaction.site, grid, comp];
             break;
+          case Reaction::Phase::BulkConcentration:
+            activity[comp] = spanConcentration[grid, comp];
+            break;
         }
       }
 
       const double temperature = solidTemperature.empty() ? externalTemperature : solidTemperature[grid];
-      double rate = reaction.rate(activity, temperature);
-      if (reaction.phase == Reaction::Phase::PoreConcentration)
+      double rate = sectionWeight * reaction.rate(activity, temperature);
+      if (reaction.phase == Reaction::Phase::PoreConcentration ||
+          reaction.phase == Reaction::Phase::BulkConcentration)
       {
         rate = limitedPoreRate(reaction, activity, rate);
       }
@@ -340,9 +369,31 @@ void computeReactionDerivatives(
             spanReactionPoreConcentrationSource[reaction.site, grid, comp] += source;
           }
           break;
+        case Reaction::Phase::BulkConcentration:
+          // Applied to the bulk balance through computeBulkSpeciesSink, per unit fluid volume.
+          for (size_t i = 0; i < reaction.reactants.size(); ++i)
+          {
+            const size_t comp = reaction.reactants[i];
+            const double stoichiometry =
+                i < reaction.reactantStoichiometry.size() ? reaction.reactantStoichiometry[i] : 1.0;
+            spanReactionBulkSource[grid, comp] -= stoichiometry * rate;
+          }
+          for (size_t i = 0; i < reaction.products.size(); ++i)
+          {
+            const size_t comp = reaction.products[i];
+            const double stoichiometry =
+                i < reaction.productStoichiometry.size() ? reaction.productStoichiometry[i] : 1.0;
+            spanReactionBulkSource[grid, comp] += stoichiometry * rate;
+          }
+          break;
       }
 
-      reactionHeat[grid] += -reaction.gibbsFreeEnergy * rate;
+      // reactionHeat is per kg of solid; a bulk reaction's heat per fluid volume has no conversion here, which the
+      // input reader enforces by rejecting BulkConcentration reactions together with the energy balance.
+      if (reaction.phase != Reaction::Phase::BulkConcentration)
+      {
+        reactionHeat[grid] += -reaction.gibbsFreeEnergy * rate;
+      }
     }
   }
 }

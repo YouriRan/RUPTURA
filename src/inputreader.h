@@ -68,6 +68,9 @@ struct InputReader
     std::optional<double> temperature;        ///< Phase temperature in K.
     std::optional<double> inletPressure;      ///< Phase inlet pressure in Pa.
     size_t numberOfSteps{0};                  ///< Number of time steps in this phase.
+    /// Phase feed mole fractions per component (normalized); empty means the Components feed.
+    std::vector<double> gasPhaseMolFractions{};
+    std::optional<double> columnEntranceVelocity;  ///< Phase inlet (interstitial) velocity in m/s.
   };
 
   std::vector<Component> components;  ///< The list of components involved in the simulation.

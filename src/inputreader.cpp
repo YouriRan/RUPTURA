@@ -367,10 +367,46 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
         case Chemisorption::Type::FirstOrder:
           if (rateParams != nullptr)
           {
-            requireOnlyExactKeys(*rateParams, {"MassTransferCoefficient"}, parametersContext);
+            requireOnlyExactKeys(*rateParams,
+                                 {"MassTransferCoefficient", "DesorptionMassTransferCoefficient",
+                                  "DesorptionCoverageEnergy", "CoverageReferenceLoading"},
+                                 parametersContext);
             siteChemisorption.rateCoefficient = getNumberOrThrow<double>(
                 requireKeyCaseInsensitive(*rateParams, "MassTransferCoefficient", parametersContext),
                 "MassTransferCoefficient", parametersContext);
+
+            // Optional coverage-dependent desorption branch (used when q > q*).
+            readOptionalNumber<double>(*rateParams, "DesorptionMassTransferCoefficient",
+                                       siteChemisorption.desorptionMassTransferCoefficient);
+            readOptionalNumber<double>(*rateParams, "DesorptionCoverageEnergy",
+                                       siteChemisorption.desorptionCoverageEnergy);
+            readOptionalNumber<double>(*rateParams, "CoverageReferenceLoading",
+                                       siteChemisorption.coverageReferenceLoading);
+            const bool hasDesorptionBranch =
+                containsKeyCaseInsensitive(*rateParams, "DesorptionMassTransferCoefficient") ||
+                containsKeyCaseInsensitive(*rateParams, "DesorptionCoverageEnergy") ||
+                containsKeyCaseInsensitive(*rateParams, "CoverageReferenceLoading");
+            if (hasDesorptionBranch)
+            {
+              if (!(siteChemisorption.desorptionMassTransferCoefficient > 0.0) ||
+                  !std::isfinite(siteChemisorption.desorptionMassTransferCoefficient))
+              {
+                throw std::runtime_error(
+                    "Error: DesorptionMassTransferCoefficient must be positive when a desorption branch is given (" +
+                    parametersContext + ")");
+              }
+              if (!(siteChemisorption.coverageReferenceLoading > 0.0) ||
+                  !std::isfinite(siteChemisorption.coverageReferenceLoading))
+              {
+                throw std::runtime_error(
+                    "Error: CoverageReferenceLoading must be positive when a desorption branch is given (" +
+                    parametersContext + ")");
+              }
+              if (!std::isfinite(siteChemisorption.desorptionCoverageEnergy))
+              {
+                throw std::runtime_error("Error: DesorptionCoverageEnergy must be finite (" + parametersContext + ")");
+              }
+            }
           }
           else
           {
@@ -961,6 +997,7 @@ InputReader::InputReader(const std::string fileName) : components()
                         "heatCapacityWall",
                         "energyBalance",
                         "SwingAdsorptionPhases",
+                        "NumberOfCycles",
                         "ColumnSections",
                         "Adsorbents",
                         "Components",
@@ -1326,6 +1363,8 @@ InputReader::InputReader(const std::string fileName) : components()
   outerDiameter = geometry.dimensions.outerDiameter;
 
   swingAdsorptionPhases.clear();
+  // Per-phase feed compositions by component name; resolved to component indices once Components are parsed.
+  std::vector<std::vector<std::pair<std::string, double>>> phaseFeedByName;
   const nlohmann::json* phases = findKeyCaseInsensitive(parsed_data, "SwingAdsorptionPhases");
   if (phases != nullptr)
   {
@@ -1344,13 +1383,33 @@ InputReader::InputReader(const std::string fileName) : components()
         throw std::runtime_error("Error: each SwingAdsorptionPhases entry must be an object (" + context + ")");
       }
 
-      requireOnlyKnownKeys(value, {"Name", "Temperature", "InletPressure", "NumberOfTimeSteps"}, context);
+      requireOnlyKnownKeys(value,
+                           {"Name", "Temperature", "InletPressure", "NumberOfTimeSteps", "GasPhaseMolFractions",
+                            "ColumnEntranceVelocity"},
+                           context);
 
       SwingAdsorptionPhase phase;
       phase.name = "Phase " + std::to_string(i + 1);
       readOptionalString(value, "Name", phase.name);
       readOptionalNumber<double>(value, "Temperature", phase.temperature);
       readOptionalNumber<double>(value, "InletPressure", phase.inletPressure);
+      readOptionalNumber<double>(value, "ColumnEntranceVelocity", phase.columnEntranceVelocity);
+
+      std::vector<std::pair<std::string, double>> feedByName;
+      if (const nlohmann::json* feed = findKeyCaseInsensitive(value, "GasPhaseMolFractions"))
+      {
+        if (!feed->is_object() || feed->empty())
+        {
+          throw std::runtime_error(
+              "Error: GasPhaseMolFractions must be a non-empty object of component name to mole fraction (" +
+              context + ")");
+        }
+        for (auto it = feed->begin(); it != feed->end(); ++it)
+        {
+          feedByName.emplace_back(it.key(), getNumberOrThrow<double>(it.value(), it.key(), context));
+        }
+      }
+      phaseFeedByName.push_back(std::move(feedByName));
 
       const nlohmann::json* numberOfSteps = findKeyCaseInsensitive(value, "NumberOfTimeSteps");
       if (numberOfSteps == nullptr)
@@ -1388,6 +1447,37 @@ InputReader::InputReader(const std::string fileName) : components()
         throw std::runtime_error("Error: SwingAdsorption phase NumberOfTimeSteps must be positive (" + context + ")");
       }
       swingAdsorptionPhases.push_back(phase);
+    }
+  }
+
+  // NumberOfCycles repeats the whole SwingAdsorptionPhases sequence; each repetition is one cycle.
+  if (const nlohmann::json* cycles = findKeyCaseInsensitive(parsed_data, "NumberOfCycles"))
+  {
+    if (!cycles->is_number_integer() || cycles->get<std::int64_t>() < 1)
+    {
+      throw std::runtime_error("Error: NumberOfCycles must be a positive integer");
+    }
+    if (swingAdsorptionPhases.empty())
+    {
+      throw std::runtime_error("Error: NumberOfCycles requires SwingAdsorptionPhases");
+    }
+    const size_t numberOfCycles = static_cast<size_t>(cycles->get<std::int64_t>());
+    if (numberOfCycles > 1)
+    {
+      const std::vector<SwingAdsorptionPhase> cyclePhases = swingAdsorptionPhases;
+      const std::vector<std::vector<std::pair<std::string, double>>> cycleFeeds = phaseFeedByName;
+      swingAdsorptionPhases.clear();
+      phaseFeedByName.clear();
+      for (size_t cycle = 1; cycle <= numberOfCycles; ++cycle)
+      {
+        for (size_t i = 0; i < cyclePhases.size(); ++i)
+        {
+          SwingAdsorptionPhase phase = cyclePhases[i];
+          phase.name += " (cycle " + std::to_string(cycle) + ")";
+          swingAdsorptionPhases.push_back(std::move(phase));
+          phaseFeedByName.push_back(cycleFeeds[i]);
+        }
+      }
     }
   }
 
@@ -1485,6 +1575,46 @@ InputReader::InputReader(const std::string fileName) : components()
     }
   }
 
+  // Resolve per-phase feed compositions; components a phase does not list are absent from its feed.
+  for (size_t phaseIndex = 0; phaseIndex < phaseFeedByName.size(); ++phaseIndex)
+  {
+    const std::vector<std::pair<std::string, double>>& feedByName = phaseFeedByName[phaseIndex];
+    if (feedByName.empty()) continue;
+    const std::string context = "SwingAdsorptionPhases '" + swingAdsorptionPhases[phaseIndex].name + "'";
+    if (fluidPhase != 0)
+    {
+      throw std::runtime_error("Error: GasPhaseMolFractions is only supported for gas-phase columns (" + context + ")");
+    }
+
+    std::vector<double> fractions(components.size(), 0.0);
+    for (const auto& [name, fraction] : feedByName)
+    {
+      const auto component = std::find_if(components.begin(), components.end(),
+                                          [&](const Component& candidate) { return candidate.name == name; });
+      if (component == components.end())
+      {
+        throw std::runtime_error("Error: GasPhaseMolFractions names unknown component '" + name + "' (" + context +
+                                 ")");
+      }
+      if (!std::isfinite(fraction) || fraction < 0.0)
+      {
+        throw std::runtime_error("Error: GasPhaseMolFractions must be finite and non-negative (" + context + ")");
+      }
+      fractions[static_cast<size_t>(component - components.begin())] = fraction;
+    }
+    const double sum = std::accumulate(fractions.begin(), fractions.end(), 0.0);
+    if (!(sum > 0.0))
+    {
+      throw std::runtime_error("Error: GasPhaseMolFractions must not all be zero (" + context + ")");
+    }
+    if (std::abs(sum - 1.0) > 1e-15)
+    {
+      std::print("Normalizing: {} gas-phase molfractions did not sum exactly to unity!\n\n", context);
+      for (double& fraction : fractions) fraction /= sum;
+    }
+    swingAdsorptionPhases[phaseIndex].gasPhaseMolFractions = std::move(fractions);
+  }
+
   numberOfCarrierGases = 0;
   carrierGasComponent = 0;
   for (size_t j = 0; j < components.size(); ++j)
@@ -1540,6 +1670,8 @@ InputReader::InputReader(const std::string fileName) : components()
   }
 
   reactions.clear();
+  // Adsorbent names a reaction is restricted to; resolved to indices once the Adsorbents are parsed.
+  std::vector<std::vector<std::string>> reactionAdsorbentNames;
   const nlohmann::json* reactionsJson = findKeyCaseInsensitive(parsed_data, "Reactions");
   if (reactionsJson != nullptr)
   {
@@ -1559,8 +1691,23 @@ InputReader::InputReader(const std::string fileName) : components()
       }
       requireOnlyKnownKeys(value,
                            {"Phase", "Style", "Reactants", "Products", "Stoichiometry", "Kinetics", "Site",
-                            "ForwardOrders", "BackwardOrders", "RateLimitTime"},
+                            "ForwardOrders", "BackwardOrders", "RateLimitTime", "Adsorbents"},
                            context);
+
+      std::vector<std::string> adsorbentNamesOfReaction;
+      if (const nlohmann::json* adsorbentsOfReaction = findKeyCaseInsensitive(value, "Adsorbents"))
+      {
+        if (!adsorbentsOfReaction->is_array() || adsorbentsOfReaction->empty())
+        {
+          throw std::runtime_error("Error: Reaction Adsorbents must be a non-empty array of adsorbent names (" +
+                                   context + ")");
+        }
+        for (const nlohmann::json& name : *adsorbentsOfReaction)
+        {
+          adsorbentNamesOfReaction.push_back(getStringOrThrow(name, "Adsorbents", context));
+        }
+      }
+      reactionAdsorbentNames.push_back(std::move(adsorbentNamesOfReaction));
 
       Reaction reaction;
       const std::string phase = getStringOrThrow(requireKeyCaseInsensitive(value, "Phase", context), "Phase", context);
@@ -1576,10 +1723,15 @@ InputReader::InputReader(const std::string fileName) : components()
       {
         reaction.phase = Reaction::Phase::PoreConcentration;
       }
+      else if (caseInSensStringCompare(phase, "BulkConcentration"))
+      {
+        reaction.phase = Reaction::Phase::BulkConcentration;
+      }
       else
       {
-        throw std::runtime_error("Error: Reaction Phase must be Physisorbed, Chemisorbed, or PoreConcentration (" +
-                                 context + ")");
+        throw std::runtime_error(
+            "Error: Reaction Phase must be Physisorbed, Chemisorbed, PoreConcentration, or BulkConcentration (" +
+            context + ")");
       }
 
       const std::string style = getStringOrThrow(requireKeyCaseInsensitive(value, "Style", context), "Style", context);
@@ -2105,6 +2257,20 @@ InputReader::InputReader(const std::string fileName) : components()
       }
     }
 
+    for (size_t reactionId = 0; reactionId < reactionAdsorbentNames.size(); ++reactionId)
+    {
+      for (const std::string& name : reactionAdsorbentNames[reactionId])
+      {
+        const auto adsorbentIndex = adsorbentIndexByName.find(name);
+        if (adsorbentIndex == adsorbentIndexByName.end())
+        {
+          throw std::runtime_error("Error: Reaction " + std::to_string(reactionId) + " names unknown adsorbent '" +
+                                   name + "'");
+        }
+        reactions[reactionId].adsorbents.push_back(adsorbentIndex->second);
+      }
+    }
+
     if (!usesUniformAdsorbentMix && adsorbentInterfaceLengths.size() != adsorbentsJson.size() - 1)
     {
       throw std::runtime_error("Error: ColumnSections must define Adsorbents size minus one interfaces");
@@ -2166,6 +2332,11 @@ InputReader::InputReader(const std::string fileName) : components()
     if (!columnDistances.empty())
     {
       throw std::runtime_error("Error: ColumnDistances is only supported for multibed columns");
+    }
+    if (std::any_of(reactionAdsorbentNames.begin(), reactionAdsorbentNames.end(),
+                    [](const std::vector<std::string>& names) { return !names.empty(); }))
+    {
+      throw std::runtime_error("Error: Reaction Adsorbents requires a multibed column (an Adsorbents list)");
     }
     adsorbentComponents.push_back(components);
     adsorbentLengths.push_back(columnLength);
@@ -2445,11 +2616,31 @@ InputReader::InputReader(const std::string fileName) : components()
                                   " fixed pressure profile becomes non-positive");
           }
         }
+        if (phase.columnEntranceVelocity.has_value())
+        {
+          requireConfigured(
+              std::isfinite(*phase.columnEntranceVelocity) && *phase.columnEntranceVelocity > 0.0,
+              "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) + " has invalid ColumnEntranceVelocity");
+          // These boundary conditions compute the velocity from the pressures, which would overwrite a phase value.
+          requireConfigured(boundaryCondition != inletPressureOutletPressure &&
+                                boundaryCondition != fixedPressureInletVelocity,
+                            "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) +
+                                " sets ColumnEntranceVelocity, but the boundary condition derives the velocity from "
+                                "the pressures");
+        }
       }
     }
     requireConfigured(numberOfGridPoints != 0,
                       "Error: number of grid points not set (Use e.g.: 'NumberOfGridPoints 50')");
     requireConfigured(columnLength > 0.0, "Error: column length not set or invalid (Use e.g.: 'ColumnLength 0.3')");
+
+    const bool hasBulkReaction =
+        std::any_of(reactions.begin(), reactions.end(), [](const Reaction& reaction)
+                    { return reaction.phase == Reaction::Phase::BulkConcentration; });
+    requireConfigured(!hasBulkReaction || !energyBalance,
+                      "Error: BulkConcentration reactions do not yet supply reaction heat; set energyBalance false");
+    requireConfigured(!hasBulkReaction || breakthroughIntegrator != 2,
+                      "Error: the SIRK3 integrator does not evaluate reactions; use CVODE or RungeKutta3");
 
     if (boundaryNeedsInletPressure)
     {

@@ -232,6 +232,7 @@ struct MultibedColumn
                                     this->numberOfComponents),
         reactionPoreConcentrationSource(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
                                         this->numberOfComponents),
+        reactionBulkSource((this->numberOfGridPoints + 1) * this->numberOfComponents),
         reactionHeat(this->numberOfGridPoints + 1),
         state(MultibedColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents, this->maxChemisorptionSites,
                                         this->surfacePoreTransportEnabled}
@@ -409,6 +410,7 @@ struct MultibedColumn
   std::vector<double> reactionPhysisorptionSource;      ///< Reaction-only physisorbed source.
   std::vector<double> reactionChemisorptionSource;      ///< Reaction-only site-major chemisorbed source.
   std::vector<double> reactionPoreConcentrationSource;  ///< Reaction-only site-major pore source.
+  std::vector<double> reactionBulkSource;  ///< Bulk-concentration reaction source per fluid volume, mol/(m^3 s).
   std::vector<double> reactionHeat;                     ///< Reaction heat release on a solid-mass basis.
 
   // Canonical ODE storage.
