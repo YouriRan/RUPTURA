@@ -44,7 +44,11 @@ void computeChemisorptionTransportDerivatives(
       const double poreLdf =
           15.0 * std::max(0.0, kinetics.poreDiffusivity) /
           std::max(poreDiffusionLength * poreDiffusionLength, 1.0e-30);
-      const double gamma = geometry.loadingPrefactor(particleDensity);
+      // The film flux enters the surface reservoir per solid volume (solidFluidPerSolidVolume) while the bulk loses
+      // it per fluid volume (fluidSolidPerFluidVolume), so both reservoirs hold the solid volume. The chemisorbed
+      // uptake drawn from the pore reservoir is therefore the solid mass per solid volume, rho_p, times dq/dt;
+      // loadingPrefactor (solid mass per fluid volume) would remove (1 - eps)/eps times too much.
+      const double gamma = particleDensity;
 
       for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
       {
@@ -84,7 +88,8 @@ void computeBulkSpeciesSink(const std::vector<Component>& components, size_t num
                             std::span<const double> surfaceConcentration,
                             std::span<double> bulkSpeciesSink,
                             std::span<const double> reactionPhysisorptionSource,
-                            std::span<const double> reactionChemisorptionSource)
+                            std::span<const double> reactionChemisorptionSource,
+                            std::span<const double> reactionBulkSource)
 {
   std::fill(bulkSpeciesSink.begin(), bulkSpeciesSink.end(), 0.0);
 
@@ -128,6 +133,10 @@ void computeBulkSpeciesSink(const std::vector<Component>& components, size_t num
           }
           sink += loadingPrefactor * chemisorptionSource;
         }
+      }
+      if (!reactionBulkSource.empty())
+      {
+        sink -= reactionBulkSource[grid * numberOfComponents + comp];
       }
       spanBulkSpeciesSink[grid, comp] = sink;
     }

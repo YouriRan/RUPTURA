@@ -167,6 +167,17 @@ struct CVODE
   void reinitialize();
 
   /**
+   * \brief Resets CVODE integration history and re-derives the automatic step cap (one grid-cell advection time)
+   * from the column's current velocity, e.g. after a swing phase changes the inlet velocity.
+   */
+  void reinitialize(const Column& column);
+
+  /**
+   * \brief Multibed counterpart of reinitialize(const Column&).
+   */
+  void reinitialize(const MultibedColumn& column);
+
+  /**
    * \brief Prints CVODE solver statistics, or nothing when the solver was never initialized.
    */
   void printStatistics() const;

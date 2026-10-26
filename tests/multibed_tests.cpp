@@ -707,6 +707,48 @@ TEST(MultibedReactions, PoreSourcesAreIntegratedWithoutDirectBulkTransfer)
   EXPECT_GT(column.poreConcentration[product], 0.0);
 }
 
+TEST(MultibedReactions, BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs)
+{
+  InputReader reader(examplePath("examples/Multibed/CO2-N2-polishing/simulation.json"));
+  Reaction reaction = makeReaction(Reaction::Phase::BulkConcentration);
+  reaction.adsorbents = {0U};
+  reader.reactions = {reaction};
+
+  MultibedColumn column(reader);
+  column.initialize();
+  disablePhysisorptionKinetics(column);
+
+  const size_t components = column.numberOfComponents;
+  const size_t adsorbents = column.numberOfAdsorbents;
+  const size_t reactant = 1U;
+  const size_t product = 2U;
+  for (size_t grid = 0; grid <= column.numberOfGridPoints; ++grid)
+  {
+    column.concentration[grid * components + reactant] = column.concentration[reactant];
+  }
+
+  computeDerivatives(column);
+
+  size_t nodesWithCatalyst = 0;
+  size_t nodesWithoutCatalyst = 0;
+  for (size_t grid = 0; grid <= column.numberOfGridPoints; ++grid)
+  {
+    const double weight = column.fractionOfAdsorbent[grid * adsorbents];
+    const size_t r = grid * components + reactant;
+    const size_t p = grid * components + product;
+    // Full rate: k c (equilibrium constant large enough to make the backward term negligible).
+    const double fullRate = reaction.forwardRateCoefficient * column.concentration[r];
+    EXPECT_NEAR(column.reactionBulkSource[r], -weight * fullRate, 1.0e-6 * fullRate);
+    EXPECT_NEAR(column.reactionBulkSource[p], weight * fullRate, 1.0e-6 * fullRate);
+    // Without sorption the bulk sink is exactly the negative reaction source.
+    EXPECT_NEAR(column.bulkSpeciesSink[r], -column.reactionBulkSource[r], 1.0e-12 * fullRate);
+    EXPECT_NEAR(column.bulkSpeciesSink[p], -column.reactionBulkSource[p], 1.0e-12 * fullRate);
+    (weight > 0.0 ? nodesWithCatalyst : nodesWithoutCatalyst) += 1;
+  }
+  EXPECT_GT(nodesWithCatalyst, 0U);
+  EXPECT_GT(nodesWithoutCatalyst, 0U);
+}
+
 TEST(MultibedCompute, BulkSpeciesSinkUsesBedWeightedSolidLoading)
 {
   InputReader reader(examplePath("examples/Multibed/C6-alkanes-layered/simulation.json"));

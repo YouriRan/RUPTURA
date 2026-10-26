@@ -241,6 +241,7 @@ struct Column
                                     (this->numberOfGridPoints + 1) * this->numberOfComponents),
         reactionPoreConcentrationSource(this->maxChemisorptionSites *
                                         (this->numberOfGridPoints + 1) * this->numberOfComponents),
+        reactionBulkSource((this->numberOfGridPoints + 1) * this->numberOfComponents),
         reactionHeat(this->numberOfGridPoints + 1),
         state(ColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents,
                                 this->maxChemisorptionSites,
@@ -387,6 +388,7 @@ struct Column
   std::vector<double> reactionPhysisorptionSource;  ///< Reaction-only physisorbed loading source, mol/(kg s).
   std::vector<double> reactionChemisorptionSource;  ///< Reaction-only chemisorbed loading source, mol/(kg s).
   std::vector<double> reactionPoreConcentrationSource;  ///< Reaction-only pore concentration source, mol/(m^3 s).
+  std::vector<double> reactionBulkSource;  ///< Bulk-concentration reaction source per fluid volume, mol/(m^3 s).
   std::vector<double> reactionHeat;  ///< Reaction heat release on a solid-mass basis, J/(kg s).
 
   // Canonical ODE storage.

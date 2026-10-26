@@ -23,6 +23,10 @@ void updateVelocityAndPressure(const std::vector<Component>& components,
 
 /**
  * \brief Adds reaction source terms to explicit adsorbed/pore state arrays.
+ *
+ * BulkConcentration reactions write their source, per unit fluid volume, into reactionBulkSource; the caller
+ * subtracts it from the bulk species sink. A reaction restricted to Adsorbents is weighted by their local
+ * fraction (fractionOfAdsorbent, grid-major, numberOfAdsorbents per node; empty for a single-bed column).
  */
 void computeReactionDerivatives(
     const std::vector<Component>& components, const std::vector<Reaction>& reactions,
@@ -33,7 +37,9 @@ void computeReactionDerivatives(
     std::span<double> poreConcentrationDot, std::span<const double> solidTemperature,
     std::span<double> reactionPhysisorptionSource,
     std::span<double> reactionChemisorptionSource,
-    std::span<double> reactionPoreConcentrationSource, std::span<double> reactionHeat);
+    std::span<double> reactionPoreConcentrationSource, std::span<double> reactionHeat,
+    std::span<const double> concentration, std::span<double> reactionBulkSource,
+    std::span<const double> fractionOfAdsorbent, size_t numberOfAdsorbents);
 
 /**
  * \brief Computes concentration derivatives from explicit arrays.

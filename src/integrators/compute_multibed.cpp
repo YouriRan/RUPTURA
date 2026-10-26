@@ -489,7 +489,7 @@ void computePhysisorption(const std::vector<MixturePrediction>& physisorptionMix
 void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
                           size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
                           double externalTemperature, double elapsedTime, std::span<const double> fractionOfAdsorbent,
-                          std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
+                          std::span<const double> /*adsorbentVoidFractions*/, std::span<const double> particleDensities,
                           std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
                           std::span<const double> chemisorption, std::span<double> chemisorptionDot,
                           std::span<const double> poreConcentration, std::span<const double> solidTemperature)
@@ -536,8 +536,9 @@ void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMix
                                       temperature, elapsedTime);
           if (kinetics.usesSurfacePoreTransport())
           {
-            const double gamma = (1.0 - adsorbentVoidFractions[ads]) * particleDensities[ads] /
-                                 std::max(1.0e-10, adsorbentVoidFractions[ads]);
+            // Pore-reservoir concentration removed per unit chemisorbed loading: the reservoir holds the solid
+            // volume, so this is the particle density (see computeChemisorptionTransportDerivatives).
+            const double gamma = particleDensities[ads];
             if (rate > 0.0 && gamma > 0.0)
             {
               rate = std::min(rate, drivingConcentration / (gamma * poreInventoryLimitTime));
@@ -565,7 +566,7 @@ void computeChemisorptionTransportDerivatives(
     size_t numberOfAdsorbents, size_t maxChemisorptionSites, std::span<const double> fractionOfAdsorbent,
     std::span<const Geometry> geometries,
     std::span<const double> adsorbentVoidFractions, std::span<const double> particleDensities,
-    std::span<const double> particleDiameters, std::span<const double> totalVoidFraction,
+    std::span<const double> particleDiameters, std::span<const double> /*totalVoidFraction*/,
     std::span<const double> concentration, std::span<const double> chemisorptionDot,
     std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
     std::span<const double> poreConcentration, std::span<double> poreConcentrationDot)
@@ -587,14 +588,19 @@ void computeChemisorptionTransportDerivatives(
 
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
+    // The surface and pore reservoirs hold the solid volume (the film flux enters them per solid volume), so the
+    // pore reservoir loses the solid mass per solid volume times dq/dt: the solid-volume-weighted particle density,
+    // which is rho_p in a pure section.
     double solidLoadingDensity = 0.0;
+    double solidVolumeDensity = 0.0;
     for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
     {
       const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
-      solidLoadingDensity += fraction * geometries[ads].solidToFluidVolumeRatio *
-                             geometries[ads].voidFraction * particleDensities[ads];
+      const double solidVolume = fraction * geometries[ads].solidToFluidVolumeRatio * geometries[ads].voidFraction;
+      solidLoadingDensity += solidVolume * particleDensities[ads];
+      solidVolumeDensity += solidVolume;
     }
-    const double loadingPrefactor = solidLoadingDensity / std::max(1.0e-10, totalVoidFraction[grid]);
+    const double poreLoadingConversion = solidLoadingDensity / std::max(1.0e-30, solidVolumeDensity);
 
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
@@ -620,7 +626,8 @@ void computeChemisorptionTransportDerivatives(
           poreDiffusion += fraction * poreLdf * (spanSurface[site, grid, comp] - spanPore[site, grid, comp]);
         }
         spanSurfaceDot[site, grid, comp] = film - poreDiffusion;
-        spanPoreDot[site, grid, comp] = poreDiffusion - loadingPrefactor * spanChemisorptionDot[site, grid, comp];
+        spanPoreDot[site, grid, comp] =
+            poreDiffusion - poreLoadingConversion * spanChemisorptionDot[site, grid, comp];
       }
     }
   }
@@ -635,7 +642,8 @@ void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionM
                             std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot,
                             std::span<const double> surfaceConcentration, std::span<double> bulkSpeciesSink,
                             std::span<const double> reactionPhysisorptionSource,
-                            std::span<const double> reactionChemisorptionSource)
+                            std::span<const double> reactionChemisorptionSource,
+                            std::span<const double> reactionBulkSource)
 {
   mdspan2d_const spanConcentration(concentration.data(), numberOfGridPoints + 1, numberOfComponents);
   mdspan3d_const spanChemisorptionDot(chemisorptionDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
@@ -688,6 +696,10 @@ void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionM
             reactionChemisorptionSource.empty() ? 0.0 : reactionChemisorptionSource[siteIndex];
         sink += loadingPrefactor * directFraction * (spanChemisorptionDot[site, grid, comp] - reactionChemisorption) +
                 filmSink;
+      }
+      if (!reactionBulkSource.empty())
+      {
+        sink -= reactionBulkSource[index];
       }
       bulkSpeciesSink[index] = sink;
     }

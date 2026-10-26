@@ -92,7 +92,8 @@ void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionM
                             std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot,
                             std::span<const double> surfaceConcentration, std::span<double> bulkSpeciesSink,
                             std::span<const double> reactionPhysisorptionSource = {},
-                            std::span<const double> reactionChemisorptionSource = {});
+                            std::span<const double> reactionChemisorptionSource = {},
+                            std::span<const double> reactionBulkSource = {});
 
 /**
  * \brief Computes multibed concentration derivatives from explicit arrays.

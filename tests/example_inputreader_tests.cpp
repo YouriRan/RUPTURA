@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <array>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
@@ -788,7 +789,8 @@ TEST(ChemisorptionGeneral, InitializesSurfacePoreStateAndFilmSinkWhenEnabled)
   computeDerivatives(column);
   const size_t adsorbateInlet = 1U;
   EXPECT_GT(column.chemisorptionDot[adsorbateInlet], 0.0);
-  const double poreLoadingConversion = column.geometry.loadingPrefactor(column.particleDensity);
+  // The pore reservoir holds the solid volume, so it loses rho_p per unit chemisorbed loading.
+  const double poreLoadingConversion = column.particleDensity;
   EXPECT_NEAR(column.poreConcentrationDot[adsorbateInlet],
               -poreLoadingConversion * column.chemisorptionDot[adsorbateInlet], 1.0e-12);
   EXPECT_NEAR(column.bulkSpeciesSink[adsorbateInlet], 0.0, 1.0e-12);
@@ -1119,6 +1121,52 @@ TEST(ChemisorptionInput, LoadsUpdatedSurfacePoreExample)
   EXPECT_TRUE(reader.components[1].chemisorption.usesSurfacePoreTransport());
 }
 
+TEST(ChemisorptionTransport, FilmPoreAndChemisorptionExchangeConservesMass)
+{
+  // Per unit bed volume the bulk gas (volume eps), the surface and pore reservoirs (each the solid volume 1 - eps)
+  // and the solid (mass rho_p (1 - eps)) only exchange material, so their interphase rates must sum to zero.
+  InputReader reader(examplePath("examples/Chemisorption-CO2/breakthrough/simulation.json"));
+  Column column(reader);
+  column.initialize();
+  ASSERT_TRUE(column.surfacePoreTransportEnabled);
+
+  const size_t carbonDioxide = 1;
+  const size_t grid = 2;
+  const size_t nodes = column.numberOfGridPoints + 1;
+  const size_t components = column.numberOfComponents;
+  const size_t bulkIndex = grid * components + carbonDioxide;
+  column.concentration[bulkIndex] = column.concentration[carbonDioxide];  // the column starts with carrier only
+  ASSERT_GT(column.concentration[bulkIndex], 0.0);
+  for (size_t site = 0; site < column.maxChemisorptionSites; ++site)
+  {
+    const size_t siteIndex = site * nodes * components + bulkIndex;
+    column.surfaceConcentration[siteIndex] = 0.6 * column.concentration[bulkIndex];
+    column.poreConcentration[siteIndex] = 0.3 * column.concentration[bulkIndex];
+    column.chemisorption[siteIndex] = 0.0;
+  }
+
+  computeDerivatives(column);
+
+  const double voidFraction = column.voidFraction;
+  const double solidMass = column.particleDensity * (1.0 - voidFraction);
+  double reservoirRate = 0.0;
+  double solidRate = column.physisorptionDot[bulkIndex];
+  double scale = std::abs(voidFraction * column.bulkSpeciesSink[bulkIndex]);
+  for (size_t site = 0; site < column.maxChemisorptionSites; ++site)
+  {
+    const size_t siteIndex = site * nodes * components + bulkIndex;
+    reservoirRate += column.surfaceConcentrationDot[siteIndex] + column.poreConcentrationDot[siteIndex];
+    solidRate += column.chemisorptionDot[siteIndex];
+    scale += std::abs(column.surfaceConcentrationDot[siteIndex]) + std::abs(column.poreConcentrationDot[siteIndex]) +
+             solidMass * std::abs(column.chemisorptionDot[siteIndex]);
+  }
+  ASSERT_GT(scale, 0.0);
+
+  const double residual =
+      -voidFraction * column.bulkSpeciesSink[bulkIndex] + (1.0 - voidFraction) * reservoirRate + solidMass * solidRate;
+  EXPECT_LE(std::abs(residual), 1.0e-12 * scale);
+}
+
 TEST(ChemisorptionEquilibrium, ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption)
 {
   std::ifstream input(examplePath("examples/Chemisorption-CO2-N2/breakthrough/simulation.json"));
@@ -1323,8 +1371,9 @@ TEST(MultiSiteChemisorption, KeepsDirectAndPoreTransportSiteBalancesIndependent)
   EXPECT_DOUBLE_EQ(column.poreConcentrationDot[adsorbateInlet], 0.0);
 
   const double loadingPrefactor = column.geometry.loadingPrefactor(column.particleDensity);
+  // The pore reservoir holds the solid volume, so it loses rho_p per unit chemisorbed loading.
   EXPECT_NEAR(column.poreConcentrationDot[secondSiteInlet],
-              -loadingPrefactor * column.chemisorptionDot[secondSiteInlet], 1.0e-12);
+              -column.particleDensity * column.chemisorptionDot[secondSiteInlet], 1.0e-12);
   EXPECT_NEAR(column.bulkSpeciesSink[adsorbateInlet],
               loadingPrefactor * (column.physisorptionDot[adsorbateInlet] + column.chemisorptionDot[adsorbateInlet]),
               1.0e-12);
@@ -1392,4 +1441,202 @@ TEST(ExampleFitting, ScoresKnownBeaLangmuirFitWithoutRunningOptimizer)
 
   EXPECT_NEAR(fitting.fitness(fittedIsotherm), 0.005825848539239016, 1e-14);
   EXPECT_GT(fitting.RCorrelation(fittedIsotherm), 0.9999);
+}
+
+TEST(ChemisorptionRate, FirstOrderUsesCoverageDependentDesorptionAboveEquilibrium)
+{
+  // Stadler et al., Front. Chem. Eng. 4 (2022) 1000064, Eqs. 6-10 and Table 3.
+  Chemisorption site;
+  site.type = Chemisorption::Type::FirstOrder;
+  site.rateCoefficient = 0.1125;
+  site.desorptionMassTransferCoefficient = 5.38e-4;
+  site.desorptionCoverageEnergy = 74000.0;
+  site.coverageReferenceLoading = 0.3421;
+  const double temperature = 523.15;
+
+  EXPECT_DOUBLE_EQ(site.rate(0.20, 0.10, 0.0, temperature), 0.1125 * (0.20 - 0.10));
+
+  const double desorptionCoefficient = 5.38e-4 * std::exp(74000.0 * (0.15 / 0.3421) / (R * temperature));
+  const double expected = desorptionCoefficient * (0.05 - 0.15);
+  EXPECT_NEAR(site.rate(0.05, 0.15, 0.0, temperature), expected, 1.0e-12 * std::abs(expected));
+
+  site.desorptionMassTransferCoefficient = 0.0;
+  EXPECT_DOUBLE_EQ(site.rate(0.05, 0.15, 0.0, temperature), 0.1125 * (0.05 - 0.15));
+}
+
+TEST(ChemisorptionInput, ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading)
+{
+  std::ifstream input(examplePath("examples/Chemisorption-CO2-N2/breakthrough/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(input);
+  input.close();
+
+  nlohmann::json site = {
+      {"Type", "Freundlich"},
+      {"Parameters", {0.0140596, 4.54545}},
+      {"MaximumLoading", 0.3421},
+      {"RateEquation", "FirstOrder"},
+      {"RateEquationParameters",
+       {{"MassTransferCoefficient", 0.1125},
+        {"DesorptionMassTransferCoefficient", 5.38e-4},
+        {"DesorptionCoverageEnergy", 74000.0},
+        {"CoverageReferenceLoading", 0.3421}}},
+  };
+  data["Components"][1]["ChemisorptionSites"] = nlohmann::json::array({site});
+
+  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_first_order_desorption.json";
+  std::ofstream(path) << data;
+  InputReader reader(path.string());
+  const Chemisorption& kinetics = reader.components[1].chemisorption.sites[0];
+  EXPECT_EQ(kinetics.type, Chemisorption::Type::FirstOrder);
+  EXPECT_DOUBLE_EQ(kinetics.rateCoefficient, 0.1125);
+  EXPECT_DOUBLE_EQ(kinetics.desorptionMassTransferCoefficient, 5.38e-4);
+  EXPECT_DOUBLE_EQ(kinetics.desorptionCoverageEnergy, 74000.0);
+  EXPECT_DOUBLE_EQ(kinetics.coverageReferenceLoading, 0.3421);
+
+  site["RateEquationParameters"].erase("CoverageReferenceLoading");
+  data["Components"][1]["ChemisorptionSites"] = nlohmann::json::array({site});
+  std::ofstream(path) << data;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+}
+
+static nlohmann::json makeBulkWaterGasShiftInput()
+{
+  const auto inert = [](const std::string& name, double fraction, double molarMass)
+  {
+    return nlohmann::json{{"Name", name},
+                          {"GasPhaseMolFraction", fraction},
+                          {"MolecularWeight", molarMass},
+                          {"AxialDispersionCoefficient", 0.0},
+                          {"PhysisorptionSites", {{{"Type", "Henry"}, {"Parameters", {0.0}}}}}};
+  };
+  return {
+      {"SimulationType", "Breakthrough"},
+      {"BreakthroughIntegrator", "RungeKutta3"},
+      {"BoundaryCondition", "FixedVelocity"},
+      {"Temperature", 523.15},
+      {"ColumnVoidFraction", 0.4},
+      {"DynamicViscosity", 2.65e-5},
+      {"ParticleDiameter", 2.0e-4},
+      {"ParticleDensity", 800.0},
+      {"InletPressure", 8.0e5},
+      {"PressureGradient", 0.0},
+      {"ColumnEntranceVelocity", 0.1},
+      {"ColumnLength", 0.025},
+      {"NumberOfGridPoints", 10},
+      {"NumberOfTimeSteps", 1},
+      {"TimeStep", 1.0e-4},
+      {"Geometry", {{"Type", "PackedBed"}, {"ColumnVoidFraction", 0.4}, {"ParticleDiameter", 2.0e-4}}},
+      {"Components",
+       {{{"Name", "N2"}, {"GasPhaseMolFraction", 0.8}, {"CarrierGas", true}, {"MolecularWeight", 0.028}},
+        inert("CO", 0.1, 0.028), inert("H2O", 0.1, 0.018), inert("CO2", 0.0, 0.044), inert("H2", 0.0, 0.002)}},
+      {"Reactions",
+       {{{"Phase", "BulkConcentration"},
+         {"Style", "GeneralPowerLaw"},
+         {"Reactants", {"CO", "H2O"}},
+         {"Products", {"CO2", "H2"}},
+         {"ForwardOrders", {1, 1}},
+         {"BackwardOrders", {1, 1}},
+         {"Kinetics",
+          {{"forwardRateCoefficient", 2.0e-3},
+           {"forwardActivationEnergy", 0.0},
+           {"equilibriumConstant", 80.0},
+           {"gibbsFreeEnergy", 0.0}}}}}},
+  };
+}
+
+TEST(BulkReaction, WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink)
+{
+  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_bulk_wgs.json";
+  std::ofstream(path) << makeBulkWaterGasShiftInput();
+  InputReader reader(path.string());
+  ASSERT_EQ(reader.reactions.size(), 1U);
+  EXPECT_EQ(reader.reactions[0].phase, Reaction::Phase::BulkConcentration);
+
+  Column column(reader);
+  column.initialize();
+
+  // Put feed gas plus some product at an interior node so both directions of the reaction contribute.
+  const size_t components = column.numberOfComponents;
+  const size_t grid = 3;
+  const double total = 8.0e5 / (R * 523.15);
+  const std::array<double, 5> fractions{0.78, 0.08, 0.09, 0.03, 0.02};  // N2, CO, H2O, CO2, H2
+  for (size_t comp = 0; comp < components; ++comp)
+  {
+    column.concentration[grid * components + comp] = fractions[comp] * total;
+  }
+
+  computeDerivatives(column);
+
+  const auto c = [&](size_t comp) { return column.concentration[grid * components + comp]; };
+  const double rate = 2.0e-3 * (c(1) * c(2) - c(3) * c(4) / 80.0);
+  ASSERT_GT(rate, 0.0);
+  const std::array<double, 5> stoichiometry{0.0, -1.0, -1.0, 1.0, 1.0};
+  for (size_t comp = 0; comp < components; ++comp)
+  {
+    const size_t index = grid * components + comp;
+    EXPECT_NEAR(column.reactionBulkSource[index], stoichiometry[comp] * rate, 1.0e-12 * rate);
+    // No sorption: the bulk sink is the negative reaction source, and loadings are untouched.
+    EXPECT_NEAR(column.bulkSpeciesSink[index], -stoichiometry[comp] * rate, 1.0e-12 * rate);
+    EXPECT_DOUBLE_EQ(column.physisorptionDot[index], 0.0);
+  }
+}
+
+TEST(BulkReaction, RejectsEnergyBalanceAndSirk3)
+{
+  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_bulk_wgs_rejected.json";
+
+  nlohmann::json withEnergy = makeBulkWaterGasShiftInput();
+  withEnergy["energyBalance"] = true;
+  std::ofstream(path) << withEnergy;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+
+  nlohmann::json withSirk3 = makeBulkWaterGasShiftInput();
+  withSirk3["BreakthroughIntegrator"] = "SIRK3";
+  std::ofstream(path) << withSirk3;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+
+  nlohmann::json restrictedOnSingleBed = makeBulkWaterGasShiftInput();
+  restrictedOnSingleBed["Reactions"][0]["Adsorbents"] = {"catalyst"};
+  std::ofstream(path) << restrictedOnSingleBed;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+}
+
+TEST(SwingAdsorptionInput, RepeatsCyclesWithPhaseFeedCompositionAndVelocity)
+{
+  nlohmann::json data = makeBulkWaterGasShiftInput();
+  data.erase("Reactions");
+  data["SimulationType"] = "SwingAdsorption";
+  data["NumberOfCycles"] = 3;
+  data["SwingAdsorptionPhases"] = {
+      {{"Name", "Adsorption"}, {"InletPressure", 8.0e5}, {"NumberOfTimeSteps", 4}},
+      {{"Name", "Regeneration"},
+       {"InletPressure", 1.0e5},
+       {"ColumnEntranceVelocity", 0.4},
+       {"GasPhaseMolFractions", {{"N2", 3.0}, {"H2O", 2.0}}},
+       {"NumberOfTimeSteps", 6}},
+  };
+
+  const std::filesystem::path path = std::filesystem::temp_directory_path() / "ruptura_swing_cycles.json";
+  std::ofstream(path) << data;
+  InputReader reader(path.string());
+
+  ASSERT_EQ(reader.swingAdsorptionPhases.size(), 6U);
+  EXPECT_EQ(reader.numberOfTimeSteps, 30U);
+  EXPECT_EQ(reader.swingAdsorptionPhases[0].name, "Adsorption (cycle 1)");
+  EXPECT_EQ(reader.swingAdsorptionPhases[5].name, "Regeneration (cycle 3)");
+  EXPECT_TRUE(reader.swingAdsorptionPhases[4].gasPhaseMolFractions.empty());
+  EXPECT_FALSE(reader.swingAdsorptionPhases[4].columnEntranceVelocity.has_value());
+
+  const InputReader::SwingAdsorptionPhase& regeneration = reader.swingAdsorptionPhases[3];
+  ASSERT_EQ(regeneration.gasPhaseMolFractions.size(), reader.components.size());
+  EXPECT_DOUBLE_EQ(regeneration.gasPhaseMolFractions[0], 0.6);  // N2, normalized from 3 : 2
+  EXPECT_DOUBLE_EQ(regeneration.gasPhaseMolFractions[1], 0.0);  // CO not listed
+  EXPECT_DOUBLE_EQ(regeneration.gasPhaseMolFractions[2], 0.4);  // H2O
+  EXPECT_DOUBLE_EQ(*regeneration.columnEntranceVelocity, 0.4);
+
+  SwingAdsorption<Column> swing(reader);
+  ASSERT_EQ(swing.subStages.size(), 6U);
+  EXPECT_DOUBLE_EQ(swing.subStages[0].velocity, 0.1);
+  EXPECT_DOUBLE_EQ(swing.subStages[1].velocity, 0.4);
+  EXPECT_EQ(swing.subStages[1].moleFractions, regeneration.gasPhaseMolFractions);
 }

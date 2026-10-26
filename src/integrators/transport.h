@@ -30,7 +30,8 @@ void computeBulkSpeciesSink(const std::vector<Component>& components, size_t num
                             std::span<const double> surfaceConcentration,
                             std::span<double> bulkSpeciesSink,
                             std::span<const double> reactionPhysisorptionSource = {},
-                            std::span<const double> reactionChemisorptionSource = {});
+                            std::span<const double> reactionChemisorptionSource = {},
+                            std::span<const double> reactionBulkSource = {});
 
 void computeBulkSpeciesSink(const std::vector<Component>& components, size_t numberOfGridPoints,
                             size_t numberOfComponents, size_t maxChemisorptionSites,

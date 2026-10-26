@@ -163,6 +163,7 @@ Column::Column(const Column& other)
       reactionPhysisorptionSource(other.reactionPhysisorptionSource),
       reactionChemisorptionSource(other.reactionChemisorptionSource),
       reactionPoreConcentrationSource(other.reactionPoreConcentrationSource),
+      reactionBulkSource(other.reactionBulkSource),
       reactionHeat(other.reactionHeat),
       state(other.state),
       stateDot(other.stateDot)
@@ -243,6 +244,7 @@ Column& Column::operator=(const Column& other)
   reactionPhysisorptionSource = other.reactionPhysisorptionSource;
   reactionChemisorptionSource = other.reactionChemisorptionSource;
   reactionPoreConcentrationSource = other.reactionPoreConcentrationSource;
+  reactionBulkSource = other.reactionBulkSource;
   reactionHeat = other.reactionHeat;
   state = other.state;
   stateDot = other.stateDot;
@@ -269,6 +271,7 @@ void Column::initialize()
   std::fill(reactionPhysisorptionSource.begin(), reactionPhysisorptionSource.end(), 0.0);
   std::fill(reactionChemisorptionSource.begin(), reactionChemisorptionSource.end(), 0.0);
   std::fill(reactionPoreConcentrationSource.begin(), reactionPoreConcentrationSource.end(), 0.0);
+  std::fill(reactionBulkSource.begin(), reactionBulkSource.end(), 0.0);
   std::fill(reactionHeat.begin(), reactionHeat.end(), 0.0);
   std::fill(stateDot.begin(), stateDot.end(), 0.0);
 
@@ -444,7 +447,8 @@ void Column::initialize()
 
   computeBulkSpeciesSink(components, numberOfGridPoints, numberOfComponents, maxChemisorptionSites, geometry,
                          particleDensity, concentration, physisorptionDot, chemisorptionDot, surfaceConcentration,
-                         bulkSpeciesSink, reactionPhysisorptionSource, reactionChemisorptionSource);
+                         bulkSpeciesSink, reactionPhysisorptionSource, reactionChemisorptionSource,
+                         reactionBulkSource);
   updateVelocityAndPressure(components, boundaryCondition, numberOfGridPoints, numberOfComponents, inletPressure,
                             outletPressure, pressureGradient, columnLength, geometry, columnEntranceVelocity,
                             dynamicViscosity, resolution, interstitialGasVelocity, gasDensity, totalConcentration,
