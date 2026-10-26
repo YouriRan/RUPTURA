@@ -46,7 +46,8 @@ To be implemented in due course. Until then, the paper text must not claim them.
       SCI/IAST therefore differ by a factor T_ref/T in the affinity. Decide which is intended.
 - [ ] GAB saturation pressure is a fixed Antoine equation for water, valid from 274 to 373 K
       (`src/isotherm.h:222`).
-- [ ] SIRK3: fix later. It cannot run the benchmark cases and supports a single adsorbent only.
+- [ ] SIRK3: fix later. It cannot run the benchmark cases and supports a single adsorbent only. See also the
+      banded-matrix layout and the missing temperature/chemisorption update under "Code review 2026-10-26".
 - [ ] Boundary modes. `FixedPressureInletVelocity` imposes a linear pressure profile and takes the
       velocity from the local Ergun balance without continuity. `FixedVelocity` ignores the sorption
       effect. 3.4.1 results (2026-10-19):
@@ -212,7 +213,8 @@ To be implemented in due course. Until then, the paper text must not claim them.
       `HeatOfAdsorption` on CO₂ and are not affected.
 - [ ] The `column.json` restart checkpoint (`ReadColumnFile`) is serialized with nlohmann `dump(4)` at every output
       step (`src/breakthrough.cpp`, `src/swing_adsorption.cpp`). For marx-T15 with CVODE (`WriteEvery` 1, 750 outputs)
-      this is 0.47 s of the 3.1 s wall time (15%). Decide whether every N outputs and the end suffice.
+      this is 0.47 s of the 3.1 s wall time (15%). Decide whether every N outputs and the end suffice. The dump
+      also includes every cache (about 3× the restart data).
 - [x] **Performance** (2026-10-26, commit `707e64c`; profiled on the `benchmark/breakthrough` cases). Every output file
       is byte-identical and the unit-test results are unchanged; the runs are 1.16–1.76× faster:
   - RK3 copy-constructed the whole `Column` (both `MixturePrediction` objects, all components) and copy-assigned it
@@ -243,6 +245,155 @@ To be implemented in due course. Until then, the paper text must not claim them.
       b = C/p₀ and c = 1/p₀ has (1 − c p + b p) as the second factor; `1 − c` mixes a pure number with 1/Pa.
       The spreading pressure (`src/isotherm.h:270`) matches the code's form, so IAST is self-consistent, but
       the model is not BET. Unchanged since the initial commit; check against RUPTURA 1 and fix or document.
+
+## Code review 2026-10-26
+
+Read-through of the C++ core, the fitting code, the input reader, the Qt app, and the Python package (no
+build, no tests run; every item marked bug was re-checked against the source). Suggested order: the
+`-ffast-math` flag first, then the physics items (Anti-Langmuir, O'Brien–Myers, `wallDensity`), then SIRK3 by
+deleting its duplicate, then the fitting items, then the CVODE second IAST pass, then the refactors.
+
+### Bugs
+
+- [ ] **`-ffast-math` compiles every NaN/Inf guard out.** `CMakeLists.txt:262` applies `-ffast-math` to all
+      sources but two; with it, `std::isfinite(x)` becomes `return true` and `std::isnan(x)` `return false`
+      (confirmed on the generated assembly). This disables `finiteNonnegative`/`safeMultiply` in
+      `mixture_prediction.cpp` (9 uses), `finiteNonNegative`/`limitedAdsorbedRate` in `compute.cpp` (4),
+      `isotherm.{h,cpp}` (4), `reaction.cpp` (2), and all 19 `isfinite` input checks in `inputreader.cpp`.
+      Fix: add `-fno-finite-math-only`, or replace `-ffast-math` by the individual flags without it.
+- [ ] **SIRK3 with the energy balance builds the banded LAPACK matrix in the wrong layout.** `rk3_si.cpp:421`
+      uses `std::layout_left` (column-major `ab`); its twin `computeConcentrationUpdateMatrixEnergyBalanceFinal`
+      (`:522`) uses CTAD, which gives `layout_right` (`git show b8a2562` fixed one copy only). SIRK3 also never
+      advances the temperature or chemisorption blocks (`propagate` updates `physisorption` and `concentration`
+      only), but the reader rejects only reactions and pore transport. Reject `EnergyBalance` and chemisorption
+      with SIRK3, and merge the EB/non-EB matrix builders (they differ only in the unused `facePressures`).
+- [ ] **Anti-Langmuir IAST inverse has the wrong sign in the exponent.** `isotherm.h:433-437` uses
+      `1 − exp(+bψ/a)`; inverting `psiForPressure` (`:268`) gives `1 − exp(−bψ/a)`. Returns negative
+      hypothetical pressures.
+- [ ] **O'Brien–Myers `value()` and `psiForPressure()` are inconsistent with each other**, not only with the SI
+      (see "Code/paper mismatches"): `isotherm.h:193` has σ²·x(1−x)/(1+x)³ and `:348` ½σ²·x/(1+x)²; the exact
+      integral of the implemented `value()` has no ½. Fix both in the same direction.
+- [ ] **GA uniform crossover is a no-op.** `fitting.cpp:522`: `children[i].genotype.substr(j, 1) = …` assigns
+      to a temporary.
+- [ ] **Nelder–Mead shrink leaves n − 2 function values stale.** `fitting.cpp:931-953` moves every vertex but
+      re-evaluates only `f[vg]` and `f[vh]`; correct only for two-parameter isotherms.
+- [ ] **Fitting column-index defaults underflow.** `inputreader.h:163` defaults `columnPressure{0}`;
+      `fitting.cpp:37` subtracts 1 → `SIZE_MAX` → "no pressure points found" unless `ColumnPressure` is set.
+- [ ] **Infinite loop when the breakthrough is converged at step 0.** `cvode.cpp:64` and `rk3.cpp:423` set
+      `numberOfSteps = size_t(1.1 · step)`; at step 0 this is 0 and `step >= numberOfSteps − 1` compares against
+      `SIZE_MAX`. Reachable from a `ReadColumnFile` of a broken-through column with `AutoNumberOfTimeSteps`.
+      The reaction branch already guards with `max(…, 2)`.
+- [ ] **`wallDensity` defaults to 0 and is not validated** (`inputreader.h:125`, `:1245`), so
+      `1 / (heatCapacityWall · wallDensity)` (`compute.cpp:777`, `compute_multibed.cpp:877`) is `inf` → NaN
+      temperatures for any energy-balance run that omits it. Also `PrintEvery`/`WriteEvery`
+      (`inputreader.cpp:1195`) are not checked > 0 (`step % writeEvery` divides by zero).
+- [ ] **Python:** `ColumnDataExplorer` joins the relative `data_dir` twice (`plot_breakthrough.py:991` and
+      `:1037`); `tox.ini` lacks `pandas`/`plotly`, so the test suite cannot import.
+
+### Likely bugs and robustness
+
+- [ ] RK3 passes `step · timeStep` as the elapsed time to the chemisorption kinetics (`rk3.cpp:427`), which is
+      wrong when `NumberOfInitTimeSteps > 0` ramps the time (`breakthrough.cpp:163-172`). Only Avrami reads it.
+      CVODE passes `t` correctly.
+- [x] **CVODE non-negativity: clamp vs `CVodeSetConstraints`.** The review first listed the
+      `clampNonnegative(column.state)` after each `CVode()` (`cvode.cpp:77`) as a mutation of CVODE's state.
+      It is not: CVODE keeps its history in its own Nordsieck array and only *writes* the interpolated solution
+      into the user vector, which it never reads back; the right-hand side binds to the trial vector CVODE
+      passes in. The clamp is output hygiene only (one `std::max` per state entry, unmeasurable).
+  - Checked 2026-10-26 with `CVodeSetConstraints` (1.0 for concentrations and loadings, 0.0 for temperatures;
+    test build, not committed) on marx2 T15 against the clamp:
+    - `TimeStep` 1 s, `WriteEvery` 1, 4000 s: 10.35 → 11.97 s wall (+16%), 9244 → 9763 internal steps,
+      18,875 → 25,831 Krylov iterations, one constraint-triggered step retry; the first 400 s (steep fronts)
+      1.38 → 2.87 s (+108%).
+    - The committed T15 input (`TimeStep` 5e-4, 8,000,000 steps): 919.6 → 909.3 s, because 99% of that run is
+      the per-output-step right-hand-side evaluation, not the integration (same 9248 internal steps as the 1 s
+      run, which finishes in 10 s; see the T15 input item below).
+    - All output fields agree within ≤ 8e-4 relative (rtol 1e-4); the constrained run still writes small
+      negative interpolated values (≤ 3.6e-5 mol m⁻³), since constraints hold at step ends only.
+    - Dropping both clamp and constraints is also safe (mole fractions, partial pressures, reaction activities
+      and pH already clip negatives in the RHS, and the kinetics use q* − q), but gains nothing.
+    - Decision: keep the clamp, do not use constraints.
+- [ ] `marx2/ternary/T15/simulation.json` (and the other marx2 inputs with `TimeStep` 5e-4, `WriteEvery` 2000):
+      with CVODE each of the 8,000,000 output steps costs a full right-hand-side/IAST evaluation that is written
+      only every 2000th step. `TimeStep` 1, `WriteEvery` 1 gives the same files (same CVODE steps) in 10 s instead
+      of 15 min. Change the inputs, or skip the post-step derivative evaluation on steps that are not written.
+- [ ] Multibed gas–wall area comes from bed 0 only (`compute_multibed.cpp:845`); the film and gas–solid areas
+      blend 1/ε_a per bed while the loading prefactor uses ε_total (`:682-687`, `:890` vs `:656-664`).
+- [ ] Single-bed vs multibed drift: multibed `computeChemisorptionTransportDerivatives`
+      (`compute_multibed.cpp:629`) writes `poreDot = −ρ·dq/dt` for every site, the single bed
+      (`transport.cpp:41`) skips non-transport sites; `cvode.cpp:592` passes bed 0's components to
+      `computeReactionDerivatives` for all beds.
+- [ ] `size_t` inputs read with `get<size_t>()` wrap silently (`"NumberOfGridPoints": -1` → `SIZE_MAX`);
+      `readOptionalNonNegativeInteger` exists but is used for a few keys only (four copies of the parsing).
+- [ ] Mole-fraction normalisation divides by zero when no component sets `GasPhaseMolFraction`
+      (`inputreader.cpp:1569-1581`); the swing-phase branch guards it, the global one does not.
+- [ ] `Isotherm::randomize()` (`isotherm.cpp:266`) never draws b < 1 (`pow(U, 20(U′−1)) ≥ 1`), so every initial
+      GA citizen is saturated at Pa-scale pressures. The NM stop test (`fitting.cpp:965`) checks the mean RMSE
+      < 1e-4 rather than the simplex size, so it always runs `MAX_IT`.
+- [ ] `PseudoNth` chemisorption: `pow(driving, order)` with `driving < 0` is NaN, masked only by the argument
+      order of `std::min(0.0, NaN)`; it can never desorb.
+- [ ] Fast IAST convergence (`mixture_prediction.cpp:739`) uses an absolute 1e-13 on the standard deviation of
+      ψ; for ψ ≳ 500 this is below double resolution and every call runs all 50 Newton iterations. Make it
+      relative.
+- [ ] `catch (const std::runtime_error&)` in `breakthrough.cpp:193` and `swing_adsorption.cpp:298`: other
+      exceptions skip the `failed_state.json` dump.
+- [ ] App: `app/runner.cpp:478` `stopJupyter` calls `deleteLater()` through a pointer the synchronous `finished`
+      handler has just nulled.
+- [ ] Python: `fit_figure()` never draws the fit (trace commented out, `plot_fitting.py:467`); locale-dependent
+      `read_text()` on non-ASCII presets and LICENSE (`config.py:221`, `:236`, `about.py:68`); `RunManager.start`
+      reads `self.cli` twice outside the lock.
+
+### Performance
+
+- [ ] **CVODE right-hand side runs the full IAST pass twice** (`cvode.cpp:397`, `for iteration < 2`), to make
+      the RHS a function of the state only (sink → velocity → pressure → IAST). For `FixedVelocity`,
+      `FixedPressureInletVelocity`, and the liquid boundary modes the velocity and pressure do not depend on the
+      sink, so the second pass repeats the first. Gate it on the boundary mode: byte-identical results, about
+      half the RHS cost for those cases.
+- [ ] SIRK3 copies the whole `Column` twice per step (`rk3_si.cpp:49`, `:274`), as RK3 did before `707e64c`, and
+      allocates `solved`, `implicitInvKLs`, and the LAPACK work arrays per call.
+- [ ] RK3 with reactions and `AutoNumberOfTimeSteps` evaluates one extra RHS per step (`rk3.cpp:449-451`, +33%).
+- [ ] Hot-loop allocations: `computeReactionDerivatives` (`compute.cpp:224`) `activity`/`maximumLoadings` per
+      RHS; `reaction.cpp:39-69` `theta` per grid node; Bingel–Walton `psi` (`isotherm.h:369`) two 100-entry
+      vectors per call inside the IAST bisection; `computeSegregatedCompetitiveIsotherm` three vectors per grid
+      point; `meanParticleNumbers` three per call; `transport.cpp:120` builds an `mdspan` in the innermost loop.
+- [ ] Static multibed blends recomputed in every RHS (`compute_multibed.cpp:476-481`, `720-729`, `849-872`,
+      `909-942`): `fractionOfAdsorbent` is fixed after `initialize()`; precompute per-node tables (the unused
+      `prefactorMassTransfer` looks like it was meant for this).
+- [ ] `std::pow` with integer exponents: `chemisorption.cpp:49-51`, `isotherm.h:388` (`pow(4, j)`),
+      `fitting.cpp:621`, `:626`, `:993`.
+- [ ] Python: `plots.metadata()` runs `np.loadtxt` on up to 2000 frames to read one number; `export_mp4`
+      renders every frame twice; `all_column_figures` re-parses all files per metric (~22×);
+      `engine="python"` in `base_plotly.py:53` is unnecessary for `\s+`.
+
+### Simplification
+
+- [ ] **Drop the single-bed code path.** `column.cpp` is 82% identical to `column_multibed.cpp`, and `Column`
+      is `MultibedColumn` with one adsorbent (`DebugForceMultibed` and `single_adsorbent_equivalence_tests.cpp`
+      show it). Removes `column.{h,cpp}`, `compute.cpp`, `sorption.cpp`, `transport.cpp`, half of `rk3.cpp`,
+      `cvode.cpp`, and `swing_adsorption.cpp`, and the class of "fixed in one twin only" bugs (SIRK3 layout,
+      pore-dot drift, `chemisorptionDot` zeroing): 1,500–2,500 lines.
+- [ ] One right-hand-side function. The precompute-plus-derivative block is written out five times (`rk3.cpp`
+      ×2, `cvode.cpp` ×2, `rk3_si.cpp`, `swing_adsorption.cpp`).
+- [ ] Replace the ~330 hand-written lines of copy constructor/assignment (`column.cpp:97-255`,
+      `column_multibed.cpp:231-413`), which exist only to call `bindStateViews()`, by an aggregate data base
+      class: `Column(const Column& o) : ColumnData(o) { bindStateViews(); }`.
+- [ ] Template the duplicated integrator helpers (`updateStateRK`, `reactionAutoStopReached`,
+      `breakthroughConverged` are identical for both column types), and share the step loop (init ramp,
+      write/print cadence, integrator switch, failure dump) between `Breakthrough::run` and
+      `SwingAdsorption::run`.
+- [ ] Dead code: members `massFlux`, `facePressures`, `numberOfCalls`, `prefactorMassTransfer` (two formulas,
+      never read), `adsorbentScaledVoidFraction`, `adsorbentGridPoints`; `computeWENO` (keep if the dispersion
+      item above revives it); the two-argument `makeGeometry` overloads in `transport.cpp`;
+      `Reaction::stoichiometricCoefficient`; the undefined `*BitString*` declarations in `special_functions.h`;
+      `hypergeometric()`, `maxVectorDifference`, `maxTerms`; the never-set `*Flag` members and dead branches of
+      `fit()` in `fitting.cpp`; the 80-line bisection duplicated in `isotherm.h:459-550` and
+      `multi_site_isotherm.cpp:88-172`. Python: `_resolve_grid_index`, `_rows_at_grid`, `dt_guess`,
+      `_trace_kwargs`, `_safe_minmax`, `infer_components_from_files`, `parse_header_metadata`, the unreachable
+      derived-mole-fraction path in `_y_values`, duplicate `Cdot`/`Dcdt` specs, `MANIFEST.in`.
+- [ ] `computeReactionDerivatives` has four copies of the stoichiometry loop differing only in the target span;
+      `mainwindow.cpp` has ~950 lines of `addNumberField` calls that a `bind(&Config::member)` helper would
+      collapse.
 
 ## Build and CI
 
@@ -466,7 +617,8 @@ To be implemented in due course. Until then, the paper text must not claim them.
     (e^{−σ} in the denominator, and the same in the spreading pressure, which was zero too); test
     `Isotherm.UnilanLoadingAndSpreadingPressureFollowTheUnilanForm`.
   - BET: the code denominator is (1 − k₂ξ)(1 − k₂ + k₁ξ); SI Table S3 has (1 − k₂ξ)[1 + (k₁ − k₂)ξ].
-  - O'Brien–Myers: the code lacks the factor 1/2 of the SI form.
+  - O'Brien–Myers: the code lacks the factor 1/2 of the SI form; `value()` and `psiForPressure()` also
+    disagree with each other (see "Code review 2026-10-26").
   - Freundlich (like Sips): the code uses ξ^(1/ν); SI Table S3 writes ξ^ν. Table S11 lists the input as 1/ν.
   - "Modified-Redlich" in Table S3 is not an input type; Redlich-Peterson is.
   - Elovich: the code uses α c exp(−βq) without activation energy or pore-concentration order; the SI has
