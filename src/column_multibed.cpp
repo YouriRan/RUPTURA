@@ -5,6 +5,7 @@
 #include <format>
 #include <fstream>
 #include <iostream>
+#include <iterator>
 #include <limits>
 #include <numeric>
 #include <print>
@@ -775,6 +776,10 @@ void MultibedColumn::writeOutputHeader(std::vector<std::ofstream>& componentStre
 void MultibedColumn::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& columnStream,
                                  double time) const
 {
+  // Each file gets one formatted buffer per snapshot: std::print on a stream checks whether the stream is a
+  // terminal (an isatty system call) on every call, which cost more than the formatting itself.
+  std::string buffer;
+
   // column.data
   // column 1: dimensionless time [-]
   // column 2: time [min]
@@ -791,17 +796,19 @@ void MultibedColumn::writeOutput(std::vector<std::ofstream>& componentStreams, s
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
     if (fluidPhase == FluidPhase::Gas)
-      std::print(columnStream, "{} {} {} {} {} {} {} {} {} {} {} {}\n", time * timeNormalizationFactor, time / 60.0,
-                 columnDistances[grid], interstitialGasVelocity[grid], totalPressure[grid], gasTemperature[grid],
-                 gasTemperatureDot[grid], solidTemperature[grid], solidTemperatureDot[grid], wallTemperature[grid],
-                 wallTemperatureDot[grid], gasDensity[grid]);
+      std::format_to(std::back_inserter(buffer), "{} {} {} {} {} {} {} {} {} {} {} {}\n",
+                     time * timeNormalizationFactor, time / 60.0, columnDistances[grid], interstitialGasVelocity[grid],
+                     totalPressure[grid], gasTemperature[grid], gasTemperatureDot[grid], solidTemperature[grid],
+                     solidTemperatureDot[grid], wallTemperature[grid], wallTemperatureDot[grid], gasDensity[grid]);
     else
-      std::print(columnStream, "{} {} {} {} {} {} {} {} {} {} {} {} {}\n", time * timeNormalizationFactor,
-                 time / 60.0, columnDistances[grid], interstitialGasVelocity[grid], totalPressure[grid],
-                 gasTemperature[grid], gasTemperatureDot[grid], solidTemperature[grid], solidTemperatureDot[grid],
-                 wallTemperature[grid], wallTemperatureDot[grid], gasDensity[grid], pH[grid]);
+      std::format_to(std::back_inserter(buffer), "{} {} {} {} {} {} {} {} {} {} {} {} {}\n",
+                     time * timeNormalizationFactor, time / 60.0, columnDistances[grid], interstitialGasVelocity[grid],
+                     totalPressure[grid], gasTemperature[grid], gasTemperatureDot[grid], solidTemperature[grid],
+                     solidTemperatureDot[grid], wallTemperature[grid], wallTemperatureDot[grid], gasDensity[grid],
+                     pH[grid]);
   }
-  std::print(columnStream, "\n\n");
+  std::format_to(std::back_inserter(buffer), "\n\n");
+  columnStream.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
 
   // Per-component files
   // column 1: dimensionless time [-]
@@ -820,6 +827,7 @@ void MultibedColumn::writeOutput(std::vector<std::ofstream>& componentStreams, s
   // column 14: equilibrium chemisorption [mol/kg]
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
+    buffer.clear();
     for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
     {
       const size_t index = grid * numberOfComponents + comp;
@@ -843,20 +851,22 @@ void MultibedColumn::writeOutput(std::vector<std::ofstream>& componentStreams, s
             partialPressure[index] / (totalPressure[grid] * components[comp].initialGasMoleFraction);
       }
 
-      std::print(componentStreams[comp], "{} {} {} {} {} {} {} {} {} {} {} {} {} {}", time * timeNormalizationFactor,
-                 time / 60.0, columnDistances[grid], concentration[index], concentrationDot[index], moleFraction[index],
-                 physisorption[index], physisorptionDot[index], totalChemisorption, totalChemisorptionDot,
-                 partialPressure[index], equilibriumPhysisorption[index], normalizedDrivingForce,
-                 totalEquilibriumChemisorption);
+      std::format_to(std::back_inserter(buffer), "{} {} {} {} {} {} {} {} {} {} {} {} {} {}",
+                     time * timeNormalizationFactor, time / 60.0, columnDistances[grid], concentration[index],
+                     concentrationDot[index], moleFraction[index], physisorption[index], physisorptionDot[index],
+                     totalChemisorption, totalChemisorptionDot, partialPressure[index], equilibriumPhysisorption[index],
+                     normalizedDrivingForce, totalEquilibriumChemisorption);
       for (size_t site = 0; site < numberOfChemisorptionSites; ++site)
       {
         if (!componentSiteUsesSurfacePoreTransport(*this, comp, site)) continue;
         const size_t siteIndex = site * componentBlockSize + index;
-        std::print(componentStreams[comp], " {} {}", surfaceConcentration[siteIndex], poreConcentration[siteIndex]);
+        std::format_to(std::back_inserter(buffer), " {} {}", surfaceConcentration[siteIndex],
+                       poreConcentration[siteIndex]);
       }
-      std::print(componentStreams[comp], "\n");
+      std::format_to(std::back_inserter(buffer), "\n");
     }
-    std::print(componentStreams[comp], "\n\n");
+    std::format_to(std::back_inserter(buffer), "\n\n");
+    componentStreams[comp].write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
   }
 }
 
