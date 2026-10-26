@@ -281,89 +281,107 @@ bool reactionAutoStopReached(const MultibedColumn& column, double timeStep) noex
          (!bulkReaction || reactionStepChangeSmall(column.concentration, column.concentrationDot, timeStep));
 }
 
-void updateStateRK(Column& column, Column& newColumn, double alpha, double beta, double timeStep)
+void updateStateRK(std::vector<double>& initialState, Column& column, double alpha, double beta, double timeStep)
 {
-  for (size_t i = 0; i < column.physisorption.size(); i++)
-  {
-    newColumn.physisorption[i] = alpha * column.physisorption[i] +
-                                 beta * (newColumn.physisorption[i] + timeStep * newColumn.physisorptionDot[i]);
-    newColumn.concentration[i] =
-        std::max(0.0, alpha * column.concentration[i] +
-                          beta * (newColumn.concentration[i] + timeStep * newColumn.concentrationDot[i]));
-  }
+  // The stage is advanced in place; initialState holds the state at the start of the step, with the same layout.
+  const auto layout = column.stateLayout();
+  const std::span<double> concentration = layout.concentration(initialState.data());
+  const std::span<double> physisorption = layout.physisorption(initialState.data());
+  const std::span<double> chemisorption = layout.chemisorption(initialState.data());
+  const std::span<double> surfaceConcentration = layout.surfaceConcentration(initialState.data());
+  const std::span<double> poreConcentration = layout.poreConcentration(initialState.data());
+  const std::span<double> gasTemperature = layout.gasTemperature(initialState.data());
+  const std::span<double> solidTemperature = layout.solidTemperature(initialState.data());
+  const std::span<double> wallTemperature = layout.wallTemperature(initialState.data());
 
-  for (size_t i = 0; i < column.chemisorption.size(); ++i)
-  {
-    newColumn.chemisorption[i] = alpha * column.chemisorption[i] +
-                                 beta * (newColumn.chemisorption[i] + timeStep * newColumn.chemisorptionDot[i]);
-  }
-
-  for (size_t i = 0; i < column.surfaceConcentration.size(); ++i)
-  {
-    newColumn.surfaceConcentration[i] =
-        std::max(0.0, alpha * column.surfaceConcentration[i] +
-                          beta * (newColumn.surfaceConcentration[i] + timeStep * newColumn.surfaceConcentrationDot[i]));
-    newColumn.poreConcentration[i] =
-        std::max(0.0, alpha * column.poreConcentration[i] +
-                          beta * (newColumn.poreConcentration[i] + timeStep * newColumn.poreConcentrationDot[i]));
-  }
-  if (column.energyBalance)
-  {
-    for (size_t grid = 0; grid < column.numberOfGridPoints + 1; grid++)
-    {
-      newColumn.gasTemperature[grid] =
-          alpha * column.gasTemperature[grid] +
-          beta * (newColumn.gasTemperature[grid] + timeStep * newColumn.gasTemperatureDot[grid]);
-      newColumn.solidTemperature[grid] =
-          alpha * column.solidTemperature[grid] +
-          beta * (newColumn.solidTemperature[grid] + timeStep * newColumn.solidTemperatureDot[grid]);
-      newColumn.wallTemperature[grid] =
-          alpha * column.wallTemperature[grid] +
-          beta * (newColumn.wallTemperature[grid] + timeStep * newColumn.wallTemperatureDot[grid]);
-    }
-  }
-}
-
-void updateStateRK(MultibedColumn& column, MultibedColumn& newColumn, double alpha, double beta, double timeStep)
-{
   for (size_t i = 0; i < column.physisorption.size(); ++i)
   {
-    newColumn.physisorption[i] = alpha * column.physisorption[i] +
-                                 beta * (newColumn.physisorption[i] + timeStep * newColumn.physisorptionDot[i]);
-    newColumn.concentration[i] =
-        std::max(0.0, alpha * column.concentration[i] +
-                          beta * (newColumn.concentration[i] + timeStep * newColumn.concentrationDot[i]));
+    column.physisorption[i] =
+        alpha * physisorption[i] + beta * (column.physisorption[i] + timeStep * column.physisorptionDot[i]);
+    column.concentration[i] = std::max(
+        0.0, alpha * concentration[i] + beta * (column.concentration[i] + timeStep * column.concentrationDot[i]));
   }
 
   for (size_t i = 0; i < column.chemisorption.size(); ++i)
   {
-    newColumn.chemisorption[i] = alpha * column.chemisorption[i] +
-                                 beta * (newColumn.chemisorption[i] + timeStep * newColumn.chemisorptionDot[i]);
+    column.chemisorption[i] =
+        alpha * chemisorption[i] + beta * (column.chemisorption[i] + timeStep * column.chemisorptionDot[i]);
   }
 
   for (size_t i = 0; i < column.surfaceConcentration.size(); ++i)
   {
-    newColumn.surfaceConcentration[i] =
-        std::max(0.0, alpha * column.surfaceConcentration[i] +
-                          beta * (newColumn.surfaceConcentration[i] + timeStep * newColumn.surfaceConcentrationDot[i]));
-    newColumn.poreConcentration[i] =
-        std::max(0.0, alpha * column.poreConcentration[i] +
-                          beta * (newColumn.poreConcentration[i] + timeStep * newColumn.poreConcentrationDot[i]));
+    column.surfaceConcentration[i] =
+        std::max(0.0, alpha * surfaceConcentration[i] +
+                          beta * (column.surfaceConcentration[i] + timeStep * column.surfaceConcentrationDot[i]));
+    column.poreConcentration[i] =
+        std::max(0.0, alpha * poreConcentration[i] +
+                          beta * (column.poreConcentration[i] + timeStep * column.poreConcentrationDot[i]));
   }
 
   if (column.energyBalance)
   {
     for (size_t grid = 0; grid < column.numberOfGridPoints + 1; ++grid)
     {
-      newColumn.gasTemperature[grid] =
-          alpha * column.gasTemperature[grid] +
-          beta * (newColumn.gasTemperature[grid] + timeStep * newColumn.gasTemperatureDot[grid]);
-      newColumn.solidTemperature[grid] =
-          alpha * column.solidTemperature[grid] +
-          beta * (newColumn.solidTemperature[grid] + timeStep * newColumn.solidTemperatureDot[grid]);
-      newColumn.wallTemperature[grid] =
-          alpha * column.wallTemperature[grid] +
-          beta * (newColumn.wallTemperature[grid] + timeStep * newColumn.wallTemperatureDot[grid]);
+      column.gasTemperature[grid] = alpha * gasTemperature[grid] +
+                                    beta * (column.gasTemperature[grid] + timeStep * column.gasTemperatureDot[grid]);
+      column.solidTemperature[grid] =
+          alpha * solidTemperature[grid] +
+          beta * (column.solidTemperature[grid] + timeStep * column.solidTemperatureDot[grid]);
+      column.wallTemperature[grid] = alpha * wallTemperature[grid] +
+                                     beta * (column.wallTemperature[grid] + timeStep * column.wallTemperatureDot[grid]);
+    }
+  }
+}
+
+void updateStateRK(std::vector<double>& initialState, MultibedColumn& column, double alpha, double beta,
+                   double timeStep)
+{
+  // The stage is advanced in place; initialState holds the state at the start of the step, with the same layout.
+  const auto layout = column.stateLayout();
+  const std::span<double> concentration = layout.concentration(initialState.data());
+  const std::span<double> physisorption = layout.physisorption(initialState.data());
+  const std::span<double> chemisorption = layout.chemisorption(initialState.data());
+  const std::span<double> surfaceConcentration = layout.surfaceConcentration(initialState.data());
+  const std::span<double> poreConcentration = layout.poreConcentration(initialState.data());
+  const std::span<double> gasTemperature = layout.gasTemperature(initialState.data());
+  const std::span<double> solidTemperature = layout.solidTemperature(initialState.data());
+  const std::span<double> wallTemperature = layout.wallTemperature(initialState.data());
+
+  for (size_t i = 0; i < column.physisorption.size(); ++i)
+  {
+    column.physisorption[i] =
+        alpha * physisorption[i] + beta * (column.physisorption[i] + timeStep * column.physisorptionDot[i]);
+    column.concentration[i] = std::max(
+        0.0, alpha * concentration[i] + beta * (column.concentration[i] + timeStep * column.concentrationDot[i]));
+  }
+
+  for (size_t i = 0; i < column.chemisorption.size(); ++i)
+  {
+    column.chemisorption[i] =
+        alpha * chemisorption[i] + beta * (column.chemisorption[i] + timeStep * column.chemisorptionDot[i]);
+  }
+
+  for (size_t i = 0; i < column.surfaceConcentration.size(); ++i)
+  {
+    column.surfaceConcentration[i] =
+        std::max(0.0, alpha * surfaceConcentration[i] +
+                          beta * (column.surfaceConcentration[i] + timeStep * column.surfaceConcentrationDot[i]));
+    column.poreConcentration[i] =
+        std::max(0.0, alpha * poreConcentration[i] +
+                          beta * (column.poreConcentration[i] + timeStep * column.poreConcentrationDot[i]));
+  }
+
+  if (column.energyBalance)
+  {
+    for (size_t grid = 0; grid < column.numberOfGridPoints + 1; ++grid)
+    {
+      column.gasTemperature[grid] = alpha * gasTemperature[grid] +
+                                    beta * (column.gasTemperature[grid] + timeStep * column.gasTemperatureDot[grid]);
+      column.solidTemperature[grid] =
+          alpha * solidTemperature[grid] +
+          beta * (column.solidTemperature[grid] + timeStep * column.solidTemperatureDot[grid]);
+      column.wallTemperature[grid] = alpha * wallTemperature[grid] +
+                                     beta * (column.wallTemperature[grid] + timeStep * column.wallTemperatureDot[grid]);
     }
   }
 }
@@ -413,21 +431,20 @@ bool RungeKutta3::propagate(ColumnType& column, size_t step, Timing& timings)
   auto finalizeStage = [&](ColumnType& stage) { precompute(stage, timings); };
 
   evaluateDerivatives(column, startTime);
-  ColumnType newColumn(column);
+  // The stages only need the initial state, not a copy of the whole column (mixture models, components, caches).
+  std::vector<double> initialState(column.state);
 
-  updateStateRK(column, newColumn, 0.0, 1.0, timeStep);
-  finalizeStage(newColumn);
+  updateStateRK(initialState, column, 0.0, 1.0, timeStep);
+  finalizeStage(column);
 
-  evaluateDerivatives(newColumn, startTime + timeStep);
-  updateStateRK(column, newColumn, 0.75, 0.25, timeStep);
-  finalizeStage(newColumn);
+  evaluateDerivatives(column, startTime + timeStep);
+  updateStateRK(initialState, column, 0.75, 0.25, timeStep);
+  finalizeStage(column);
 
-  evaluateDerivatives(newColumn, startTime + 0.5 * timeStep);
-  updateStateRK(column, newColumn, 1.0 / 3.0, 2.0 / 3.0, timeStep);
-  clampNonnegative(newColumn.state);
-  finalizeStage(newColumn);
-
-  column = newColumn;
+  evaluateDerivatives(column, startTime + 0.5 * timeStep);
+  updateStateRK(initialState, column, 1.0 / 3.0, 2.0 / 3.0, timeStep);
+  clampNonnegative(column.state);
+  finalizeStage(column);
 
   if (autoNumberOfSteps && !column.reactions.empty())
   {

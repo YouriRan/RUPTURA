@@ -189,6 +189,8 @@ struct MixturePrediction
   std::vector<double> secondExplicitIsothermAlpha;   ///< Intermediate calculation vector for explicit isotherms.
   std::vector<double> explicitIsothermAlphaProduct;  ///< Product of alpha values for explicit isotherms.
   std::vector<double> adsorbedMoleFractionsScratch;  ///< Intermediate calculation vector.
+  std::vector<double> componentScaleScratch;         ///< Isotherm temperature scaling per component.
+  std::vector<double> previousLoadingsScratch;       ///< Component loadings before the current segregated site.
 
   std::vector<double> hypotheticalPressure;   ///< Hypothetical pressures in IAST calculations in Pa.
   std::vector<double> reducedGrandPotential;  ///< Reduced grand potential values.
