@@ -193,7 +193,7 @@ bool Isotherm::isUnphysical() const
     }
     case Isotherm::Type::Freundlich:
     {
-      if (parameters[0] < 0.0 || parameters[1] < 0.0 || parameters[2] < 0.0) return true;
+      if (parameters[0] < 0.0 || parameters[1] < 0.0) return true;
       return false;
     }
     case Isotherm::Type::Sips:

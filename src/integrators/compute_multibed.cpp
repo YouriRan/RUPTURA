@@ -841,7 +841,7 @@ void computeEnergyDerivatives(const std::vector<MixturePrediction>& physisorptio
   // std::vector<double> gasTemperatureFlux(numberOfGridPoints + 1);
   // computeWENO(gasTemperature, gasTemperatureFlux);
 
-  // is this extra 1/eps necessary? It's in python not in eqs
+  // fluidWallPerFluidVolume is per fluid volume (4/(eps d_in) for a packed bed), consistent with the wall balance.
   double prefactorGasWall = geometries.front().contactAreas.fluidWallPerFluidVolume *
                             heatTransferGasWall / heatCapacityGas;
 

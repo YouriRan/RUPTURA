@@ -227,9 +227,11 @@ void SwingAdsorption<ColumnType>::run()
       {
         const double stepTime = realTime;
 
+        // Written before the step, so that each snapshot is labelled with the time of the state it holds.
         if (step % breakthrough.writeEvery == 0)
         {
           column.writeJSON("column.json");
+          column.writeOutput(streams, columnStream, stepTime);
         }
 
         switch (breakthrough.integrationScheme)
@@ -279,10 +281,6 @@ void SwingAdsorption<ColumnType>::run()
           breakthrough.cvode.timeStep = breakthrough.timeStep;
         }
 
-        if (step % breakthrough.writeEvery == 0)
-        {
-          column.writeOutput(streams, columnStream, stepTime);
-        }
         if (step % breakthrough.printEvery == 0)
         {
           const double averageIastSteps = column.iastPerformance.second == 0
@@ -302,6 +300,8 @@ void SwingAdsorption<ColumnType>::run()
     column.writeJSON("failed_state.json");
     throw;
   }
+
+  column.writeOutput(streams, columnStream, realTime);
 
   std::print("Final timestep {}, time: {:6.5f} [s]\n\n", step, realTime);
   timings.print();

@@ -144,7 +144,7 @@ double safePureSiteLoading(const Isotherm& isotherm, double partialPressure, dou
     }
     case Isotherm::Type::Toth:
     {
-      const double activity = safeMultiply(parameters[1], pressure);
+      const double activity = safeMultiply(safeMultiply(scale, parameters[1]), pressure);
       const double exponent = std::max(finiteNonnegative(parameters[2]), isothermDenominatorFloor);
       const double denominator =
           safeDenominator(safePositivePower(1.0 + safePositivePower(activity, exponent), 1.0 / exponent), 1.0e-12);
@@ -1675,7 +1675,7 @@ std::pair<size_t, size_t> MixturePrediction::computeSegregatedCompetitiveIsother
       }
       case Isotherm::Type::Toth:
       {
-        numeratorTerms[i] = safeMultiply(parameters[1], pressure);
+        numeratorTerms[i] = safeMultiply(safeMultiply(scale, parameters[1]), pressure);
         exponents[i] = std::max(finiteNonnegative(parameters[2]), isothermDenominatorFloor);
         denominatorTerms[i] = safePositivePower(numeratorTerms[i], exponents[i]);
         break;

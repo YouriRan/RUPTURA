@@ -58,8 +58,9 @@ const QStringList columnSettingKeys{
     "heatTransferLiquidSolid", "heatTransferLiquidWall", "heatCapacityLiquid"};
 const QStringList simulationSettingKeys{
     "IASTMethod", "CVODERelativeTolerance", "CVODEAbsoluteToleranceConcentration", "CVODEAbsoluteToleranceLoading",
-    "CVODEAbsoluteToleranceTemperature", "CVODEMaximumTimeStep", "CVODELinearSolver", "CVODEKrylovDimension",
-    "ColumnDistances", "ReadColumnFile", "DebugForceMultibed", "ColumnPressure", "ColumnLoading", "ColumnError"};
+    "CVODEAbsoluteToleranceTemperature", "CVODEMaximumTimeStep", "CVODEMaximumOrder", "CVODELinearSolver",
+    "CVODEKrylovDimension", "ColumnDistances", "ReadColumnFile", "DebugForceMultibed", "ColumnPressure",
+    "ColumnLoading", "ColumnError"};
 const QStringList componentSettingKeys{"LiquidPhaseConcentration", "InitialLiquidPhaseConcentration", "FileName"};
 
 void mergeSettings(QJsonObject& object, const QJsonObject& settings)
@@ -2153,6 +2154,7 @@ void MainWindow::rebuildSimulationEditor()
                          {"CVODEAbsoluteToleranceLoading", "Loading absolute tolerance [mol/kg]", 1.0e-6},
                          {"CVODEAbsoluteToleranceTemperature", "Temperature absolute tolerance [K]", 1.0e-3},
                          {"CVODEMaximumTimeStep", "Maximum internal step [s] (-1 = auto, 0 = unlimited)", -1.0},
+                         {"CVODEMaximumOrder", "Maximum BDF order [-] (1-5)", 5.0, true},
                          {"CVODEKrylovDimension", "Krylov dimension [-]", 30.0, true}});
       addSettingCombo(breakthroughForm, "CVODE linear solver", simulation.settings, "CVODELinearSolver", "Dense",
                       {"Dense", "SPGMR"});

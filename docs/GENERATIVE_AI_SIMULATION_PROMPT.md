@@ -416,7 +416,7 @@ Multistacked or mixed beds. Use these only when the column contains several adso
   CVODE tuning keys: add them only on request.
     CVODERelativeTolerance (1e-4); CVODEAbsoluteToleranceConcentration [mol/m3] (1e-5);
     CVODEAbsoluteToleranceLoading [mol/kg] (1e-6); CVODEAbsoluteToleranceTemperature [K] (1e-3);
-    CVODEMaximumTimeStep [s] (-1 = dz/v automatic, 0 = unlimited);
+    CVODEMaximumTimeStep [s] (-1 = dz/v automatic, 0 = unlimited); CVODEMaximumOrder (5, BDF order 1-5);
     CVODELinearSolver "Dense" (default) or "SPGMR"; CVODEKrylovDimension (30, SPGMR only).
     For dilute feeds (ppm level), lower CVODEAbsoluteToleranceConcentration well below the feed
     concentration, and report it.

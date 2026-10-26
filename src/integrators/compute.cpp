@@ -765,7 +765,7 @@ void computeEnergyDerivatives(
   const double prefactorGasSolid =
       geometry.contactAreas.fluidSolidPerFluidVolume * heatTransferGasSolid / heatCapacityGas;
 
-  // is this extra 1/eps necessary? It's in python not in eqs
+  // fluidWallPerFluidVolume is per fluid volume (4/(eps d_in) for a packed bed), consistent with the wall balance.
   const double prefactorGasWall =
       geometry.contactAreas.fluidWallPerFluidVolume * heatTransferGasWall / heatCapacityGas;
 

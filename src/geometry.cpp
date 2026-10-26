@@ -137,8 +137,11 @@ Geometry makeGeometry(const PackedBedTubeSpec& specification)
   Geometry geometry{GeometryKind::PackedBed, specification.voidFraction, solidToFluidVolumeRatio, {}, {}, {}};
   geometry.contactAreas.fluidSolidPerFluidVolume = solidToFluidVolumeRatio * solidAreaPerSolidVolume;
   geometry.contactAreas.solidFluidPerSolidVolume = solidAreaPerSolidVolume;
+  // The tube wall area pi d_in per unit length over the fluid volume eps pi d_in^2 / 4, so that the fluid loses
+  // the heat the wall gains (wallInnerPerWallVolume).
   geometry.contactAreas.fluidWallPerFluidVolume =
-      specification.internalDiameter > 0.0 ? 4.0 / specification.internalDiameter : 0.0;
+      specification.internalDiameter > 0.0 ? 4.0 / (specification.voidFraction * specification.internalDiameter)
+                                           : 0.0;
   geometry.contactAreas.wallInnerPerWallVolume =
       wallArea > 0.0 ? std::numbers::pi * specification.internalDiameter / wallArea : 0.0;
   geometry.contactAreas.wallOuterPerWallVolume =

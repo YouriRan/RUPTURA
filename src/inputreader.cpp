@@ -969,6 +969,7 @@ InputReader::InputReader(const std::string fileName) : components()
                         "CVODEAbsoluteToleranceLoading",
                         "CVODEAbsoluteToleranceTemperature",
                         "CVODEMaximumTimeStep",
+                        "CVODEMaximumOrder",
                         "CVODELinearSolver",
                         "CVODEKrylovDimension",
                         "PrintEvery",
@@ -1184,6 +1185,11 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalNumber<double>(parsed_data, "CVODEAbsoluteToleranceLoading", cvodeAbsoluteToleranceLoading);
   readOptionalNumber<double>(parsed_data, "CVODEAbsoluteToleranceTemperature", cvodeAbsoluteToleranceTemperature);
   readOptionalNumber<double>(parsed_data, "CVODEMaximumTimeStep", cvodeMaximumTimeStep);
+  readOptionalNumber<size_t>(parsed_data, "CVODEMaximumOrder", cvodeMaximumOrder);
+  if (cvodeMaximumOrder < 1 || cvodeMaximumOrder > 5)
+  {
+    throw std::runtime_error("Error: CVODEMaximumOrder must be between 1 and 5 (BDF orders)");
+  }
   readOptionalMappedString(parsed_data, "CVODELinearSolver", cvodeLinearSolver, {{"Dense", 0}, {"SPGMR", 1}});
   readOptionalNumber<size_t>(parsed_data, "CVODEKrylovDimension", cvodeKrylovDimension);
   readOptionalNumber<size_t>(parsed_data, "PrintEvery", printEvery);
@@ -2639,8 +2645,13 @@ InputReader::InputReader(const std::string fileName) : components()
                     { return reaction.phase == Reaction::Phase::BulkConcentration; });
     requireConfigured(!hasBulkReaction || !energyBalance,
                       "Error: BulkConcentration reactions do not yet supply reaction heat; set energyBalance false");
-    requireConfigured(!hasBulkReaction || breakthroughIntegrator != 2,
+    requireConfigured(reactions.empty() || breakthroughIntegrator != 2,
                       "Error: the SIRK3 integrator does not evaluate reactions; use CVODE or RungeKutta3");
+    const bool hasPoreTransport =
+        std::any_of(components.begin(), components.end(),
+                    [](const Component& component) { return component.chemisorption.usesSurfacePoreTransport(); });
+    requireConfigured(!hasPoreTransport || breakthroughIntegrator != 2,
+                      "Error: the SIRK3 integrator does not evaluate surface-pore transport; use CVODE or RungeKutta3");
 
     if (boundaryNeedsInletPressure)
     {
