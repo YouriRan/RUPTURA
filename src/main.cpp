@@ -87,14 +87,7 @@ int main(int argc, char* argv[])
       case InputReader::SimulationType::Breakthrough:
       default:
       {
-        if (reader.isMultibed())
-        {
-          runSimulation<Breakthrough<MultibedColumn>>(reader);
-        }
-        else
-        {
-          runSimulation<Breakthrough<Column>>(reader);
-        }
+        runSimulation<Breakthrough>(reader);
         break;
       }
       case InputReader::SimulationType::MixturePrediction:
@@ -115,14 +108,7 @@ int main(int argc, char* argv[])
       }
       case InputReader::SimulationType::SwingAdsorption:
       {
-        if (reader.isMultibed())
-        {
-          runSimulation<SwingAdsorption<MultibedColumn>>(reader);
-        }
-        else
-        {
-          runSimulation<SwingAdsorption<Column>>(reader);
-        }
+        runSimulation<SwingAdsorption>(reader);
         break;
       }
     }

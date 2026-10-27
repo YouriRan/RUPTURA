@@ -2,10 +2,8 @@
 
 #include <cstddef>
 #include <string>
-#include <type_traits>
 
 #include "column.h"
-#include "column_multibed.h"
 #include "cvode.h"
 #include "inputreader.h"
 #include "rk3.h"
@@ -23,17 +21,10 @@ enum class BreakthroughIntegrationScheme
 };
 
 /**
- * \brief Simulates a breakthrough process for a concrete column model.
- *
- * Column and MultibedColumn share this implementation at compile time. The
- * input boundary selects the concrete instantiation.
+ * \brief Simulates a breakthrough process: feeds the column and writes its state at every output time.
  */
-template <typename ColumnType>
 struct Breakthrough
 {
-  static_assert(std::is_same_v<ColumnType, Column> || std::is_same_v<ColumnType, MultibedColumn>,
-                "Breakthrough supports Column and MultibedColumn");
-
   explicit Breakthrough(const InputReader& inputReader);
 
   void print() const;
@@ -64,13 +55,10 @@ struct Breakthrough
   size_t numberOfOutputs{0};  ///< Output intervals completed; the next output is at (numberOfOutputs + 1) writeInterval.
   size_t maxIsothermTerms;   ///< Maximum number of isotherm terms.
 
-  ColumnType column;                                ///< Concrete column model advanced by the simulation.
+  Column column;                                    ///< Column model advanced by the simulation.
   RungeKutta3 rk3;                                  ///< Explicit RK3 integrator instance.
   SemiImplicitRungeKutta3 sirk3;                    ///< Semi-implicit RK3 integrator instance.
   CVODE cvode;                                      ///< CVODE integrator instance.
   BreakthroughIntegrationScheme integrationScheme;  ///< Selected integration scheme.
   Timing timings;                                   ///< Accumulated timing diagnostics.
 };
-
-extern template struct Breakthrough<Column>;
-extern template struct Breakthrough<MultibedColumn>;

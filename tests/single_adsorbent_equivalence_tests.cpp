@@ -7,13 +7,9 @@
 #include <string>
 
 #include "column.h"
-#include "column_multibed.h"
 #include "inputreader.h"
 #include "integrators/compute.h"
-#include "integrators/compute_multibed.h"
 #include "integrators/rk3.h"
-#include "integrators/sorption.h"
-#include "integrators/transport.h"
 #include "mixture_prediction.h"
 #include "utils.h"
 
@@ -85,19 +81,6 @@ InputReader makeTwoIdenticalAdsorbentReader(const Setting& setting)
 }
 
 template <typename Left, typename Right>
-void expectIdentical(const Left& left, const Right& right, const char* quantity)
-{
-  SCOPED_TRACE(quantity);
-  const std::span<const double> leftValues{left};
-  const std::span<const double> rightValues{right};
-  ASSERT_EQ(leftValues.size(), rightValues.size());
-  for (size_t index = 0; index < leftValues.size(); ++index)
-  {
-    ASSERT_DOUBLE_EQ(leftValues[index], rightValues[index]) << "index " << index;
-  }
-}
-
-template <typename Left, typename Right>
 void expectNumericallyEqual(const Left& left, const Right& right, const char* quantity,
                             double relativeTolerance = 1.0e-12, double absoluteTolerance = 1.0e-12)
 {
@@ -119,7 +102,7 @@ void expectNumericallyEqual(const Left& left, const Right& right, const char* qu
   }
 }
 
-void synchronizeState(const Column& single, MultibedColumn& multi)
+void synchronizeState(const Column& single, Column& multi)
 {
   ASSERT_EQ(single.state.size(), multi.state.size());
   std::ranges::copy(single.state, multi.state.begin());
@@ -131,160 +114,18 @@ void synchronizeState(const Column& single, MultibedColumn& multi)
   std::ranges::copy(single.gasDensity, multi.gasDensity.begin());
 }
 
-class SingleAdsorbentComputeEquivalence : public ::testing::TestWithParam<size_t>
+class SingleAdsorbentEquivalence : public ::testing::TestWithParam<size_t>
 {
  protected:
   InputReader reader() const { return makeReader(settings.at(GetParam())); }
 };
 
-TEST_P(SingleAdsorbentComputeEquivalence, PhysisorptionEquilibriumAndKineticsAreIdentical)
-{
-  InputReader input = reader();
-  Column single(input);
-  MultibedColumn multi(input);
-  single.initialize();
-  multi.initialize();
-  synchronizeState(single, multi);
-
-  computePhysisorptionEquilibriumLoadings(
-      single.physisorptionMixture, single.numberOfGridPoints, single.numberOfComponents, single.maxIsothermTerms,
-      single.iastPerformance, single.idealGasMolFractions, single.adsorbedMolFractions, single.numberOfMolecules,
-      single.totalPressure, single.equilibriumPhysisorption, single.cachedPressure, single.cachedGrandPotential,
-      single.moleFraction, single.gasTemperature, MixturePrediction::DrivingForceInput::MoleFraction,
-      single.concentration, single.pH);
-  computePhysisorptionEquilibriumLoadings(
-      multi.physisorptionMixtures, multi.numberOfGridPoints, multi.numberOfComponents, multi.numberOfAdsorbents,
-      multi.fractionOfAdsorbent, multi.hasAdsorbentOfType, multi.maxIsothermTerms, multi.iastPerformance,
-      multi.idealGasMolFractions, multi.adsorbedMolFractions, multi.numberOfMolecules, multi.totalPressure,
-      multi.equilibriumPhysisorption, multi.cachedPressure, multi.cachedGrandPotential, multi.moleFraction,
-      multi.gasTemperature, MixturePrediction::DrivingForceInput::MoleFraction, multi.concentration, multi.pH);
-  expectIdentical(single.equilibriumPhysisorption, multi.equilibriumPhysisorption, "equilibrium physisorption");
-
-  computePhysisorption(single.components, single.numberOfGridPoints, single.numberOfComponents,
-                       single.equilibriumPhysisorption, single.physisorption, single.physisorptionDot);
-  computePhysisorption(multi.physisorptionMixtures, multi.numberOfGridPoints, multi.numberOfComponents,
-                       multi.numberOfAdsorbents, multi.fractionOfAdsorbent, multi.equilibriumPhysisorption,
-                       multi.physisorption, multi.physisorptionDot);
-  expectIdentical(single.physisorptionDot, multi.physisorptionDot, "physisorption derivatives");
-}
-
-TEST_P(SingleAdsorbentComputeEquivalence, ChemisorptionRoutinesAreIdentical)
-{
-  InputReader input = reader();
-  Chemisorption site;
-  site.type = Chemisorption::Type::General;
-  site.maximumLoading = 2.0;
-  site.adsorptionRateCoefficient = 1.0e-4;
-  input.components[1].chemisorption.add(site);
-  input.adsorbentComponents[0][1].chemisorption.add(site);
-  Column single(input);
-  MultibedColumn multi(input);
-  single.initialize();
-  multi.initialize();
-  synchronizeState(single, multi);
-  computeDerivatives(single);
-  computeDerivatives(multi);
-  expectIdentical(single.equilibriumChemisorption, multi.equilibriumChemisorption, "equilibrium chemisorption");
-  expectIdentical(single.chemisorptionDot, multi.chemisorptionDot, "chemisorption derivatives");
-}
-
-TEST_P(SingleAdsorbentComputeEquivalence, ReactionRoutinesAreIdentical)
-{
-  InputReader input = reader();
-  Reaction reaction;
-  reaction.phase = Reaction::Phase::Physisorbed;
-  reaction.style = Reaction::Style::GeneralPowerLaw;
-  reaction.reactants = {1};
-  reaction.products = {2};
-  reaction.reactantStoichiometry = {1.0};
-  reaction.productStoichiometry = {1.0};
-  reaction.forwardOrders = {1.0};
-  reaction.backwardOrders = {1.0};
-  reaction.forwardRateCoefficient = 1.0;
-  reaction.equilibriumConstant = 1.0e9;
-  input.reactions = {reaction};
-  Column single(input);
-  MultibedColumn multi(input);
-  single.initialize();
-  multi.initialize();
-  single.physisorption[1] = 0.4;
-  synchronizeState(single, multi);
-  computeDerivatives(single);
-  computeDerivatives(multi);
-  expectIdentical(single.reactionPhysisorptionSource, multi.reactionPhysisorptionSource, "reaction source");
-  expectIdentical(single.reactionHeat, multi.reactionHeat, "reaction heat");
-}
-
-TEST_P(SingleAdsorbentComputeEquivalence, TransportRoutinesAreIdentical)
-{
-  InputReader input = reader();
-  Column single(input);
-  MultibedColumn multi(input);
-  single.initialize();
-  multi.initialize();
-  synchronizeState(single, multi);
-  std::fill(single.bulkSpeciesSink.begin(), single.bulkSpeciesSink.end(), 0.0);
-  std::fill(multi.bulkSpeciesSink.begin(), multi.bulkSpeciesSink.end(), 0.0);
-  updateVelocityAndPressure(
-      single.components, single.boundaryCondition, single.numberOfGridPoints, single.numberOfComponents,
-      single.inletPressure, single.outletPressure, single.pressureGradient, single.columnLength, single.geometry,
-      single.columnEntranceVelocity, single.dynamicViscosity, single.resolution, single.interstitialGasVelocity,
-      single.gasDensity, single.totalConcentration, single.totalPressure, single.concentration, single.partialPressure,
-      single.moleFraction, single.bulkSpeciesSink, single.gasTemperature, single.fluidPhase, single.liquidDensity,
-      single.pHMode, single.pHValue, single.pKw, single.pHComponent, single.pH);
-  updateVelocityAndPressure(
-      multi.components, multi.boundaryCondition, multi.numberOfGridPoints, multi.numberOfComponents,
-      multi.inletPressure, multi.outletPressure, multi.pressureGradient, multi.columnLength, multi.numberOfAdsorbents,
-      multi.columnEntranceVelocity, multi.dynamicViscosity, multi.columnDistances, multi.fractionOfAdsorbent,
-      multi.geometries, multi.adsorbentScaledVoidFraction, multi.totalVoidFraction,
-      multi.interstitialGasVelocity, multi.gasDensity,
-      multi.totalConcentration,
-      multi.totalPressure, multi.concentration, multi.partialPressure, multi.moleFraction, multi.bulkSpeciesSink,
-      multi.gasTemperature, multi.fluidPhase, multi.liquidDensity, multi.pHMode, multi.pHValue, multi.pKw,
-      multi.pHComponent, multi.pH);
-  EXPECT_DOUBLE_EQ(single.columnEntranceVelocity, multi.columnEntranceVelocity);
-  expectIdentical(single.interstitialGasVelocity, multi.interstitialGasVelocity, "interstitial velocity");
-  expectIdentical(single.totalPressure, multi.totalPressure, "pressure transport");
-  expectIdentical(single.gasDensity, multi.gasDensity, "gas density");
-  expectIdentical(single.partialPressure, multi.partialPressure, "partial pressure");
-}
-
-TEST_P(SingleAdsorbentComputeEquivalence, MassBalanceRoutinesAreIdentical)
-{
-  InputReader input = reader();
-  Column single(input);
-  MultibedColumn multi(input);
-  single.initialize();
-  multi.initialize();
-  synchronizeState(single, multi);
-  computeDerivatives(single);
-  computeDerivatives(multi);
-  expectIdentical(single.bulkSpeciesSink, multi.bulkSpeciesSink, "bulk species sink");
-  expectNumericallyEqual(single.concentrationDot, multi.concentrationDot, "mass derivatives");
-}
-
-TEST_P(SingleAdsorbentComputeEquivalence, EnergyBalanceRoutinesAreIdentical)
-{
-  InputReader input = reader();
-  input.energyBalance = true;
-  Column single(input);
-  MultibedColumn multi(input);
-  single.initialize();
-  multi.initialize();
-  synchronizeState(single, multi);
-  computeDerivatives(single);
-  computeDerivatives(multi);
-  expectNumericallyEqual(single.gasTemperatureDot, multi.gasTemperatureDot, "gas energy derivatives");
-  expectNumericallyEqual(single.solidTemperatureDot, multi.solidTemperatureDot, "solid energy derivatives");
-  expectNumericallyEqual(single.wallTemperatureDot, multi.wallTemperatureDot, "wall energy derivatives");
-}
-
-TEST_P(SingleAdsorbentComputeEquivalence, TwoIdenticalAdsorbentsMatchSingleBedCalculations)
+TEST_P(SingleAdsorbentEquivalence, TwoIdenticalAdsorbentsMatchOne)
 {
   InputReader singleInput = reader();
   InputReader multiInput = makeTwoIdenticalAdsorbentReader(settings.at(GetParam()));
   Column single(singleInput);
-  MultibedColumn multi(multiInput);
+  Column multi(multiInput);
   ASSERT_EQ(multi.numberOfAdsorbents, 2U);
   single.initialize();
   multi.initialize();
@@ -310,6 +151,6 @@ TEST_P(SingleAdsorbentComputeEquivalence, TwoIdenticalAdsorbentsMatchSingleBedCa
   expectNumericallyEqual(single.wallTemperatureDot, multi.wallTemperatureDot, "wall energy derivatives");
 }
 
-INSTANTIATE_TEST_SUITE_P(MultibedSettings, SingleAdsorbentComputeEquivalence,
+INSTANTIATE_TEST_SUITE_P(MultibedSettings, SingleAdsorbentEquivalence,
                          ::testing::Range<size_t>(0, settings.size()));
 }  // namespace

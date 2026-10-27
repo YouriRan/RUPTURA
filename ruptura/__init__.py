@@ -38,9 +38,6 @@ _CORE_EXPORTS = [
     "InputReader",
     "Isotherm",
     "MixturePrediction",
-    "MultibedBreakthrough",
-    "MultibedColumn",
-    "MultibedSwingAdsorption",
     "MultiSiteChemisorption",
     "MultiSiteIsotherm",
     "RungeKutta3",
@@ -177,7 +174,7 @@ def result_columns(simulation: Any) -> tuple[str, ...]:
     core = _require_core()
     if isinstance(simulation, core.MixturePrediction):
         return MIXTURE_RESULT_COLUMNS
-    if isinstance(simulation, (core.Breakthrough, core.MultibedBreakthrough)):
+    if isinstance(simulation, core.Breakthrough):
         return breakthrough_columns(int(simulation.number_of_components))
     raise TypeError(
         "Only MixturePrediction and Breakthrough have in-memory NumPy compute results."
@@ -198,7 +195,7 @@ def compute(simulation: Any, *, labeled: bool = True) -> np.ndarray | Simulation
     core = _require_core()
     if isinstance(simulation, core.MixturePrediction):
         return SimulationResult(data=data, columns=MIXTURE_RESULT_COLUMNS, kind="mixture_prediction")
-    if isinstance(simulation, (core.Breakthrough, core.MultibedBreakthrough)):
+    if isinstance(simulation, core.Breakthrough):
         return SimulationResult(
             data=data,
             columns=breakthrough_columns(int(simulation.number_of_components)),

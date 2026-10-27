@@ -8,110 +8,12 @@
 #include <numeric>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <vector>
 
-#include "compute.h"
-#include "compute_multibed.h"
 #include "rk3.h"
-#include "sorption.h"
-#include "transport.h"
 #include "utils.h"
 
-namespace
-{
-template <typename ColumnType>
-void refreshColumnState(ColumnType& column)
-{
-  auto updateDerivedState = [&]
-  {
-    if constexpr (std::is_same_v<ColumnType, Column>)
-    {
-      computeBulkSpeciesSink(column.components, column.numberOfGridPoints, column.numberOfComponents,
-                             column.maxChemisorptionSites, column.geometry, column.particleDensity,
-                             column.concentration, column.physisorptionDot, column.chemisorptionDot,
-                             column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                             column.reactionChemisorptionSource, column.reactionBulkSource);
-      updateVelocityAndPressure(
-          column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
-          column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength, column.geometry,
-          column.columnEntranceVelocity, column.dynamicViscosity, column.resolution, column.interstitialGasVelocity,
-          column.gasDensity, column.totalConcentration, column.totalPressure, column.concentration,
-          column.partialPressure, column.moleFraction, column.bulkSpeciesSink, column.gasTemperature,
-          column.fluidPhase, column.liquidDensity, column.pHMode, column.pHValue, column.pKw,
-          column.pHComponent, column.pH);
-      computePhysisorptionEquilibriumLoadings(
-          column.physisorptionMixture, column.numberOfGridPoints, column.numberOfComponents, column.maxIsothermTerms,
-          column.iastPerformance, column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules,
-          column.totalPressure, column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
-          column.moleFraction, column.gasTemperature,
-          column.fluidPhase == Column::FluidPhase::Gas
-              ? MixturePrediction::DrivingForceInput::MoleFraction
-              : MixturePrediction::DrivingForceInput::Concentration,
-          column.concentration, column.pH);
-      computeChemisorptionEquilibriumLoadings(
-          column.chemisorptionMixture, column.numberOfGridPoints, column.numberOfComponents,
-          column.maxChemisorptionSites, column.iastPerformance, column.idealGasMolFractions,
-          column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure, column.equilibriumChemisorption,
-          column.cachedChemisorptionPressure, column.cachedChemisorptionGrandPotential, column.moleFraction,
-          column.gasTemperature,
-          column.fluidPhase == Column::FluidPhase::Gas
-              ? MixturePrediction::DrivingForceInput::MoleFraction
-              : MixturePrediction::DrivingForceInput::Concentration,
-          column.concentration, column.pH);
-    }
-    else
-    {
-      computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
-                             column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries,
-                             column.adsorbentVoidFractions,
-                             column.particleDensities, column.particleDiameters, column.fractionOfAdsorbent,
-                             column.totalVoidFraction, column.concentration, column.physisorptionDot,
-                             column.chemisorptionDot, column.surfaceConcentration, column.bulkSpeciesSink,
-                             column.reactionPhysisorptionSource, column.reactionChemisorptionSource,
-                             column.reactionBulkSource);
-      updateVelocityAndPressure(
-          column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
-          column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength,
-          column.numberOfAdsorbents, column.columnEntranceVelocity, column.dynamicViscosity, column.columnDistances,
-          column.fractionOfAdsorbent, column.geometries, column.adsorbentScaledVoidFraction,
-          column.totalVoidFraction,
-          column.interstitialGasVelocity,
-          column.gasDensity, column.totalConcentration, column.totalPressure, column.concentration,
-          column.partialPressure, column.moleFraction, column.bulkSpeciesSink, column.gasTemperature,
-          column.fluidPhase, column.liquidDensity, column.pHMode, column.pHValue, column.pKw,
-          column.pHComponent, column.pH);
-      computePhysisorptionEquilibriumLoadings(
-          column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
-          column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxIsothermTerms, column.iastPerformance,
-          column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
-          column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential, column.moleFraction,
-          column.gasTemperature,
-          column.fluidPhase == MultibedColumn::FluidPhase::Gas
-              ? MixturePrediction::DrivingForceInput::MoleFraction
-              : MixturePrediction::DrivingForceInput::Concentration,
-          column.concentration, column.pH);
-      computeChemisorptionEquilibriumLoadings(
-          column.chemisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
-          column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxChemisorptionSites, column.iastPerformance,
-          column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
-          column.equilibriumChemisorption, column.cachedChemisorptionPressure, column.cachedChemisorptionGrandPotential,
-          column.moleFraction, column.gasTemperature,
-          column.fluidPhase == MultibedColumn::FluidPhase::Gas
-              ? MixturePrediction::DrivingForceInput::MoleFraction
-              : MixturePrediction::DrivingForceInput::Concentration,
-          column.concentration, column.pH);
-    }
-  };
-
-  updateDerivedState();
-  computeDerivatives(column);
-  updateDerivedState();
-}
-}  // namespace
-
-template <typename ColumnType>
-SwingAdsorption<ColumnType>::SwingAdsorption(const InputReader& inputReader) : breakthrough(inputReader)
+SwingAdsorption::SwingAdsorption(const InputReader& inputReader) : breakthrough(inputReader)
 {
   if (inputReader.swingAdsorptionPhases.empty())
   {
@@ -141,10 +43,9 @@ SwingAdsorption<ColumnType>::SwingAdsorption(const InputReader& inputReader) : b
   }
 }
 
-template <typename ColumnType>
-void SwingAdsorption<ColumnType>::run()
+void SwingAdsorption::run()
 {
-  ColumnType& column = breakthrough.column;
+  Column& column = breakthrough.column;
 
   std::vector<std::ofstream> streams;
   for (size_t comp = 0; comp < breakthrough.numberOfComponents; ++comp)
@@ -158,7 +59,7 @@ void SwingAdsorption<ColumnType>::run()
   {
     column.setTemperature(stage.temperature);
     column.inletPressure = stage.pressure;
-    // Boundary conditions that derive the velocity from the pressures recompute it in refreshColumnState.
+    // Boundary conditions that derive the velocity from the pressures recompute it in precompute.
     column.columnEntranceVelocity = stage.velocity;
     if (!column.gasTemperature.empty())
     {
@@ -183,7 +84,10 @@ void SwingAdsorption<ColumnType>::run()
         column.concentration[comp] = feedFraction * inletConcentration;
       }
     }
-    refreshColumnState(column);
+    // Derived fields (velocity, pressure, equilibrium), then the rates and the sink they feed back into.
+    precompute(column, timings);
+    computeDerivatives(column);
+    precompute(column, timings);
   };
 
   const double writeInterval = breakthrough.writeInterval;
@@ -251,14 +155,12 @@ void SwingAdsorption<ColumnType>::run()
   timings.print();
 }
 
-template <typename ColumnType>
-void SwingAdsorption<ColumnType>::print() const
+void SwingAdsorption::print() const
 {
   std::print("{}", repr());
 }
 
-template <typename ColumnType>
-std::string SwingAdsorption<ColumnType>::repr() const
+std::string SwingAdsorption::repr() const
 {
   std::string result = breakthrough.repr();
   result += std::format(
@@ -282,6 +184,3 @@ std::string SwingAdsorption<ColumnType>::repr() const
   result += "\n\n";
   return result;
 }
-
-template struct SwingAdsorption<Column>;
-template struct SwingAdsorption<MultibedColumn>;

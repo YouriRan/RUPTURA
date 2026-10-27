@@ -227,7 +227,6 @@ set(RUPTURA_SOURCES
   src/breakthrough.cpp
   src/chemisorption.cpp
   src/column.cpp
-  src/column_multibed.cpp
   src/component.cpp
   src/fitting.cpp
   src/geometry.cpp
@@ -244,16 +243,13 @@ set(RUPTURA_SOURCES
   src/swing_adsorption.cpp
   src/integrators/rk3.cpp
   src/integrators/rk3_si.cpp
-  src/integrators/ros3.cpp
   src/integrators/cvode.cpp
   src/integrators/compute.cpp
-  src/integrators/compute_multibed.cpp
   src/integrators/sorption.cpp
   src/integrators/transport.cpp
 )
 
 set_source_files_properties(src/macrostate_particle_distribution.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math")
-set_source_files_properties(src/integrators/ros3.cpp PROPERTIES COMPILE_OPTIONS "-fno-fast-math")
 
 set(RUPTURA_COMPILE_OPTIONS
   -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
@@ -334,7 +330,6 @@ endif()
 
 option(BUILD_APP "Build the local Ruptura Lab web application launcher" OFF)
 option(BUILD_QT_APP "Build the legacy Qt Ruptura Lab application" OFF)
-option(BUILD_BENCHMARKS "Build Google Benchmark performance comparisons" OFF)
 
 if(BUILD_APP OR BUILD_QT_APP)
   add_subdirectory(app)
@@ -346,10 +341,6 @@ endif()
 
 if(BUILD_TESTING)
   add_subdirectory(tests)
-endif()
-
-if(BUILD_BENCHMARKS)
-  add_subdirectory(benchmark/multibed)
 endif()
 
 if(BUILD_DOCS)

@@ -9,36 +9,16 @@
 #include <ranges>
 #include <stdexcept>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 namespace
 {
-void validateMultibedInput(const InputReader& inputReader)
-{
-  if (inputReader.adsorbentComponents.empty())
-  {
-    throw std::runtime_error("Error: MultibedColumn requires at least one adsorbent");
-  }
-  if (inputReader.adsorbentComponents.size() == 1 && !inputReader.debugForceMultibed)
-  {
-    throw std::runtime_error(
-        "Error: MultibedColumn requires at least two adsorbents unless DebugForceMultibed is enabled");
-  }
-  if (inputReader.breakthroughIntegrator == 2)
-  {
-    throw std::runtime_error("Error: MultibedColumn does not support the SIRK3 integrator");
-  }
-}
-
-template <typename ColumnType>
-std::string componentFileName(const ColumnType& column, size_t component)
+std::string componentFileName(const Column& column, size_t component)
 {
   return "component_" + std::to_string(component) + "_" + column.components[component].name + ".data";
 }
 
-template <typename ColumnType>
-double averageMixturePredictionSteps(const ColumnType& column)
+double averageMixturePredictionSteps(const Column& column)
 {
   return column.iastPerformance.second == 0
              ? 0.0
@@ -49,8 +29,7 @@ double averageMixturePredictionSteps(const ColumnType& column)
  * \brief True when every fed component leaves the column within 1% of its feed value, which is visibly
  * indistinguishable from a converged breakthrough.
  */
-template <typename ColumnType>
-bool breakthroughConverged(const ColumnType& column)
+bool breakthroughConverged(const Column& column)
 {
   double tolerance = 0.0;
   for (size_t comp = 0; comp < column.numberOfComponents; ++comp)
@@ -68,8 +47,7 @@ bool breakthroughConverged(const ColumnType& column)
 }
 }  // namespace
 
-template <typename ColumnType>
-Breakthrough<ColumnType>::Breakthrough(const InputReader& inputReader)
+Breakthrough::Breakthrough(const InputReader& inputReader)
     : displayName(inputReader.displayName),
       carrierGasComponent(inputReader.carrierGasComponent),
       numberOfComponents(inputReader.components.size()),
@@ -84,15 +62,6 @@ Breakthrough<ColumnType>::Breakthrough(const InputReader& inputReader)
       cvode(inputReader),
       integrationScheme(BreakthroughIntegrationScheme(inputReader.breakthroughIntegrator))
 {
-  if constexpr (std::is_same_v<ColumnType, MultibedColumn>)
-  {
-    validateMultibedInput(inputReader);
-  }
-  else if (inputReader.adsorbentComponents.size() > 1)
-  {
-    throw std::runtime_error("Error: multiple adsorbents require Breakthrough<MultibedColumn>");
-  }
-
   column.initialize();
   if (inputReader.readColumnFile.has_value())
   {
@@ -114,8 +83,7 @@ Breakthrough<ColumnType>::Breakthrough(const InputReader& inputReader)
   }
 }
 
-template <typename ColumnType>
-void Breakthrough<ColumnType>::run()
+void Breakthrough::run()
 {
   std::vector<std::ofstream> componentStreams(numberOfComponents);
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
@@ -150,8 +118,7 @@ void Breakthrough<ColumnType>::run()
   if (integrationScheme == BreakthroughIntegrationScheme::CVODE) cvode.printStatistics();
 }
 
-template <typename ColumnType>
-void Breakthrough<ColumnType>::advanceTo(double endTime, Timing& accumulatedTimings)
+void Breakthrough::advanceTo(double endTime, Timing& accumulatedTimings)
 {
   switch (integrationScheme)
   {
@@ -162,21 +129,13 @@ void Breakthrough<ColumnType>::advanceTo(double endTime, Timing& accumulatedTimi
       cvode.advance(column, endTime, accumulatedTimings);
       break;
     case BreakthroughIntegrationScheme::SIRK3:
-      if constexpr (std::is_same_v<ColumnType, Column>)
-      {
-        sirk3.advance(column, time, endTime, accumulatedTimings);
-      }
-      else
-      {
-        throw std::runtime_error("Error: SIRK3 is not supported by MultibedColumn");
-      }
+      sirk3.advance(column, time, endTime, accumulatedTimings);
       break;
   }
   time = endTime;
 }
 
-template <typename ColumnType>
-bool Breakthrough<ColumnType>::advanceToNextOutput()
+bool Breakthrough::advanceToNextOutput()
 {
   // Output times are computed from their index, so that they do not drift over a long run.
   const double nextOutputTime = static_cast<double>(numberOfOutputs + 1) * writeInterval;
@@ -210,14 +169,12 @@ bool Breakthrough<ColumnType>::advanceToNextOutput()
   return false;
 }
 
-template <typename ColumnType>
-void Breakthrough<ColumnType>::print() const
+void Breakthrough::print() const
 {
   std::print("{}", repr());
 }
 
-template <typename ColumnType>
-std::string Breakthrough<ColumnType>::repr() const
+std::string Breakthrough::repr() const
 {
   std::string result = std::format(
       "Column properties\n"
@@ -229,10 +186,7 @@ std::string Breakthrough<ColumnType>::repr() const
   result += std::format(
       "Breakthrough settings\n"
       "=======================================================\n");
-  if constexpr (std::is_same_v<ColumnType, MultibedColumn>)
-  {
-    result += std::format("Number of adsorbents:          {}\n", column.numberOfAdsorbents);
-  }
+  result += std::format("Number of adsorbents:          {}\n", column.numberOfAdsorbents);
   result += std::format(
       "Simulation time:               {}\n"
       "Write interval:                {} [s]\n\n\n"
@@ -256,37 +210,19 @@ std::string Breakthrough<ColumnType>::repr() const
       "Column spacing:                {} [m]\n\n\n",
       numberOfGridPoints, column.resolution);
 
-  if constexpr (std::is_same_v<ColumnType, MultibedColumn>)
+  result += std::format(
+      "Adsorbent component data\n"
+      "=======================================================\n"
+      "maximum isotherm terms:        {}\n",
+      maxIsothermTerms);
+  for (size_t ads = 0; ads < column.numberOfAdsorbents; ++ads)
   {
-    result += std::format(
-        "Adsorbent component data\n"
-        "=======================================================\n"
-        "maximum isotherm terms:        {}\n",
-        maxIsothermTerms);
-    for (size_t ads = 0; ads < column.numberOfAdsorbents; ++ads)
-    {
-      result += std::format("Adsorbent {}\n", ads);
-      for (size_t comp = 0; comp < numberOfComponents; ++comp)
-      {
-        result += std::format("{}\n", column.physisorptionMixtures[ads].components[comp].repr());
-      }
-    }
-  }
-  else
-  {
-    result += std::format(
-        "Component data\n"
-        "=======================================================\n"
-        "maximum isotherm terms:        {}\n",
-        maxIsothermTerms);
+    result += std::format("Adsorbent {}\n", ads);
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
-      result += std::format("{}\n", column.components[comp].repr());
+      result += std::format("{}\n", column.physisorptionMixtures[ads].components[comp].repr());
     }
   }
 
   return result;
 }
-
-template struct Breakthrough<Column>;
-template struct Breakthrough<MultibedColumn>;
