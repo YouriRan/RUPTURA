@@ -123,9 +123,9 @@ SwingAdsorption<ColumnType>::SwingAdsorption(const InputReader& inputReader) : b
   {
     const double temperature = phase.temperature.value_or(inputReader.temperature);
     const double pressure = phase.inletPressure.value_or(inputReader.inletPressure);
-    if (phase.numberOfSteps == 0)
+    if (!(phase.duration > 0.0))
     {
-      throw std::invalid_argument("SwingAdsorption: phase '" + phase.name + "' has zero time steps.");
+      throw std::invalid_argument("SwingAdsorption: phase '" + phase.name + "' has a non-positive duration.");
     }
     if (temperature < 0.0)
     {
@@ -136,7 +136,7 @@ SwingAdsorption<ColumnType>::SwingAdsorption(const InputReader& inputReader) : b
       throw std::invalid_argument("SwingAdsorption: phase '" + phase.name + "' has invalid inlet pressure.");
     }
     const double velocity = phase.columnEntranceVelocity.value_or(inputReader.columnEntranceVelocity);
-    subStages.emplace_back(SwingAdsorptionSubStage{phase.name, temperature, pressure, phase.numberOfSteps,
+    subStages.emplace_back(SwingAdsorptionSubStage{phase.name, temperature, pressure, phase.duration,
                                                    phase.gasPhaseMolFractions, velocity});
   }
 }
@@ -153,28 +153,6 @@ void SwingAdsorption<ColumnType>::run()
     streams.emplace_back(std::ofstream{fileName, std::ios_base::app});
   }
   std::ofstream columnStream("column.data", std::ios_base::app);
-
-  size_t step = 0;
-  double realTime = 0.0;
-  constexpr double initialTimeStepFraction = 1.0e-4;
-
-  const size_t totalNumberOfSteps =
-      std::accumulate(subStages.begin(), subStages.end(), size_t{0},
-                      [](size_t total, const SwingAdsorptionSubStage& stage) { return total + stage.numberOfSteps; });
-
-  breakthrough.rk3.autoNumberOfSteps = false;
-  breakthrough.sirk3.autoNumberOfSteps = false;
-  breakthrough.cvode.autoNumberOfSteps = false;
-  breakthrough.rk3.numberOfSteps = totalNumberOfSteps;
-  breakthrough.sirk3.numberOfSteps = totalNumberOfSteps;
-  breakthrough.cvode.numberOfSteps = totalNumberOfSteps;
-
-  if (breakthrough.numberOfInitTimeSteps > 0)
-  {
-    breakthrough.rk3.timeStep = breakthrough.timeStep * initialTimeStepFraction;
-    breakthrough.sirk3.timeStep = breakthrough.timeStep * initialTimeStepFraction;
-    breakthrough.cvode.timeStep = breakthrough.timeStep * initialTimeStepFraction;
-  }
 
   auto applyStageConditions = [&](const SwingAdsorptionSubStage& stage)
   {
@@ -208,8 +186,26 @@ void SwingAdsorption<ColumnType>::run()
     refreshColumnState(column);
   };
 
+  const double writeInterval = breakthrough.writeInterval;
+  auto writeOutput = [&]
+  {
+    column.writeJSON("column.json");
+    column.writeOutput(streams, columnStream, breakthrough.time);
+    const double averageIastSteps = column.iastPerformance.second == 0
+                                        ? 0.0
+                                        : static_cast<double>(column.iastPerformance.first) /
+                                              static_cast<double>(column.iastPerformance.second);
+    std::print("Output {}, time: {:6.5f} [s]\n", breakthrough.numberOfOutputs, breakthrough.time);
+    std::print("    Average number of mixture-prediction steps: {:6.5f}\n", averageIastSteps);
+    std::fflush(stdout);
+  };
+
   try
   {
+    // An output that falls on the start of a phase is written once that phase's conditions are applied, as is the
+    // initial state; the state at the end of the last phase is always written.
+    bool outputPending = true;
+    double phaseEndTime = 0.0;
     for (size_t stageIndex = 0; stageIndex < subStages.size(); ++stageIndex)
     {
       const SwingAdsorptionSubStage& stage = subStages[stageIndex];
@@ -219,81 +215,31 @@ void SwingAdsorption<ColumnType>::run()
         // Restart the multistep history and re-derive the dz/v step cap from this phase's velocity.
         breakthrough.cvode.reinitialize(column);
       }
-      std::print("\nSwing phase {}: {} (T={} K, inlet pressure={} Pa, inlet velocity={} m/s, steps={})\n",
+      std::print("\nSwing phase {}: {} (T={} K, inlet pressure={} Pa, inlet velocity={} m/s, duration={} s)\n",
                  stageIndex + 1, stage.name, stage.temperature, stage.pressure, column.columnEntranceVelocity,
-                 stage.numberOfSteps);
-
-      for (size_t subStep = 0; subStep < stage.numberOfSteps; ++subStep)
+                 stage.duration);
+      if (outputPending)
       {
-        const double stepTime = realTime;
+        writeOutput();
+        outputPending = false;
+      }
 
-        // Written before the step, so that each snapshot is labelled with the time of the state it holds.
-        if (step % breakthrough.writeEvery == 0)
-        {
-          column.writeJSON("column.json");
-          column.writeOutput(streams, columnStream, stepTime);
-        }
-
-        switch (breakthrough.integrationScheme)
-        {
-          case BreakthroughIntegrationScheme::SSP_RK:
-          {
-            static_cast<void>(breakthrough.rk3.propagate(column, step, timings));
-            realTime += breakthrough.rk3.timeStep;
-            break;
-          }
-          case BreakthroughIntegrationScheme::CVODE:
-          {
-            static_cast<void>(breakthrough.cvode.propagate(column, step, timings));
-            realTime += breakthrough.cvode.timeStep;
-            break;
-          }
-          case BreakthroughIntegrationScheme::SIRK3:
-          {
-            if constexpr (std::is_same_v<ColumnType, Column>)
-            {
-              static_cast<void>(breakthrough.sirk3.propagate(column, step, timings));
-              realTime += breakthrough.sirk3.timeStep;
-            }
-            else
-            {
-              throw std::runtime_error("Error: SIRK3 is not supported by MultibedColumn");
-            }
-            break;
-          }
-        }
-
-        if (step < breakthrough.numberOfInitTimeSteps)
-        {
-          const double progress = static_cast<double>(step) / static_cast<double>(breakthrough.numberOfInitTimeSteps);
-          const double nextTime =
-              breakthrough.timeStep *
-              (initialTimeStepFraction +
-               (1.0 - initialTimeStepFraction) * (3.0 * progress * progress - 2.0 * progress * progress * progress));
-          breakthrough.rk3.timeStep = nextTime;
-          breakthrough.sirk3.timeStep = nextTime;
-          breakthrough.cvode.timeStep = nextTime;
-        }
-        else if (step == breakthrough.numberOfInitTimeSteps)
-        {
-          breakthrough.rk3.timeStep = breakthrough.timeStep;
-          breakthrough.sirk3.timeStep = breakthrough.timeStep;
-          breakthrough.cvode.timeStep = breakthrough.timeStep;
-        }
-
-        if (step % breakthrough.printEvery == 0)
-        {
-          const double averageIastSteps = column.iastPerformance.second == 0
-                                              ? 0.0
-                                              : static_cast<double>(column.iastPerformance.first) /
-                                                    static_cast<double>(column.iastPerformance.second);
-          std::print("Timestep {}, time: {:6.5f} [s]\n", step, stepTime);
-          std::print("    Average number of mixture-prediction steps: {:6.5f}\n", averageIastSteps);
-          std::fflush(stdout);
-        }
-        ++step;
+      // Integrate to each output time inside the phase and then to the phase end, where the conditions switch.
+      phaseEndTime += stage.duration;
+      const double tolerance = 1.0e-9 * writeInterval;
+      while (breakthrough.time < phaseEndTime - tolerance)
+      {
+        // Output times are computed from their index, so that they do not drift over many phases.
+        const double nextOutputTime = static_cast<double>(breakthrough.numberOfOutputs + 1) * writeInterval;
+        const bool outputBeforePhaseEnd = nextOutputTime < phaseEndTime - tolerance;
+        const bool outputAtPhaseEnd = !outputBeforePhaseEnd && nextOutputTime <= phaseEndTime + tolerance;
+        breakthrough.advanceTo(outputBeforePhaseEnd ? nextOutputTime : phaseEndTime, timings);
+        if (outputBeforePhaseEnd || outputAtPhaseEnd) ++breakthrough.numberOfOutputs;
+        if (outputBeforePhaseEnd) writeOutput();
+        outputPending = outputAtPhaseEnd;
       }
     }
+    writeOutput();
   }
   catch (const std::runtime_error&)
   {
@@ -301,9 +247,7 @@ void SwingAdsorption<ColumnType>::run()
     throw;
   }
 
-  column.writeOutput(streams, columnStream, realTime);
-
-  std::print("Final timestep {}, time: {:6.5f} [s]\n\n", step, realTime);
+  std::print("Final time: {:6.5f} [s]\n\n", breakthrough.time);
   timings.print();
 }
 
@@ -323,8 +267,8 @@ std::string SwingAdsorption<ColumnType>::repr() const
   for (size_t i = 0; i < subStages.size(); ++i)
   {
     const SwingAdsorptionSubStage& stage = subStages[i];
-    result += std::format("{}: {}  T={} [K], inlet pressure={} [Pa], inlet velocity={} [m/s], steps={}\n", i + 1,
-                          stage.name, stage.temperature, stage.pressure, stage.velocity, stage.numberOfSteps);
+    result += std::format("{}: {}  T={} [K], inlet pressure={} [Pa], inlet velocity={} [m/s], duration={} [s]\n",
+                          i + 1, stage.name, stage.temperature, stage.pressure, stage.velocity, stage.duration);
     if (!stage.moleFractions.empty())
     {
       result += "    feed mole fractions:";

@@ -83,8 +83,8 @@ Set `RUPTURA_BIN` if the executable is elsewhere; the notebook honours it.
 
 The breakthrough inputs keep every physical setting of
 `examples/BEA-alkanes-C7/breakthrough` but reduce `NumberOfGridPoints` from 100
-to 20 and the output `TimeStep` from 0.001 s to 0.105 s — the values used by
-`examples/MPD/BEA-alkanes/breakthrough`. An MPD equilibrium evaluation walks
+to 20 — the value used by `examples/MPD/BEA-alkanes/breakthrough` — and write the
+column every 10.5 s. An MPD equilibrium evaluation walks
 every populated macrostate at every grid point and every internal integration
 step, so its cost scales with (macrostates) x (grid points) x (steps). With
 5151 macrostates the literal defaults of the parent example would take weeks;

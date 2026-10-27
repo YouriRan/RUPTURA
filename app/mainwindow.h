@@ -132,7 +132,7 @@ struct SwingPhaseConfig
   QString name;
   double temperature{300.0};
   double inletPressure{100000.0};
-  int numberOfSteps{100000};
+  double duration{50.0};  // s
 };
 
 struct ReactionParticipantConfig
@@ -173,12 +173,11 @@ struct SimulationConfig
 #else
   QString integrator{"RungeKutta3"};
 #endif
-  bool autoSteps{true};
-  int timeSteps{500000};
-  int initSteps{0};
-  int printEvery{10000};
-  int writeEvery{10000};
-  double timeStep{0.0005};
+  bool autoTime{true};            // SimulationTime "auto"
+  double simulationTime{3600.0};  // s
+  double writeInterval{5.0};      // s
+  int initSteps{0};               // RungeKutta3 and SIRK3 only
+  double timeStep{0.0005};        // s, RungeKutta3 and SIRK3 only
   int gridPoints{100};
   QString selectedColumnId{"column-1"};
   QString pHComponentId;
@@ -262,7 +261,8 @@ class MainWindow : public QMainWindow
   ChemisorptionSiteConfig makeChemSite(const QString& type = "FirstOrder", const QVariantMap& values = {});
   BedConfig makeBed(const QString& name);
   ColumnConfig makeColumn(const QString& name, const QString& id = {});
-  SwingPhaseConfig makeSwingPhase(const QString& name, double temperature, double inletPressure, int steps = 100000);
+  SwingPhaseConfig makeSwingPhase(const QString& name, double temperature, double inletPressure,
+                                  double duration = 50.0);
   ReactionConfig makeReaction(const QString& name = {});
   SimulationConfig makeSimulation(const QString& name, const QString& id = {}, const QList<FeedConfig>& feeds = {});
   void ensureSwingPhases(SimulationConfig& simulation);

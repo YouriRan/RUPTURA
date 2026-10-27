@@ -18,14 +18,15 @@ namespace
 QString canonicalKey(const QString& key)
 {
   static const QStringList keys = QString::fromLatin1(
-      "SimulationType MixturePredictionMethod MPDSettings IASTMethod BreakthroughIntegrator BoundaryCondition "
+      "SimulationType MixturePredictionMethod MPDSettings IASTMethod BreakthroughIntegrator ConvectionScheme "
+      "BoundaryCondition "
       "FluidPhase LiquidDensity pHMode pHValue pKw pHComponent PressureScale ReadColumnFile DisplayName "
       "DebugForceMultibed Temperature ColumnVoidFraction DynamicViscosity ParticleDiameter ParticleDensity "
       "InletPressure OutletPressure PressureStart PressureEnd NumberOfPressurePoints PressureGradient "
       "ColumnEntranceVelocity NumberOfInitTimeSteps TimeStep CVODERelativeTolerance "
       "CVODEAbsoluteToleranceConcentration CVODEAbsoluteToleranceLoading CVODEAbsoluteToleranceTemperature "
-      "CVODEMaximumTimeStep CVODEMaximumOrder CVODELinearSolver CVODEKrylovDimension PrintEvery WriteEvery ColumnLength "
-      "ColumnDistances NumberOfGridPoints ColumnPressure ColumnLoading ColumnError NumberOfTimeSteps Geometry "
+      "CVODEMaximumTimeStep CVODEMaximumOrder CVODELinearSolver CVODEKrylovDimension WriteInterval ColumnLength "
+      "ColumnDistances NumberOfGridPoints ColumnPressure ColumnLoading ColumnError SimulationTime Duration Geometry "
       "InfluxTemperature wallDensity gasThermalConductivity wallThermalConductivity heatTransferGasWall "
       "heatTransferGasSolid heatTransferWallExternal heatCapacityGas liquidThermalConductivity "
       "heatTransferLiquidSolid heatTransferLiquidWall heatCapacityLiquid heatCapacitySolid heatCapacityWall "
@@ -53,6 +54,7 @@ QJsonValue normalizeEnum(const QString& key, const QJsonValue& value)
       {"MixturePredictionMethod", {"IAST", "SIAST", "EI", "SEI", "SCI", "SPI", "MPD"}},
       {"IASTMethod", {"FastIAST", "NestedLoopBisection"}},
       {"BreakthroughIntegrator", {"RungeKutta3", "CVODE", "SIRK3"}},
+      {"ConvectionScheme", {"WENO3", "Upwind"}},
       {"CVODELinearSolver", {"Dense", "SPGMR"}},
       {"FluidPhase", {"Gas", "Liquid"}}, {"pHMode", {"Fixed", "HPlus", "OHMinus"}},
       {"PressureScale", {"Log", "Linear"}},

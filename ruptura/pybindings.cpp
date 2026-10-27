@@ -60,67 +60,67 @@ nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough<Col
   ColumnType& column = self.column;
   const size_t columnSize = 5 * self.numberOfComponents + 5;
   auto* buffer = new std::vector<double>();
-  buffer->reserve(((self.numberOfSteps / std::max<size_t>(self.writeEvery, 1)) + 1) * (self.numberOfGridPoints + 1) *
-                  columnSize);
-
-  for (size_t step = 0; (step < self.numberOfSteps || self.autoNumberOfSteps); ++step)
+  if (!self.autoSimulationTime)
   {
+    const size_t numberOfSnapshots = static_cast<size_t>(std::ceil(self.simulationTime / self.writeInterval)) + 1;
+    buffer->reserve(numberOfSnapshots * (self.numberOfGridPoints + 1) * columnSize);
+  }
+
+  // One snapshot at the start and one at every output time, as Breakthrough::run writes them.
+  bool finished = false;
+  while (true)
+  {
+    const double time = self.time;
+    for (size_t grid = 0; grid < self.numberOfGridPoints + 1; ++grid)
+    {
+      buffer->push_back(time * column.columnEntranceVelocity / column.columnLength);
+      buffer->push_back(time / 60.0);
+      if constexpr (std::is_same_v<ColumnType, Column>)
+      {
+        buffer->push_back(static_cast<double>(grid) * column.resolution);
+      }
+      else
+      {
+        buffer->push_back(column.columnDistances[grid]);
+      }
+      buffer->push_back(column.interstitialGasVelocity[grid]);
+      buffer->push_back(column.totalPressure[grid]);
+
+      for (size_t comp = 0; comp < self.numberOfComponents; ++comp)
+      {
+        const size_t index = grid * self.numberOfComponents + comp;
+        const double normalizedPartialPressureDenominator =
+            column.fluidPhase == decltype(column.fluidPhase)::Gas
+                ? column.totalPressure[grid] * column.components[comp].initialGasMoleFraction
+                : column.components[comp].inletLiquidConcentration;
+
+        buffer->push_back(column.physisorption[index]);
+        buffer->push_back(column.equilibriumPhysisorption[index]);
+        buffer->push_back(column.partialPressure[index]);
+        buffer->push_back(normalizedPartialPressureDenominator != 0.0
+                              ? column.partialPressure[index] / normalizedPartialPressureDenominator
+                              : 0.0);
+        buffer->push_back(column.physisorptionDot[index]);
+      }
+    }
+
+    const double averageNumberOfMixturePredictionSteps =
+        column.iastPerformance.second > 0
+            ? static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second)
+            : 0.0;
+    std::cout << "Output " + std::to_string(self.numberOfOutputs) + ", time: " + std::to_string(time) + " [s]"
+              << std::endl;
+    std::cout << "    Average number of mixture-prediction steps: " +
+                     std::to_string(averageNumberOfMixturePredictionSteps)
+              << std::endl;
+
+    if (finished) break;
     if (PyErr_CheckSignals() != 0)
     {
       delete buffer;
       throw nb::python_error();
     }
-
-    self.computeStep(step);
-    const double time = static_cast<double>(step) * self.timeStep;
-
-    if (step % self.writeEvery == 0)
-    {
-      for (size_t grid = 0; grid < self.numberOfGridPoints + 1; ++grid)
-      {
-        buffer->push_back(time * column.columnEntranceVelocity / column.columnLength);
-        buffer->push_back(time / 60.0);
-        if constexpr (std::is_same_v<ColumnType, Column>)
-        {
-          buffer->push_back(static_cast<double>(grid) * column.resolution);
-        }
-        else
-        {
-          buffer->push_back(column.columnDistances[grid]);
-        }
-        buffer->push_back(column.interstitialGasVelocity[grid]);
-        buffer->push_back(column.totalPressure[grid]);
-
-        for (size_t comp = 0; comp < self.numberOfComponents; ++comp)
-        {
-          const size_t index = grid * self.numberOfComponents + comp;
-          const double normalizedPartialPressureDenominator =
-              column.fluidPhase == decltype(column.fluidPhase)::Gas
-                  ? column.totalPressure[grid] * column.components[comp].initialGasMoleFraction
-                  : column.components[comp].inletLiquidConcentration;
-
-          buffer->push_back(column.physisorption[index]);
-          buffer->push_back(column.equilibriumPhysisorption[index]);
-          buffer->push_back(column.partialPressure[index]);
-          buffer->push_back(normalizedPartialPressureDenominator != 0.0
-                                ? column.partialPressure[index] / normalizedPartialPressureDenominator
-                                : 0.0);
-          buffer->push_back(column.physisorptionDot[index]);
-        }
-      }
-    }
-
-    if (step % self.printEvery == 0)
-    {
-      const double averageNumberOfMixturePredictionSteps =
-          column.iastPerformance.second > 0
-              ? static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second)
-              : 0.0;
-      std::cout << "Timestep " + std::to_string(step) + ", time: " + std::to_string(time) + " [s]" << std::endl;
-      std::cout << "    Average number of mixture-prediction steps: " +
-                       std::to_string(averageNumberOfMixturePredictionSteps)
-                << std::endl;
-    }
+    finished = self.advanceToNextOutput();
   }
 
   const size_t numberOfRows = self.numberOfGridPoints + 1;
@@ -141,12 +141,11 @@ void bindBreakthrough(nb::module_& module, const char* name)
       .def_rw("carrier_gas_component", &Simulation::carrierGasComponent)
       .def_rw("number_of_components", &Simulation::numberOfComponents)
       .def_rw("number_of_grid_points", &Simulation::numberOfGridPoints)
-      .def_rw("print_every", &Simulation::printEvery)
-      .def_rw("write_every", &Simulation::writeEvery)
-      .def_rw("time_step", &Simulation::timeStep)
-      .def_rw("number_of_init_time_steps", &Simulation::numberOfInitTimeSteps)
-      .def_rw("number_of_time_steps", &Simulation::numberOfSteps)
-      .def_rw("auto_number_of_time_steps", &Simulation::autoNumberOfSteps)
+      .def_rw("write_interval", &Simulation::writeInterval)
+      .def_rw("simulation_time", &Simulation::simulationTime)
+      .def_rw("auto_simulation_time", &Simulation::autoSimulationTime)
+      .def_rw("time", &Simulation::time)
+      .def_rw("number_of_outputs", &Simulation::numberOfOutputs)
       .def_rw("max_isotherm_terms", &Simulation::maxIsothermTerms)
       .def_rw("column", &Simulation::column)
       .def_rw("rk3", &Simulation::rk3)
@@ -158,7 +157,10 @@ void bindBreakthrough(nb::module_& module, const char* name)
       .def("__repr__", &Simulation::repr)
       .def("run", &Simulation::run)
       .def("compute", &computeBreakthrough<ColumnType>)
-      .def("compute_step", &Simulation::computeStep, nb::arg("step"));
+      .def(
+          "advance_to", [](Simulation& self, double endTime) { self.advanceTo(endTime, self.timings); },
+          nb::arg("end_time"))
+      .def("advance_to_next_output", &Simulation::advanceToNextOutput);
 
   if constexpr (std::is_same_v<ColumnType, Column>)
   {
@@ -269,7 +271,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("name", &InputReader::SwingAdsorptionPhase::name)
       .def_rw("temperature", &InputReader::SwingAdsorptionPhase::temperature)
       .def_rw("inlet_pressure", &InputReader::SwingAdsorptionPhase::inletPressure)
-      .def_rw("number_of_steps", &InputReader::SwingAdsorptionPhase::numberOfSteps);
+      .def_rw("duration", &InputReader::SwingAdsorptionPhase::duration);
 
   inputReader.def(nb::init<const std::string>(), nb::arg("file_name"))
       .def_rw("components", &InputReader::components)
@@ -328,12 +330,11 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("heat_capacity_solid", &InputReader::heatCapacitySolid)
       .def_rw("heat_capacity_wall", &InputReader::heatCapacityWall)
       .def_rw("energy_balance", &InputReader::energyBalance)
-      .def_rw("number_of_time_steps", &InputReader::numberOfTimeSteps)
+      .def_rw("simulation_time", &InputReader::simulationTime)
+      .def_rw("auto_simulation_time", &InputReader::autoSimulationTime)
+      .def_rw("write_interval", &InputReader::writeInterval)
       .def_rw("number_of_init_time_steps", &InputReader::numberOfInitTimeSteps)
-      .def_rw("auto_number_of_time_steps", &InputReader::autoNumberOfTimeSteps)
       .def_rw("time_step", &InputReader::timeStep)
-      .def_rw("print_every", &InputReader::printEvery)
-      .def_rw("write_every", &InputReader::writeEvery)
       .def_rw("number_of_grid_points", &InputReader::numberOfGridPoints)
       .def_rw("pressure_start", &InputReader::pressureStart)
       .def_rw("pressure_end", &InputReader::pressureEnd)
@@ -1099,72 +1100,66 @@ EXPAND_MODULE(MODULE_NAME)
 
   nb::class_<RungeKutta3>(m, "RungeKutta3")
       .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
-      .def(nb::init<double, bool, std::size_t>(), nb::arg("time_step"), nb::arg("auto_steps"),
-           nb::arg("number_of_steps"))
+      .def(nb::init<double, std::size_t>(), nb::arg("time_step"), nb::arg("number_of_init_time_steps") = 0)
       .def_rw("time_step", &RungeKutta3::timeStep)
-      .def_rw("auto_steps", &RungeKutta3::autoNumberOfSteps)
-      .def_rw("number_of_steps", &RungeKutta3::numberOfSteps)
+      .def_rw("number_of_init_time_steps", &RungeKutta3::numberOfInitTimeSteps)
+      .def_rw("number_of_steps_taken", &RungeKutta3::numberOfStepsTaken)
       .def(
-          "propagate",
-          [](RungeKutta3& self, Column& column, std::size_t step)
+          "advance",
+          [](RungeKutta3& self, Column& column, double startTime, double endTime)
           {
             Timing timings;
-            return self.propagate(column, step, timings);
+            self.advance(column, startTime, endTime, timings);
           },
-          nb::arg("column"), nb::arg("step"))
+          nb::arg("column"), nb::arg("start_time"), nb::arg("end_time"))
       .def(
-          "propagate",
-          [](RungeKutta3& self, MultibedColumn& column, std::size_t step)
+          "advance",
+          [](RungeKutta3& self, MultibedColumn& column, double startTime, double endTime)
           {
             Timing timings;
-            return self.propagate(column, step, timings);
+            self.advance(column, startTime, endTime, timings);
           },
-          nb::arg("column"), nb::arg("step"));
+          nb::arg("column"), nb::arg("start_time"), nb::arg("end_time"));
 
   nb::class_<SemiImplicitRungeKutta3>(m, "SemiImplicitRungeKutta3")
       .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
-      .def(nb::init<double, bool, std::size_t>(), nb::arg("time_step"), nb::arg("auto_steps"),
-           nb::arg("number_of_steps"))
+      .def(nb::init<double, std::size_t>(), nb::arg("time_step"), nb::arg("number_of_init_time_steps") = 0)
       .def_rw("time_step", &SemiImplicitRungeKutta3::timeStep)
-      .def_rw("auto_steps", &SemiImplicitRungeKutta3::autoNumberOfSteps)
-      .def_rw("number_of_steps", &SemiImplicitRungeKutta3::numberOfSteps)
+      .def_rw("number_of_init_time_steps", &SemiImplicitRungeKutta3::numberOfInitTimeSteps)
+      .def_rw("number_of_steps_taken", &SemiImplicitRungeKutta3::numberOfStepsTaken)
       .def(
-          "propagate",
-          [](SemiImplicitRungeKutta3& self, Column& column, std::size_t step)
+          "advance",
+          [](SemiImplicitRungeKutta3& self, Column& column, double startTime, double endTime)
           {
             Timing timings;
-            return self.propagate(column, step, timings);
+            self.advance(column, startTime, endTime, timings);
           },
-          nb::arg("column"), nb::arg("step"));
+          nb::arg("column"), nb::arg("start_time"), nb::arg("end_time"));
 
   nb::class_<CVODE>(m, "CVODE")
       .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
-      .def(nb::init<double, bool, std::size_t>(), nb::arg("time_step"), nb::arg("auto_steps"),
-           nb::arg("number_of_steps"))
-      .def_rw("time_step", &CVODE::timeStep)
-      .def_rw("auto_steps", &CVODE::autoNumberOfSteps)
-      .def_rw("number_of_steps", &CVODE::numberOfSteps)
-      .def("reinitialize", &CVODE::reinitialize)
+      .def(nb::init<>())
+      .def("reinitialize", nb::overload_cast<>(&CVODE::reinitialize))
       .def(
           "initialize", [](CVODE& self, Column& column) { self.initialize(column); }, nb::arg("column"))
       .def(
           "initialize", [](CVODE& self, MultibedColumn& column) { self.initialize(column); }, nb::arg("column"))
       .def(
-          "propagate",
-          [](CVODE& self, Column& column, std::size_t step)
+          "advance",
+          [](CVODE& self, Column& column, double endTime)
           {
             Timing timings;
-            return self.propagate(column, step, timings);
+            self.advance(column, endTime, timings);
           },
-          nb::arg("column"), nb::arg("step"))
+          nb::arg("column"), nb::arg("end_time"))
       .def(
-          "propagate",
-          [](CVODE& self, MultibedColumn& column, std::size_t step)
+          "advance",
+          [](CVODE& self, MultibedColumn& column, double endTime)
           {
             Timing timings;
-            return self.propagate(column, step, timings);
+            self.advance(column, endTime, timings);
           },
-          nb::arg("column"), nb::arg("step"));
+          nb::arg("column"), nb::arg("end_time"));
 
   nb::enum_<BreakthroughIntegrationScheme>(m, "BreakthroughIntegrationScheme", nb::is_arithmetic())
       .value("SSP_RK", BreakthroughIntegrationScheme::SSP_RK)
@@ -1203,7 +1198,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("name", &SwingAdsorptionSubStage::name)
       .def_rw("temperature", &SwingAdsorptionSubStage::temperature)
       .def_rw("pressure", &SwingAdsorptionSubStage::pressure)
-      .def_rw("number_of_steps", &SwingAdsorptionSubStage::numberOfSteps);
+      .def_rw("duration", &SwingAdsorptionSubStage::duration);
 
   bindSwingAdsorption<Column>(m, "SwingAdsorption");
   bindSwingAdsorption<MultibedColumn>(m, "MultibedSwingAdsorption");

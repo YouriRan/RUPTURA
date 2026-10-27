@@ -235,6 +235,7 @@ MultibedColumn::MultibedColumn(const MultibedColumn& other)
       boundaryCondition(other.boundaryCondition),
       fluidPhase(other.fluidPhase),
       pHMode(other.pHMode),
+      convectionScheme(other.convectionScheme),
       energyBalance(other.energyBalance),
       reactions(other.reactions),
       numberOfGridPoints(other.numberOfGridPoints),
@@ -328,6 +329,7 @@ MultibedColumn& MultibedColumn::operator=(const MultibedColumn& other)
   boundaryCondition = other.boundaryCondition;
   fluidPhase = other.fluidPhase;
   pHMode = other.pHMode;
+  convectionScheme = other.convectionScheme;
   energyBalance = other.energyBalance;
   reactions = other.reactions;
   numberOfGridPoints = other.numberOfGridPoints;

@@ -12,6 +12,7 @@ if(NOT GTest_FOUND)
 endif()
 
 add_executable(ruptura_tests
+  convection_tests.cpp
   example_inputreader_tests.cpp
   fluid_phase_tests.cpp
   mixture_prediction_tests.cpp

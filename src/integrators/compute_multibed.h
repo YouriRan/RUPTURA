@@ -103,7 +103,8 @@ void computeMassDerivatives(const std::vector<MixturePrediction>& physisorptionM
                             std::span<const double> columnDistances, std::span<const double> fractionOfAdsorbent,
                             std::span<const double> interstitialGasVelocity, std::span<const double> concentration,
                             std::span<double> concentrationDot, std::span<const double> bulkSpeciesSink,
-                            MultibedColumn::FluidPhase fluidPhase, std::span<const double> totalVoidFraction);
+                            MultibedColumn::FluidPhase fluidPhase, std::span<const double> totalVoidFraction,
+                            MultibedColumn::ConvectionScheme convectionScheme);
 
 /**
  * \brief Computes multibed gas, solid, and wall temperature derivatives.

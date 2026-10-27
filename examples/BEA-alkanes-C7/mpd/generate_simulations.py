@@ -7,9 +7,9 @@ affinities, and the MPD framework mass is the one the particle distribution was
 built with.
 
 Column, feed and integrator settings follow
-``examples/BEA-alkanes-C7/breakthrough``.  Two of them are reduced for cost:
-``NumberOfGridPoints`` (100 -> 20) and the output ``TimeStep`` (0.001 -> 0.105 s),
-matching the MPD benchmark in ``examples/MPD/BEA-alkanes/breakthrough``.  An MPD
+``examples/BEA-alkanes-C7/breakthrough``.  ``NumberOfGridPoints`` is reduced for
+cost (100 -> 20), matching the MPD benchmark in
+``examples/MPD/BEA-alkanes/breakthrough``, and the column is written every 10.5 s.  An MPD
 equilibrium evaluation walks every populated macrostate, so its cost scales with
 (grid points) x (integration steps).
 """
@@ -116,14 +116,12 @@ def breakthrough(method: str, display_name: str, *, mpd: bool) -> dict:
         "ColumnEntranceVelocity": 0.019,
         "ColumnLength": 0.1,
         "InletPressure": 120000.0,
-        "NumberOfTimeSteps": "auto",
+        "SimulationTime": "auto",
+        "WriteInterval": 10.5263157895,
         "BreakthroughIntegrator": "CVODE",
         "BoundaryCondition": "FixedPressureInletVelocity",
-        "PrintEvery": 5000,
-        "WriteEvery": 100,
         "DynamicViscosity": 3e-05,
         "ParticleDiameter": 0.001,
-        "TimeStep": 0.10526315789473686,
         "NumberOfGridPoints": 20,
         "Components": [carrier, *adsorbates],
         "Geometry": {"Type": "PackedBed", "ColumnVoidFraction": 0.4, "ParticleDiameter": 0.001},

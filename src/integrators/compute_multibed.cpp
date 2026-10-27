@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <cmath>
 #include <mdspan>
+#include <vector>
 
+#include "compute.h"
 #include "utils.h"
 
 using mdspan2d_const = std::mdspan<const double, std::dextents<size_t, 2>>;
@@ -711,7 +713,8 @@ void computeMassDerivatives(const std::vector<MixturePrediction>& physisorptionM
                             std::span<const double> columnDistances, std::span<const double> fractionOfAdsorbent,
                             std::span<const double> interstitialGasVelocity, std::span<const double> concentration,
                             std::span<double> concentrationDot, std::span<const double> bulkSpeciesSink,
-                            MultibedColumn::FluidPhase fluidPhase, std::span<const double> totalVoidFraction)
+                            MultibedColumn::FluidPhase fluidPhase, std::span<const double> totalVoidFraction,
+                            MultibedColumn::ConvectionScheme convectionScheme)
 {
   mdspan2d_const spanConcentration(concentration.data(), numberOfGridPoints + 1, numberOfComponents);
   mdspan2d_mut spanConcentrationDot(concentrationDot.data(), numberOfGridPoints + 1, numberOfComponents);
@@ -741,6 +744,94 @@ void computeMassDerivatives(const std::vector<MixturePrediction>& physisorptionM
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
     spanConcentrationDot[0, comp] = 0.0;
+  }
+
+  if (convectionScheme == MultibedColumn::ConvectionScheme::WENO3)
+  {
+    // As the single-bed WENO3 branch (compute.cpp), with the local spacings h_i = z_i - z_{i-1}: node i holds the
+    // cell (z_{i-1}, z_i], node 0 the inlet face value. Liquid fluxes are superficial, eps_t v c.
+    const size_t nodes = numberOfGridPoints + 1;
+    std::vector<double> values(nodes);
+    std::vector<double> faces(nodes);
+    std::vector<double> faceFlux(numberOfComponents * nodes);
+    std::vector<double> totalConcentration(nodes, 0.0);
+    std::vector<double> faceFractionSum(nodes, 0.0);
+    const bool gasPhase = fluidPhase == MultibedColumn::FluidPhase::Gas;
+    if (gasPhase)
+    {
+      for (size_t grid = 0; grid < nodes; ++grid)
+      {
+        for (size_t comp = 0; comp < numberOfComponents; ++comp)
+        {
+          totalConcentration[grid] += std::max(0.0, spanConcentration[grid, comp]);
+        }
+      }
+    }
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      for (size_t grid = 0; grid < nodes; ++grid)
+      {
+        if (gasPhase)
+        {
+          values[grid] = totalConcentration[grid] > 0.0
+                             ? std::max(0.0, spanConcentration[grid, comp]) / totalConcentration[grid]
+                             : 0.0;
+        }
+        else
+        {
+          values[grid] = spanConcentration[grid, comp];
+        }
+      }
+      computeWENO(values, columnDistances, faces);
+      for (size_t grid = 0; grid < nodes; ++grid)
+      {
+        faceFlux[comp * nodes + grid] =
+            gasPhase ? faces[grid] : totalVoidFraction[grid] * interstitialGasVelocity[grid] * faces[grid];
+        faceFractionSum[grid] += faces[grid];
+      }
+    }
+    if (gasPhase)
+    {
+      // Normalised mole fractions times the upwind total molar flux, which the velocity closures conserve.
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        for (size_t grid = 0; grid < nodes; ++grid)
+        {
+          const double totalFlux = interstitialGasVelocity[grid] * totalConcentration[grid];
+          faceFlux[comp * nodes + grid] *= faceFractionSum[grid] > 0.0 ? totalFlux / faceFractionSum[grid] : 0.0;
+        }
+      }
+    }
+
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      const double* flux = faceFlux.data() + comp * nodes;
+      for (size_t grid = 1; grid <= numberOfGridPoints; ++grid)
+      {
+        const double hm = std::max(1e-30, gridSpacing(columnDistances, grid));
+        const double fluidFraction = gasPhase ? 1.0 : totalVoidFraction[grid];
+        double d2cDz2 = 0.0;
+        if (grid == numberOfGridPoints)
+        {
+          d2cDz2 = (spanConcentration[grid - 1, comp] - spanConcentration[grid, comp]) / (hm * hm);
+        }
+        else if (grid == 1)
+        {
+          // The inlet value lies on the inlet face, half a cell from the centre of the first cell.
+          const double hp = gridSpacing(columnDistances, grid + 1);
+          d2cDz2 = ((spanConcentration[grid + 1, comp] - spanConcentration[grid, comp]) / (0.5 * (hm + hp)) -
+                    (spanConcentration[grid, comp] - spanConcentration[grid - 1, comp]) / (0.5 * hm)) /
+                   hm;
+        }
+        else
+        {
+          d2cDz2 = secondDerivative(grid, comp);
+        }
+        spanConcentrationDot[grid, comp] = -(flux[grid] - flux[grid - 1]) / (hm * fluidFraction) +
+                                           axialDispersion(grid, comp) * d2cDz2 - spanBulkSpeciesSink[grid, comp];
+      }
+    }
+    return;
   }
 
   if (fluidPhase == MultibedColumn::FluidPhase::Liquid)

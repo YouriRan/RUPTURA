@@ -16,43 +16,44 @@
 
 namespace
 {
-bool reactionStepChangeSmall(std::span<const double> state, std::span<const double> derivative,
-                             double timeStep) noexcept
+/**
+ * \brief True when every state component changes by less than 1e-7 + 1e-4 max(1, |x|) per second.
+ *
+ * The bound is a rate, so the criterion does not depend on the time step or the output interval.
+ */
+bool reactionRateSmall(std::span<const double> state, std::span<const double> derivative) noexcept
 {
   if (state.empty() || derivative.empty()) return true;
   if (state.size() != derivative.size()) return false;
 
-  constexpr double absoluteTolerance = 1.0e-8;
-  constexpr double relativeTolerance = 1.0e-5;
-  const double dt = std::max(0.0, timeStep);
+  constexpr double absoluteRateTolerance = 1.0e-7;  // state units per s
+  constexpr double relativeRateTolerance = 1.0e-4;  // 1/s
 
   for (size_t i = 0; i < state.size(); ++i)
   {
     const double scale = std::max(1.0, std::abs(state[i]));
-    const double allowedChange = absoluteTolerance + relativeTolerance * scale;
-    if (std::abs(derivative[i] * dt) > allowedChange) return false;
+    const double allowedRate = absoluteRateTolerance + relativeRateTolerance * scale;
+    if (std::abs(derivative[i]) > allowedRate) return false;
   }
   return true;
 }
 }  // namespace
 
-bool reactionAutoStopReached(const Column& column, double timeStep) noexcept
+bool reactionAutoStopReached(const Column& column) noexcept
 {
   if (column.reactions.empty()) return false;
 
   // A bulk-concentration reaction changes no adsorbed or pore state, so it is converged only once the bulk is steady.
+  // The reaction sources are not tested: a catalytic column at steady state keeps reacting.
   const bool bulkReaction =
       std::any_of(column.reactions.begin(), column.reactions.end(), [](const Reaction& reaction)
                   { return reaction.phase == Reaction::Phase::BulkConcentration; });
 
-  return reactionStepChangeSmall(column.physisorption, column.physisorptionDot, timeStep) &&
-         reactionStepChangeSmall(column.chemisorption, column.chemisorptionDot, timeStep) &&
-         reactionStepChangeSmall(column.surfaceConcentration, column.surfaceConcentrationDot, timeStep) &&
-         reactionStepChangeSmall(column.poreConcentration, column.poreConcentrationDot, timeStep) &&
-         reactionStepChangeSmall(column.physisorption, column.reactionPhysisorptionSource, timeStep) &&
-         reactionStepChangeSmall(column.chemisorption, column.reactionChemisorptionSource, timeStep) &&
-         reactionStepChangeSmall(column.poreConcentration, column.reactionPoreConcentrationSource, timeStep) &&
-         (!bulkReaction || reactionStepChangeSmall(column.concentration, column.concentrationDot, timeStep));
+  return reactionRateSmall(column.physisorption, column.physisorptionDot) &&
+         reactionRateSmall(column.chemisorption, column.chemisorptionDot) &&
+         reactionRateSmall(column.surfaceConcentration, column.surfaceConcentrationDot) &&
+         reactionRateSmall(column.poreConcentration, column.poreConcentrationDot) &&
+         (!bulkReaction || reactionRateSmall(column.concentration, column.concentrationDot));
 }
 
 void precompute(Column& column, Timing& timings)
@@ -186,7 +187,7 @@ void computeDerivatives(Column& column, double elapsedTime)
 
   ::computeMassDerivatives(column.components, column.numberOfGridPoints, column.numberOfComponents, column.resolution,
                            column.interstitialGasVelocity, column.concentration, column.concentrationDot,
-                           column.bulkSpeciesSink);
+                           column.bulkSpeciesSink, column.convectionScheme, column.fluidPhase);
 
   if (column.energyBalance)
   {
@@ -243,7 +244,8 @@ void computeDerivatives(MultibedColumn& column, double elapsedTime)
   ::computeMassDerivatives(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
                            column.numberOfAdsorbents, column.columnDistances, column.fractionOfAdsorbent,
                            column.interstitialGasVelocity, column.concentration, column.concentrationDot,
-                           column.bulkSpeciesSink, column.fluidPhase, column.totalVoidFraction);
+                           column.bulkSpeciesSink, column.fluidPhase, column.totalVoidFraction,
+                           column.convectionScheme);
 
   if (column.energyBalance)
   {
@@ -262,23 +264,21 @@ void computeDerivatives(MultibedColumn& column, double elapsedTime)
   }
 }
 
-bool reactionAutoStopReached(const MultibedColumn& column, double timeStep) noexcept
+bool reactionAutoStopReached(const MultibedColumn& column) noexcept
 {
   if (column.reactions.empty()) return false;
 
   // A bulk-concentration reaction changes no adsorbed or pore state, so it is converged only once the bulk is steady.
+  // The reaction sources are not tested: a catalytic column at steady state keeps reacting.
   const bool bulkReaction =
       std::any_of(column.reactions.begin(), column.reactions.end(), [](const Reaction& reaction)
                   { return reaction.phase == Reaction::Phase::BulkConcentration; });
 
-  return reactionStepChangeSmall(column.physisorption, column.physisorptionDot, timeStep) &&
-         reactionStepChangeSmall(column.chemisorption, column.chemisorptionDot, timeStep) &&
-         reactionStepChangeSmall(column.surfaceConcentration, column.surfaceConcentrationDot, timeStep) &&
-         reactionStepChangeSmall(column.poreConcentration, column.poreConcentrationDot, timeStep) &&
-         reactionStepChangeSmall(column.physisorption, column.reactionPhysisorptionSource, timeStep) &&
-         reactionStepChangeSmall(column.chemisorption, column.reactionChemisorptionSource, timeStep) &&
-         reactionStepChangeSmall(column.poreConcentration, column.reactionPoreConcentrationSource, timeStep) &&
-         (!bulkReaction || reactionStepChangeSmall(column.concentration, column.concentrationDot, timeStep));
+  return reactionRateSmall(column.physisorption, column.physisorptionDot) &&
+         reactionRateSmall(column.chemisorption, column.chemisorptionDot) &&
+         reactionRateSmall(column.surfaceConcentration, column.surfaceConcentrationDot) &&
+         reactionRateSmall(column.poreConcentration, column.poreConcentrationDot) &&
+         (!bulkReaction || reactionRateSmall(column.concentration, column.concentrationDot));
 }
 
 void updateStateRK(std::vector<double>& initialState, Column& column, double alpha, double beta, double timeStep)
@@ -386,45 +386,55 @@ void updateStateRK(std::vector<double>& initialState, MultibedColumn& column, do
   }
 }
 
-namespace
-{
 template <typename ColumnType>
-bool breakthroughConverged(const ColumnType& column)
+void RungeKutta3::advance(ColumnType& column, double startTime, double endTime, Timing& timings)
 {
-  double tolerance = 0.0;
-  for (size_t comp = 0; comp < column.numberOfComponents; ++comp)
-  {
-    const bool gasPhase = static_cast<size_t>(column.fluidPhase) == 0;
-    const double feed = gasPhase ? column.components[comp].initialGasMoleFraction
-                                 : column.components[comp].inletLiquidConcentration;
-    if (feed <= 0.0) continue;
+  constexpr double initialTimeStepFraction = 1.0e-4;
 
-    const size_t outlet = column.numberOfGridPoints * column.numberOfComponents + comp;
-    const double outletValue = gasPhase ? column.moleFraction[outlet] : column.concentration[outlet];
-    tolerance = std::max(tolerance, std::abs((outletValue / feed) - 1.0));
+  // Ramp-up: the step grows smoothly from initialTimeStepFraction * timeStep to timeStep over the first
+  // numberOfInitTimeSteps steps (the first two steps both use the smallest step).
+  double time = startTime;
+  while (numberOfInitTimeSteps > 0 && numberOfStepsTaken <= numberOfInitTimeSteps)
+  {
+    const double progress = static_cast<double>(std::max<size_t>(numberOfStepsTaken, 1) - 1) /
+                            static_cast<double>(numberOfInitTimeSteps);
+    const double rampTimeStep =
+        timeStep * (initialTimeStepFraction + (1.0 - initialTimeStepFraction) *
+                                                  (3.0 * progress * progress - 2.0 * progress * progress * progress));
+    const double remaining = endTime - time;
+    if (remaining <= 0.0) return;
+    step(column, time, std::min(rampTimeStep, remaining), timings);
+    ++numberOfStepsTaken;
+    if (rampTimeStep >= remaining) return;
+    time += rampTimeStep;
   }
-  return tolerance < 0.01;
+
+  // Whole steps of timeStep, then one shortened step to land on endTime unless the interval is a whole number of
+  // steps up to rounding. Step start times are computed, not accumulated, so they do not drift over long intervals.
+  const double numberOfSteps = (endTime - time) / timeStep;
+  if (numberOfSteps <= 0.0) return;
+  const bool wholeNumberOfSteps = std::abs(numberOfSteps - std::round(numberOfSteps)) <= 1.0e-6;
+  const size_t fullSteps = static_cast<size_t>(wholeNumberOfSteps ? std::round(numberOfSteps) : std::floor(numberOfSteps));
+  for (size_t i = 0; i < fullSteps; ++i)
+  {
+    step(column, time + static_cast<double>(i) * timeStep, timeStep, timings);
+  }
+  numberOfStepsTaken += fullSteps;
+  if (!wholeNumberOfSteps)
+  {
+    const double lastStartTime = time + static_cast<double>(fullSteps) * timeStep;
+    step(column, lastStartTime, endTime - lastStartTime, timings);
+    ++numberOfStepsTaken;
+  }
 }
 
-}  // namespace
-
 template <typename ColumnType>
-bool RungeKutta3::propagate(ColumnType& column, size_t step, Timing& timings)
+void RungeKutta3::step(ColumnType& column, double startTime, double dt, Timing& timings)
 {
   static_assert(std::is_same_v<ColumnType, Column> || std::is_same_v<ColumnType, MultibedColumn>);
 
   auto totalTimer = timings.scoped(timings.total);
 
-  if (autoNumberOfSteps && column.reactions.empty() && breakthroughConverged(column))
-  {
-    // consider 1% as being visibly indistinguishable from 'converged'
-    // use a 10% longer time for display purposes
-    std::print("\nConvergence criteria reached, running 10% longer\n\n\n");
-    numberOfSteps = static_cast<size_t>(1.1 * static_cast<double>(step));
-    autoNumberOfSteps = false;
-  }
-
-  const double startTime = static_cast<double>(step) * timeStep;
   auto evaluateDerivatives = [&](ColumnType& stage, double elapsedTime)
   { timings.measure(timings.computeDerivatives, [&] { computeDerivatives(stage, elapsedTime); }); };
 
@@ -434,32 +444,20 @@ bool RungeKutta3::propagate(ColumnType& column, size_t step, Timing& timings)
   // The stages only need the initial state, not a copy of the whole column (mixture models, components, caches).
   std::vector<double> initialState(column.state);
 
-  updateStateRK(initialState, column, 0.0, 1.0, timeStep);
+  updateStateRK(initialState, column, 0.0, 1.0, dt);
   finalizeStage(column);
 
-  evaluateDerivatives(column, startTime + timeStep);
-  updateStateRK(initialState, column, 0.75, 0.25, timeStep);
+  evaluateDerivatives(column, startTime + dt);
+  updateStateRK(initialState, column, 0.75, 0.25, dt);
   finalizeStage(column);
 
-  evaluateDerivatives(column, startTime + 0.5 * timeStep);
-  updateStateRK(initialState, column, 1.0 / 3.0, 2.0 / 3.0, timeStep);
+  evaluateDerivatives(column, startTime + 0.5 * dt);
+  updateStateRK(initialState, column, 1.0 / 3.0, 2.0 / 3.0, dt);
   clampNonnegative(column.state);
   finalizeStage(column);
-
-  if (autoNumberOfSteps && !column.reactions.empty())
-  {
-    computeDerivatives(column, startTime + timeStep);
-    if (reactionAutoStopReached(column, timeStep))
-    {
-      std::print("\nReaction convergence criteria reached, running 10% longer\n\n\n");
-
-      const size_t minimumSteps = std::max<size_t>(step + 1, 1);
-      numberOfSteps = std::max<size_t>(static_cast<size_t>(std::ceil(1.1 * static_cast<double>(minimumSteps))), 2);
-      autoNumberOfSteps = false;
-    }
-  }
-  return (!autoNumberOfSteps && step >= numberOfSteps - 1);
 }
 
-template bool RungeKutta3::propagate(Column& column, size_t step, Timing& timings);
-template bool RungeKutta3::propagate(MultibedColumn& column, size_t step, Timing& timings);
+template void RungeKutta3::advance(Column& column, double startTime, double endTime, Timing& timings);
+template void RungeKutta3::advance(MultibedColumn& column, double startTime, double endTime, Timing& timings);
+template void RungeKutta3::step(Column& column, double startTime, double dt, Timing& timings);
+template void RungeKutta3::step(MultibedColumn& column, double startTime, double dt, Timing& timings);

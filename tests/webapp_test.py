@@ -52,10 +52,16 @@ def small_input(name):
     if name == "mixture":
         config["NumberOfPressurePoints"] = 5
     else:
-        config.update(NumberOfTimeSteps=3, TimeStep=1e-6, WriteEvery=1, PrintEvery=1)
+        config.update(SimulationTime=3e-6, WriteInterval=1e-6)
+        # CVODE chooses its own internal steps and takes no TimeStep.
+        if config.get("BreakthroughIntegrator") == "CVODE":
+            config.pop("TimeStep", None)
+        else:
+            config["TimeStep"] = 1e-6
         if name == "swing":
+            config.pop("SimulationTime")  # the phase durations set the simulated time
             for phase in config["SwingAdsorptionPhases"]:
-                phase["NumberOfTimeSteps"] = 3
+                phase["Duration"] = 3e-6
     return config
 
 
@@ -175,7 +181,7 @@ def test_paper_presets_have_the_published_operating_conditions():
             assert value["Geometry"]["Type"] == "Monolith"
             assert value["Geometry"]["NumberOfChannels"] == 144
             assert value["Components"][1]["GasPhaseMolFraction"] == pytest.approx(400e-6)
-            assert value["TimeStep"] * value["NumberOfTimeSteps"] == 24000
+            assert value["SimulationTime"] == 24000
     # Preset edits must not mutate the bundled defaults.
     t15["Temperature"] = 400
     assert presets()["paper-t15"]["Temperature"] == 298
@@ -233,7 +239,7 @@ def qt_state():
                          "Length": 0.1, "VoidFraction": 0.4, "ParticleDensity": 1000, "ParticleDiameter": 0.001, "DynamicViscosity": 1.8e-5,
                          "BoundaryCondition": "InletPressureInletVelocity", "GeometryType": "PackedBed"}],
             "Simulations": [{"Id": "simulation-1", "Type": "Breakthrough", "DisplayName": "Legacy experiment", "SelectedColumnId": "column-1",
-                             "Integrator": "RungeKutta3", "AutoSteps": False, "TimeSteps": 5,
+                             "Integrator": "RungeKutta3", "AutoTime": False, "SimulationTime": 0.0025,
                              "ComponentFeeds": [{"ComponentId": "component-1", "GasPhaseMolFraction": 0.85}, {"ComponentId": "component-2", "GasPhaseMolFraction": 0.15}],
                              "Settings": {"CVODERelativeTolerance": 2e-8}}]}
 

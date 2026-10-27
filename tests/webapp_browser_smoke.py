@@ -219,9 +219,10 @@ with sync_playwright() as p:
     page.locator('#new-simulation-json').fill('not JSON')
     page.locator('[data-action="create-json"]').click()
     expect(page.locator('#new-json-error')).to_contain_text('not valid JSON')
-    short=dict(source['input'],NumberOfTimeSteps=10,TimeStep=1e-6,WriteEvery=1,PrintEvery=1,NumberOfGridPoints=3,energyBalance=True,
+    short=dict(source['input'],SimulationTime=1e-5,TimeStep=1e-6,WriteInterval=1e-6,NumberOfGridPoints=3,energyBalance=True,
         wallDensity=7800,gasThermalConductivity=0.03,wallThermalConductivity=16,heatTransferGasSolid=20,
         heatTransferGasWall=20,heatTransferWallExternal=5,heatCapacityGas=1000,heatCapacitySolid=1000,heatCapacityWall=500)
+    if short.get('BreakthroughIntegrator')=='CVODE': short.pop('TimeStep')
     short['Geometry']={**short['Geometry'],'InternalDiameter':0.01,'OuterDiameter':0.012}
     page.locator('#new-simulation-json').fill(json.dumps(short))
     page.locator('[data-action="create-json"]').click()

@@ -9,14 +9,12 @@
   "ColumnEntranceVelocity": 0.019,
   "ColumnLength": 0.1,
   "InletPressure": 120000.0,
-  "NumberOfTimeSteps": "auto",
+  "SimulationTime": "auto",
   "BreakthroughIntegrator": "CVODE",
   "BoundaryCondition": "FixedPressureInletVelocity",
-  "PrintEvery": 5000,
-  "WriteEvery": 100,
+  "WriteInterval": 10.5263157895,
   "DynamicViscosity": 3e-05,
   "ParticleDiameter": 0.001,
-  "TimeStep": 0.10526315789473686,
   "NumberOfGridPoints": 20,
   "Components": [
     {

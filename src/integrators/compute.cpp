@@ -689,7 +689,8 @@ void computeMassDerivatives(const std::vector<Component>& components, size_t num
                             size_t numberOfComponents, double resolution,
                             std::span<const double> interstitialGasVelocity,
                             std::span<const double> concentration, std::span<double> concentrationDot,
-                            std::span<const double> bulkSpeciesSink)
+                            std::span<const double> bulkSpeciesSink, Column::ConvectionScheme convectionScheme,
+                            Column::FluidPhase fluidPhase)
 {
   double idx = 1.0 / resolution;
   double idx2 = idx * idx;
@@ -701,6 +702,88 @@ void computeMassDerivatives(const std::vector<Component>& components, size_t num
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
     spanConcentrationDot[0, comp] = 0.0;
+  }
+
+  if (convectionScheme == Column::ConvectionScheme::WENO3)
+  {
+    // Face fluxes G[comp * nodes + i] at z_i; node i holds the cell (z_{i-1}, z_i] and node 0 the inlet face value.
+    const size_t nodes = numberOfGridPoints + 1;
+    std::vector<double> values(nodes);
+    std::vector<double> faces(nodes);
+    std::vector<double> faceFlux(numberOfComponents * nodes);
+    if (fluidPhase == Column::FluidPhase::Gas)
+    {
+      // Mole fractions at the faces, normalised, times the upwind total molar flux: the species fluxes sum to
+      // v_i c_tot,i, which the velocity closures conserve.
+      std::vector<double> totalConcentration(nodes, 0.0);
+      std::vector<double> faceFractionSum(nodes, 0.0);
+      for (size_t grid = 0; grid < nodes; ++grid)
+      {
+        for (size_t comp = 0; comp < numberOfComponents; ++comp)
+        {
+          totalConcentration[grid] += std::max(0.0, spanConcentration[grid, comp]);
+        }
+      }
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        for (size_t grid = 0; grid < nodes; ++grid)
+        {
+          values[grid] = totalConcentration[grid] > 0.0
+                             ? std::max(0.0, spanConcentration[grid, comp]) / totalConcentration[grid]
+                             : 0.0;
+        }
+        computeWENO(values, faces);
+        for (size_t grid = 0; grid < nodes; ++grid)
+        {
+          faceFlux[comp * nodes + grid] = faces[grid];
+          faceFractionSum[grid] += faces[grid];
+        }
+      }
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        for (size_t grid = 0; grid < nodes; ++grid)
+        {
+          const double totalFlux = interstitialGasVelocity[grid] * totalConcentration[grid];
+          faceFlux[comp * nodes + grid] *= faceFractionSum[grid] > 0.0 ? totalFlux / faceFractionSum[grid] : 0.0;
+        }
+      }
+    }
+    else
+    {
+      // Liquid: the velocity does not depend on the concentrations, so each concentration is reconstructed.
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        for (size_t grid = 0; grid < nodes; ++grid) values[grid] = spanConcentration[grid, comp];
+        computeWENO(values, faces);
+        for (size_t grid = 0; grid < nodes; ++grid)
+        {
+          faceFlux[comp * nodes + grid] = interstitialGasVelocity[grid] * faces[grid];
+        }
+      }
+    }
+
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      const double* flux = faceFlux.data() + comp * nodes;
+      const double dispersion = components[comp].axialDispersionCoefficient;
+      for (size_t grid = 1; grid < numberOfGridPoints; ++grid)
+      {
+        // In the first cell the inlet value lies on the inlet face, half a cell from the cell centre.
+        const double upstreamWeight = grid == 1 ? 2.0 : 1.0;
+        const double d2cDz2 = (spanConcentration[grid + 1, comp] -
+                               (1.0 + upstreamWeight) * spanConcentration[grid, comp] +
+                               upstreamWeight * spanConcentration[grid - 1, comp]) *
+                              idx2;
+        spanConcentrationDot[grid, comp] =
+            -(flux[grid] - flux[grid - 1]) * idx + dispersion * d2cDz2 - spanBulkSpeciesSink[grid, comp];
+      }
+      const double d2cDz2 =
+          (spanConcentration[numberOfGridPoints - 1, comp] - spanConcentration[numberOfGridPoints, comp]) * idx2;
+      spanConcentrationDot[numberOfGridPoints, comp] =
+          -(flux[numberOfGridPoints] - flux[numberOfGridPoints - 1]) * idx + dispersion * d2cDz2 -
+          spanBulkSpeciesSink[numberOfGridPoints, comp];
+    }
+    return;
   }
 
   for (size_t grid = 1; grid < numberOfGridPoints; ++grid)
@@ -909,49 +992,93 @@ void computeEnergyDerivatives(
   solidTemperatureDot[numberOfGridPoints] += reactionHeatAt(numberOfGridPoints) / heatCapacitySolid;
 }
 
-void computeWENO(std::span<const double> input, std::span<double> output)
+namespace
 {
-  double tol = 1e-10;
-  double df0, df1, alpha_0, alpha_1, beta_0, beta_1, first_term, second_term;
+// Smoothness offset of the WENO weights; the reconstructed quantities are mole fractions (gas) or concentrations
+// in mol/m^3 (liquid).
+constexpr double wenoEpsilon = 1.0e-10;
 
-  size_t size = input.size();
-  if (size < 3)
+/**
+ * \brief WENO3 value at the downstream face of cell i from the candidates of the downstream stencil {i, i+1}
+ *        (q0, linear weight d0) and the upstream stencil {i-1, i} (q1, d1); beta are the smoothness indicators.
+ */
+double wenoFace(double q0, double q1, double beta0, double beta1, double d0, double d1)
+{
+  const double alpha0 = d0 / ((wenoEpsilon + beta0) * (wenoEpsilon + beta0));
+  const double alpha1 = d1 / ((wenoEpsilon + beta1) * (wenoEpsilon + beta1));
+  return (alpha0 * q0 + alpha1 * q1) / (alpha0 + alpha1);
+}
+}  // namespace
+
+void computeWENO(std::span<const double> values, std::span<double> faces)
+{
+  const size_t last = values.size() - 1;
+  if (values.size() < 3)
   {
-    throw std::runtime_error("Unable to call WENO with numberOfGridPoints smaller than 3.");
+    throw std::runtime_error("Unable to call WENO with numberOfGridPoints smaller than 2.");
   }
 
-  // inlet boundary flux: prescribed from Dirichlet inflow state
-  output[0] = input[0];
+  faces[0] = values[0];
 
-  // first interior interface, special one-sided closure
-  df0 = input[2] - input[1];
-  df1 = input[1] - input[0];
-  beta_0 = df0 * df0;
-  beta_1 = df1 * df1;
-
-  alpha_0 = (2.0 / 3.0) / ((beta_0 + tol) * (beta_0 + tol));
-  alpha_1 = (1.0 / 3.0) / (16.0 * (beta_1 + tol) * (beta_1 + tol));
-
-  first_term = 0.5 * (alpha_0 / (alpha_0 + alpha_1)) * (input[2] + input[1]);
-  second_term = (alpha_1 / (alpha_0 + alpha_1)) * (2.0 * input[1] - input[0]);
-  output[1] = first_term + second_term;
-
-  // interior interfaces
-  for (size_t i = 2; i < size - 1; ++i)
+  // First cell: values[0] is the inlet face value, half a cell upstream of the cell centre, so the upstream
+  // candidate is the line through it, 2 u_1 - u_0, and the third-order linear weights are 1/2 and 1/2.
   {
-    df0 = input[i + 1] - input[i];
-    df1 = input[i] - input[i - 1];
-    beta_0 = df0 * df0;
-    beta_1 = df1 * df1;
-
-    alpha_0 = (2.0 / 3.0) / ((beta_0 + tol) * (beta_0 + tol));
-    alpha_1 = (1.0 / 3.0) / ((beta_1 + tol) * (beta_1 + tol));
-
-    first_term = 0.5 * (alpha_0 / (alpha_0 + alpha_1)) * (input[i + 1] + input[i]);
-    second_term = (alpha_1 / (alpha_0 + alpha_1)) * ((3.0 / 2.0) * input[i] - (1.0 / 2.0) * input[i - 1]);
-    output[i] = first_term + second_term;
+    const double downstream = values[2] - values[1];
+    const double upstream = values[1] - values[0];
+    faces[1] = wenoFace(values[1] + 0.5 * downstream, values[1] + upstream, downstream * downstream,
+                        4.0 * upstream * upstream, 0.5, 0.5);
   }
 
-  // outlet boundary flux: outflow closure
-  output[size - 1] = input[size - 1];  // simplest option
+  for (size_t i = 2; i < last; ++i)
+  {
+    const double downstream = values[i + 1] - values[i];
+    const double upstream = values[i] - values[i - 1];
+    faces[i] = wenoFace(values[i] + 0.5 * downstream, values[i] + 0.5 * upstream, downstream * downstream,
+                        upstream * upstream, 2.0 / 3.0, 1.0 / 3.0);
+  }
+
+  faces[last] = values[last];
+}
+
+void computeWENO(std::span<const double> values, std::span<const double> columnDistances, std::span<double> faces)
+{
+  const size_t last = values.size() - 1;
+  if (values.size() < 3 || columnDistances.size() != values.size())
+  {
+    throw std::runtime_error("Unable to call WENO with numberOfGridPoints smaller than 2 or without node positions.");
+  }
+
+  faces[0] = values[0];
+  for (size_t i = 1; i < last; ++i)
+  {
+    // Local coordinate with the centre of cell i at zero; the face is at h/2. The downstream cell has width b, the
+    // upstream cell width a; for i = 1 the upstream value is the inlet face value at -h/2.
+    const double h = columnDistances[i] - columnDistances[i - 1];
+    const double b = columnDistances[i + 1] - columnDistances[i];
+    const double downstreamDistance = 0.5 * (h + b);
+    const double downstreamMoment = downstreamDistance * downstreamDistance + b * b / 12.0 - h * h / 12.0;
+    double upstreamDistance = 0.5 * h;
+    double upstreamMoment = 0.25 * h * h - h * h / 12.0;
+    if (i > 1)
+    {
+      const double a = columnDistances[i - 1] - columnDistances[i - 2];
+      upstreamDistance = 0.5 * (h + a);
+      upstreamMoment = upstreamDistance * upstreamDistance + a * a / 12.0 - h * h / 12.0;
+    }
+
+    // The quadratic that reproduces the three values gives u_face = u_i + p (u_{i+1} - u_i) + m (u_i - u_{i-1});
+    // p and m follow from exactness for the linear and quadratic terms.
+    const double determinant = -downstreamDistance * upstreamMoment - upstreamDistance * downstreamMoment;
+    const double p = (-0.5 * h * upstreamMoment - upstreamDistance * h * h / 6.0) / determinant;
+    const double m = (downstreamDistance * h * h / 6.0 - 0.5 * h * downstreamMoment) / determinant;
+
+    const double downstream = values[i + 1] - values[i];
+    const double upstream = values[i] - values[i - 1];
+    const double downstreamSlope = h / downstreamDistance * downstream;
+    const double upstreamSlope = h / upstreamDistance * upstream;
+    faces[i] = wenoFace(values[i] + 0.5 * downstreamSlope, values[i] + 0.5 * upstreamSlope,
+                        downstreamSlope * downstreamSlope, upstreamSlope * upstreamSlope,
+                        p * downstreamDistance / (0.5 * h), m * upstreamDistance / (0.5 * h));
+  }
+  faces[last] = values[last];
 }

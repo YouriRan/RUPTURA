@@ -67,7 +67,7 @@ struct InputReader
     std::string name;                         ///< Optional phase label for logs and frontends.
     std::optional<double> temperature;        ///< Phase temperature in K.
     std::optional<double> inletPressure;      ///< Phase inlet pressure in Pa.
-    size_t numberOfSteps{0};                  ///< Number of time steps in this phase.
+    double duration{0.0};                     ///< Phase duration in s.
     /// Phase feed mole fractions per component (normalized); empty means the Components feed.
     std::vector<double> gasPhaseMolFractions{};
     std::optional<double> columnEntranceVelocity;  ///< Phase inlet (interstitial) velocity in m/s.
@@ -86,6 +86,7 @@ struct InputReader
   size_t IASTMethod{0};                                         ///< The method used for IAST calculations.
   std::optional<MPDSettings> mpdSettings;                        ///< Settings used by MPD mixture prediction.
   size_t breakthroughIntegrator{0};                             ///< The integrator used for breakthrough calculations.
+  size_t convectionScheme{1};  ///< Convective face values: 0 = Upwind, 1 = WENO3 (default; Upwind for SIRK3).
   size_t boundaryCondition{0};                                  ///< The breakthrough boundary condition.
   size_t fluidPhase{0};                                         ///< 0 = gas, 1 = incompressible liquid.
   size_t pHMode{0};                                             ///< 0 = fixed, 1 = H+, 2 = OH-.
@@ -137,10 +138,11 @@ struct InputReader
   double heatCapacityWall{1.0};          ///< Wall heat capacity in J/(kg K).
   bool energyBalance{false};             ///< Enables gas/solid/wall temperature dynamics when true.
 
-  size_t numberOfTimeSteps{0};       ///< The number of time steps in the simulation.
-  size_t numberOfInitTimeSteps{0};   ///< The number of initialization time steps.
-  bool autoNumberOfTimeSteps{true};  ///< Whether to automatically determine the number of time steps.
-  double timeStep{0.0005};           ///< The time step size in s.
+  double simulationTime{0.0};       ///< Simulated time in s; set from the phase durations for SwingAdsorption.
+  bool autoSimulationTime{true};    ///< Run until the breakthrough or reaction steady-state criterion is met.
+  double writeInterval{5.0};        ///< Interval between outputs (and progress lines) in s.
+  size_t numberOfInitTimeSteps{0};  ///< RungeKutta3/SIRK3 steps over which the step ramps up from 1e-4 TimeStep.
+  double timeStep{0.0005};          ///< RungeKutta3/SIRK3 time step in s; not used by CVODE.
 
   // CVODE integrator controls (only used when BreakthroughIntegrator is CVODE).
   double cvodeRelativeTolerance{1.0e-4};  ///< CVODE relative tolerance, applied to every state component.
@@ -151,8 +153,6 @@ struct InputReader
   size_t cvodeMaximumOrder{5};        ///< CVODE maximum BDF order (1-5).
   size_t cvodeLinearSolver{0};      ///< CVODE linear solver: 0 = Dense (direct), 1 = SPGMR (matrix-free Krylov).
   size_t cvodeKrylovDimension{30};  ///< Krylov subspace dimension used by the SPGMR linear solver.
-  size_t printEvery{10000};          ///< The interval at which to print output.
-  size_t writeEvery{10000};          ///< The interval at which to write output.
   size_t numberOfGridPoints{100};    ///< The number of grid points in the column.
 
   double pressureStart{-1.0};          ///< The starting pressure for isotherm calculations in Pa.

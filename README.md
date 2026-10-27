@@ -295,14 +295,23 @@ Input
 =====
 See the cited article.
 
+Simulated time and output are set in seconds: `SimulationTime` (a time, or
+`"auto"` to stop 10% after the breakthrough or reaction steady state is
+reached) and `WriteInterval` (one column profile and progress line every so
+many seconds). `TimeStep` is the fixed step of `RungeKutta3` and `SIRK3`;
+`CVODE` chooses its own steps and rejects `TimeStep`. The step-based keys of
+RUPTURA 2 (`NumberOfTimeSteps`, `WriteEvery`, `PrintEvery`) are rejected with
+the equivalent times; `python convert.py simulation.json` converts a file in
+place and keeps the original as `_legacy_simulation.json`.
+
 Swing adsorption inputs use `SimulationType: "SwingAdsorption"` and define
-ordered phases. Each phase runs after the previous one and can override
-temperature, inlet pressure, or both:
+ordered phases. Each phase runs for its `Duration` in seconds after the previous one and can
+override temperature, inlet pressure, or both:
 
 ```json
 "SwingAdsorptionPhases": [
-  {"Name": "Adsorption", "Temperature": 552.0, "InletPressure": 100000.0, "NumberOfTimeSteps": 1000000},
-  {"Name": "Regeneration", "Temperature": 673.0, "InletPressure": 100000.0, "NumberOfTimeSteps": 2000000}
+  {"Name": "Adsorption", "Temperature": 552.0, "InletPressure": 100000.0, "Duration": 500.0},
+  {"Name": "Regeneration", "Temperature": 673.0, "InletPressure": 100000.0, "Duration": 1000.0}
 ]
 ```
 

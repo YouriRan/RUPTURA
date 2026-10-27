@@ -34,7 +34,48 @@ double sorptionDotAt(const Column& column, size_t index)
 }
 }  // namespace
 
-bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& timings)
+void SemiImplicitRungeKutta3::advance(Column& column, double startTime, double endTime, Timing& timings)
+{
+  constexpr double initialTimeStepFraction = 1.0e-4;
+
+  // Ramp-up: the step grows smoothly from initialTimeStepFraction * timeStep to timeStep over the first
+  // numberOfInitTimeSteps steps (the first two steps both use the smallest step).
+  double time = startTime;
+  while (numberOfInitTimeSteps > 0 && numberOfStepsTaken <= numberOfInitTimeSteps)
+  {
+    const double progress = static_cast<double>(std::max<size_t>(numberOfStepsTaken, 1) - 1) /
+                            static_cast<double>(numberOfInitTimeSteps);
+    const double rampTimeStep =
+        timeStep * (initialTimeStepFraction + (1.0 - initialTimeStepFraction) *
+                                                  (3.0 * progress * progress - 2.0 * progress * progress * progress));
+    const double remaining = endTime - time;
+    if (remaining <= 0.0) return;
+    step(column, time, std::min(rampTimeStep, remaining), timings);
+    ++numberOfStepsTaken;
+    if (rampTimeStep >= remaining) return;
+    time += rampTimeStep;
+  }
+
+  // Whole steps of timeStep, then one shortened step to land on endTime unless the interval is a whole number of
+  // steps up to rounding. Step start times are computed, not accumulated, so they do not drift over long intervals.
+  const double numberOfSteps = (endTime - time) / timeStep;
+  if (numberOfSteps <= 0.0) return;
+  const bool wholeNumberOfSteps = std::abs(numberOfSteps - std::round(numberOfSteps)) <= 1.0e-6;
+  const size_t fullSteps = static_cast<size_t>(wholeNumberOfSteps ? std::round(numberOfSteps) : std::floor(numberOfSteps));
+  for (size_t i = 0; i < fullSteps; ++i)
+  {
+    step(column, time + static_cast<double>(i) * timeStep, timeStep, timings);
+  }
+  numberOfStepsTaken += fullSteps;
+  if (!wholeNumberOfSteps)
+  {
+    const double lastStartTime = time + static_cast<double>(fullSteps) * timeStep;
+    step(column, lastStartTime, endTime - lastStartTime, timings);
+    ++numberOfStepsTaken;
+  }
+}
+
+void SemiImplicitRungeKutta3::step(Column& column, double startTime, double dt, Timing& timings)
 {
   if (column.surfacePoreTransportEnabled)
   {
@@ -42,10 +83,13 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
         "SemiImplicitRungeKutta3 does not support General chemisorption with surface-pore transport; use RungeKutta3 "
         "or CVODE");
   }
+  if (column.convectionScheme != Column::ConvectionScheme::Upwind)
+  {
+    // The implicit concentration matrices below are built for first-order upwind convection.
+    throw std::runtime_error("SemiImplicitRungeKutta3 supports only ConvectionScheme Upwind");
+  }
 
-  size_t numberOfGridPoints = column.numberOfGridPoints;
   size_t numberOfComponents = column.numberOfComponents;
-  const double startTime = static_cast<double>(step) * timeStep;
   Column newColumn(column);
 
   std::vector<double> solved(column.concentration.size());
@@ -98,30 +142,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
   std::vector<double> implicitInvKLs(numberOfComponents);
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
-    implicitInvKLs[comp] = 1.0 / (1.0 + timeStep * column.components[comp].massTransferCoefficient);
-  }
-
-  if (autoNumberOfSteps)
-  {
-    double tolerance = 0.0;
-    for (size_t j = 0; j < numberOfComponents; ++j)
-    {
-      const bool gasPhase = column.fluidPhase == Column::FluidPhase::Gas;
-      const double feed = gasPhase ? column.components[j].initialGasMoleFraction
-                                   : column.components[j].inletLiquidConcentration;
-      if (feed <= 0.0) continue;
-
-      const size_t outlet = numberOfGridPoints * numberOfComponents + j;
-      const double outletValue = gasPhase ? column.moleFraction[outlet] : column.concentration[outlet];
-      tolerance = std::max(tolerance, std::abs((outletValue / feed) - 1.0));
-    }
-
-    if (tolerance < 0.01)
-    {
-      std::print("\nConvergence criteria reached, running 10% longer\n\n\n");
-      numberOfSteps = static_cast<size_t>(1.1 * static_cast<double>(step));
-      autoNumberOfSteps = false;
-    }
+    implicitInvKLs[comp] = 1.0 / (1.0 + dt * column.components[comp].massTransferCoefficient);
   }
 
   // SSP-RK Step 1
@@ -130,7 +151,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     size_t comp = i % numberOfComponents;
     double kl = column.components[comp].massTransferCoefficient;
     newColumn.physisorption[i] =
-        (column.physisorption[i] + timeStep * kl * column.equilibriumPhysisorption[i]) * implicitInvKLs[comp];
+        (column.physisorption[i] + dt * kl * column.equilibriumPhysisorption[i]) * implicitInvKLs[comp];
   }
 
   if (newColumn.energyBalance)
@@ -138,8 +159,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn, startTime + timeStep);
-                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
+                      computeDerivatives(newColumn, startTime + dt);
+                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, dt, solved);
                     });
   }
   else
@@ -147,8 +168,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn, startTime + timeStep);
-                      computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
+                      computeDerivatives(newColumn, startTime + dt);
+                      computeConcentrationUpdateMatrix(newColumn, dt, solved);
                     });
   }
 
@@ -166,7 +187,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double kl = column.components[comp].massTransferCoefficient;
     newColumn.physisorption[i] =
         0.75 * column.physisorption[i] +
-        0.25 * (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumPhysisorption[i]) *
+        0.25 * (newColumn.physisorption[i] + dt * kl * newColumn.equilibriumPhysisorption[i]) *
             implicitInvKLs[comp];
   }
 
@@ -175,8 +196,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn, startTime + 0.5 * timeStep);
-                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
+                      computeDerivatives(newColumn, startTime + 0.5 * dt);
+                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, dt, solved);
                     });
   }
   else
@@ -184,8 +205,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn, startTime + 0.5 * timeStep);
-                      computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
+                      computeDerivatives(newColumn, startTime + 0.5 * dt);
+                      computeConcentrationUpdateMatrix(newColumn, dt, solved);
                     });
   }
 
@@ -203,7 +224,7 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double kl = column.components[comp].massTransferCoefficient;
     newColumn.physisorption[i] =
         (1.0 / 3.0) * column.physisorption[i] +
-        (2.0 / 3.0) * (newColumn.physisorption[i] + timeStep * kl * newColumn.equilibriumPhysisorption[i]) *
+        (2.0 / 3.0) * (newColumn.physisorption[i] + dt * kl * newColumn.equilibriumPhysisorption[i]) *
             implicitInvKLs[comp];
   }
 
@@ -212,8 +233,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn, startTime + timeStep);
-                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, timeStep, solved);
+                      computeDerivatives(newColumn, startTime + dt);
+                      computeConcentrationUpdateMatrixEnergyBalance(newColumn, dt, solved);
                     });
   }
   else
@@ -221,8 +242,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn, startTime + timeStep);
-                      computeConcentrationUpdateMatrix(newColumn, timeStep, solved);
+                      computeDerivatives(newColumn, startTime + dt);
+                      computeConcentrationUpdateMatrix(newColumn, dt, solved);
                     });
   }
 
@@ -240,8 +261,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     double kl = column.components[comp].massTransferCoefficient;
 
     newColumn.physisorption[i] =
-        (newColumn.physisorption[i] + timeStep * timeStep * kl * kl * newColumn.equilibriumPhysisorption[i]) /
-        (1.0 + timeStep * timeStep * kl * kl);
+        (newColumn.physisorption[i] + dt * dt * kl * kl * newColumn.equilibriumPhysisorption[i]) /
+        (1.0 + dt * dt * kl * kl);
   }
 
   if (newColumn.energyBalance)
@@ -249,8 +270,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn, startTime + timeStep);
-                      computeConcentrationUpdateMatrixEnergyBalanceFinal(newColumn, timeStep, solved);
+                      computeDerivatives(newColumn, startTime + dt);
+                      computeConcentrationUpdateMatrixEnergyBalanceFinal(newColumn, dt, solved);
                     });
   }
   else
@@ -258,8 +279,8 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
     timings.measure(timings.computeDerivatives,
                     [&]
                     {
-                      computeDerivatives(newColumn, startTime + timeStep);
-                      computeConcentrationUpdateMatrixFinal(newColumn, timeStep, solved);
+                      computeDerivatives(newColumn, startTime + dt);
+                      computeConcentrationUpdateMatrixFinal(newColumn, dt, solved);
                     });
   }
 
@@ -272,7 +293,6 @@ bool SemiImplicitRungeKutta3::propagate(Column& column, size_t step, Timing& tim
   finalizeStage(newColumn);
 
   column = newColumn;
-  return (!autoNumberOfSteps && step >= numberOfSteps - 1);
 }
 
 void computeConcentrationUpdateMatrix(Column& column, double timeStep, std::vector<double>& solved)

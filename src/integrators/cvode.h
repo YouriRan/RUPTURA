@@ -57,13 +57,9 @@ struct CVODE
   /**
    * \brief Constructs the CVODE wrapper from parsed input settings.
    */
-  CVODE(const InputReader& inputReader)
-      : timeStep(inputReader.timeStep),
-        autoNumberOfSteps(inputReader.autoNumberOfTimeSteps),
-        numberOfSteps(inputReader.numberOfTimeSteps)
+  CVODE([[maybe_unused]] const InputReader& inputReader)
 #if BUILD_SUNDIALS
-        ,
-        relativeTolerance(inputReader.cvodeRelativeTolerance),
+      : relativeTolerance(inputReader.cvodeRelativeTolerance),
         absoluteToleranceConcentration(inputReader.cvodeAbsoluteToleranceConcentration),
         absoluteToleranceLoading(inputReader.cvodeAbsoluteToleranceLoading),
         absoluteToleranceTemperature(inputReader.cvodeAbsoluteToleranceTemperature),
@@ -76,12 +72,9 @@ struct CVODE
   }
 
   /**
-   * \brief Constructs the CVODE wrapper from explicit time-step settings.
+   * \brief Constructs the CVODE wrapper with the default tolerances and solver settings.
    */
-  CVODE(double timeStep, bool autoNumberOfSteps, size_t numberOfSteps)
-      : timeStep(timeStep), autoNumberOfSteps(autoNumberOfSteps), numberOfSteps(numberOfSteps)
-  {
-  }
+  CVODE() = default;
 
   /**
    * \brief Releases any SUNDIALS resources owned by this wrapper.
@@ -97,10 +90,6 @@ struct CVODE
    * \brief Copy assignment is disabled because SUNDIALS handles are uniquely owned.
    */
   CVODE& operator=(const CVODE&) = delete;
-
-  double timeStep;         ///< Integration time step in s.
-  bool autoNumberOfSteps;  ///< Continue until breakthrough criterion when true.
-  size_t numberOfSteps;    ///< Requested number of integration steps.
 
 #if BUILD_SUNDIALS
   SUNContext sunContext = nullptr;           ///< SUNDIALS context handle.
@@ -144,14 +133,16 @@ struct CVODE
 #endif
 
   /**
-   * \brief Advances the column by one CVODE output step.
+   * \brief Advances the column from the current CVODE time to endTime in s with one CVode call.
+   *
+   * CVODE chooses its own internal steps (capped by maximumTimeStep) and interpolates the state at endTime.
    */
-  bool propagate(Column& column, size_t step, Timing& timings);
+  void advance(Column& column, double endTime, Timing& timings);
 
   /**
-   * \brief Advances a multibed column by one CVODE output step.
+   * \brief Multibed counterpart of advance(Column&, double, Timing&).
    */
-  bool propagate(MultibedColumn& column, size_t step, Timing& timings);
+  void advance(MultibedColumn& column, double endTime, Timing& timings);
 
   /**
    * \brief Initializes CVODE state and solver data for the given column.
