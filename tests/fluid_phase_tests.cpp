@@ -158,10 +158,11 @@ TEST(GasBreakthroughRegression, ExistingColumnCvodePathRetainsItsOutcome)
                                      "examples/CoBDP-alkanes-C6/breakthrough/simulation.json";
   InputReader reader(path.string());
   Column column(reader);
+  column.convectionScheme = Column::ConvectionScheme::Upwind;  // reference values recorded with upwind
   column.initialize();
   ASSERT_EQ(column.fluidPhase, Column::FluidPhase::Gas);
 
-  CVODE integrator(reader.timeStep, false, 1);
+  CVODE integrator;
   // The tolerances of the reference values (the CVODE defaults when they were recorded), so that later changes of
   // the defaults do not move them.
 #if BUILD_SUNDIALS
@@ -172,7 +173,8 @@ TEST(GasBreakthroughRegression, ExistingColumnCvodePathRetainsItsOutcome)
 #endif
   Timing timing;
   integrator.initialize(column);
-  ASSERT_TRUE(integrator.propagate(column, 0, timing));
+  // One interval of 5 ms, the example's former TimeStep, at which the reference values were recorded.
+  integrator.advance(column, 0.005, timing);
 
   const size_t index = column.numberOfComponents + 1;
   EXPECT_NEAR(column.concentration[index], 1.245870563589704, 1.0e-9);
@@ -185,12 +187,13 @@ TEST(GasBreakthroughRegression, ExistingMultibedRk3PathRetainsItsOutcome)
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/Multibed/CO2-N2-polishing/simulation.json";
   InputReader reader(path.string());
   MultibedColumn column(reader);
+  column.convectionScheme = MultibedColumn::ConvectionScheme::Upwind;  // reference values recorded with upwind
   column.initialize();
   ASSERT_EQ(column.fluidPhase, MultibedColumn::FluidPhase::Gas);
 
-  RungeKutta3 integrator(reader.timeStep, false, 1);
+  RungeKutta3 integrator(reader.timeStep);
   Timing timing;
-  ASSERT_TRUE(integrator.propagate(column, 0, timing));
+  integrator.step(column, 0.0, reader.timeStep, timing);
 
   const size_t index = column.numberOfComponents + 1;
   EXPECT_NEAR(column.concentration[index], 0.29182638429337593, 1.0e-13);
@@ -203,6 +206,7 @@ TEST(LiquidPhase, FixedPHColumnUsesConcentrationsAndExpectedIsotherm)
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/Liquid/pH-dependent/simulation.json";
   InputReader reader(path.string());
   Column column(reader);
+  column.convectionScheme = Column::ConvectionScheme::Upwind;  // reference values recorded with upwind
   column.initialize();
 
   ASSERT_EQ(column.fluidPhase, Column::FluidPhase::Liquid);
@@ -218,9 +222,9 @@ TEST(LiquidPhase, FixedPHColumnUsesConcentrationsAndExpectedIsotherm)
               150000.0 - column.geometry.pressureDrop.gradient(0.00089, 997.0, 0.001) * column.resolution,
               1.0e-10);
 
-  RungeKutta3 integrator(reader.timeStep, false, 1);
+  RungeKutta3 integrator(reader.timeStep);
   Timing timing;
-  ASSERT_TRUE(integrator.propagate(column, 0, timing));
+  integrator.step(column, 0.0, reader.timeStep, timing);
   EXPECT_NEAR(column.concentration[1], 0.012766632220756373, 1.0e-14);
   EXPECT_NEAR(column.physisorption[0], 0.0015466082723401815, 1.0e-15);
 }
@@ -231,6 +235,7 @@ TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInMultibedColumn)
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/Liquid/multibed-pH-front/simulation.json";
   InputReader reader(path.string());
   MultibedColumn column(reader);
+  column.convectionScheme = MultibedColumn::ConvectionScheme::Upwind;  // reference values recorded with upwind
   column.initialize();
 
   ASSERT_EQ(column.fluidPhase, MultibedColumn::FluidPhase::Liquid);
@@ -246,7 +251,7 @@ TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInMultibedColumn)
                 column.totalVoidFraction[0] * column.interstitialGasVelocity[0], 1.0e-15);
   }
 
-  CVODE integrator(reader.timeStep, false, 1);
+  CVODE integrator;
   // The tolerances of the reference value (the CVODE defaults when it was recorded).
 #if BUILD_SUNDIALS
   integrator.relativeTolerance = 1.0e-3;
@@ -256,7 +261,8 @@ TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInMultibedColumn)
 #endif
   Timing timing;
   integrator.initialize(column);
-  ASSERT_TRUE(integrator.propagate(column, 0, timing));
+  // One interval of 0.1 s, the example's former TimeStep, at which the reference value was recorded.
+  integrator.advance(column, 0.1, timing);
   const size_t soluteAtFirstInteriorNode = column.numberOfComponents + 1;
   EXPECT_NEAR(column.concentration[soluteAtFirstInteriorNode], 0.010039044104904167, 1.0e-10);
   EXPECT_NEAR(column.pH[1], -std::log10(column.concentration[column.numberOfComponents] / 1000.0), 1.0e-14);

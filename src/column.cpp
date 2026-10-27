@@ -101,6 +101,7 @@ Column::Column(const Column& other)
       boundaryCondition(other.boundaryCondition),
       fluidPhase(other.fluidPhase),
       pHMode(other.pHMode),
+      convectionScheme(other.convectionScheme),
       energyBalance(other.energyBalance),
       geometry(other.geometry),
       reactions(other.reactions),
@@ -182,6 +183,7 @@ Column& Column::operator=(const Column& other)
   boundaryCondition = other.boundaryCondition;
   fluidPhase = other.fluidPhase;
   pHMode = other.pHMode;
+  convectionScheme = other.convectionScheme;
   energyBalance = other.energyBalance;
   geometry = other.geometry;
   reactions = other.reactions;

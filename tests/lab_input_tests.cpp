@@ -336,10 +336,17 @@ TEST(LabInput, ExportedGasLiquidAndMultibedInputsRunInCli)
     QString error;
     ASSERT_TRUE(MainWindowTestAccess::import(window, example(path), &error)) << error.toStdString();
     auto input = MainWindowTestAccess::modeled(window);
-    input.insert("NumberOfTimeSteps", 2);
-    input.insert("TimeStep", 1.0e-6);
-    input.insert("PrintEvery", 1);
-    input.insert("WriteEvery", 1);
+    input.insert("SimulationTime", 2.0e-6);
+    input.insert("WriteInterval", 1.0e-6);
+    // CVODE chooses its own internal steps and takes no TimeStep.
+    if (input.value("BreakthroughIntegrator").toString() == "CVODE")
+    {
+      input.remove("TimeStep");
+    }
+    else
+    {
+      input.insert("TimeStep", 1.0e-6);
+    }
     QTemporaryDir directory;
     writeJson(directory.filePath("simulation.json"), input);
     QProcess process;

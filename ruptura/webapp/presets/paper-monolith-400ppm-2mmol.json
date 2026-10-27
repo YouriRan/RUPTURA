@@ -15,10 +15,8 @@
   "BreakthroughIntegrator": "CVODE",
   "BoundaryCondition": "FixedVelocity",
   "NumberOfGridPoints": 50,
-  "NumberOfTimeSteps": 12000,
-  "TimeStep": 2,
-  "WriteEvery": 6,
-  "PrintEvery": 300,
+  "SimulationTime": 24000.0,
+  "WriteInterval": 12.0,
   "Components": [
     {
       "Name": "N2",

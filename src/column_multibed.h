@@ -118,6 +118,15 @@ struct MultibedColumn
   };
 
   /**
+   * \brief Reconstruction of the convective face values (Supplementary "Spatial discretization").
+   */
+  enum class ConvectionScheme
+  {
+    Upwind = 0,  ///< First-order upwind: the face value is the upstream node value.
+    WENO3 = 1    ///< Third-order WENO; gas phase: mole fractions at the faces, total molar flux upwind.
+  };
+
+  /**
    * \brief Constructs a column from explicit model/configuration arguments.
    *
    * Allocates grid, component, cache, scratch, and ODE-state arrays.
@@ -288,6 +297,7 @@ struct MultibedColumn
             inputReader.columnLength, FluidPhase(inputReader.fluidPhase), inputReader.liquidDensity,
             PHMode(inputReader.pHMode), inputReader.pHValue, inputReader.pKw, inputReader.pHComponent)
   {
+    convectionScheme = ConvectionScheme(inputReader.convectionScheme);
   }
   /**
    * \brief Copy constructor; rebinds spans to this object's state storage.
@@ -306,6 +316,7 @@ struct MultibedColumn
   BoundaryCondition boundaryCondition;                   ///< Selected breakthrough boundary-condition pair.
   FluidPhase fluidPhase;                                 ///< Gas or liquid mobile phase.
   PHMode pHMode;                                         ///< Fixed or transported pH representation.
+  ConvectionScheme convectionScheme{ConvectionScheme::WENO3};  ///< Reconstruction of the convective face values.
   bool energyBalance;                                    ///< Enables gas/solid/wall temperature dynamics when true.
   std::vector<Reaction> reactions;                       ///< Reactions coupled to adsorbed or pore-phase variables.
 

@@ -57,7 +57,8 @@ const QStringList columnSettingKeys{
     "FluidPhase", "LiquidDensity", "pHMode", "pHValue", "pKw", "liquidThermalConductivity",
     "heatTransferLiquidSolid", "heatTransferLiquidWall", "heatCapacityLiquid"};
 const QStringList simulationSettingKeys{
-    "IASTMethod", "CVODERelativeTolerance", "CVODEAbsoluteToleranceConcentration", "CVODEAbsoluteToleranceLoading",
+    "IASTMethod", "ConvectionScheme", "CVODERelativeTolerance", "CVODEAbsoluteToleranceConcentration",
+    "CVODEAbsoluteToleranceLoading",
     "CVODEAbsoluteToleranceTemperature", "CVODEMaximumTimeStep", "CVODEMaximumOrder", "CVODELinearSolver",
     "CVODEKrylovDimension", "ColumnDistances", "ReadColumnFile", "DebugForceMultibed", "ColumnPressure",
     "ColumnLoading", "ColumnError"};
@@ -527,20 +528,21 @@ QJsonArray swingPhasesStateJson(const QList<SwingPhaseConfig>& phases)
                              {"Name", phase.name},
                              {"Temperature", phase.temperature},
                              {"InletPressure", phase.inletPressure},
-                             {"NumberOfTimeSteps", phase.numberOfSteps}});
+                             {"Duration", phase.duration}});
   }
   return array;
 }
 
 SwingPhaseConfig swingPhaseFromObject(const QJsonObject& object, const QString& fallbackId, double fallbackTemperature,
-                                      double fallbackInletPressure, int fallbackSteps)
+                                      double fallbackInletPressure, double fallbackDuration)
 {
   SwingPhaseConfig phase;
   phase.id = readString(object, "Id", fallbackId);
   phase.name = readString(object, "Name", "Phase");
   phase.temperature = readNumber(object, "Temperature", fallbackTemperature);
   phase.inletPressure = readNumber(object, "InletPressure", fallbackInletPressure);
-  phase.numberOfSteps = std::max(1, readInt(object, "NumberOfTimeSteps", fallbackSteps));
+  const double duration = readNumber(object, "Duration", fallbackDuration);
+  phase.duration = duration > 0.0 ? duration : fallbackDuration;
   return phase;
 }
 
@@ -1312,12 +1314,14 @@ void MainWindow::refreshSimulationList()
                          .arg(numberText(feedTotal(simulation)));
     if (simulation.type == "SwingAdsorption")
     {
-      int totalSteps = 0;
+      double totalDuration = 0.0;
       for (const SwingPhaseConfig& phase : simulation.swingPhases)
       {
-        totalSteps += phase.numberOfSteps;
+        totalDuration += phase.duration;
       }
-      detail += QString(", %1 phases, %2 steps").arg(static_cast<int>(simulation.swingPhases.size())).arg(totalSteps);
+      detail += QString(", %1 phases, %2 s")
+                    .arg(static_cast<int>(simulation.swingPhases.size()))
+                    .arg(numberText(totalDuration));
     }
     if (!simulation.lastRun.id.isEmpty())
     {
@@ -2146,6 +2150,11 @@ void MainWindow::rebuildSimulationEditor()
                     simulations_[selectedSimulationIndex_].integrator = value;
                     QTimer::singleShot(0, this, [this]() { refreshAll(); });
                   });
+    if (simulation.integrator != "SIRK3")  // SIRK3 supports only Upwind
+    {
+      addSettingCombo(breakthroughForm, "Convection scheme", simulation.settings, "ConvectionScheme", "WENO3",
+                      {"WENO3", "Upwind"});
+    }
     if (simulation.integrator == "CVODE")
     {
       addSettingNumbers(breakthroughForm, simulation.settings,
@@ -2179,28 +2188,28 @@ void MainWindow::rebuildSimulationEditor()
                   [this](bool value) { simulations_[selectedSimulationIndex_].settings.insert("DebugForceMultibed", value); });
     addNumberField(breakthroughForm, "Grid points [-]", static_cast<double>(simulation.gridPoints), [this](double value)
                    { simulations_[selectedSimulationIndex_].gridPoints = std::max(1, static_cast<int>(value)); });
-    addNumberField(breakthroughForm, "Time step [s]", simulation.timeStep,
-                   [this](double value) { simulations_[selectedSimulationIndex_].timeStep = value; });
-    addNumberField(breakthroughForm, "Initialization steps [-]", static_cast<double>(simulation.initSteps),
-                   [this](double value)
-                   { simulations_[selectedSimulationIndex_].initSteps = std::max(0, static_cast<int>(value)); });
-    addNumberField(breakthroughForm, "Print every [-]", static_cast<double>(simulation.printEvery), [this](double value)
-                   { simulations_[selectedSimulationIndex_].printEvery = std::max(1, static_cast<int>(value)); });
-    addNumberField(breakthroughForm, "Write every [-]", static_cast<double>(simulation.writeEvery), [this](double value)
-                   { simulations_[selectedSimulationIndex_].writeEvery = std::max(1, static_cast<int>(value)); });
+    if (simulation.integrator != "CVODE")  // CVODE chooses its own internal steps
+    {
+      addNumberField(breakthroughForm, "Time step [s]", simulation.timeStep,
+                     [this](double value) { simulations_[selectedSimulationIndex_].timeStep = value; });
+      addNumberField(breakthroughForm, "Initialization steps [-]", static_cast<double>(simulation.initSteps),
+                     [this](double value)
+                     { simulations_[selectedSimulationIndex_].initSteps = std::max(0, static_cast<int>(value)); });
+    }
+    addNumberField(breakthroughForm, "Write interval [s]", simulation.writeInterval,
+                   [this](double value) { simulations_[selectedSimulationIndex_].writeInterval = value; });
     if (!isSwing)
     {
-      addCheckField(breakthroughForm, "Auto time steps", simulation.autoSteps,
+      addCheckField(breakthroughForm, "Automatic simulation time", simulation.autoTime,
                     [this](bool value)
                     {
-                      simulations_[selectedSimulationIndex_].autoSteps = value;
+                      simulations_[selectedSimulationIndex_].autoTime = value;
                       QTimer::singleShot(0, this, [this]() { refreshAll(); });
                     });
-      if (!simulation.autoSteps)
+      if (!simulation.autoTime)
       {
-        addNumberField(breakthroughForm, "Time steps [-]", static_cast<double>(simulation.timeSteps),
-                       [this](double value)
-                       { simulations_[selectedSimulationIndex_].timeSteps = std::max(1, static_cast<int>(value)); });
+        addNumberField(breakthroughForm, "Simulation time [s]", simulation.simulationTime,
+                       [this](double value) { simulations_[selectedSimulationIndex_].simulationTime = value; });
       }
     }
     simulationEditorLayout_->addWidget(breakthrough);
@@ -2227,12 +2236,8 @@ void MainWindow::rebuildSimulationEditor()
                        { simulations_[selectedSimulationIndex_].swingPhases[phaseIndex].temperature = value; });
         addNumberField(phaseForm, "Inlet pressure [Pa]", phase.inletPressure, [this, phaseIndex](double value)
                        { simulations_[selectedSimulationIndex_].swingPhases[phaseIndex].inletPressure = value; });
-        addNumberField(phaseForm, "Time steps [-]", static_cast<double>(phase.numberOfSteps),
-                       [this, phaseIndex](double value)
-                       {
-                         simulations_[selectedSimulationIndex_].swingPhases[phaseIndex].numberOfSteps =
-                             std::max(1, static_cast<int>(value));
-                       });
+        addNumberField(phaseForm, "Duration [s]", phase.duration, [this, phaseIndex](double value)
+                       { simulations_[selectedSimulationIndex_].swingPhases[phaseIndex].duration = value; });
 
         auto* remove = new QPushButton("Remove phase");
         connect(remove, &QPushButton::clicked, this,
@@ -2261,7 +2266,7 @@ void MainWindow::rebuildSimulationEditor()
                     current.swingPhases.isEmpty() ? SwingPhaseConfig{} : current.swingPhases.last();
                 current.swingPhases.push_back(
                     makeSwingPhase(QString("Pressure phase %1").arg(current.swingPhases.size() + 1), base.temperature,
-                                   std::max(1000.0, 0.1 * base.inletPressure), base.numberOfSteps));
+                                   std::max(1000.0, 0.1 * base.inletPressure), base.duration));
                 refreshAll();
               });
       connect(addTemperaturePhase, &QPushButton::clicked, this,
@@ -2272,7 +2277,7 @@ void MainWindow::rebuildSimulationEditor()
                     current.swingPhases.isEmpty() ? SwingPhaseConfig{} : current.swingPhases.last();
                 current.swingPhases.push_back(
                     makeSwingPhase(QString("Temperature phase %1").arg(current.swingPhases.size() + 1),
-                                   base.temperature + 50.0, base.inletPressure, base.numberOfSteps));
+                                   base.temperature + 50.0, base.inletPressure, base.duration));
                 refreshAll();
               });
       simulationEditorLayout_->addWidget(phasesGroup);
@@ -2420,14 +2425,15 @@ ColumnConfig MainWindow::makeColumn(const QString& name, const QString& id)
   return column;
 }
 
-SwingPhaseConfig MainWindow::makeSwingPhase(const QString& name, double temperature, double inletPressure, int steps)
+SwingPhaseConfig MainWindow::makeSwingPhase(const QString& name, double temperature, double inletPressure,
+                                            double duration)
 {
   SwingPhaseConfig phase;
   phase.id = newId("phase");
   phase.name = name;
   phase.temperature = temperature;
   phase.inletPressure = inletPressure;
-  phase.numberOfSteps = std::max(1, steps);
+  phase.duration = duration;
   return phase;
 }
 
@@ -2621,14 +2627,6 @@ QJsonObject MainWindow::buildModeledSimulationJson() const
   }
 
   const bool isSwing = simulation->type == "SwingAdsorption";
-  int totalPhaseSteps = 0;
-  if (isSwing)
-  {
-    for (const SwingPhaseConfig& phase : simulation->swingPhases)
-    {
-      totalPhaseSteps += phase.numberOfSteps;
-    }
-  }
 
   const QString integrator =
       (simulation->integrator == "RungeKutta3" || simulation->integrator == "SIRK3") ? simulation->integrator : "CVODE";
@@ -2637,15 +2635,21 @@ QJsonObject MainWindow::buildModeledSimulationJson() const
       {"DisplayName", simulation->displayName},
       {"Temperature", temperature},
       {"BreakthroughIntegrator", integrator},
-      {"NumberOfTimeSteps", isSwing ? QJsonValue(std::max(1, totalPhaseSteps))
-                                    : (simulation->autoSteps ? QJsonValue("auto") : QJsonValue(simulation->timeSteps))},
-      {"NumberOfInitTimeSteps", simulation->initSteps},
-      {"PrintEvery", simulation->printEvery},
-      {"WriteEvery", simulation->writeEvery},
-      {"TimeStep", simulation->timeStep},
+      {"WriteInterval", simulation->writeInterval},
       {"MixturePredictionMethod", simulation->mixtureMethod},
       {"Components", componentsJsonFor(*simulation)},
   };
+  // The phase durations set the simulated time of a swing run.
+  if (!isSwing)
+  {
+    json.insert("SimulationTime", simulation->autoTime ? QJsonValue("auto") : QJsonValue(simulation->simulationTime));
+  }
+  // CVODE chooses its own internal steps and takes no TimeStep.
+  if (integrator != "CVODE")
+  {
+    json.insert("TimeStep", simulation->timeStep);
+    json.insert("NumberOfInitTimeSteps", simulation->initSteps);
+  }
   const QJsonArray reactions = reactionsJsonFor(*simulation);
   if (!reactions.isEmpty())
   {
@@ -2870,7 +2874,7 @@ QJsonArray MainWindow::swingPhasesToJson(const SimulationConfig& simulation) con
     phases.append(QJsonObject{{"Name", phase.name.isEmpty() ? "Phase" : phase.name},
                               {"Temperature", phase.temperature},
                               {"InletPressure", phase.inletPressure},
-                              {"NumberOfTimeSteps", std::max(1, phase.numberOfSteps)}});
+                              {"Duration", phase.duration}});
   }
   return phases;
 }
@@ -3070,11 +3074,10 @@ QJsonObject MainWindow::buildStateJson() const
                                  {"PressurePoints", simulation.pressurePoints},
                                  {"PressureScale", simulation.pressureScale},
                                  {"Integrator", simulation.integrator},
-                                 {"AutoSteps", simulation.autoSteps},
-                                 {"TimeSteps", simulation.timeSteps},
+                                 {"AutoTime", simulation.autoTime},
+                                 {"SimulationTime", simulation.simulationTime},
+                                 {"WriteInterval", simulation.writeInterval},
                                  {"InitSteps", simulation.initSteps},
-                                 {"PrintEvery", simulation.printEvery},
-                                 {"WriteEvery", simulation.writeEvery},
                                  {"TimeStep", simulation.timeStep},
                                  {"GridPoints", simulation.gridPoints},
                                  {"SelectedColumnId", simulation.selectedColumnId},
@@ -3299,11 +3302,10 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
     simulation.pressurePoints = std::max(1, readInt(object, "PressurePoints", simulation.pressurePoints));
     simulation.pressureScale = readString(object, "PressureScale", simulation.pressureScale);
     simulation.integrator = readString(object, "Integrator", simulation.integrator);
-    simulation.autoSteps = readBool(object, "AutoSteps", simulation.autoSteps);
-    simulation.timeSteps = std::max(1, readInt(object, "TimeSteps", simulation.timeSteps));
+    simulation.autoTime = readBool(object, "AutoTime", simulation.autoTime);
+    simulation.simulationTime = readNumber(object, "SimulationTime", simulation.simulationTime);
+    simulation.writeInterval = readNumber(object, "WriteInterval", simulation.writeInterval);
     simulation.initSteps = readInt(object, "InitSteps", simulation.initSteps);
-    simulation.printEvery = std::max(1, readInt(object, "PrintEvery", simulation.printEvery));
-    simulation.writeEvery = std::max(1, readInt(object, "WriteEvery", simulation.writeEvery));
     simulation.timeStep = readNumber(object, "TimeStep", simulation.timeStep);
     simulation.gridPoints = std::max(1, readInt(object, "GridPoints", simulation.gridPoints));
     simulation.selectedColumnId = readString(object, "SelectedColumnId", newColumns.front().id);
@@ -3323,17 +3325,16 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
       {
         simulation.swingPhases.push_back(swingPhaseFromObject(
             phaseArray[phaseIndex].toObject(), QString("phase-%1-%2").arg(i + 1).arg(phaseIndex + 1),
-            fallbackTemperature, fallbackInletPressure, simulation.timeSteps));
+            fallbackTemperature, fallbackInletPressure, SwingPhaseConfig{}.duration));
       }
     }
     if (simulation.type == "SwingAdsorption" && simulation.swingPhases.isEmpty())
     {
       simulation.swingPhases.push_back(SwingPhaseConfig{QString("phase-%1-1").arg(i + 1), "Adsorption",
-                                                        fallbackTemperature, fallbackInletPressure,
-                                                        std::max(1, simulation.timeSteps)});
-      simulation.swingPhases.push_back(
-          SwingPhaseConfig{QString("phase-%1-2").arg(i + 1), "Regeneration", fallbackTemperature,
-                           std::max(1000.0, 0.1 * fallbackInletPressure), std::max(1, simulation.timeSteps)});
+                                                        fallbackTemperature, fallbackInletPressure});
+      simulation.swingPhases.push_back(SwingPhaseConfig{QString("phase-%1-2").arg(i + 1), "Regeneration",
+                                                        fallbackTemperature,
+                                                        std::max(1000.0, 0.1 * fallbackInletPressure)});
     }
 
     const QJsonValue lastRunValue = object.value("LastRun");
@@ -3666,17 +3667,11 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
     if (error != nullptr) *error = "BreakthroughIntegrator must be CVODE, RungeKutta3, or SIRK3.";
     return false;
   }
-  const QJsonValue timeSteps = simulationJson.value("NumberOfTimeSteps");
-  simulation.autoSteps = timeSteps.isUndefined() ||
-                         (timeSteps.isString() && timeSteps.toString().compare("auto", Qt::CaseInsensitive) == 0);
-  if (timeSteps.isDouble())
-  {
-    simulation.autoSteps = false;
-    simulation.timeSteps = std::max(1, timeSteps.toInt());
-  }
+  const QJsonValue simulationTime = simulationJson.value("SimulationTime");
+  simulation.autoTime = !simulationTime.isDouble();
+  if (simulationTime.isDouble()) simulation.simulationTime = simulationTime.toDouble();
+  simulation.writeInterval = readNumber(simulationJson, "WriteInterval", simulation.writeInterval);
   simulation.initSteps = readInt(simulationJson, "NumberOfInitTimeSteps", simulation.initSteps);
-  simulation.printEvery = std::max(1, readInt(simulationJson, "PrintEvery", simulation.printEvery));
-  simulation.writeEvery = std::max(1, readInt(simulationJson, "WriteEvery", simulation.writeEvery));
   simulation.timeStep = readNumber(simulationJson, "TimeStep", simulation.timeStep);
   simulation.gridPoints = std::max(1, readInt(simulationJson, "NumberOfGridPoints", simulation.gridPoints));
   simulation.selectedColumnId = column.id;
@@ -3710,7 +3705,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
       {
         simulation.swingPhases.push_back(
             swingPhaseFromObject(phaseArray[phaseIndex].toObject(), QString("phase-1-%1").arg(phaseIndex + 1),
-                                 column.temperature, column.inletPressure, simulation.timeSteps));
+                                 column.temperature, column.inletPressure, SwingPhaseConfig{}.duration));
       }
     }
 

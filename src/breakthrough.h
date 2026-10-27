@@ -39,21 +39,30 @@ struct Breakthrough
   void print() const;
   [[nodiscard]] std::string repr() const;
   void run();
-  void computeStep(size_t step);
+
+  /**
+   * \brief Integrates the column from the current time to endTime in s with the selected integrator.
+   */
+  void advanceTo(double endTime, Timing& accumulatedTimings);
+
+  /**
+   * \brief Integrates to the next output time and applies the automatic stop criteria.
+   *
+   * \return True once the simulation time is reached.
+   */
+  bool advanceToNextOutput();
 
   const std::string displayName;  ///< Name of the simulation for display purposes.
   size_t carrierGasComponent{0};  ///< Index of the carrier gas component.
   size_t numberOfComponents;      ///< Number of components.
   size_t numberOfGridPoints;      ///< Number of grid intervals; node count is numberOfGridPoints + 1.
 
-  size_t printEvery;  ///< Frequency of printing time steps to the screen.
-  size_t writeEvery;  ///< Frequency of writing data to files.
-
-  double timeStep;               ///< Time step for integration in s.
-  size_t numberOfInitTimeSteps;  ///< Number of initial ramp-up steps.
-  size_t numberOfSteps;          ///< Total number of steps.
-  bool autoNumberOfSteps;        ///< Flag to use automatic number of steps.
-  size_t maxIsothermTerms;       ///< Maximum number of isotherm terms.
+  double writeInterval;      ///< Interval between outputs (and progress lines) in s.
+  double simulationTime;     ///< Simulated time in s; set once the stop criterion is met when autoSimulationTime.
+  bool autoSimulationTime;   ///< Run until the breakthrough or reaction steady-state criterion is met when true.
+  double time{0.0};          ///< Current simulated time in s.
+  size_t numberOfOutputs{0};  ///< Output intervals completed; the next output is at (numberOfOutputs + 1) writeInterval.
+  size_t maxIsothermTerms;   ///< Maximum number of isotherm terms.
 
   ColumnType column;                                ///< Concrete column model advanced by the simulation.
   RungeKutta3 rk3;                                  ///< Explicit RK3 integrator instance.

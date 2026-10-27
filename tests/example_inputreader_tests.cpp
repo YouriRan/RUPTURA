@@ -6,8 +6,10 @@
 #include <fstream>
 #include <numbers>
 #include <set>
+#include <sstream>
 #include <string>
 #include <tuple>
+#include <vector>
 
 #include "column.h"
 #include "component.h"
@@ -90,6 +92,7 @@ Column loadBeaBreakthroughColumn()
   // Column state after 100 s of RungeKutta3 on this example (Δt = 1e-3 s); running the example overwrites its own
   // column.json, so the snapshot is kept with the tests.
   column.readJSON(examplePath("tests/data/bea_breakthrough_column.json"));
+  column.convectionScheme = Column::ConvectionScheme::Upwind;  // the snapshot and expectedMassDerivative are upwind
   return column;
 }
 
@@ -116,7 +119,7 @@ void writeGeneralChemisorptionInput(const std::filesystem::path& path, bool useP
   "ColumnEntranceVelocity": 0.1,
   "ColumnLength": 0.1,
   "NumberOfGridPoints": 2,
-  "NumberOfTimeSteps": 1,
+  "SimulationTime": 0.01,
   "TimeStep": 0.01,
   "Components": [
     {
@@ -238,7 +241,7 @@ void writeReactionInput(const std::filesystem::path& path, const std::string& ph
   "ColumnEntranceVelocity": 0.1,
   "ColumnLength": 0.1,
   "NumberOfGridPoints": 2,
-  "NumberOfTimeSteps": 1,
+  "SimulationTime": 0.01,
   "TimeStep": 0.01,
   "energyBalance": )json"
       << (energyBalance ? "true" : "false") << R"json(,
@@ -362,7 +365,8 @@ TEST(ExampleInputReader, LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix)
     EXPECT_EQ(reader.simulationType, InputReader::SimulationType::Breakthrough);
     EXPECT_EQ(reader.components.size(), 8U);
     EXPECT_EQ(reader.numberOfCarrierGases, 1U);
-    EXPECT_TRUE(reader.numberOfTimeSteps > 1U);
+    EXPECT_FALSE(reader.autoSimulationTime);
+    EXPECT_GT(reader.simulationTime, 0.0);
     EXPECT_TRUE(reader.breakthroughIntegrator == 0U || reader.breakthroughIntegrator == 1U);
     EXPECT_TRUE(reader.numberOfGridPoints == 20U || reader.numberOfGridPoints == 50U ||
                 reader.numberOfGridPoints == 100U);
@@ -405,8 +409,8 @@ TEST(ExampleInputReader, LoadsCoBdpAlkanesBreakthrough)
   EXPECT_DOUBLE_EQ(reader.columnEntranceVelocity, 0.1);
   EXPECT_DOUBLE_EQ(reader.columnLength, 0.3);
   EXPECT_EQ(reader.breakthroughIntegrator, 1U);
-  EXPECT_TRUE(reader.autoNumberOfTimeSteps);
-  EXPECT_DOUBLE_EQ(reader.timeStep, 0.005);
+  EXPECT_TRUE(reader.autoSimulationTime);
+  EXPECT_DOUBLE_EQ(reader.writeInterval, 50.0);
   EXPECT_EQ(reader.numberOfGridPoints, 200U);
 
   ASSERT_EQ(reader.components.size(), 6U);
@@ -446,7 +450,7 @@ TEST(ExampleInputReader, ParsesSemiImplicitRungeKuttaIntegrator)
   nlohmann::json data = nlohmann::json::parse(input);
   input.close();
   data["BreakthroughIntegrator"] = "SIRK3";
-  data["NumberOfTimeSteps"] = 1;
+  data["SimulationTime"] = 5.0e-4;
 
   const std::filesystem::path path = testTemporaryDirectory() / "ruptura_sirk3_integrator.json";
   std::ofstream output(path);
@@ -460,12 +464,13 @@ TEST(ExampleInputReader, ParsesSemiImplicitRungeKuttaIntegrator)
 
   SemiImplicitRungeKutta3 integrator(reader);
   EXPECT_DOUBLE_EQ(integrator.timeStep, reader.timeStep);
-  EXPECT_EQ(integrator.numberOfSteps, reader.numberOfTimeSteps);
+  EXPECT_EQ(integrator.numberOfInitTimeSteps, reader.numberOfInitTimeSteps);
 
   Column column(reader);
   column.initialize();
   Timing timings;
-  EXPECT_TRUE(integrator.propagate(column, 0, timings));
+  integrator.advance(column, 0.0, reader.simulationTime, timings);
+  EXPECT_EQ(integrator.numberOfStepsTaken, 1U);
 }
 
 TEST(ExampleInputReader, Sirk3RejectsReactionsAndSurfacePoreTransport)
@@ -539,10 +544,10 @@ TEST(SwingAdsorptionInput, ParsesStructuredPhasesAndBuildsSubStages)
 
   data["SimulationType"] = "SwingAdsorption";
   data.erase("InletPressure");
-  data["NumberOfTimeSteps"] = "auto";
+  data.erase("SimulationTime");
   data["SwingAdsorptionPhases"] = nlohmann::json::array({
-      {{"Name", "Adsorption"}, {"Temperature", 310.0}, {"InletPressure", 200000.0}, {"NumberOfTimeSteps", 3}},
-      {{"Name", "Depressurization"}, {"InletPressure", 50000.0}, {"NumberOfTimeSteps", 2}},
+      {{"Name", "Adsorption"}, {"Temperature", 310.0}, {"InletPressure", 200000.0}, {"Duration", 0.03}},
+      {{"Name", "Depressurization"}, {"InletPressure", 50000.0}, {"Duration", 0.02}},
   });
 
   std::ofstream output(path);
@@ -551,8 +556,8 @@ TEST(SwingAdsorptionInput, ParsesStructuredPhasesAndBuildsSubStages)
 
   InputReader reader(path.string());
   EXPECT_EQ(reader.simulationType, InputReader::SimulationType::SwingAdsorption);
-  EXPECT_FALSE(reader.autoNumberOfTimeSteps);
-  EXPECT_EQ(reader.numberOfTimeSteps, 5U);
+  EXPECT_FALSE(reader.autoSimulationTime);
+  EXPECT_DOUBLE_EQ(reader.simulationTime, 0.05);
   EXPECT_DOUBLE_EQ(reader.inletPressure, 200000.0);
 
   ASSERT_EQ(reader.swingAdsorptionPhases.size(), 2U);
@@ -561,7 +566,7 @@ TEST(SwingAdsorptionInput, ParsesStructuredPhasesAndBuildsSubStages)
   EXPECT_DOUBLE_EQ(*reader.swingAdsorptionPhases[0].temperature, 310.0);
   ASSERT_TRUE(reader.swingAdsorptionPhases[0].inletPressure.has_value());
   EXPECT_DOUBLE_EQ(*reader.swingAdsorptionPhases[0].inletPressure, 200000.0);
-  EXPECT_EQ(reader.swingAdsorptionPhases[0].numberOfSteps, 3U);
+  EXPECT_DOUBLE_EQ(reader.swingAdsorptionPhases[0].duration, 0.03);
   EXPECT_FALSE(reader.swingAdsorptionPhases[1].temperature.has_value());
   ASSERT_TRUE(reader.swingAdsorptionPhases[1].inletPressure.has_value());
   EXPECT_DOUBLE_EQ(*reader.swingAdsorptionPhases[1].inletPressure, 50000.0);
@@ -571,11 +576,11 @@ TEST(SwingAdsorptionInput, ParsesStructuredPhasesAndBuildsSubStages)
   EXPECT_EQ(swing.subStages[0].name, "Adsorption");
   EXPECT_DOUBLE_EQ(swing.subStages[0].temperature, 310.0);
   EXPECT_DOUBLE_EQ(swing.subStages[0].pressure, 200000.0);
-  EXPECT_EQ(swing.subStages[0].numberOfSteps, 3U);
+  EXPECT_DOUBLE_EQ(swing.subStages[0].duration, 0.03);
   EXPECT_EQ(swing.subStages[1].name, "Depressurization");
   EXPECT_DOUBLE_EQ(swing.subStages[1].temperature, reader.temperature);
   EXPECT_DOUBLE_EQ(swing.subStages[1].pressure, 50000.0);
-  EXPECT_EQ(swing.subStages[1].numberOfSteps, 2U);
+  EXPECT_DOUBLE_EQ(swing.subStages[1].duration, 0.02);
 }
 
 TEST(SwingAdsorptionInput, LoadsPsaAndTsaExamples)
@@ -1010,7 +1015,7 @@ TEST(ReactionsPore, LangmuirHinshelwoodRequiresAndUsesPoreConcentration)
   EXPECT_NEAR(column.bulkSpeciesSink[product], 0.0, 1.0e-12);
 }
 
-TEST(ReactionsAutoStop, RequiresLowReactionSourcesAndStablePhaseStates)
+TEST(ReactionsAutoStop, RequiresSlowlyChangingPhaseStates)
 {
   const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_auto_stop.json";
   writeReactionInput(path);
@@ -1023,31 +1028,41 @@ TEST(ReactionsAutoStop, RequiresLowReactionSourcesAndStablePhaseStates)
   const size_t product = 2U;
   column.physisorption[reactant] = 0.4;
   computeDerivatives(column);
-  EXPECT_FALSE(reactionAutoStopReached(column, 0.01));
+  EXPECT_FALSE(reactionAutoStopReached(column));
 
   column.physisorption[product] = 1.0;
   computeDerivatives(column);
-  EXPECT_TRUE(reactionAutoStopReached(column, 0.01));
+  EXPECT_TRUE(reactionAutoStopReached(column));
 
-  column.physisorptionDot[reactant] = 1.0;
-  EXPECT_FALSE(reactionAutoStopReached(column, 0.01));
+  // 1e-4 max(1, |x|) per second is the bound: just above it the state is still changing.
+  column.physisorptionDot[reactant] = 1.1e-4;
+  EXPECT_FALSE(reactionAutoStopReached(column));
+
+  // A reaction source alone does not stop the auto-stop: a catalytic column at steady state keeps reacting.
+  computeDerivatives(column);
+  column.reactionPhysisorptionSource[reactant] = 1.0;
+  EXPECT_TRUE(reactionAutoStopReached(column));
 }
 
-TEST(ReactionsAutoStop, RungeKuttaSchedulesAutoStopForStableReactionState)
+TEST(ReactionsAutoStop, BreakthroughSchedulesAutoStopForStableReactionState)
 {
   const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_auto_stop_rk3.json";
   writeReactionInput(path);
 
   InputReader reader(path.string());
-  Column column(reader);
-  column.initialize();
-  column.physisorption[2U] = 1.0;
+  reader.autoSimulationTime = true;
+  reader.writeInterval = reader.timeStep;  // one RK3 step per output
 
-  RungeKutta3 integrator(0.01, true, 0);
-  Timing timings;
-  EXPECT_FALSE(integrator.propagate(column, 0, timings));
-  EXPECT_FALSE(integrator.autoNumberOfSteps);
-  EXPECT_EQ(integrator.numberOfSteps, 2U);
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_reaction_auto_stop_rk3");
+  Breakthrough<Column> breakthrough(reader);
+  breakthrough.column.physisorption[2U] = 1.0;
+
+  EXPECT_FALSE(breakthrough.advanceToNextOutput());
+  EXPECT_FALSE(breakthrough.autoSimulationTime);
+  // 10% longer than the first output, rounded up to whole outputs: two outputs.
+  EXPECT_DOUBLE_EQ(breakthrough.simulationTime, 2.0 * reader.writeInterval);
+  EXPECT_TRUE(breakthrough.advanceToNextOutput());
+  EXPECT_DOUBLE_EQ(breakthrough.time, 2.0 * reader.writeInterval);
 }
 
 TEST(ReactionsInput, RejectsLHOutsidePoreConcentration)
@@ -1504,10 +1519,10 @@ TEST(MultiSiteChemisorption, PropagatesMixedSitesWithCvode)
   Column column(reader);
   column.initialize();
 
-  CVODE integrator(1.0e-5, false, 1);
+  CVODE integrator;
   Timing timings;
   integrator.initialize(column);
-  EXPECT_NO_THROW(integrator.propagate(column, 0, timings));
+  EXPECT_NO_THROW(integrator.advance(column, 1.0e-5, timings));
 
   const size_t adsorbateInlet = 1U;
   const size_t secondSiteInlet = column.concentration.size() + adsorbateInlet;
@@ -1618,7 +1633,7 @@ static nlohmann::json makeBulkWaterGasShiftInput()
       {"ColumnEntranceVelocity", 0.1},
       {"ColumnLength", 0.025},
       {"NumberOfGridPoints", 10},
-      {"NumberOfTimeSteps", 1},
+      {"SimulationTime", 1.0e-4},
       {"TimeStep", 1.0e-4},
       {"Geometry", {{"Type", "PackedBed"}, {"ColumnVoidFraction", 0.4}, {"ParticleDiameter", 2.0e-4}}},
       {"Components",
@@ -1700,15 +1715,16 @@ TEST(SwingAdsorptionInput, RepeatsCyclesWithPhaseFeedCompositionAndVelocity)
 {
   nlohmann::json data = makeBulkWaterGasShiftInput();
   data.erase("Reactions");
+  data.erase("SimulationTime");
   data["SimulationType"] = "SwingAdsorption";
   data["NumberOfCycles"] = 3;
   data["SwingAdsorptionPhases"] = {
-      {{"Name", "Adsorption"}, {"InletPressure", 8.0e5}, {"NumberOfTimeSteps", 4}},
+      {{"Name", "Adsorption"}, {"InletPressure", 8.0e5}, {"Duration", 4.0e-4}},
       {{"Name", "Regeneration"},
        {"InletPressure", 1.0e5},
        {"ColumnEntranceVelocity", 0.4},
        {"GasPhaseMolFractions", {{"N2", 3.0}, {"H2O", 2.0}}},
-       {"NumberOfTimeSteps", 6}},
+       {"Duration", 6.0e-4}},
   };
 
   const std::filesystem::path path = testTemporaryDirectory() / "ruptura_swing_cycles.json";
@@ -1716,7 +1732,7 @@ TEST(SwingAdsorptionInput, RepeatsCyclesWithPhaseFeedCompositionAndVelocity)
   InputReader reader(path.string());
 
   ASSERT_EQ(reader.swingAdsorptionPhases.size(), 6U);
-  EXPECT_EQ(reader.numberOfTimeSteps, 30U);
+  EXPECT_NEAR(reader.simulationTime, 3.0e-3, 1.0e-15);
   EXPECT_EQ(reader.swingAdsorptionPhases[0].name, "Adsorption (cycle 1)");
   EXPECT_EQ(reader.swingAdsorptionPhases[5].name, "Regeneration (cycle 3)");
   EXPECT_TRUE(reader.swingAdsorptionPhases[4].gasPhaseMolFractions.empty());
@@ -1734,4 +1750,187 @@ TEST(SwingAdsorptionInput, RepeatsCyclesWithPhaseFeedCompositionAndVelocity)
   EXPECT_DOUBLE_EQ(swing.subStages[0].velocity, 0.1);
   EXPECT_DOUBLE_EQ(swing.subStages[1].velocity, 0.4);
   EXPECT_EQ(swing.subStages[1].moleFractions, regeneration.gasPhaseMolFractions);
+}
+
+/**
+ * \brief Writes `data` to a temporary input file and returns the message the InputReader rejects it with.
+ */
+static std::string inputRejectionMessage(const nlohmann::json& data, const std::string& fileName)
+{
+  const std::filesystem::path path = testTemporaryDirectory() / fileName;
+  std::ofstream(path) << data;
+  try
+  {
+    InputReader reader(path.string());
+  }
+  catch (const std::runtime_error& error)
+  {
+    return error.what();
+  }
+  return {};
+}
+
+static nlohmann::json makeTimeTestInput()
+{
+  nlohmann::json data = makeBulkWaterGasShiftInput();
+  data.erase("Reactions");
+  return data;
+}
+
+TEST(TimeInput, RejectsStepBasedKeysWithTheConvertedTimes)
+{
+  // The same cases as tests/test_convert.py, which checks that convert.py writes these times.
+  nlohmann::json rk3 = makeTimeTestInput();
+  rk3.erase("SimulationTime");
+  rk3["TimeStep"] = 0.002;
+  rk3["NumberOfTimeSteps"] = 750000;
+  rk3["WriteEvery"] = 1000;
+  rk3["PrintEvery"] = 50000;
+  const std::string rk3Message = inputRejectionMessage(rk3, "ruptura_step_keys_rk3.json");
+  EXPECT_NE(rk3Message.find(R"(with:    "TimeStep": 0.002, "SimulationTime": 1500, "WriteInterval": 2)"),
+            std::string::npos)
+      << rk3Message;
+  EXPECT_NE(rk3Message.find("PrintEvery has no replacement"), std::string::npos) << rk3Message;
+  EXPECT_NE(rk3Message.find("python convert.py"), std::string::npos) << rk3Message;
+
+  nlohmann::json cvode = rk3;
+  cvode["BreakthroughIntegrator"] = "CVODE";
+  const std::string cvodeMessage = inputRejectionMessage(cvode, "ruptura_step_keys_cvode.json");
+  EXPECT_NE(cvodeMessage.find(R"(with:    "SimulationTime": 1500, "WriteInterval": 2)"), std::string::npos)
+      << cvodeMessage;
+  EXPECT_NE(cvodeMessage.find("TimeStep is not used with CVODE"), std::string::npos) << cvodeMessage;
+
+  nlohmann::json swing = makeTimeTestInput();
+  swing.erase("SimulationTime");
+  swing.erase("TimeStep");
+  swing["SimulationType"] = "SwingAdsorption";
+  swing["SwingAdsorptionPhases"] = {{{"Name", "Adsorption"}, {"NumberOfTimeSteps", 1000000}},
+                                    {{"Name", "Regeneration"}, {"InletPressure", 1.0e5}, {"NumberOfTimeSteps", 2000000}}};
+  const std::string swingMessage = inputRejectionMessage(swing, "ruptura_step_keys_swing.json");
+  EXPECT_NE(swingMessage.find(R"(Add:     "WriteInterval": 5)"), std::string::npos) << swingMessage;
+  EXPECT_NE(swingMessage.find(R"(SwingAdsorptionPhases[0]: replace "NumberOfTimeSteps": 1000000 with "Duration": 500)"),
+            std::string::npos)
+      << swingMessage;
+  EXPECT_NE(swingMessage.find(R"(SwingAdsorptionPhases[1]: replace "NumberOfTimeSteps": 2000000 with "Duration": 1000)"),
+            std::string::npos)
+      << swingMessage;
+  EXPECT_NE(swingMessage.find("former default TimeStep of 5e-4 s"), std::string::npos) << swingMessage;
+}
+
+TEST(TimeInput, CvodeRejectsTimeStepAndRampSteps)
+{
+  nlohmann::json data = makeTimeTestInput();
+  data["BreakthroughIntegrator"] = "CVODE";
+  EXPECT_NE(inputRejectionMessage(data, "ruptura_cvode_time_step.json").find("TimeStep is not used by CVODE"),
+            std::string::npos);
+
+  data.erase("TimeStep");
+  data["NumberOfInitTimeSteps"] = 10;
+  EXPECT_NE(inputRejectionMessage(data, "ruptura_cvode_ramp.json").find("NumberOfInitTimeSteps is not used by CVODE"),
+            std::string::npos);
+}
+
+TEST(TimeInput, SwingAdsorptionTakesItsTimeFromThePhases)
+{
+  nlohmann::json data = makeTimeTestInput();
+  data["SimulationType"] = "SwingAdsorption";
+  data["SwingAdsorptionPhases"] = {{{"Name", "Adsorption"}, {"Duration", 3.0e-4}},
+                                   {{"Name", "Regeneration"}, {"InletPressure", 1.0e5}, {"Duration", 2.0e-4}}};
+  EXPECT_NE(inputRejectionMessage(data, "ruptura_swing_simulation_time.json").find("remove SimulationTime"),
+            std::string::npos);
+
+  data.erase("SimulationTime");
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_swing_durations.json";
+  std::ofstream(path) << data;
+  InputReader reader(path.string());
+  EXPECT_FALSE(reader.autoSimulationTime);
+  EXPECT_DOUBLE_EQ(reader.simulationTime, 5.0e-4);
+}
+
+TEST(TimeInput, WarnsWhenAnIntervalIsNotAWholeNumberOfSteps)
+{
+  nlohmann::json data = makeTimeTestInput();
+  data["WriteInterval"] = 2.5e-4;
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_write_interval_warning.json";
+  std::ofstream(path) << data;
+
+  testing::internal::CaptureStderr();
+  InputReader reader(path.string());
+  const std::string warnings = testing::internal::GetCapturedStderr();
+  EXPECT_NE(warnings.find("WriteInterval (0.00025 s) is not a multiple of TimeStep (0.0001 s)"), std::string::npos)
+      << warnings;
+}
+
+TEST(TimeInput, RungeKuttaShortensOnlyTheLastStepOfAnInterval)
+{
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_rk3_intervals.json";
+  std::ofstream(path) << makeTimeTestInput();
+  InputReader reader(path.string());
+  Column column(reader);
+  column.initialize();
+
+  RungeKutta3 integrator(3.0e-5);
+  Timing timings;
+  integrator.advance(column, 0.0, 1.0e-4, timings);  // three whole steps and a shortened one of 1e-5 s
+  EXPECT_EQ(integrator.numberOfStepsTaken, 4U);
+  integrator.advance(column, 1.0e-4, 1.9e-4, timings);  // three whole steps, up to rounding
+  EXPECT_EQ(integrator.numberOfStepsTaken, 7U);
+  EXPECT_TRUE(std::ranges::all_of(column.state, [](double value) { return std::isfinite(value); }));
+}
+
+TEST(TimeInput, BreakthroughOutputsAtWholeWriteIntervalsAndAtTheEnd)
+{
+  nlohmann::json data = makeTimeTestInput();
+  data["WriteInterval"] = 2.0e-4;
+  data["SimulationTime"] = 5.0e-4;
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_output_times.json";
+  std::ofstream(path) << data;
+  InputReader reader(path.string());
+
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_output_times");
+  Breakthrough<Column> breakthrough(reader);
+  EXPECT_FALSE(breakthrough.advanceToNextOutput());
+  EXPECT_DOUBLE_EQ(breakthrough.time, 2.0e-4);
+  EXPECT_FALSE(breakthrough.advanceToNextOutput());
+  EXPECT_DOUBLE_EQ(breakthrough.time, 4.0e-4);
+  EXPECT_TRUE(breakthrough.advanceToNextOutput());
+  EXPECT_DOUBLE_EQ(breakthrough.time, 5.0e-4);
+  EXPECT_EQ(breakthrough.rk3.numberOfStepsTaken, 5U);
+}
+
+TEST(TimeInput, SwingWritesAnOutputAtAPhaseStartUnderThatPhasesConditions)
+{
+  nlohmann::json data = makeTimeTestInput();
+  data.erase("SimulationTime");
+  data["SimulationType"] = "SwingAdsorption";
+  data["WriteInterval"] = 2.0e-4;
+  data["SwingAdsorptionPhases"] = {{{"Name", "Adsorption"}, {"Duration", 2.0e-4}},
+                                   {{"Name", "Regeneration"}, {"Temperature", 600.0}, {"Duration", 2.0e-4}}};
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_swing_output_order.json";
+  std::ofstream(path) << data;
+  InputReader reader(path.string());
+
+  const std::filesystem::path outputDirectory = testTemporaryDirectory() / "ruptura_swing_output_order";
+  {
+    WorkingDirectoryGuard workingDirectory(outputDirectory);
+    SwingAdsorption<Column> swing(reader);
+    swing.run();
+  }
+
+  // column.data: time [min] in column 2, position in column 3, gas temperature in column 6.
+  std::ifstream columnData(outputDirectory / "column.data");
+  std::vector<std::array<double, 3>> inletRows;
+  for (std::string line; std::getline(columnData, line);)
+  {
+    if (line.empty() || line.front() == '#') continue;
+    std::istringstream fields(line);
+    std::array<double, 6> values{};
+    for (double& value : values) fields >> value;
+    if (values[2] == 0.0) inletRows.push_back({values[1] * 60.0, values[2], values[5]});
+  }
+  ASSERT_EQ(inletRows.size(), 3U);  // the start, the phase switch, and the end
+  EXPECT_NEAR(inletRows[1][0], 2.0e-4, 1.0e-12);
+  EXPECT_DOUBLE_EQ(inletRows[0][2], 523.15);
+  EXPECT_DOUBLE_EQ(inletRows[1][2], 600.0);  // written after the second phase's conditions are applied
+  EXPECT_NEAR(inletRows[2][0], 4.0e-4, 1.0e-12);
 }

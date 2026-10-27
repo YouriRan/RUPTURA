@@ -169,12 +169,12 @@ function renderSetup() {
   const input = config(), mixture = input.SimulationType === "MixturePrediction";
   let main = card("Experiment", `<div class="form-grid">${field(describe("DisplayName", "Simulation name", null, null, "text"))}${field(describe("SimulationType", "Simulation type", "Breakthrough", state.schema.types))}</div>`);
   main += card("Operating conditions", fields("operating"), "The conditions shared by your components and column.");
-  main += mixture ? card("Pressure range", fields("pressure")) : card("Time integration", fields("integration"), "Fixed steps for reproducible runs, or enter auto to run until breakthrough.");
+  main += mixture ? card("Pressure range", fields("pressure")) : card("Time integration", fields("integration", [], item => !(input.BreakthroughIntegrator === "CVODE" && ["TimeStep","NumberOfInitTimeSteps"].includes(item.key)) && !(input.BreakthroughIntegrator === "SIRK3" && item.key === "ConvectionScheme") && !(input.SimulationType === "SwingAdsorption" && item.key === "SimulationTime")), "Times are in seconds; enter auto to run until breakthrough. CVODE chooses its own steps.");
   if (!mixture && input.BreakthroughIntegrator === "CVODE") main += card("CVODE controls", fields("cvode"));
   if (input.FluidPhase === "Liquid") main += card("Liquid & pH", fields("liquid"), "The acid/base component is a zero-based index from the component list.");
   if (input.SimulationType === "SwingAdsorption") {
     main += card("Swing phases", (input.SwingAdsorptionPhases || []).map((phase, i) => `<div class="site"><div class="site-header"><strong>Phase ${i + 1}</strong><button class="icon-button" data-action="remove-phase" data-index="${i}" aria-label="Remove phase ${i + 1}">✕</button></div><div class="form-grid">${[
-      describe("Name", "Phase name", null, null, "text"), describe("Temperature", "Temperature [K] (blank inherits)"), describe("InletPressure", "Inlet pressure [Pa] (blank inherits)"), describe("NumberOfTimeSteps", "Time steps", 1000)
+      describe("Name", "Phase name", null, null, "text"), describe("Temperature", "Temperature [K] (blank inherits)"), describe("InletPressure", "Inlet pressure [Pa] (blank inherits)"), describe("Duration", "Duration [s]", 1)
     ].map(def => field(def, ["SwingAdsorptionPhases", i])).join("")}</div></div>`).join("") + `<button class="button" data-action="add-phase">＋ Add phase</button>`);
   }
   const secondary = card("Column at a glance", diagram() + `<div class="mini-spec"><span>Geometry</span><strong>${escapeHtml(input.Geometry?.Type || "PackedBed")}</strong></div><div class="mini-spec"><span>Components</span><strong>${input.Components.length}</strong></div><div class="mini-spec"><span>Inlet pressure</span><strong>${format((input.InletPressure ?? 0) / 1000)} kPa</strong></div>`, "A view of your current configuration.");
@@ -456,8 +456,8 @@ function changeField(target) {
   if (target.type !== "checkbox" && value === "") {
     if (typeof path.at(-1) === "number") { target.setCustomValidity("Enter a value for this parameter."); target.reportValidity(); return; }
     value = undefined;
-  } else if (target.type === "number" || (path.at(-1) === "NumberOfTimeSteps" && value !== "auto") || (path[0] === "Reactions" && ["Reactants","Products"].includes(path[2]))) {
-    value = Number(value); if (!Number.isFinite(value)) { target.setCustomValidity("Enter a finite number or auto for time steps."); target.reportValidity(); return; }
+  } else if (target.type === "number" || (path.at(-1) === "SimulationTime" && value !== "auto") || (path[0] === "Reactions" && ["Reactants","Products"].includes(path[2]))) {
+    value = Number(value); if (!Number.isFinite(value)) { target.setCustomValidity("Enter a finite number, or auto for the simulation time."); target.reportValidity(); return; }
   }
   target.setCustomValidity(""); initializeReactionArray(path); setPath(config(),path,value);
   let refresh = target.tagName === "SELECT" || target.type === "checkbox";
@@ -471,11 +471,15 @@ function changeField(target) {
   if (path.length === 1 && ["ColumnVoidFraction","ParticleDiameter"].includes(path[0]) && config().Geometry?.[path[0]] === previous) setPath(config(),["Geometry",path[0]],value);
   if (path.at(-1) === "CarrierGas" && value) config().Components.forEach((item,i) => { if (i !== path[1]) delete item.CarrierGas; });
   if (path[0] === "FluidPhase" && value === "Liquid") { config().Components.forEach(item => delete item.CarrierGas); config().MixturePredictionMethod = "SPI"; }
-  if (path[0] === "SimulationType" && value === "SwingAdsorption" && !config().SwingAdsorptionPhases?.length) config().SwingAdsorptionPhases = [{Name:"Adsorption",NumberOfTimeSteps:500},{Name:"Regeneration",InletPressure:20000,NumberOfTimeSteps:500}];
+  if (path[0] === "SimulationType" && value === "SwingAdsorption" && !config().SwingAdsorptionPhases?.length) config().SwingAdsorptionPhases = [{Name:"Adsorption",Duration:1},{Name:"Regeneration",InletPressure:20000,Duration:1}];
+  // The phase durations set the simulated time of a swing run; CVODE chooses its own steps.
+  if (path[0] === "SimulationType" && value === "SwingAdsorption") delete config().SimulationTime;
+  if (path[0] === "BreakthroughIntegrator" && value === "CVODE") { delete config().TimeStep; delete config().NumberOfInitTimeSteps; }
   if (path[0] === "SimulationType" && value === "MixturePrediction") Object.assign(config(),{PressureStart:config().PressureStart ?? 1,PressureEnd:config().PressureEnd ?? 1e6,NumberOfPressurePoints:config().NumberOfPressurePoints ?? 100});
   if (path[0] === "SimulationType" && ["Breakthrough","SwingAdsorption"].includes(value)) {
-    for(const key of ["Geometry","BoundaryCondition","InletPressure","ColumnEntranceVelocity","ColumnLength","ColumnVoidFraction","ParticleDensity","ParticleDiameter","DynamicViscosity","BreakthroughIntegrator","NumberOfTimeSteps","TimeStep","PrintEvery","WriteEvery","NumberOfGridPoints"])
+    for(const key of ["Geometry","BoundaryCondition","InletPressure","ColumnEntranceVelocity","ColumnLength","ColumnVoidFraction","ParticleDensity","ParticleDiameter","DynamicViscosity","BreakthroughIntegrator","TimeStep","WriteInterval","NumberOfGridPoints",...(value === "Breakthrough" ? ["SimulationTime"] : [])])
       if(config()[key]===undefined) config()[key]=clone(state.presets.breakthrough[key]);
+    if (config().BreakthroughIntegrator === "CVODE") delete config().TimeStep;
   }
   if (path[0] === "Reactions" && path.at(-1) === "Style" && value !== "GeneralPowerLaw") config().Reactions[path[1]].Phase = "PoreConcentration";
   if (path.includes("ColumnSections") || path.at(-1) === "AdsorbentLength") syncLengths();
@@ -578,7 +582,7 @@ async function action(name,button) {
     }
     case "add-site": { const key=button.dataset.kind; const site={Type:"Langmuir",Parameters:[1,1e-5]}; if(key==="ChemisorptionSites") Object.assign(site,{RateEquation:"FirstOrder",RateEquationParameters:{MassTransferCoefficient:.04},MaximumLoading:.8,HeatOfAdsorption:42000}); (config().Components[index][key]??=[]).push(site); renderContent(); scheduleSave(); break; }
     case "remove-site": { const path=JSON.parse(button.dataset.path); getPath(config(),path.slice(0,-1)).splice(path.at(-1),1); renderContent(); scheduleSave(); break; }
-    case "add-phase": (config().SwingAdsorptionPhases??=[]).push({Name:`Phase ${(config().SwingAdsorptionPhases||[]).length+1}`,NumberOfTimeSteps:500}); renderContent(); scheduleSave(); break;
+    case "add-phase": (config().SwingAdsorptionPhases??=[]).push({Name:`Phase ${(config().SwingAdsorptionPhases||[]).length+1}`,Duration:1}); renderContent(); scheduleSave(); break;
     case "remove-phase": config().SwingAdsorptionPhases.splice(index,1); renderContent(); scheduleSave(); break;
     case "add-bed": {
       const input=config(),mixed=input.Adsorbents[0].MixFraction!==undefined;

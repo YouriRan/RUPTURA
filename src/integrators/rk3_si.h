@@ -17,24 +17,30 @@ struct SemiImplicitRungeKutta3
    * \brief Constructs the integrator from parsed input settings.
    */
   SemiImplicitRungeKutta3(const InputReader& inputReader)
-      : timeStep(inputReader.timeStep),
-        autoNumberOfSteps(inputReader.autoNumberOfTimeSteps),
-        numberOfSteps(inputReader.numberOfTimeSteps) {};
+      : timeStep(inputReader.timeStep), numberOfInitTimeSteps(inputReader.numberOfInitTimeSteps) {};
 
   /**
    * \brief Constructs the integrator from explicit time-step settings.
    */
-  SemiImplicitRungeKutta3(double timeStep, bool autoNumberOfSteps, size_t numberOfSteps)
-      : timeStep(timeStep), autoNumberOfSteps(autoNumberOfSteps), numberOfSteps(numberOfSteps) {};
+  SemiImplicitRungeKutta3(double timeStep, size_t numberOfInitTimeSteps = 0)
+      : timeStep(timeStep), numberOfInitTimeSteps(numberOfInitTimeSteps) {};
 
-  double timeStep;         ///< Integration time step in s.
-  bool autoNumberOfSteps;  ///< Continue until breakthrough criterion when true.
-  size_t numberOfSteps;    ///< Requested number of integration steps.
+  double timeStep;               ///< Integration time step in s.
+  size_t numberOfInitTimeSteps;  ///< Number of initial steps over which the step ramps up from 1e-4 timeStep.
+  size_t numberOfStepsTaken{0};  ///< Steps taken so far; drives the initial ramp.
 
   /**
-   * \brief Advances the column by one semi-implicit RK3 step.
+   * \brief Advances the column from startTime to endTime in s.
+   *
+   * Takes steps of timeStep (ramped during the first numberOfInitTimeSteps steps); the last step is shortened to
+   * land on endTime unless the interval is a whole number of steps.
    */
-  bool propagate(Column& column, size_t step, Timing& timings);
+  void advance(Column& column, double startTime, double endTime, Timing& timings);
+
+  /**
+   * \brief Advances the column by one semi-implicit RK3 step of size dt in s, starting at startTime in s.
+   */
+  void step(Column& column, double startTime, double dt, Timing& timings);
 };
 
 /**

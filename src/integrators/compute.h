@@ -43,12 +43,17 @@ void computeReactionDerivatives(
 
 /**
  * \brief Computes concentration derivatives from explicit arrays.
+ *
+ * With WENO3 the convective face values are reconstructed with computeWENO: in the gas phase the mole fractions,
+ * with the total molar flux v c_tot kept upwind (the flux that the velocity closures conserve), in the liquid phase
+ * the concentrations.
  */
 void computeMassDerivatives(const std::vector<Component>& components, size_t numberOfGridPoints,
                             size_t numberOfComponents, double resolution,
                             std::span<const double> interstitialGasVelocity,
                             std::span<const double> concentration, std::span<double> concentrationDot,
-                            std::span<const double> bulkSpeciesSink);
+                            std::span<const double> bulkSpeciesSink, Column::ConvectionScheme convectionScheme,
+                            Column::FluidPhase fluidPhase);
 
 /**
  * \brief Computes gas, solid, and wall temperature derivatives from explicit arrays.
@@ -70,6 +75,17 @@ void computeEnergyDerivatives(
     std::span<const double> reactionHeat = {});
 
 /**
- * \brief Reconstructs a one-dimensional signal with the WENO stencil.
+ * \brief Third-order WENO face values on a uniform grid (v > 0).
+ *
+ * values[0] is the inlet value at the inlet face z_0, and values[i], i >= 1, the value of the cell (z_{i-1}, z_i].
+ * faces[i] is the value at the face z_i reconstructed from the upstream side: faces[0] = values[0], and the outlet
+ * face takes the last cell value (first order).
  */
-void computeWENO(std::span<const double> input, std::span<double> output);
+void computeWENO(std::span<const double> values, std::span<double> faces);
+
+/**
+ * \brief Third-order WENO face values on the grid with node positions columnDistances (z_0 ... z_N).
+ *
+ * Same conventions as the uniform overload, to which it reduces for equal spacings.
+ */
+void computeWENO(std::span<const double> values, std::span<const double> columnDistances, std::span<double> faces);

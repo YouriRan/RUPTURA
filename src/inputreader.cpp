@@ -917,6 +917,109 @@ static double geometryRequiredDouble(const nlohmann::json& object, std::initiali
   return getNumberOrThrow<double>(*value, std::string{*keys.begin()}, "Geometry");
 }
 
+/**
+ * \brief Rejects the step-based time keys of RUPTURA 2 and gives their replacement in s.
+ *
+ * The replacement follows the same rules as convert.py, which rewrites a whole input file:
+ * SimulationTime = NumberOfTimeSteps * TimeStep, WriteInterval = WriteEvery * TimeStep (WriteEvery defaults to
+ * 10000), phase Duration = NumberOfTimeSteps * TimeStep (TimeStep defaults to 5e-4 s), PrintEvery is dropped, and
+ * TimeStep and NumberOfInitTimeSteps are dropped for CVODE.
+ */
+static void rejectStepBasedTimeKeys(const nlohmann::json& input, const std::string& fileName)
+{
+  if (!input.is_object()) return;
+
+  const nlohmann::json* integrator = findKeyCaseInsensitive(input, "BreakthroughIntegrator");
+  const bool cvode = integrator != nullptr && integrator->is_string() &&
+                     caseInSensStringCompare(integrator->get<std::string>(), "CVODE");
+  const nlohmann::json* timeStepValue = findKeyCaseInsensitive(input, "TimeStep");
+  const nlohmann::json* initSteps = findKeyCaseInsensitive(input, "NumberOfInitTimeSteps");
+  const nlohmann::json* steps = findKeyCaseInsensitive(input, "NumberOfTimeSteps");
+  const nlohmann::json* writeEvery = findKeyCaseInsensitive(input, "WriteEvery");
+  const nlohmann::json* printEvery = findKeyCaseInsensitive(input, "PrintEvery");
+  const nlohmann::json* phases = findKeyCaseInsensitive(input, "SwingAdsorptionPhases");
+  const bool hasPhases = phases != nullptr && phases->is_array();
+  const bool hasPhaseSteps =
+      hasPhases && std::any_of(phases->begin(), phases->end(), [](const nlohmann::json& phase)
+                               { return phase.is_object() && findKeyCaseInsensitive(phase, "NumberOfTimeSteps"); });
+
+  const std::string legacyName = "_legacy_" + std::filesystem::path{fileName}.filename().string();
+  const std::string convertHint = std::format(
+      "Run 'python convert.py {}' to convert the file; the original is kept as {}.", fileName, legacyName);
+
+  if (steps == nullptr && writeEvery == nullptr && printEvery == nullptr && !hasPhaseSteps)
+  {
+    if (cvode && timeStepValue != nullptr)
+    {
+      throw std::runtime_error(
+          "Error: TimeStep is not used by CVODE, which chooses its own internal steps (capped by "
+          "CVODEMaximumTimeStep); remove it and set the output interval with WriteInterval.\n" +
+          convertHint);
+    }
+    if (cvode && initSteps != nullptr)
+    {
+      throw std::runtime_error("Error: NumberOfInitTimeSteps is not used by CVODE; remove it.\n" + convertHint);
+    }
+    return;
+  }
+
+  const double timeStep =
+      timeStepValue != nullptr && timeStepValue->is_number() ? timeStepValue->get<double>() : 0.0005;
+  const auto seconds = [&](const nlohmann::json& count)
+  { return count.is_number() ? std::format("{:.12g}", count.get<double>() * timeStep) : count.dump(); };
+  const auto append = [](std::string& list, const std::string& item)
+  { list += (list.empty() ? "" : ", ") + item; };
+
+  std::string removed;
+  if (timeStepValue != nullptr) append(removed, "\"TimeStep\": " + timeStepValue->dump());
+  if (cvode && initSteps != nullptr) append(removed, "\"NumberOfInitTimeSteps\": " + initSteps->dump());
+  if (steps != nullptr) append(removed, "\"NumberOfTimeSteps\": " + steps->dump());
+  if (writeEvery != nullptr) append(removed, "\"WriteEvery\": " + writeEvery->dump());
+  if (printEvery != nullptr) append(removed, "\"PrintEvery\": " + printEvery->dump());
+
+  std::string replacement;
+  if (timeStepValue != nullptr && !cvode) append(replacement, "\"TimeStep\": " + timeStepValue->dump());
+  if (steps != nullptr && !hasPhases)
+  {
+    append(replacement, steps->is_string() ? std::string{"\"SimulationTime\": \"auto\""}
+                                           : "\"SimulationTime\": " + seconds(*steps));
+  }
+  append(replacement, "\"WriteInterval\": " + (writeEvery != nullptr ? seconds(*writeEvery) : seconds(10000)));
+
+  std::string message = "Error: step-based time keys were replaced by times in s.\n";
+  message += removed.empty() ? "  Add:     " + replacement + "\n"
+                             : "  Replace: " + removed + "\n  with:    " + replacement + "\n";
+  if (hasPhases)
+  {
+    for (size_t i = 0; i < phases->size(); ++i)
+    {
+      const nlohmann::json& phase = (*phases)[i];
+      const nlohmann::json* phaseSteps = phase.is_object() ? findKeyCaseInsensitive(phase, "NumberOfTimeSteps") : nullptr;
+      if (phaseSteps == nullptr) continue;
+      message += std::format("  SwingAdsorptionPhases[{}]: replace \"NumberOfTimeSteps\": {} with \"Duration\": {}\n",
+                             i, phaseSteps->dump(), seconds(*phaseSteps));
+    }
+  }
+  if (cvode && timeStepValue != nullptr)
+  {
+    message += "CVODE chooses its own internal steps, so TimeStep is not used with CVODE.\n";
+  }
+  if (timeStepValue == nullptr)
+  {
+    message += "The step counts were converted with the former default TimeStep of 5e-4 s.\n";
+  }
+  if (steps != nullptr && hasPhases)
+  {
+    message += "The phase durations set the simulated time of a SwingAdsorption run, so the root NumberOfTimeSteps "
+               "has no replacement.\n";
+  }
+  if (printEvery != nullptr)
+  {
+    message += "Progress is printed at every output, so PrintEvery has no replacement.\n";
+  }
+  throw std::runtime_error(message + convertHint);
+}
+
 InputReader::InputReader(const std::string fileName) : components()
 {
   components.reserve(16);
@@ -933,12 +1036,14 @@ InputReader::InputReader(const std::string fileName) : components()
   }
 
   const nlohmann::json parsed_data = readJson(fileInput);
+  rejectStepBasedTimeKeys(parsed_data, fileName);
   requireOnlyKnownKeys(parsed_data,
                        {"SimulationType",
                         "MixturePredictionMethod",
                         "MPDSettings",
                         "IASTMethod",
                         "BreakthroughIntegrator",
+                        "ConvectionScheme",
                         "BoundaryCondition",
                         "FluidPhase",
                         "LiquidDensity",
@@ -972,15 +1077,14 @@ InputReader::InputReader(const std::string fileName) : components()
                         "CVODEMaximumOrder",
                         "CVODELinearSolver",
                         "CVODEKrylovDimension",
-                        "PrintEvery",
-                        "WriteEvery",
+                        "WriteInterval",
                         "ColumnLength",
                         "ColumnDistances",
                         "NumberOfGridPoints",
                         "ColumnPressure",
                         "ColumnLoading",
                         "ColumnError",
-                        "NumberOfTimeSteps",
+                        "SimulationTime",
                         "Geometry",
                         "InfluxTemperature",
                         "wallDensity",
@@ -1145,6 +1249,14 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalMappedString(parsed_data, "BreakthroughIntegrator", breakthroughIntegrator,
                            {{"RungeKutta3", 0}, {"CVODE", 1}, {"SIRK3", 2}});
 
+  // SIRK3 builds its own implicit upwind convection matrices, so it defaults to (and only supports) Upwind.
+  if (breakthroughIntegrator == 2) convectionScheme = 0;
+  readOptionalMappedString(parsed_data, "ConvectionScheme", convectionScheme, {{"Upwind", 0}, {"WENO3", 1}});
+  if (breakthroughIntegrator == 2 && convectionScheme != 0)
+  {
+    throw std::runtime_error("Error: the SIRK3 integrator supports only ConvectionScheme Upwind");
+  }
+
   readOptionalMappedString(parsed_data, "BoundaryCondition", boundaryCondition,
                            {{"InletPressureInletVelocity", 0},
                             {"InletPressureOutletPressure", 1},
@@ -1192,8 +1304,7 @@ InputReader::InputReader(const std::string fileName) : components()
   }
   readOptionalMappedString(parsed_data, "CVODELinearSolver", cvodeLinearSolver, {{"Dense", 0}, {"SPGMR", 1}});
   readOptionalNumber<size_t>(parsed_data, "CVODEKrylovDimension", cvodeKrylovDimension);
-  readOptionalNumber<size_t>(parsed_data, "PrintEvery", printEvery);
-  readOptionalNumber<size_t>(parsed_data, "WriteEvery", writeEvery);
+  readOptionalNumber<double>(parsed_data, "WriteInterval", writeInterval);
   readOptionalNumber<double>(parsed_data, "ColumnLength", columnLength);
   readOptionalNumber<size_t>(parsed_data, "NumberOfGridPoints", numberOfGridPoints);
   if (containsKeyCaseInsensitive(parsed_data, "ColumnDistances"))
@@ -1209,25 +1320,22 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalNumber<size_t>(parsed_data, "ColumnLoading", columnLoading);
   readOptionalNumber<size_t>(parsed_data, "ColumnError", columnError);
 
-  if (containsKeyCaseInsensitive(parsed_data, "NumberOfTimeSteps"))
+  const bool hasSimulationTime = containsKeyCaseInsensitive(parsed_data, "SimulationTime");
+  if (hasSimulationTime)
   {
-    const nlohmann::json& v = requireKeyCaseInsensitive(parsed_data, "NumberOfTimeSteps", "");
+    const nlohmann::json& v = requireKeyCaseInsensitive(parsed_data, "SimulationTime", "");
     if (v.is_string())
     {
-      std::string s = v.get<std::string>();
-      if (caseInSensStringCompare(s, "auto"))
+      if (!caseInSensStringCompare(v.get<std::string>(), "auto"))
       {
-        autoNumberOfTimeSteps = true;
+        throw std::runtime_error("Error: SimulationTime must be a time in s or 'auto'");
       }
-      else
-      {
-        throw std::runtime_error("Error: NumberOfTimeSteps must be integer or 'auto'");
-      }
+      autoSimulationTime = true;
     }
     else
     {
-      numberOfTimeSteps = getNumberOrThrow<std::size_t>(v, "NumberOfTimeSteps", "");
-      autoNumberOfTimeSteps = false;
+      simulationTime = getNumberOrThrow<double>(v, "SimulationTime", "");
+      autoSimulationTime = false;
     }
   }
 
@@ -1390,7 +1498,7 @@ InputReader::InputReader(const std::string fileName) : components()
       }
 
       requireOnlyKnownKeys(value,
-                           {"Name", "Temperature", "InletPressure", "NumberOfTimeSteps", "GasPhaseMolFractions",
+                           {"Name", "Temperature", "InletPressure", "Duration", "GasPhaseMolFractions",
                             "ColumnEntranceVelocity"},
                            context);
 
@@ -1417,40 +1525,16 @@ InputReader::InputReader(const std::string fileName) : components()
       }
       phaseFeedByName.push_back(std::move(feedByName));
 
-      const nlohmann::json* numberOfSteps = findKeyCaseInsensitive(value, "NumberOfTimeSteps");
-      if (numberOfSteps == nullptr)
+      const nlohmann::json* duration = findKeyCaseInsensitive(value, "Duration");
+      if (duration == nullptr)
       {
-        throw std::runtime_error("Error: required key 'NumberOfTimeSteps' missing (" + context + ")");
+        throw std::runtime_error("Error: required key 'Duration' missing (" + context + ")");
       }
-
-      bool parsedNumberOfSteps = false;
-      try
+      phase.duration = getNumberOrThrow<double>(*duration, "Duration", context);
+      if (!std::isfinite(phase.duration) || phase.duration <= 0.0)
       {
-        if (numberOfSteps->is_number_unsigned())
-        {
-          phase.numberOfSteps = numberOfSteps->get<size_t>();
-          parsedNumberOfSteps = true;
-        }
-        else if (numberOfSteps->is_number_integer())
-        {
-          const std::int64_t integer = numberOfSteps->get<std::int64_t>();
-          if (integer >= 0)
-          {
-            phase.numberOfSteps = static_cast<size_t>(integer);
-            parsedNumberOfSteps = true;
-          }
-        }
-      }
-      catch (const nlohmann::json::exception&)
-      {
-      }
-      if (!parsedNumberOfSteps)
-      {
-        throw std::runtime_error("Error: key 'NumberOfTimeSteps' must be a non-negative integer (" + context + ")");
-      }
-      if (phase.numberOfSteps == 0)
-      {
-        throw std::runtime_error("Error: SwingAdsorption phase NumberOfTimeSteps must be positive (" + context + ")");
+        throw std::runtime_error("Error: SwingAdsorption phase Duration must be a positive time in s (" + context +
+                                 ")");
       }
       swingAdsorptionPhases.push_back(phase);
     }
@@ -1503,10 +1587,15 @@ InputReader::InputReader(const std::string fileName) : components()
       inletPressure = *firstPhase.inletPressure;
     }
 
-    numberOfTimeSteps =
-        std::accumulate(swingAdsorptionPhases.begin(), swingAdsorptionPhases.end(), size_t{0},
-                        [](size_t total, const SwingAdsorptionPhase& phase) { return total + phase.numberOfSteps; });
-    autoNumberOfTimeSteps = false;
+    if (hasSimulationTime)
+    {
+      throw std::runtime_error(
+          "Error: the SwingAdsorptionPhases durations set the simulated time; remove SimulationTime");
+    }
+    simulationTime =
+        std::accumulate(swingAdsorptionPhases.begin(), swingAdsorptionPhases.end(), 0.0,
+                        [](double total, const SwingAdsorptionPhase& phase) { return total + phase.duration; });
+    autoSimulationTime = false;
   }
 
   // Components
@@ -2591,10 +2680,40 @@ InputReader::InputReader(const std::string fileName) : components()
     requireConfigured(columnVoidFraction > 0.0,
                       "Error: void-fraction of the column not set or invalid (Use e.g.: 'ColumnVoidFraction 0.4')");
     requireConfigured(particleDensity >= 0.0, "Error: particle density not set (Use e.g.: 'ParticleDensity 1408.2')");
+    requireConfigured(std::isfinite(writeInterval) && writeInterval > 0.0,
+                      "Error: WriteInterval must be a positive time in s (Use e.g.: 'WriteInterval 5')");
+    if (breakthroughIntegrator != 1)
+    {
+      requireConfigured(std::isfinite(timeStep) && timeStep > 0.0,
+                        "Error: TimeStep must be a positive time in s (Use e.g.: 'TimeStep 0.0005')");
+      // The integrators land on every output time and phase end, so an interval that is not a whole number of
+      // steps ends with a shortened step.
+      const auto warnIfNotMultipleOfTimeStep = [&](double interval, const std::string& name)
+      {
+        const double steps = interval / timeStep;
+        if (std::abs(steps - std::round(steps)) > 1.0e-6)
+        {
+          std::print(stderr,
+                     "Warning: {} ({:g} s) is not a multiple of TimeStep ({:g} s); the last step of each such interval is "
+                     "shortened.\n",
+                     name, interval, timeStep);
+        }
+      };
+      warnIfNotMultipleOfTimeStep(writeInterval, "WriteInterval");
+      if (simulationType == SimulationType::Breakthrough && !autoSimulationTime)
+      {
+        warnIfNotMultipleOfTimeStep(simulationTime, "SimulationTime");
+      }
+      for (size_t phaseIndex = 0; phaseIndex < swingAdsorptionPhases.size(); ++phaseIndex)
+      {
+        warnIfNotMultipleOfTimeStep(swingAdsorptionPhases[phaseIndex].duration,
+                                    "The Duration of SwingAdsorption phase " + std::to_string(phaseIndex + 1));
+      }
+    }
     if (simulationType == SimulationType::Breakthrough)
     {
-      requireConfigured(numberOfTimeSteps != 0 || autoNumberOfTimeSteps,
-                        "Error: number of time steps not set (Use e.g.: 'NumberOfTimeSteps 5000000')");
+      requireConfigured(autoSimulationTime || (std::isfinite(simulationTime) && simulationTime > 0.0),
+                        "Error: SimulationTime must be a positive time in s or 'auto' (Use e.g.: 'SimulationTime 3600')");
     }
     else
     {
@@ -2602,8 +2721,9 @@ InputReader::InputReader(const std::string fileName) : components()
       for (size_t phaseIndex = 0; phaseIndex < swingAdsorptionPhases.size(); ++phaseIndex)
       {
         const SwingAdsorptionPhase& phase = swingAdsorptionPhases[phaseIndex];
-        requireConfigured(phase.numberOfSteps != 0, "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) +
-                                                        " must have a positive number of time steps");
+        requireConfigured(std::isfinite(phase.duration) && phase.duration > 0.0,
+                          "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) +
+                              " must have a positive Duration in s");
         if (phase.temperature.has_value())
         {
           requireConfigured(

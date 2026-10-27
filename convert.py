@@ -1,14 +1,26 @@
-"""Convert a legacy RUPTURA text input file to the JSON input format.
+"""Convert a legacy RUPTURA input file to the current JSON input format.
 
-The legacy text format is deprecated.  This converter covers every setting
-accepted by the original text InputReader.  ``PulseBreakthrough`` and
-``PulseTime`` have no equivalent in the JSON reader; conversion fails if they
-are present unless ``--allow-lossy`` is supplied.
+Two kinds of input are converted:
+
+* The deprecated text format.  This converter covers every setting accepted by
+  the original text InputReader.  ``PulseBreakthrough`` and ``PulseTime`` have
+  no equivalent in the JSON reader; conversion fails if they are present unless
+  ``--allow-lossy`` is supplied.
+* JSON inputs with the step-based time keys of RUPTURA 2 (``NumberOfTimeSteps``,
+  ``WriteEvery``, ``PrintEvery``, and swing-phase ``NumberOfTimeSteps``).  They
+  become times in s (``SimulationTime``, ``WriteInterval``, phase ``Duration``);
+  CVODE inputs also lose ``TimeStep`` and ``NumberOfInitTimeSteps``.  Without an
+  output path the file is converted in place and the original is kept next to it
+  as ``_legacy_<name>``.
+
+The time-key rules (see ``convert_time_keys``) are the ones the C++ InputReader
+prints when it rejects a step-based input.
 
 Examples:
-    python convert_legacy_input_to_json.py simulation.input
-    python convert_legacy_input_to_json.py simulation.input simulation.json
-    python convert_legacy_input_to_json.py --allow-lossy simulation.input
+    python convert.py simulation.input
+    python convert.py simulation.input simulation.json
+    python convert.py --allow-lossy simulation.input
+    python convert.py simulation.json
 """
 
 from __future__ import annotations
@@ -97,6 +109,100 @@ class ConversionError(ValueError):
 
 def fail(line_number: int, message: str) -> NoReturn:
     raise ConversionError(f"line {line_number}: {message}")
+
+
+# The step-based time keys of RUPTURA 2 counted steps of TimeStep; these were its defaults.
+LEGACY_TIME_STEP = 5.0e-4  # s
+LEGACY_WRITE_EVERY = 10000
+STEP_KEYS = ("numberoftimesteps", "writeevery", "printevery")
+
+
+def find_key(settings: dict[str, Any], key: str) -> str | None:
+    """Return the spelling of ``key`` in ``settings`` that the C++ reader uses, or None.
+
+    Input keys are case-insensitive.  Like the reader, an exact match wins; otherwise the first match in sorted
+    key order (the order of nlohmann::json objects) does, so a duplicate in other capitalization is ignored.
+    """
+    if key in settings:
+        return key
+    folded = key.casefold()
+    return next((name for name in sorted(settings) if name.casefold() == folded), None)
+
+
+def seconds(count: Any, time_step: float) -> Any:
+    """Return ``count`` steps of ``time_step`` in s, rounded to 12 significant digits as the C++ reader prints it."""
+    if isinstance(count, bool) or not isinstance(count, (int, float)):
+        return count
+    return float(f"{count * time_step:.12g}")
+
+
+def convert_time_keys(settings: dict[str, Any]) -> dict[str, Any] | None:
+    """Return ``settings`` with the step-based time keys replaced by times in s, or None if it has none.
+
+    SimulationTime = NumberOfTimeSteps * TimeStep ("auto" stays "auto"), WriteInterval = WriteEvery * TimeStep
+    (WriteEvery defaults to 10000), and each swing phase's Duration = NumberOfTimeSteps * TimeStep, with TimeStep
+    defaulting to 5e-4 s.  PrintEvery is dropped (progress is printed at every output), and so is the root
+    NumberOfTimeSteps of a SwingAdsorption input (the phase durations set its length).  CVODE inputs also lose
+    TimeStep and NumberOfInitTimeSteps, which only the fixed-step integrators use.
+    """
+    integrator_key = find_key(settings, "BreakthroughIntegrator")
+    cvode = integrator_key is not None and str(settings[integrator_key]).casefold() == "cvode"
+    time_step_key = find_key(settings, "TimeStep")
+    time_step_value = settings.get(time_step_key) if time_step_key is not None else None
+    time_step = (
+        float(time_step_value)
+        if isinstance(time_step_value, (int, float)) and not isinstance(time_step_value, bool)
+        else LEGACY_TIME_STEP
+    )
+    phases_key = find_key(settings, "SwingAdsorptionPhases")
+    phases = settings[phases_key] if phases_key is not None and isinstance(settings[phases_key], list) else None
+
+    has_step_keys = any(find_key(settings, key) is not None for key in STEP_KEYS) or any(
+        isinstance(phase, dict) and find_key(phase, "NumberOfTimeSteps") is not None for phase in phases or []
+    )
+    dropped_for_cvode = {"timestep", "numberofinittimesteps"} if cvode else set()
+    if not has_step_keys and not any(key.casefold() in dropped_for_cvode for key in settings):
+        return None
+
+    steps_key = find_key(settings, "NumberOfTimeSteps")
+    write_every_key = find_key(settings, "WriteEvery")
+    has_write_interval = write_every_key is not None or find_key(settings, "WriteInterval") is not None
+    converted: dict[str, Any] = {}
+    for key, value in settings.items():
+        folded = key.casefold()
+        if folded in dropped_for_cvode or folded == "printevery":
+            continue
+        if folded == "numberoftimesteps":
+            # Only the spelling the reader used counts; duplicates in other capitalization were ignored.
+            if phases is None and key == steps_key:
+                is_auto = isinstance(value, str) and value.casefold() == "auto"
+                converted["SimulationTime"] = "auto" if is_auto else seconds(value, time_step)
+                if not has_write_interval:
+                    converted["WriteInterval"] = seconds(LEGACY_WRITE_EVERY, time_step)
+                    has_write_interval = True
+            continue
+        if folded == "writeevery":
+            if key == write_every_key:
+                converted["WriteInterval"] = seconds(value, time_step)
+            continue
+        if folded == "swingadsorptionphases" and phases is not None:
+            # Each phase keeps its key order, with Duration in place of NumberOfTimeSteps.
+            converted[key] = [
+                {
+                    ("Duration" if name.casefold() == "numberoftimesteps" else name): (
+                        seconds(item, time_step) if name.casefold() == "numberoftimesteps" else item
+                    )
+                    for name, item in phase.items()
+                }
+                if isinstance(phase, dict)
+                else phase
+                for phase in value
+            ]
+            continue
+        converted[key] = value
+    if has_step_keys and not has_write_interval:
+        converted["WriteInterval"] = seconds(LEGACY_WRITE_EVERY, time_step)
+    return converted
 
 
 def first_argument(arguments: str, keyword: str, line_number: int) -> str:
@@ -358,7 +464,7 @@ def convert_text(text: str, *, allow_lossy: bool = False) -> tuple[dict[str, Any
             geometry["ColumnVoidFraction"] = output["ColumnVoidFraction"]
         output["Geometry"] = geometry
 
-    return output, lossy_messages
+    return convert_time_keys(output) or output, lossy_messages
 
 
 def default_output_path(input_path: Path) -> Path:
@@ -367,14 +473,16 @@ def default_output_path(input_path: Path) -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Convert a deprecated RUPTURA text input file to JSON.",
+        description="Convert a deprecated RUPTURA text input file, or a JSON input with step-based time keys, "
+        "to the current JSON format.",
     )
-    parser.add_argument("input", type=Path, help="legacy text input file")
+    parser.add_argument("input", type=Path, help="legacy text input file, or JSON input file (*.json)")
     parser.add_argument(
         "output",
         type=Path,
         nargs="?",
-        help="output JSON file (default: input name with .json suffix)",
+        help="output JSON file (default: input name with .json suffix; a JSON input is converted in place and "
+        "the original kept as _legacy_<name>)",
     )
     parser.add_argument(
         "--allow-lossy",
@@ -384,19 +492,49 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="overwrite an existing output file",
+        help="overwrite an existing output file (or _legacy_ archive)",
     )
     parser.add_argument(
         "--indent",
         type=int,
-        default=2,
-        help="JSON indentation level (default: 2)",
+        default=None,
+        help="JSON indentation level (default: 2, or that of the JSON input)",
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+
+    if args.input.suffix.casefold() == ".json":
+        output_path = args.output or args.input
+        archive_path = args.input.with_name("_legacy_" + args.input.name)
+        try:
+            text = args.input.read_text(encoding="utf-8")
+            settings = json.loads(text)
+            if not isinstance(settings, dict):
+                raise ConversionError(f"{args.input} is not a JSON object")
+            converted = convert_time_keys(settings)
+            if converted is None:
+                print(f"{args.input} has no step-based time keys; nothing to convert")
+                return 0
+            if output_path != args.input and output_path.exists() and not args.force:
+                raise ConversionError(f"output file {output_path} already exists; use --force to overwrite it")
+            if output_path == args.input:
+                if archive_path.exists() and not args.force:
+                    raise ConversionError(f"archive {archive_path} already exists; use --force to overwrite it")
+                archive_path.write_text(text, encoding="utf-8")
+            # Keep the indentation of the input file, so that a converted file differs only in its time keys.
+            indented = re.search(r"\n( +)\S", text)
+            indent = args.indent if args.indent is not None else (len(indented.group(1)) if indented else 2)
+            output_path.write_text(json.dumps(converted, indent=indent, ensure_ascii=False) + "\n", encoding="utf-8")
+        except (OSError, ValueError) as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 1
+        kept = f" (original kept as {archive_path})" if output_path == args.input else ""
+        print(f"Converted {args.input} -> {output_path}{kept}")
+        return 0
+
     output_path = args.output or default_output_path(args.input)
 
     warnings.warn(
@@ -413,7 +551,7 @@ def main(argv: list[str] | None = None) -> int:
         text = args.input.read_text(encoding="utf-8")
         converted, lossy_messages = convert_text(text, allow_lossy=args.allow_lossy)
         output_path.write_text(
-            json.dumps(converted, indent=args.indent, ensure_ascii=False) + "\n",
+            json.dumps(converted, indent=2 if args.indent is None else args.indent, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
     except (OSError, ConversionError) as error:

@@ -73,12 +73,14 @@ SCHEMA = {
     "operating": [field("Temperature", "Temperature [K]", 433), field("FluidPhase", "Fluid phase", "Gas", ["Gas", "Liquid"]),
                   field("MixturePredictionMethod", "Mixture method", "IAST", METHODS), field("IASTMethod", "IAST solver", "FastIAST", ["FastIAST", "NestedLoopBisection"])],
     "integration": [field("BreakthroughIntegrator", "Integrator", "RungeKutta3", ["RungeKutta3", "CVODE", "SIRK3"]),
-                    field("TimeStep", "Time step [s]", 0.0005), field("NumberOfTimeSteps", "Time steps (or auto)", "auto", kind="text"),
-                    field("NumberOfInitTimeSteps", "Initialization steps", 0), field("NumberOfGridPoints", "Grid intervals", 100),
-                    field("PrintEvery", "Log interval [steps]", 10000), field("WriteEvery", "Output interval [steps]", 10000)],
+                    field("ConvectionScheme", "Convection scheme", "WENO3", ["WENO3", "Upwind"]),
+                    field("SimulationTime", "Simulation time [s] (or auto)", "auto", kind="text"),
+                    field("WriteInterval", "Output interval [s]", 5.0), field("NumberOfGridPoints", "Grid intervals", 100),
+                    field("TimeStep", "Time step [s]", 0.0005), field("NumberOfInitTimeSteps", "Initialization steps", 0)],
     "cvode": [field("CVODERelativeTolerance", "Relative tolerance", 1e-4), field("CVODEAbsoluteToleranceConcentration", "Concentration tolerance [mol/m³]", 1e-5),
               field("CVODEAbsoluteToleranceLoading", "Loading tolerance [mol/kg]", 1e-6), field("CVODEAbsoluteToleranceTemperature", "Temperature tolerance [K]", 1e-3),
               field("CVODEMaximumTimeStep", "Maximum internal step [s] (−1 auto, 0 unlimited)", -1),
+              field("CVODEMaximumOrder", "Maximum BDF order", 5),
               field("CVODELinearSolver", "Linear solver", "Dense", ["Dense", "SPGMR"]), field("CVODEKrylovDimension", "Krylov dimension", 30)],
     "pressure": [field("PressureStart", "Start pressure [Pa]", 1), field("PressureEnd", "End pressure [Pa]", 1e6),
                  field("NumberOfPressurePoints", "Pressure points", 100), field("PressureScale", "Pressure scale", "Log", ["Log", "Linear"])],
@@ -189,14 +191,15 @@ def presets():
            "MixturePredictionMethod": "IAST", "BoundaryCondition": "InletPressureInletVelocity", "InletPressure": 100000.0,
            "ColumnEntranceVelocity": 0.08, "ColumnLength": 0.1, "ColumnVoidFraction": 0.4, "ParticleDensity": 1000.0,
            "ParticleDiameter": 0.001, "DynamicViscosity": 1.8e-5, "BreakthroughIntegrator": "RungeKutta3",
-           "NumberOfTimeSteps": 1000, "TimeStep": 0.002, "PrintEvery": 100, "WriteEvery": 10, "NumberOfGridPoints": 30,
+           "SimulationTime": 2.0, "TimeStep": 0.002, "WriteInterval": 0.02, "NumberOfGridPoints": 30,
            "Geometry": {"Type": "PackedBed", "ColumnVoidFraction": 0.4, "ParticleDiameter": 0.001},
            "Components": [{"Name": "N2", "CarrierGas": True, "GasPhaseMolFraction": 0.85, "MolecularWeight": 0.028},
                           {"Name": "CO2", "GasPhaseMolFraction": 0.15, "MassTransferCoefficient": 0.08, "AxialDispersionCoefficient": 1e-6,
                            "MolecularWeight": 0.044, "PhysisorptionSites": [{"Type": "Langmuir", "Parameters": [2.0, 2e-5]}]}]}
     liquid = copy.deepcopy(gas)
     liquid.update(DisplayName="Liquid pH-dependent adsorption", FluidPhase="Liquid", LiquidDensity=997.0, pHMode="Fixed", pHValue=6.5,
-                  MixturePredictionMethod="SPI", ColumnEntranceVelocity=0.001, DynamicViscosity=0.00089, TimeStep=0.05, NumberOfTimeSteps=400)
+                  MixturePredictionMethod="SPI", ColumnEntranceVelocity=0.001, DynamicViscosity=0.00089, TimeStep=0.05, SimulationTime=20.0,
+                  WriteInterval=0.5)
     liquid["Components"] = [{"Name": "Solute", "LiquidPhaseConcentration": 2.0, "InitialLiquidPhaseConcentration": 0.0,
                               "MassTransferCoefficient": 0.08, "AxialDispersionCoefficient": 1e-7,
                               "PhysisorptionSites": [{"Type": "pH-Langmuir", "Parameters": [2.0, 0.5, 7.0]}]}]
@@ -204,9 +207,10 @@ def presets():
     mixture.update(SimulationType="MixturePrediction", DisplayName="CO₂ equilibrium isotherm", PressureStart=1.0,
                    PressureEnd=1e6, NumberOfPressurePoints=100, PressureScale="Log")
     swing = copy.deepcopy(gas)
+    del swing["SimulationTime"]  # the phase durations set the simulated time
     swing.update(SimulationType="SwingAdsorption", DisplayName="Pressure swing adsorption", SwingAdsorptionPhases=[
-        {"Name": "Adsorption", "InletPressure": 100000.0, "NumberOfTimeSteps": 500},
-        {"Name": "Regeneration", "InletPressure": 20000.0, "NumberOfTimeSteps": 500}])
+        {"Name": "Adsorption", "InletPressure": 100000.0, "Duration": 1.0},
+        {"Name": "Regeneration", "InletPressure": 20000.0, "Duration": 1.0}])
     chem = copy.deepcopy(gas)
     chem["DisplayName"] = "CO₂ chemisorption"
     chem["Components"][1]["ChemisorptionSites"] = [{"Type": "Langmuir", "Parameters": [0.8, 2.5e-5], "RateEquation": "FirstOrder",
@@ -331,9 +335,13 @@ def migrate_qt(state):
                        "ParticleDensity": "ParticleDensity", "ParticleDiameter": "ParticleDiameter", "InletPressure": "InletPressure",
                        "PressureGradient": "PressureGradient", "Velocity": "ColumnEntranceVelocity", "Length": "ColumnLength"}
             result.update({target: column[source] for source, target in mapping.items() if source in column})
-            result.update(BreakthroughIntegrator=simulation.get("Integrator", "CVODE"), NumberOfTimeSteps="auto" if simulation.get("AutoSteps", True) else simulation.get("TimeSteps", 500000),
-                          NumberOfInitTimeSteps=simulation.get("InitSteps", 0), PrintEvery=simulation.get("PrintEvery", 10000), WriteEvery=simulation.get("WriteEvery", 10000),
-                          TimeStep=simulation.get("TimeStep", 0.0005), NumberOfGridPoints=simulation.get("GridPoints", 100))
+            integrator = simulation.get("Integrator", "CVODE")
+            result.update(BreakthroughIntegrator=integrator, WriteInterval=simulation.get("WriteInterval", 5.0),
+                          NumberOfGridPoints=simulation.get("GridPoints", 100))
+            if kind != "SwingAdsorption":  # the phase durations set the simulated time of a swing run
+                result["SimulationTime"] = "auto" if simulation.get("AutoTime", True) else simulation.get("SimulationTime", 3600.0)
+            if integrator != "CVODE":  # CVODE chooses its own internal steps
+                result.update(TimeStep=simulation.get("TimeStep", 0.0005), NumberOfInitTimeSteps=simulation.get("InitSteps", 0))
             if column.get("OutletPressure") is not None:
                 result["OutletPressure"] = column["OutletPressure"]
             geometry_type = column.get("GeometryType", "PackedBed")
@@ -377,7 +385,6 @@ def migrate_qt(state):
                         result[key if key == "InfluxTemperature" else key[0].lower() + key[1:]] = column[key]
             if kind == "SwingAdsorption":
                 result["SwingAdsorptionPhases"] = [{key: value for key, value in phase.items() if key != "Id"} for phase in simulation.get("SwingAdsorptionPhases", [])]
-                result["NumberOfTimeSteps"] = sum(phase["NumberOfTimeSteps"] for phase in result["SwingAdsorptionPhases"])
             if reactions:
                 output_reactions = []
                 for reaction in reactions:

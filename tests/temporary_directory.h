@@ -36,3 +36,26 @@ inline const std::filesystem::path& testTemporaryDirectory()
   static const Directory directory;
   return directory.path;
 }
+
+/**
+ * \brief Changes the working directory for the lifetime of the guard, e.g. for a simulation that writes its output
+ * files to the current directory.
+ */
+class WorkingDirectoryGuard
+{
+ public:
+  explicit WorkingDirectoryGuard(const std::filesystem::path& path) : originalPath(std::filesystem::current_path())
+  {
+    std::filesystem::create_directories(path);
+    std::filesystem::current_path(path);
+  }
+
+  ~WorkingDirectoryGuard()
+  {
+    std::error_code error;
+    std::filesystem::current_path(originalPath, error);
+  }
+
+ private:
+  std::filesystem::path originalPath;
+};

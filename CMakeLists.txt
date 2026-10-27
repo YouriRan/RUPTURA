@@ -259,7 +259,7 @@ set(RUPTURA_COMPILE_OPTIONS
   -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wcast-align
   -Woverloaded-virtual -Wpedantic -Wconversion -Wsign-conversion -Wno-reorder-ctor
   -Wnull-dereference -Wdouble-promotion -Wformat=2
-  -O3 $<$<BOOL:${RUPTURA_NATIVE_ARCH}>:-march=native> -ffast-math -fomit-frame-pointer -ftree-vectorize -funroll-loops
+  -O3 $<$<BOOL:${RUPTURA_NATIVE_ARCH}>:-march=native> -ffast-math -fno-finite-math-only -fomit-frame-pointer -ftree-vectorize -funroll-loops
 )
 
 set(RUPTURA_INCLUDE_DIRS

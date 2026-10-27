@@ -58,25 +58,6 @@ void disablePhysisorptionKinetics(MultibedColumn& column)
     }
   }
 }
-
-class WorkingDirectoryGuard
-{
- public:
-  explicit WorkingDirectoryGuard(const std::filesystem::path& path) : originalPath(std::filesystem::current_path())
-  {
-    std::filesystem::create_directories(path);
-    std::filesystem::current_path(path);
-  }
-
-  ~WorkingDirectoryGuard()
-  {
-    std::error_code error;
-    std::filesystem::current_path(originalPath, error);
-  }
-
- private:
-  std::filesystem::path originalPath;
-};
 }  // namespace
 
 class MultibedInterfaces : public ::testing::Test
@@ -371,9 +352,9 @@ TEST(MultibedExamples, ParseAndAdvanceWithAdsorbentSpecificParameters)
       }
     }
 
-    RungeKutta3 integrator(reader.timeStep, false, 1);
+    RungeKutta3 integrator(reader.timeStep);
     Timing timings;
-    EXPECT_TRUE(integrator.propagate(column, 0, timings));
+    integrator.step(column, 0.0, reader.timeStep, timings);
     EXPECT_TRUE(allFinite(column.state));
     EXPECT_TRUE(allFinite(column.totalPressure));
     EXPECT_TRUE(allFinite(column.interstitialGasVelocity));
@@ -467,9 +448,9 @@ TEST(MultibedUniformMix, AppliesConfiguredFractionsOverTheWholeColumn)
   EXPECT_TRUE(column.hasAdsorbentOfType[0]);
   EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[0], 1.0e-8);
 
-  RungeKutta3 integrator(reader.timeStep, false, 1);
+  RungeKutta3 integrator(reader.timeStep);
   Timing timings;
-  EXPECT_TRUE(integrator.propagate(column, 0, timings));
+  integrator.step(column, 0.0, reader.timeStep, timings);
   EXPECT_TRUE(allFinite(column.state));
 }
 
@@ -506,8 +487,8 @@ TEST(MultibedCvode, BreakthroughParsesInitializesAndPropagates)
 {
   InputReader reader(examplePath("examples/Multibed/CO2-N2-polishing/simulation.json"));
   reader.breakthroughIntegrator = static_cast<size_t>(BreakthroughIntegrationScheme::CVODE);
-  reader.autoNumberOfTimeSteps = false;
-  reader.numberOfTimeSteps = 1;
+  reader.autoSimulationTime = false;
+  reader.simulationTime = reader.timeStep;
 
   const std::filesystem::path outputDirectory =
       testTemporaryDirectory() / "ruptura_multibed_cvode_breakthrough";
@@ -515,7 +496,7 @@ TEST(MultibedCvode, BreakthroughParsesInitializesAndPropagates)
 
   Breakthrough<MultibedColumn> breakthrough(reader);
   EXPECT_EQ(breakthrough.integrationScheme, BreakthroughIntegrationScheme::CVODE);
-  EXPECT_NO_THROW(breakthrough.computeStep(0));
+  EXPECT_NO_THROW(breakthrough.advanceToNextOutput());
   EXPECT_TRUE(allFinite(breakthrough.column.state));
   EXPECT_TRUE(allFinite(breakthrough.column.stateDot));
   EXPECT_TRUE(allFinite(breakthrough.column.totalPressure));
@@ -533,10 +514,10 @@ TEST(MultibedCvode, PropagatesPoreReactionState)
   std::fill(column.poreConcentration.begin(), column.poreConcentration.end(), 0.0);
   column.poreConcentration[1U] = 0.4;
 
-  CVODE integrator(1.0e-5, false, 1);
+  CVODE integrator;
   Timing timings;
   integrator.initialize(column);
-  EXPECT_NO_THROW(integrator.propagate(column, 0, timings));
+  EXPECT_NO_THROW(integrator.advance(column, 1.0e-5, timings));
   EXPECT_TRUE(allFinite(column.state));
   EXPECT_GT(column.poreConcentration[2U], 0.0);
   EXPECT_LT(column.reactionPoreConcentrationSource[1U], 0.0);
@@ -613,7 +594,7 @@ TEST(MultibedReactions, ParsesReactionTogetherWithAdsorbents)
   ASSERT_TRUE(source);
   nlohmann::json input;
   source >> input;
-  input["NumberOfTimeSteps"] = 1;
+  input["SimulationTime"] = input.at("TimeStep");
   input["Reactions"] = nlohmann::json::array({{{"Phase", "Physisorbed"},
                                                {"Style", "GeneralPowerLaw"},
                                                {"Reactants", nlohmann::json::array({"CO2"})},
@@ -642,7 +623,7 @@ TEST(MultibedReactions, ParsesReactionTogetherWithAdsorbents)
       testTemporaryDirectory() / "ruptura_multibed_reaction_breakthrough";
   WorkingDirectoryGuard workingDirectory(runDirectory);
   Breakthrough<MultibedColumn> breakthrough(reader);
-  breakthrough.computeStep(0);
+  EXPECT_TRUE(breakthrough.advanceToNextOutput());
   EXPECT_TRUE(allFinite(breakthrough.column.state));
 }
 
@@ -701,9 +682,9 @@ TEST(MultibedReactions, PoreSourcesAreIntegratedWithoutDirectBulkTransfer)
   EXPECT_NEAR(column.bulkSpeciesSink[reactant], 0.0, 1.0e-12);
   EXPECT_NEAR(column.bulkSpeciesSink[product], 0.0, 1.0e-12);
 
-  RungeKutta3 integrator(reader.timeStep, false, 1);
+  RungeKutta3 integrator(reader.timeStep);
   Timing timings;
-  EXPECT_TRUE(integrator.propagate(column, 0, timings));
+  integrator.step(column, 0.0, reader.timeStep, timings);
   EXPECT_TRUE(allFinite(column.state));
   EXPECT_GT(column.poreConcentration[product], 0.0);
 }
@@ -802,20 +783,19 @@ TEST(MultibedSwingAdsorption, AdvancesConcreteMultibedColumnAcrossStages)
   InputReader reader(examplePath("examples/Multibed/CO2-N2-polishing/simulation.json"));
   reader.simulationType = InputReader::SimulationType::SwingAdsorption;
   reader.numberOfInitTimeSteps = 0;
-  reader.printEvery = 1;
-  reader.writeEvery = 1;
+  reader.writeInterval = reader.timeStep;
 
   InputReader::SwingAdsorptionPhase adsorption;
   adsorption.name = "adsorption";
   adsorption.temperature = reader.temperature;
   adsorption.inletPressure = reader.inletPressure;
-  adsorption.numberOfSteps = 2;
+  adsorption.duration = 2.0 * reader.timeStep;
 
   InputReader::SwingAdsorptionPhase regeneration;
   regeneration.name = "regeneration";
   regeneration.temperature = reader.temperature + 10.0;
   regeneration.inletPressure = 0.8 * reader.inletPressure;
-  regeneration.numberOfSteps = 2;
+  regeneration.duration = 2.0 * reader.timeStep;
   reader.swingAdsorptionPhases = {adsorption, regeneration};
 
   const std::filesystem::path outputDirectory = testTemporaryDirectory() / "ruptura_multibed_swing";
@@ -840,20 +820,19 @@ TEST(MultibedSwingAdsorption, AdvancesWithCvode)
   reader.simulationType = InputReader::SimulationType::SwingAdsorption;
   reader.breakthroughIntegrator = static_cast<size_t>(BreakthroughIntegrationScheme::CVODE);
   reader.numberOfInitTimeSteps = 0;
-  reader.printEvery = 1;
-  reader.writeEvery = 1;
+  reader.writeInterval = reader.timeStep;
 
   InputReader::SwingAdsorptionPhase adsorption;
   adsorption.name = "adsorption";
   adsorption.temperature = reader.temperature;
   adsorption.inletPressure = reader.inletPressure;
-  adsorption.numberOfSteps = 2;
+  adsorption.duration = 2.0 * reader.timeStep;
 
   InputReader::SwingAdsorptionPhase regeneration;
   regeneration.name = "regeneration";
   regeneration.temperature = reader.temperature + 10.0;
   regeneration.inletPressure = 0.9 * reader.inletPressure;
-  regeneration.numberOfSteps = 1;
+  regeneration.duration = reader.timeStep;
   reader.swingAdsorptionPhases = {adsorption, regeneration};
 
   const std::filesystem::path outputDirectory =

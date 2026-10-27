@@ -1,5 +1,7 @@
 #include "breakthrough.h"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <format>
 #include <fstream>
@@ -42,6 +44,28 @@ double averageMixturePredictionSteps(const ColumnType& column)
              ? 0.0
              : static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second);
 }
+
+/**
+ * \brief True when every fed component leaves the column within 1% of its feed value, which is visibly
+ * indistinguishable from a converged breakthrough.
+ */
+template <typename ColumnType>
+bool breakthroughConverged(const ColumnType& column)
+{
+  double tolerance = 0.0;
+  for (size_t comp = 0; comp < column.numberOfComponents; ++comp)
+  {
+    const bool gasPhase = static_cast<size_t>(column.fluidPhase) == 0;
+    const double feed = gasPhase ? column.components[comp].initialGasMoleFraction
+                                 : column.components[comp].inletLiquidConcentration;
+    if (feed <= 0.0) continue;
+
+    const size_t outlet = column.numberOfGridPoints * column.numberOfComponents + comp;
+    const double outletValue = gasPhase ? column.moleFraction[outlet] : column.concentration[outlet];
+    tolerance = std::max(tolerance, std::abs((outletValue / feed) - 1.0));
+  }
+  return tolerance < 0.01;
+}
 }  // namespace
 
 template <typename ColumnType>
@@ -50,12 +74,9 @@ Breakthrough<ColumnType>::Breakthrough(const InputReader& inputReader)
       carrierGasComponent(inputReader.carrierGasComponent),
       numberOfComponents(inputReader.components.size()),
       numberOfGridPoints(inputReader.numberOfGridPoints),
-      printEvery(inputReader.printEvery),
-      writeEvery(inputReader.writeEvery),
-      timeStep(inputReader.timeStep),
-      numberOfInitTimeSteps(inputReader.numberOfInitTimeSteps),
-      numberOfSteps(inputReader.numberOfTimeSteps),
-      autoNumberOfSteps(inputReader.autoNumberOfTimeSteps),
+      writeInterval(inputReader.writeInterval),
+      simulationTime(inputReader.simulationTime),
+      autoSimulationTime(inputReader.autoSimulationTime),
       maxIsothermTerms(inputReader.maxIsothermTerms),
       column(inputReader),
       rk3(inputReader),
@@ -103,91 +124,19 @@ void Breakthrough<ColumnType>::run()
   }
   std::ofstream columnStream("column.data", std::ios_base::app);
 
-  bool finished = false;
-  size_t step = 0;
-  double realTime = 0.0;
-  constexpr double initialTimeStepFraction = 1.0e-4;
-
-  if (numberOfInitTimeSteps > 0)
-  {
-    rk3.autoNumberOfSteps = false;
-    sirk3.autoNumberOfSteps = false;
-    cvode.autoNumberOfSteps = false;
-    rk3.timeStep = timeStep * initialTimeStepFraction;
-    sirk3.timeStep = timeStep * initialTimeStepFraction;
-    cvode.timeStep = timeStep * initialTimeStepFraction;
-  }
-
   try
   {
-    while (!finished)
+    bool finished = false;
+    while (true)
     {
-      const double stepTime = realTime;
+      column.writeJSON("column.json");
+      column.writeOutput(componentStreams, columnStream, time);
+      std::print("Output {}, time: {:6.5f} [s]\n", numberOfOutputs, time);
+      std::print("    Average number of mixture-prediction steps: {:6.5f}\n", averageMixturePredictionSteps(column));
+      std::fflush(stdout);
 
-      // Written before the step, so that each snapshot is labelled with the time of the state it holds.
-      if (step % writeEvery == 0)
-      {
-        column.writeJSON("column.json");
-        column.writeOutput(componentStreams, columnStream, stepTime);
-      }
-
-      switch (integrationScheme)
-      {
-        case BreakthroughIntegrationScheme::SSP_RK:
-        {
-          finished = rk3.propagate(column, step, timings);
-          realTime += rk3.timeStep;
-          break;
-        }
-        case BreakthroughIntegrationScheme::CVODE:
-        {
-          finished = cvode.propagate(column, step, timings);
-          realTime += cvode.timeStep;
-          break;
-        }
-        case BreakthroughIntegrationScheme::SIRK3:
-        {
-          if constexpr (std::is_same_v<ColumnType, Column>)
-          {
-            finished = sirk3.propagate(column, step, timings);
-            realTime += sirk3.timeStep;
-          }
-          else
-          {
-            throw std::runtime_error("Error: SIRK3 is not supported by MultibedColumn");
-          }
-          break;
-        }
-      }
-
-      if (step < numberOfInitTimeSteps)
-      {
-        const double progress = static_cast<double>(step) / static_cast<double>(numberOfInitTimeSteps);
-        const double nextTime = timeStep * (initialTimeStepFraction +
-                                            (1.0 - initialTimeStepFraction) *
-                                                (3.0 * progress * progress - 2.0 * progress * progress * progress));
-        rk3.timeStep = nextTime;
-        sirk3.timeStep = nextTime;
-        cvode.timeStep = nextTime;
-      }
-      else if (step == numberOfInitTimeSteps)
-      {
-        rk3.autoNumberOfSteps = autoNumberOfSteps;
-        sirk3.autoNumberOfSteps = autoNumberOfSteps;
-        cvode.autoNumberOfSteps = autoNumberOfSteps;
-        rk3.timeStep = timeStep;
-        sirk3.timeStep = timeStep;
-        cvode.timeStep = timeStep;
-      }
-
-      if (step % printEvery == 0)
-      {
-        std::print("Timestep {}, time: {:6.5f} [s]\n", step, stepTime);
-        std::print("    Average number of mixture-prediction steps: {:6.5f}\n", averageMixturePredictionSteps(column));
-        std::fflush(stdout);
-      }
-
-      ++step;
+      if (finished) break;
+      finished = advanceToNextOutput();
     }
   }
   catch (const std::runtime_error&)
@@ -196,28 +145,26 @@ void Breakthrough<ColumnType>::run()
     throw;
   }
 
-  column.writeOutput(componentStreams, columnStream, realTime);
-
-  std::print("Final timestep {}, time: {:6.5f} [s]\n\n", step, realTime);
+  std::print("Final time: {:6.5f} [s]\n\n", time);
   timings.print();
   if (integrationScheme == BreakthroughIntegrationScheme::CVODE) cvode.printStatistics();
 }
 
 template <typename ColumnType>
-void Breakthrough<ColumnType>::computeStep(size_t step)
+void Breakthrough<ColumnType>::advanceTo(double endTime, Timing& accumulatedTimings)
 {
   switch (integrationScheme)
   {
     case BreakthroughIntegrationScheme::SSP_RK:
-      static_cast<void>(rk3.propagate(column, step, timings));
+      rk3.advance(column, time, endTime, accumulatedTimings);
       break;
     case BreakthroughIntegrationScheme::CVODE:
-      static_cast<void>(cvode.propagate(column, step, timings));
+      cvode.advance(column, endTime, accumulatedTimings);
       break;
     case BreakthroughIntegrationScheme::SIRK3:
       if constexpr (std::is_same_v<ColumnType, Column>)
       {
-        static_cast<void>(sirk3.propagate(column, step, timings));
+        sirk3.advance(column, time, endTime, accumulatedTimings);
       }
       else
       {
@@ -225,6 +172,42 @@ void Breakthrough<ColumnType>::computeStep(size_t step)
       }
       break;
   }
+  time = endTime;
+}
+
+template <typename ColumnType>
+bool Breakthrough<ColumnType>::advanceToNextOutput()
+{
+  // Output times are computed from their index, so that they do not drift over a long run.
+  const double nextOutputTime = static_cast<double>(numberOfOutputs + 1) * writeInterval;
+  const bool reachesEnd = !autoSimulationTime && nextOutputTime >= simulationTime - 1.0e-9 * writeInterval;
+  advanceTo(reachesEnd ? simulationTime : nextOutputTime, timings);
+  ++numberOfOutputs;
+  if (reachesEnd) return true;
+
+  if (autoSimulationTime)
+  {
+    bool converged = false;
+    if (column.reactions.empty())
+    {
+      converged = breakthroughConverged(column);
+      if (converged) std::print("\nConvergence criteria reached, running 10% longer\n\n\n");
+    }
+    else
+    {
+      // RK3 leaves the rates of its last stage behind; CVODE has already evaluated them at the output state.
+      if (integrationScheme != BreakthroughIntegrationScheme::CVODE) computeDerivatives(column, time);
+      converged = reactionAutoStopReached(column);
+      if (converged) std::print("\nReaction convergence criteria reached, running 10% longer\n\n\n");
+    }
+    if (converged)
+    {
+      // 10% longer for display purposes, rounded up to a whole output interval.
+      simulationTime = static_cast<double>(numberOfOutputs + (numberOfOutputs + 9) / 10) * writeInterval;
+      autoSimulationTime = false;
+    }
+  }
+  return false;
 }
 
 template <typename ColumnType>
@@ -251,15 +234,27 @@ std::string Breakthrough<ColumnType>::repr() const
     result += std::format("Number of adsorbents:          {}\n", column.numberOfAdsorbents);
   }
   result += std::format(
-      "Number of time steps:          {}\n"
-      "Print every step:              {}\n"
-      "Write data every step:         {}\n\n\n"
+      "Simulation time:               {}\n"
+      "Write interval:                {} [s]\n\n\n"
       "Integration details\n"
-      "=======================================================\n"
-      "Time step:                     {} [s]\n"
+      "=======================================================\n",
+      autoSimulationTime ? std::string{"auto"} : std::format("{} [s]", simulationTime), writeInterval);
+  switch (integrationScheme)
+  {
+    case BreakthroughIntegrationScheme::SSP_RK:
+      result += std::format("Time step:                     {} [s]\n", rk3.timeStep);
+      break;
+    case BreakthroughIntegrationScheme::CVODE:
+      result += "Time step:                     adaptive (CVODE)\n";
+      break;
+    case BreakthroughIntegrationScheme::SIRK3:
+      result += std::format("Time step:                     {} [s]\n", sirk3.timeStep);
+      break;
+  }
+  result += std::format(
       "Number of column grid points:  {}\n"
       "Column spacing:                {} [m]\n\n\n",
-      numberOfSteps, printEvery, writeEvery, timeStep, numberOfGridPoints, column.resolution);
+      numberOfGridPoints, column.resolution);
 
   if constexpr (std::is_same_v<ColumnType, MultibedColumn>)
   {

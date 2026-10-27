@@ -180,8 +180,8 @@ Breakthrough (default type). Required:
   SimulationType, DisplayName, FluidPhase, Temperature, MixturePredictionMethod,
   BreakthroughIntegrator, BoundaryCondition plus that condition's inputs (section 6),
   DynamicViscosity, ParticleDensity, ColumnLength (single bed) or the multistack layout
-  (section 9), NumberOfGridPoints, NumberOfTimeSteps, TimeStep, PrintEvery, WriteEvery,
-  Geometry, Components. Liquids also need LiquidDensity.
+  (section 9), NumberOfGridPoints, SimulationTime, WriteInterval, TimeStep (RungeKutta3 and
+  SIRK3 only), Geometry, Components. Liquids also need LiquidDensity.
   Temperature is both the initial column temperature and the isotherm temperature.
 
 SwingAdsorption. Everything a Breakthrough needs, plus "SwingAdsorptionPhases", a non-empty
@@ -189,9 +189,9 @@ SwingAdsorption. Everything a Breakthrough needs, plus "SwingAdsorptionPhases", 
     Name               optional string
     Temperature        optional [K]; omitted = the value of the previous setting
     InletPressure      optional [Pa]; omitted = the base InletPressure
-    NumberOfTimeSteps  required positive integer ("auto" is not allowed here)
-  The phases run in array order and the total step count is their sum, so omit the root
-  NumberOfTimeSteps. Only temperature and inlet pressure can change between phases; feed
+    Duration           required phase length [s] ("auto" is not allowed here)
+  The phases run in array order and the simulated time is the sum of their durations, so omit
+  the root SimulationTime (it is an error for SwingAdsorption). Only temperature and inlet pressure can change between phases; feed
   composition, velocity, and flow direction stay fixed.
 
 MixturePrediction. Gas only. Required:
@@ -397,22 +397,25 @@ Multistacked or mixed beds. Use these only when the column contains several adso
 
   BreakthroughIntegrator: "CVODE" (adaptive BDF; robust and the recommended default),
     "RungeKutta3" (explicit; default), or "SIRK3" (semi-implicit; single adsorbent only).
-  TimeStep [s]:
-    - With CVODE, TimeStep is the output and coupling interval; CVODE subdivides it internally.
-      0.001 to 0.01 s is typical.
-    - With RungeKutta3 or SIRK3, TimeStep is the integration step. It must satisfy roughly
-      TimeStep <= 0.5 dz / v and TimeStep <= dz^2 / (2 D_ax), where dz = ColumnLength /
-      NumberOfGridPoints.
+  TimeStep [s] (RungeKutta3 and SIRK3 only):
+    - The integration step. It must satisfy roughly TimeStep <= 0.5 dz / v and
+      TimeStep <= dz^2 / (2 D_ax), where dz = ColumnLength / NumberOfGridPoints.
+    - CVODE chooses its own internal steps; an input with CVODE and TimeStep is rejected.
   NumberOfGridPoints: 100 is a good default; use at least 50.
-  NumberOfTimeSteps:
-    - "auto" runs until every outlet mole fraction is within 1% of the feed, then 10% longer.
-      Use it for adsorption breakthrough.
-    - Use an integer (run time / TimeStep) for desorption, purge, a fixed duration, or any run
-      whose outlet never reaches the feed.
-  PrintEvery, WriteEvery: integers counting steps. WriteEvery x TimeStep is the output interval;
-    keep it well below the breakthrough time, aiming for a few hundred output rows. PrintEvery
-    only controls console messages.
-  NumberOfInitTimeSteps: initialization steps (default 0). Leave it out.
+  ConvectionScheme: "WENO3" (default; third-order face values, little numerical dispersion) or
+    "Upwind" (first order; adds a numerical dispersion of about v dz / 2). Leave it out; SIRK3
+    supports only "Upwind" and uses it automatically.
+  SimulationTime [s]:
+    - "auto" runs until every outlet mole fraction is within 1% of the feed (with reactions:
+      until the column states change by less than 1e-4 of their value per second), then 10%
+      longer. Use it for adsorption breakthrough.
+    - Use a time for desorption, purge, a fixed duration, or any run whose outlet never
+      reaches the feed.
+  WriteInterval [s]: one column profile and one progress line every WriteInterval (default 5);
+    keep it well below the breakthrough time, aiming for a few hundred output rows.
+  NumberOfInitTimeSteps: RungeKutta3/SIRK3 ramp-up steps (default 0). Leave it out.
+  NumberOfTimeSteps, WriteEvery, and PrintEvery (RUPTURA 2) no longer exist; the reader rejects
+    them and prints the equivalent times.
   CVODE tuning keys: add them only on request.
     CVODERelativeTolerance (1e-4); CVODEAbsoluteToleranceConcentration [mol/m3] (1e-5);
     CVODEAbsoluteToleranceLoading [mol/kg] (1e-6); CVODEAbsoluteToleranceTemperature [K] (1e-3);
@@ -480,7 +483,7 @@ Other root keys: "DisplayName" (label; default "Column"). Do not use "DebugForce
   Temperature 433 K | InfluxTemperature = Temperature | ColumnVoidFraction 0.4 |
   ParticleDiameter 1e-3 m | ParticleDensity 1000 kg/m3 | DynamicViscosity 1e-5 Pa s |
   LiquidDensity 1000 kg/m3 | ColumnLength 0.3 m | NumberOfGridPoints 100 | TimeStep 5e-4 s |
-  NumberOfTimeSteps "auto" | PrintEvery 10000 | WriteEvery 10000 | NumberOfPressurePoints 100 |
+  SimulationTime "auto" | WriteInterval 5 s | NumberOfPressurePoints 100 |
   PressureScale Log | PressureGradient 0 | MolecularWeight 1 kg/mol | all transport, heat, and
   thermal coefficients 0 | heatCapacityGas/Solid/Wall 1 J/(kg K) | heatCapacityLiquid 4180 |
   liquidThermalConductivity 0.6 | SimulationType Breakthrough | FluidPhase Gas |
@@ -511,8 +514,8 @@ That is why every material value must be written explicitly.
   [ ] The Geometry is complete and feasible (outer > inner; channel area < monolith area).
   [ ] Multistack: names match, the order matches, one interface between each pair of
       neighbours, grid counts all or none, no ColumnLength, no SIRK3.
-  [ ] Numerical settings are stable (RK3/SIRK3 time step), the output interval resolves the
-      breakthrough, and swing phases have integer step counts.
+  [ ] Numerical settings are stable (RK3/SIRK3 time step; no TimeStep with CVODE), the output
+      interval resolves the breakthrough, and every swing phase has a Duration in s.
   [ ] Optional blocks (energy, chemisorption, reactions, MPD, pH, CVODE tuning, restart) are
       present only when requested and are complete.
   [ ] "Assumptions and conversions" lists every conversion, estimate, and numerical choice.
@@ -536,10 +539,8 @@ Gas breakthrough, packed bed:
   "ParticleDensity": 1100.0,
   "ColumnLength": 0.2,
   "NumberOfGridPoints": 100,
-  "NumberOfTimeSteps": "auto",
-  "TimeStep": 0.001,
-  "PrintEvery": 10000,
-  "WriteEvery": 1000,
+  "SimulationTime": "auto",
+  "WriteInterval": 1.0,
   "Geometry": {"Type": "PackedBed", "ColumnVoidFraction": 0.4, "ParticleDiameter": 0.002,
                "InternalDiameter": 0.02, "OuterDiameter": 0.024},
   "Components": [
@@ -571,10 +572,8 @@ Liquid breakthrough with a fixed pH:
   "ParticleDensity": 1200.0,
   "ColumnLength": 0.1,
   "NumberOfGridPoints": 100,
-  "NumberOfTimeSteps": "auto",
-  "TimeStep": 0.01,
-  "PrintEvery": 10000,
-  "WriteEvery": 1000,
+  "SimulationTime": "auto",
+  "WriteInterval": 10.0,
   "Geometry": {"Type": "PackedBed", "ColumnVoidFraction": 0.4, "ParticleDiameter": 0.001,
                "InternalDiameter": 0.01, "OuterDiameter": 0.012},
   "Components": [
@@ -617,11 +616,10 @@ Fitting:
 
 Fragments (merge them into a full file):
 
-  Swing phases (root; omit root NumberOfTimeSteps):
+  Swing phases (root; omit root SimulationTime):
   "SwingAdsorptionPhases": [
-    {"Name": "Adsorption", "Temperature": 298.15, "InletPressure": 100000.0,
-     "NumberOfTimeSteps": 200000},
-    {"Name": "Blowdown", "InletPressure": 10000.0, "NumberOfTimeSteps": 500000}
+    {"Name": "Adsorption", "Temperature": 298.15, "InletPressure": 100000.0, "Duration": 100.0},
+    {"Name": "Blowdown", "InletPressure": 10000.0, "Duration": 250.0}
   ]
 
   Layered column (root; omit ColumnLength):

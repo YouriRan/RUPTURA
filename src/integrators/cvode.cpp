@@ -34,41 +34,14 @@ CVODE::~CVODE()
 
 namespace
 {
-template <typename ColumnType>
-bool breakthroughConverged(const ColumnType& column)
-{
-  double tolerance = 0.0;
-  for (size_t comp = 0; comp < column.numberOfComponents; ++comp)
-  {
-    const bool gasPhase = static_cast<size_t>(column.fluidPhase) == 0;
-    const double feed = gasPhase ? column.components[comp].initialGasMoleFraction
-                                 : column.components[comp].inletLiquidConcentration;
-    if (feed <= 0.0) continue;
-
-    const size_t outlet = column.numberOfGridPoints * column.numberOfComponents + comp;
-    const double outletValue = gasPhase ? column.moleFraction[outlet] : column.concentration[outlet];
-    tolerance = std::max(tolerance, std::abs((outletValue / feed) - 1.0));
-  }
-  return tolerance < 0.01;
-}
-
 template <typename ColumnType, typename EvaluationFunction>
-bool propagateCVODE(CVODE& integrator, ColumnType& column, size_t step, Timing& timings,
-                    EvaluationFunction evaluateDerivatives)
+void advanceCVODE(CVODE& integrator, ColumnType& column, double endTime, Timing& timings,
+                  EvaluationFunction evaluateDerivatives)
 {
-  const double tNext = integrator.currentTime + integrator.timeStep;
-
-  if (integrator.autoNumberOfSteps && column.reactions.empty() && breakthroughConverged(column))
-  {
-    std::print("\nConvergence criteria reached, running 10% longer\n\n\n");
-    integrator.numberOfSteps = static_cast<size_t>(1.1 * static_cast<double>(step));
-    integrator.autoNumberOfSteps = false;
-  }
-
   sunrealtype tReturn = integrator.currentTime;
   auto timer = timings.scoped(timings.total);
 
-  int flag = CVode(integrator.cvodeMem, tNext, integrator.stateVector, &tReturn, CV_NORMAL);
+  int flag = CVode(integrator.cvodeMem, endTime, integrator.stateVector, &tReturn, CV_NORMAL);
   if (flag < 0)
   {
     throw std::runtime_error("CVode failed during propagation");
@@ -76,23 +49,12 @@ bool propagateCVODE(CVODE& integrator, ColumnType& column, size_t step, Timing& 
   integrator.currentTime = tReturn;
   clampNonnegative(column.state);
 
+  // Refreshes the derived column fields (pressure, mole fractions, rates) for the interpolated state.
   flag = evaluateDerivatives(tReturn, integrator.stateVector, integrator.stateDerivativeVector, &column);
   if (flag != 0)
   {
     throw std::runtime_error("CVODE derivative evaluation failed after propagation");
   }
-
-  if (integrator.autoNumberOfSteps && !column.reactions.empty() && reactionAutoStopReached(column, integrator.timeStep))
-  {
-    std::print("\nReaction convergence criteria reached, running 10% longer\n\n\n");
-
-    const size_t minimumSteps = std::max<size_t>(step + 1, 1);
-    integrator.numberOfSteps =
-        std::max<size_t>(static_cast<size_t>(std::ceil(1.1 * static_cast<double>(minimumSteps))), 2);
-    integrator.autoNumberOfSteps = false;
-  }
-
-  return (!integrator.autoNumberOfSteps && step >= integrator.numberOfSteps - 1);
 }
 
 /**
@@ -259,14 +221,14 @@ void initializeCVODE(CVODE& integrator, ColumnType& column, EvaluationFunction e
 }
 }  // namespace
 
-bool CVODE::propagate(Column& column, size_t step, Timing& timings)
+void CVODE::advance(Column& column, double endTime, Timing& timings)
 {
-  return propagateCVODE(*this, column, step, timings, CVODE::evaluateDerivatives);
+  advanceCVODE(*this, column, endTime, timings, CVODE::evaluateDerivatives);
 }
 
-bool CVODE::propagate(MultibedColumn& column, size_t step, Timing& timings)
+void CVODE::advance(MultibedColumn& column, double endTime, Timing& timings)
 {
-  return propagateCVODE(*this, column, step, timings, CVODE::evaluateMultibedDerivatives);
+  advanceCVODE(*this, column, endTime, timings, CVODE::evaluateMultibedDerivatives);
 }
 
 void CVODE::initialize(Column& column) { initializeCVODE(*this, column, CVODE::evaluateDerivatives); }
@@ -465,7 +427,7 @@ int CVODE::evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector sta
 
   computeMassDerivatives(column->components, column->numberOfGridPoints, column->numberOfComponents, column->resolution,
                          column->interstitialGasVelocity, spanConcentration, spanConcentrationDot,
-                         column->bulkSpeciesSink);
+                         column->bulkSpeciesSink, column->convectionScheme, column->fluidPhase);
 
   if (column->energyBalance)
   {
@@ -608,7 +570,8 @@ int CVODE::evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Ve
   computeMassDerivatives(column->physisorptionMixtures, column->numberOfGridPoints, column->numberOfComponents,
                          column->numberOfAdsorbents, column->columnDistances, column->fractionOfAdsorbent,
                          column->interstitialGasVelocity, spanConcentration, spanConcentrationDot,
-                         column->bulkSpeciesSink, column->fluidPhase, column->totalVoidFraction);
+                         column->bulkSpeciesSink, column->fluidPhase, column->totalVoidFraction,
+                         column->convectionScheme);
 
   if (column->energyBalance)
   {
@@ -633,14 +596,14 @@ int CVODE::evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Ve
 
 CVODE::~CVODE() = default;
 
-bool CVODE::propagate(Column&, size_t, Timing&)
+void CVODE::advance(Column&, double, Timing&)
 {
-  throw std::runtime_error("CVODE::propagate() called, but this build was compiled without SUNDIALS support");
+  throw std::runtime_error("CVODE::advance() called, but this build was compiled without SUNDIALS support");
 }
 
-bool CVODE::propagate(MultibedColumn&, size_t, Timing&)
+void CVODE::advance(MultibedColumn&, double, Timing&)
 {
-  throw std::runtime_error("CVODE::propagate() called, but this build was compiled without SUNDIALS support");
+  throw std::runtime_error("CVODE::advance() called, but this build was compiled without SUNDIALS support");
 }
 
 void CVODE::initialize(Column&) {}

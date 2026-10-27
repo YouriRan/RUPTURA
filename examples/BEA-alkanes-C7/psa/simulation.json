@@ -12,13 +12,13 @@
       "Name": "Adsorption",
       "Temperature": 552.0,
       "InletPressure": 100000.0,
-      "NumberOfTimeSteps": 1000000
+      "Duration": 1000.0
     },
     {
       "Name": "Blowdown",
       "Temperature": 552.0,
       "InletPressure": 1000.0,
-      "NumberOfTimeSteps": 5000000
+      "Duration": 5000.0
     }
   ],
   "PressureGradient": -1000.0,
@@ -26,10 +26,7 @@
   "BoundaryCondition": "InletPressureInletVelocity",
   "BreakthroughIntegrator": "CVODE",
   "ColumnLength": 0.1,
-  "NumberOfTimeSteps": 1000000,
-  "PrintEvery": 10000,
-  "WriteEvery": 10000,
-  "TimeStep": 0.001,
+  "WriteInterval": 10.0,
   "NumberOfGridPoints": 100,
   "Components": [
     {

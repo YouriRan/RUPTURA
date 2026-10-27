@@ -144,7 +144,7 @@ def _phase_lines(figure, config, units):
     time = 0.0
     factor = 1 if units == "s" else 3600 if units == "hr" else 60
     for phase in config.get("SwingAdsorptionPhases", [])[:-1]:
-        time += phase["NumberOfTimeSteps"] * config.get("TimeStep", 0.0005)
+        time += phase["Duration"]
         figure.add_vline(x=time / factor, line_dash="dot", line_color="#9da8a4")
 
 
