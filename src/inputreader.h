@@ -36,15 +36,6 @@ struct InputReader
   InputReader(const std::string fileName);
 
   /**
-   * \brief Returns whether column simulations should use the multibed implementation.
-   *
-   * Multiple configured adsorbents select it normally. DebugForceMultibed can
-   * also select it for a single adsorbent so both implementations can be tested
-   * with otherwise identical input.
-   */
-  [[nodiscard]] bool isMultibed() const;
-
-  /**
    * \brief Enumerates the types of simulations supported.
    */
   enum class SimulationType
@@ -92,7 +83,6 @@ struct InputReader
   size_t pHMode{0};                                             ///< 0 = fixed, 1 = H+, 2 = OH-.
   size_t pHComponent{0};                                        ///< Zero-based acid/base component identifier.
   std::string displayName{"Column"};                            ///< The display name for the simulation.
-  bool debugForceMultibed{false};  ///< Forces the multibed column implementation for one adsorbent.
 
   double temperature{433.0};            ///< The simulation temperature in K.
   double columnVoidFraction{0.4};       ///< The void fraction of the packed column.

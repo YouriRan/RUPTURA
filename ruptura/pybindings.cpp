@@ -16,7 +16,6 @@
 #include <stdexcept>
 #include <string>
 #include <tuple>
-#include <type_traits>
 #include <vector>
 
 #include "breakthrough.h"
@@ -54,10 +53,9 @@ std::vector<T> spanToVector(std::span<const T> values)
   return std::vector<T>(values.begin(), values.end());
 }
 
-template <typename ColumnType>
-nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough<ColumnType>& self)
+nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough& self)
 {
-  ColumnType& column = self.column;
+  Column& column = self.column;
   const size_t columnSize = 5 * self.numberOfComponents + 5;
   auto* buffer = new std::vector<double>();
   if (!self.autoSimulationTime)
@@ -75,14 +73,7 @@ nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough<Col
     {
       buffer->push_back(time * column.columnEntranceVelocity / column.columnLength);
       buffer->push_back(time / 60.0);
-      if constexpr (std::is_same_v<ColumnType, Column>)
-      {
-        buffer->push_back(static_cast<double>(grid) * column.resolution);
-      }
-      else
-      {
-        buffer->push_back(column.columnDistances[grid]);
-      }
+      buffer->push_back(column.columnDistances[grid]);
       buffer->push_back(column.interstitialGasVelocity[grid]);
       buffer->push_back(column.totalPressure[grid]);
 
@@ -90,7 +81,7 @@ nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough<Col
       {
         const size_t index = grid * self.numberOfComponents + comp;
         const double normalizedPartialPressureDenominator =
-            column.fluidPhase == decltype(column.fluidPhase)::Gas
+            column.fluidPhase == Column::FluidPhase::Gas
                 ? column.totalPressure[grid] * column.components[comp].initialGasMoleFraction
                 : column.components[comp].inletLiquidConcentration;
 
@@ -131,12 +122,11 @@ nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough<Col
                                                      owner);
 }
 
-template <typename ColumnType>
-void bindBreakthrough(nb::module_& module, const char* name)
+void bindBreakthrough(nb::module_& module)
 {
-  using Simulation = Breakthrough<ColumnType>;
-  nb::class_<Simulation> simulation(module, name);
-  simulation.def(nb::init<const InputReader&>(), nb::arg("input_reader"))
+  using Simulation = Breakthrough;
+  nb::class_<Simulation>(module, "Breakthrough")
+      .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
       .def_ro("display_name", &Simulation::displayName)
       .def_rw("carrier_gas_component", &Simulation::carrierGasComponent)
       .def_rw("number_of_components", &Simulation::numberOfComponents)
@@ -156,69 +146,67 @@ void bindBreakthrough(nb::module_& module, const char* name)
       .def("print", &Simulation::print)
       .def("__repr__", &Simulation::repr)
       .def("run", &Simulation::run)
-      .def("compute", &computeBreakthrough<ColumnType>)
+      .def("compute", &computeBreakthrough)
       .def(
           "advance_to", [](Simulation& self, double endTime) { self.advanceTo(endTime, self.timings); },
           nb::arg("end_time"))
-      .def("advance_to_next_output", &Simulation::advanceToNextOutput);
-
-  if constexpr (std::is_same_v<ColumnType, Column>)
-  {
-    simulation
-        .def(
-            "set_components_parameters",
-            [](Simulation& self, std::vector<double> molfracs, std::vector<double> params)
+      .def("advance_to_next_output", &Simulation::advanceToNextOutput)
+      .def(
+          "set_components_parameters",
+          [](Simulation& self, std::vector<double> molfracs, std::vector<double> params)
+          {
+            if (self.column.numberOfAdsorbents != 1)
             {
-              size_t index = 0;
-              for (size_t i = 0; i < self.numberOfComponents; ++i)
-              {
-                self.column.components[i].initialGasMoleFraction = molfracs[i];
-                const size_t numberOfParameters = self.column.components[i].isotherm.numberOfParameters;
-                std::vector<double> slicedVec(params.begin() + static_cast<std::ptrdiff_t>(index),
-                                              params.begin() + static_cast<std::ptrdiff_t>(index + numberOfParameters));
-                index += numberOfParameters;
-                self.column.components[i].isotherm.setParameters(slicedVec);
-              }
+              throw std::invalid_argument("set_components_parameters supports a single adsorbent");
+            }
+            size_t index = 0;
+            for (size_t i = 0; i < self.numberOfComponents; ++i)
+            {
+              self.column.components[i].initialGasMoleFraction = molfracs[i];
+              const size_t numberOfParameters = self.column.components[i].isotherm.numberOfParameters;
+              std::vector<double> slicedVec(params.begin() + static_cast<std::ptrdiff_t>(index),
+                                            params.begin() + static_cast<std::ptrdiff_t>(index + numberOfParameters));
+              index += numberOfParameters;
+              self.column.components[i].isotherm.setParameters(slicedVec);
+            }
 
-              MixturePrediction& mixture = self.column.physisorptionMixture;
-              index = 0;
-              for (size_t i = 0; i < mixture.numberOfComponents; ++i)
-              {
-                mixture.components[i].initialGasMoleFraction = molfracs[i];
-                const size_t numberOfParameters = mixture.components[i].isotherm.numberOfParameters;
-                std::vector<double> slicedVec(params.begin() + static_cast<std::ptrdiff_t>(index),
-                                              params.begin() + static_cast<std::ptrdiff_t>(index + numberOfParameters));
-                index += numberOfParameters;
-                mixture.components[i].isotherm.setParameters(slicedVec);
-              }
-              mixture.sortedComponents = mixture.components;
-              mixture.segregatedSortedComponents = std::vector<std::vector<Component>>(
-                  mixture.maxIsothermTerms, std::vector<Component>(mixture.components));
-              mixture.sortComponents();
-            },
-            nb::arg("molfracs"), nb::arg("params"))
-        .def("get_components_parameters",
-             [](const Simulation& self)
+            MixturePrediction& mixture = self.column.physisorptionMixtures.front();
+            index = 0;
+            for (size_t i = 0; i < mixture.numberOfComponents; ++i)
+            {
+              mixture.components[i].initialGasMoleFraction = molfracs[i];
+              const size_t numberOfParameters = mixture.components[i].isotherm.numberOfParameters;
+              std::vector<double> slicedVec(params.begin() + static_cast<std::ptrdiff_t>(index),
+                                            params.begin() + static_cast<std::ptrdiff_t>(index + numberOfParameters));
+              index += numberOfParameters;
+              mixture.components[i].isotherm.setParameters(slicedVec);
+            }
+            mixture.sortedComponents = mixture.components;
+            mixture.segregatedSortedComponents = std::vector<std::vector<Component>>(
+                mixture.maxIsothermTerms, std::vector<Component>(mixture.components));
+            mixture.sortComponents();
+          },
+          nb::arg("molfracs"), nb::arg("params"))
+      .def("get_components_parameters",
+           [](const Simulation& self)
+           {
+             std::vector<double> params;
+             for (size_t i = 0; i < self.numberOfComponents; ++i)
              {
-               std::vector<double> params;
-               for (size_t i = 0; i < self.numberOfComponents; ++i)
-               {
-                 std::vector<double> componentParameters = self.column.components[i].isotherm.getParameters();
-                 params.insert(params.end(), componentParameters.begin(), componentParameters.end());
-               }
-               return params;
-             });
-  }
+               std::vector<double> componentParameters = self.column.components[i].isotherm.getParameters();
+               params.insert(params.end(), componentParameters.begin(), componentParameters.end());
+             }
+             return params;
+           });
 }
 
-template <typename ColumnType>
-void bindSwingAdsorption(nb::module_& module, const char* name)
+void bindSwingAdsorption(nb::module_& module)
 {
-  using Simulation = SwingAdsorption<ColumnType>;
-  nb::class_<Simulation>(module, name)
+  using Simulation = SwingAdsorption;
+  nb::class_<Simulation>(module, "SwingAdsorption")
       .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
       .def_prop_ro(
-          "breakthrough", [](Simulation& self) -> Breakthrough<ColumnType>& { return self.breakthrough; },
+          "breakthrough", [](Simulation& self) -> Breakthrough& { return self.breakthrough; },
           nb::rv_policy::reference_internal)
       .def_rw("sub_stages", &Simulation::subStages)
       .def("run", &Simulation::run)
@@ -292,8 +280,6 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("pkw", &InputReader::pKw)
       .def_rw("ph_component", &InputReader::pHComponent)
       .def_rw("display_name", &InputReader::displayName)
-      .def_rw("debug_force_multibed", &InputReader::debugForceMultibed)
-      .def("is_multibed", &InputReader::isMultibed)
       .def_rw("temperature", &InputReader::temperature)
       .def_rw("column_void_fraction", &InputReader::columnVoidFraction)
       .def_rw("dynamic_viscosity", &InputReader::dynamicViscosity)
@@ -788,7 +774,6 @@ EXPAND_MODULE(MODULE_NAME)
            });
 
   nb::class_<Column> column(m, "Column");
-
   nb::enum_<Column::BoundaryCondition>(column, "BoundaryCondition", nb::is_arithmetic())
       .value("INLET_PRESSURE_INLET_VELOCITY", Column::BoundaryCondition::InletPressureInletVelocity)
       .value("INLET_PRESSURE_OUTLET_PRESSURE", Column::BoundaryCondition::InletPressureOutletPressure)
@@ -805,21 +790,8 @@ EXPAND_MODULE(MODULE_NAME)
       .value("OH_MINUS", Column::PHMode::OHMinus);
 
   column.def(nb::init<const InputReader&>(), nb::arg("input_reader"))
-      .def(
-          nb::init<MixturePrediction, std::vector<Component>, Column::BoundaryCondition, bool, std::size_t, std::size_t,
-                   std::size_t, double, double, double, double, double, double, double, double, double, double, double,
-                   double, double, double, double, double, double, double, double, double, double, double>(),
-          nb::arg("mixture"), nb::arg("components"), nb::arg("boundary_condition"), nb::arg("energy_balance"),
-          nb::arg("number_of_grid_points"), nb::arg("max_isotherm_terms"), nb::arg("carrier_gas_component"),
-          nb::arg("temperature"), nb::arg("inlet_pressure"), nb::arg("outlet_pressure"), nb::arg("pressure_gradient"),
-          nb::arg("column_void_fraction"), nb::arg("particle_density"), nb::arg("column_entrance_velocity"),
-          nb::arg("column_length"), nb::arg("dynamic_viscosity"), nb::arg("particle_diameter"),
-          nb::arg("influx_temperature"), nb::arg("internal_diameter"), nb::arg("outer_diameter"),
-          nb::arg("wall_density"), nb::arg("gas_thermal_conductivity"), nb::arg("wall_thermal_conductivity"),
-          nb::arg("heat_transfer_gas_solid"), nb::arg("heat_transfer_gas_wall"), nb::arg("heat_transfer_wall_external"),
-          nb::arg("heat_capacity_gas"), nb::arg("heat_capacity_solid"), nb::arg("heat_capacity_wall"))
-      .def_rw("physisorption_mixture", &Column::physisorptionMixture)
-      .def_rw("chemisorption_mixture", &Column::chemisorptionMixture)
+      .def_rw("physisorption_mixtures", &Column::physisorptionMixtures)
+      .def_rw("chemisorption_mixtures", &Column::chemisorptionMixtures)
       .def_rw("components", &Column::components)
       .def_rw("reactions", &Column::reactions)
       .def_rw("boundary_condition", &Column::boundaryCondition)
@@ -833,20 +805,25 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("energy_balance", &Column::energyBalance)
       .def_rw("number_of_grid_points", &Column::numberOfGridPoints)
       .def_rw("number_of_components", &Column::numberOfComponents)
+      .def_rw("number_of_adsorbents", &Column::numberOfAdsorbents)
       .def_rw("max_isotherm_terms", &Column::maxIsothermTerms)
       .def_ro("max_chemisorption_sites", &Column::maxChemisorptionSites)
-      .def_rw("num_calls", &Column::numberOfCalls)
       .def_rw("carrier_gas_component", &Column::carrierGasComponent)
+      .def_rw("adsorbent_lengths", &Column::adsorbentLengths)
+      .def_rw("adsorbent_interface_lengths", &Column::adsorbentInterfaceLengths)
+      .def_rw("adsorbent_interface_grid_points", &Column::adsorbentInterfaceGridPoints)
+      .def_rw("adsorbent_mix_fractions", &Column::adsorbentMixFractions)
+      .def_rw("adsorbent_void_fractions", &Column::adsorbentVoidFractions)
+      .def_rw("particle_densities", &Column::particleDensities)
+      .def_rw("particle_diameters", &Column::particleDiameters)
       .def_rw("external_temperature", &Column::externalTemperature)
       .def_rw("inlet_pressure", &Column::inletPressure)
       .def_rw("outlet_pressure", &Column::outletPressure)
       .def_rw("pressure_gradient", &Column::pressureGradient)
-      .def_rw("void_fraction", &Column::voidFraction)
-      .def_rw("particle_density", &Column::particleDensity)
       .def_rw("column_entrance_velocity", &Column::columnEntranceVelocity)
       .def_rw("column_length", &Column::columnLength)
+      .def_rw("column_distances", &Column::columnDistances)
       .def_rw("dynamic_viscosity", &Column::dynamicViscosity)
-      .def_rw("particle_diameter", &Column::particleDiameter)
       .def_rw("influx_temperature", &Column::influxTemperature)
       .def_rw("internal_diameter", &Column::internalDiameter)
       .def_rw("outer_diameter", &Column::outerDiameter)
@@ -862,67 +839,58 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("resolution", &Column::resolution)
       .def_rw("time_normalization_factor", &Column::timeNormalizationFactor)
       .def_rw("iast_performance", &Column::iastPerformance)
-      .def_rw("prefactor_mass_transfer", &Column::prefactorMassTransfer)
-      .def_rw("ideal_gas_mol_fractions", &Column::idealGasMolFractions)
-      .def_rw("adsorbed_mol_fractions", &Column::adsorbedMolFractions)
-      .def_rw("number_of_molecules", &Column::numberOfMolecules)
+      .def_rw("cached_pressure", &Column::cachedPressure)
+      .def_rw("cached_grand_potential", &Column::cachedGrandPotential)
       .def_rw("interstitial_gas_velocity", &Column::interstitialGasVelocity)
       .def_rw("gas_density", &Column::gasDensity)
       .def_rw("total_concentration", &Column::totalConcentration)
       .def_rw("total_pressure", &Column::totalPressure)
+      .def_rw("mole_fraction", &Column::moleFraction)
       .def_rw("partial_pressure", &Column::partialPressure)
       .def_rw("equilibrium_physisorption", &Column::equilibriumPhysisorption)
       .def_rw("equilibrium_chemisorption", &Column::equilibriumChemisorption)
-      .def_prop_ro("concentration",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.concentration)); })
-      .def_prop_ro("concentration_dot",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.concentrationDot)); })
-      .def_prop_ro("mole_fraction",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.moleFraction)); })
-      .def_rw("cached_pressure", &Column::cachedPressure)
-      .def_rw("cached_grand_potential", &Column::cachedGrandPotential)
-      .def_rw("coeff_diffusion", &Column::coeffDiffusion)
-      .def_rw("face_pressures", &Column::facePressures)
-      .def_rw("mass_flux", &Column::massFlux)
-      .def_rw("state", &Column::state)
-      .def_rw("state_dot", &Column::stateDot)
-      .def_prop_ro("concentration",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.concentration)); })
-      .def_prop_ro("physisorption",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.physisorption)); })
-      .def_prop_ro("physisorption_dot",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.physisorptionDot)); })
-      .def_prop_ro("chemisorption",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.chemisorption)); })
-      .def_prop_ro("chemisorption_dot",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.chemisorptionDot)); })
-      .def_prop_ro("surface_concentration",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.surfaceConcentration)); })
-      .def_prop_ro("surface_concentration_dot", [](const Column& self)
-                   { return spanToVector(std::span<const double>(self.surfaceConcentrationDot)); })
-      .def_prop_ro("pore_concentration",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.poreConcentration)); })
-      .def_prop_ro("pore_concentration_dot",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.poreConcentrationDot)); })
+      .def_rw("fraction_of_adsorbent", &Column::fractionOfAdsorbent)
       .def_rw("bulk_species_sink", &Column::bulkSpeciesSink)
       .def_rw("reaction_physisorption_source", &Column::reactionPhysisorptionSource)
       .def_rw("reaction_chemisorption_source", &Column::reactionChemisorptionSource)
       .def_rw("reaction_pore_concentration_source", &Column::reactionPoreConcentrationSource)
       .def_rw("reaction_heat", &Column::reactionHeat)
+      .def_rw("state", &Column::state)
+      .def_rw("state_dot", &Column::stateDot)
+      .def_prop_ro("concentration",
+                   [](const Column& self) { return spanToVector(std::span<const double>(self.concentration)); })
+      .def_prop_ro("concentration_dot", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.concentrationDot)); })
+      .def_prop_ro("physisorption",
+                   [](const Column& self) { return spanToVector(std::span<const double>(self.physisorption)); })
+      .def_prop_ro("physisorption_dot", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.physisorptionDot)); })
+      .def_prop_ro("chemisorption",
+                   [](const Column& self) { return spanToVector(std::span<const double>(self.chemisorption)); })
+      .def_prop_ro("chemisorption_dot", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.chemisorptionDot)); })
+      .def_prop_ro("surface_concentration", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.surfaceConcentration)); })
+      .def_prop_ro("surface_concentration_dot", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.surfaceConcentrationDot)); })
+      .def_prop_ro("pore_concentration", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.poreConcentration)); })
+      .def_prop_ro("pore_concentration_dot", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.poreConcentrationDot)); })
       .def_prop_ro("surface_pore_transport_enabled",
                    [](const Column& self) { return self.surfacePoreTransportEnabled; })
-      .def_prop_ro("gas_temperature",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.gasTemperature)); })
-      .def_prop_ro("gas_temperature_dot",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.gasTemperatureDot)); })
-      .def_prop_ro("solid_temperature",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.solidTemperature)); })
-      .def_prop_ro("solid_temperature_dot",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.solidTemperatureDot)); })
-      .def_prop_ro("wall_temperature",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.wallTemperature)); })
-      .def_prop_ro("wall_temperature_dot",
-                   [](const Column& self) { return spanToVector(std::span<const double>(self.wallTemperatureDot)); })
+      .def_prop_ro("gas_temperature", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.gasTemperature)); })
+      .def_prop_ro("gas_temperature_dot", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.gasTemperatureDot)); })
+      .def_prop_ro("solid_temperature", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.solidTemperature)); })
+      .def_prop_ro("solid_temperature_dot", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.solidTemperatureDot)); })
+      .def_prop_ro("wall_temperature", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.wallTemperature)); })
+      .def_prop_ro("wall_temperature_dot", [](const Column& self)
+                   { return spanToVector(std::span<const double>(self.wallTemperatureDot)); })
       .def("state_size", &Column::stateSize)
       .def("bind_state_views", &Column::bindStateViews)
       .def("initialize", &Column::initialize)
@@ -931,131 +899,25 @@ EXPAND_MODULE(MODULE_NAME)
       .def("write_json", &Column::writeJSON, nb::arg("file_name"))
       .def("read_json", &Column::readJSON, nb::arg("file_name"));
 
-  nb::class_<MultibedColumn> multibedColumn(m, "MultibedColumn");
-  nb::enum_<MultibedColumn::BoundaryCondition>(multibedColumn, "BoundaryCondition", nb::is_arithmetic())
-      .value("INLET_PRESSURE_INLET_VELOCITY", MultibedColumn::BoundaryCondition::InletPressureInletVelocity)
-      .value("INLET_PRESSURE_OUTLET_PRESSURE", MultibedColumn::BoundaryCondition::InletPressureOutletPressure)
-      .value("INLET_VELOCITY_OUTLET_PRESSURE", MultibedColumn::BoundaryCondition::InletVelocityOutletPressure)
-      .value("FIXED_VELOCITY", MultibedColumn::BoundaryCondition::FixedVelocity)
-      .value("FIXED_PRESSURE_INLET_VELOCITY", MultibedColumn::BoundaryCondition::FixedPressureInletVelocity);
-
-  nb::enum_<MultibedColumn::FluidPhase>(multibedColumn, "FluidPhase", nb::is_arithmetic())
-      .value("GAS", MultibedColumn::FluidPhase::Gas)
-      .value("LIQUID", MultibedColumn::FluidPhase::Liquid);
-  nb::enum_<MultibedColumn::PHMode>(multibedColumn, "PHMode", nb::is_arithmetic())
-      .value("FIXED", MultibedColumn::PHMode::Fixed)
-      .value("H_PLUS", MultibedColumn::PHMode::HPlus)
-      .value("OH_MINUS", MultibedColumn::PHMode::OHMinus);
-
-  multibedColumn.def(nb::init<const InputReader&>(), nb::arg("input_reader"))
-      .def_rw("physisorption_mixtures", &MultibedColumn::physisorptionMixtures)
-      .def_rw("chemisorption_mixtures", &MultibedColumn::chemisorptionMixtures)
-      .def_rw("components", &MultibedColumn::components)
-      .def_rw("reactions", &MultibedColumn::reactions)
-      .def_rw("boundary_condition", &MultibedColumn::boundaryCondition)
-      .def_rw("fluid_phase", &MultibedColumn::fluidPhase)
-      .def_rw("liquid_density", &MultibedColumn::liquidDensity)
-      .def_rw("ph_mode", &MultibedColumn::pHMode)
-      .def_rw("ph_value", &MultibedColumn::pHValue)
-      .def_rw("pkw", &MultibedColumn::pKw)
-      .def_rw("ph_component", &MultibedColumn::pHComponent)
-      .def_rw("ph", &MultibedColumn::pH)
-      .def_rw("energy_balance", &MultibedColumn::energyBalance)
-      .def_rw("number_of_grid_points", &MultibedColumn::numberOfGridPoints)
-      .def_rw("number_of_components", &MultibedColumn::numberOfComponents)
-      .def_rw("number_of_adsorbents", &MultibedColumn::numberOfAdsorbents)
-      .def_rw("max_isotherm_terms", &MultibedColumn::maxIsothermTerms)
-      .def_ro("max_chemisorption_sites", &MultibedColumn::maxChemisorptionSites)
-      .def_rw("carrier_gas_component", &MultibedColumn::carrierGasComponent)
-      .def_rw("adsorbent_lengths", &MultibedColumn::adsorbentLengths)
-      .def_rw("adsorbent_interface_lengths", &MultibedColumn::adsorbentInterfaceLengths)
-      .def_rw("adsorbent_interface_grid_points", &MultibedColumn::adsorbentInterfaceGridPoints)
-      .def_rw("adsorbent_mix_fractions", &MultibedColumn::adsorbentMixFractions)
-      .def_rw("adsorbent_void_fractions", &MultibedColumn::adsorbentVoidFractions)
-      .def_rw("particle_densities", &MultibedColumn::particleDensities)
-      .def_rw("particle_diameters", &MultibedColumn::particleDiameters)
-      .def_rw("external_temperature", &MultibedColumn::externalTemperature)
-      .def_rw("inlet_pressure", &MultibedColumn::inletPressure)
-      .def_rw("outlet_pressure", &MultibedColumn::outletPressure)
-      .def_rw("pressure_gradient", &MultibedColumn::pressureGradient)
-      .def_rw("column_entrance_velocity", &MultibedColumn::columnEntranceVelocity)
-      .def_rw("column_length", &MultibedColumn::columnLength)
-      .def_rw("column_distances", &MultibedColumn::columnDistances)
-      .def_rw("interstitial_gas_velocity", &MultibedColumn::interstitialGasVelocity)
-      .def_rw("gas_density", &MultibedColumn::gasDensity)
-      .def_rw("total_concentration", &MultibedColumn::totalConcentration)
-      .def_rw("total_pressure", &MultibedColumn::totalPressure)
-      .def_rw("mole_fraction", &MultibedColumn::moleFraction)
-      .def_rw("partial_pressure", &MultibedColumn::partialPressure)
-      .def_rw("equilibrium_physisorption", &MultibedColumn::equilibriumPhysisorption)
-      .def_rw("equilibrium_chemisorption", &MultibedColumn::equilibriumChemisorption)
-      .def_rw("fraction_of_adsorbent", &MultibedColumn::fractionOfAdsorbent)
-      .def_rw("bulk_species_sink", &MultibedColumn::bulkSpeciesSink)
-      .def_rw("reaction_physisorption_source", &MultibedColumn::reactionPhysisorptionSource)
-      .def_rw("reaction_chemisorption_source", &MultibedColumn::reactionChemisorptionSource)
-      .def_rw("reaction_pore_concentration_source", &MultibedColumn::reactionPoreConcentrationSource)
-      .def_rw("reaction_heat", &MultibedColumn::reactionHeat)
-      .def_rw("state", &MultibedColumn::state)
-      .def_rw("state_dot", &MultibedColumn::stateDot)
-      .def_prop_ro("concentration",
-                   [](const MultibedColumn& self) { return spanToVector(std::span<const double>(self.concentration)); })
-      .def_prop_ro("concentration_dot", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.concentrationDot)); })
-      .def_prop_ro("physisorption",
-                   [](const MultibedColumn& self) { return spanToVector(std::span<const double>(self.physisorption)); })
-      .def_prop_ro("physisorption_dot", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.physisorptionDot)); })
-      .def_prop_ro("chemisorption",
-                   [](const MultibedColumn& self) { return spanToVector(std::span<const double>(self.chemisorption)); })
-      .def_prop_ro("chemisorption_dot", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.chemisorptionDot)); })
-      .def_prop_ro("surface_concentration", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.surfaceConcentration)); })
-      .def_prop_ro("surface_concentration_dot", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.surfaceConcentrationDot)); })
-      .def_prop_ro("pore_concentration", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.poreConcentration)); })
-      .def_prop_ro("pore_concentration_dot", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.poreConcentrationDot)); })
-      .def_prop_ro("surface_pore_transport_enabled",
-                   [](const MultibedColumn& self) { return self.surfacePoreTransportEnabled; })
-      .def_prop_ro("gas_temperature", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.gasTemperature)); })
-      .def_prop_ro("gas_temperature_dot", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.gasTemperatureDot)); })
-      .def_prop_ro("solid_temperature", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.solidTemperature)); })
-      .def_prop_ro("solid_temperature_dot", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.solidTemperatureDot)); })
-      .def_prop_ro("wall_temperature", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.wallTemperature)); })
-      .def_prop_ro("wall_temperature_dot", [](const MultibedColumn& self)
-                   { return spanToVector(std::span<const double>(self.wallTemperatureDot)); })
-      .def("state_size", &MultibedColumn::stateSize)
-      .def("bind_state_views", &MultibedColumn::bindStateViews)
-      .def("initialize", &MultibedColumn::initialize)
-      .def("set_temperature", &MultibedColumn::setTemperature, nb::arg("temperature"))
-      .def("__repr__", &MultibedColumn::repr)
-      .def("write_json", &MultibedColumn::writeJSON, nb::arg("file_name"))
-      .def("read_json", &MultibedColumn::readJSON, nb::arg("file_name"));
-
   m.def(
       "update_velocity_and_pressure",
       [](Column& column)
       {
-        computeBulkSpeciesSink(column.components, column.numberOfGridPoints, column.numberOfComponents,
-                               column.maxChemisorptionSites, column.geometry, column.particleDensity,
+        computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
+                               column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries,
+                               column.particleDensities, column.fractionOfAdsorbent, column.totalVoidFraction,
                                column.concentration, column.physisorptionDot, column.chemisorptionDot,
                                column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                               column.reactionChemisorptionSource);
+                               column.reactionChemisorptionSource, column.reactionBulkSource);
         updateVelocityAndPressure(
             column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
-            column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength, column.geometry,
-            column.columnEntranceVelocity, column.dynamicViscosity, column.resolution, column.interstitialGasVelocity,
+            column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength,
+            column.numberOfAdsorbents, column.columnEntranceVelocity, column.dynamicViscosity, column.columnDistances,
+            column.fractionOfAdsorbent, column.geometries, column.totalVoidFraction, column.interstitialGasVelocity,
             column.gasDensity, column.totalConcentration, column.totalPressure, column.concentration,
             column.partialPressure, column.moleFraction, column.bulkSpeciesSink, column.gasTemperature,
-            column.fluidPhase, column.liquidDensity, column.pHMode, column.pHValue, column.pKw,
-            column.pHComponent, column.pH);
+            column.fluidPhase, column.liquidDensity, column.pHMode, column.pHValue, column.pKw, column.pHComponent,
+            column.pH);
       },
       nb::arg("column"));
 
@@ -1063,24 +925,22 @@ EXPAND_MODULE(MODULE_NAME)
       "compute_equilibrium_loadings",
       [](Column& column)
       {
+        const MixturePrediction::DrivingForceInput input = column.fluidPhase == Column::FluidPhase::Gas
+                                                               ? MixturePrediction::DrivingForceInput::MoleFraction
+                                                               : MixturePrediction::DrivingForceInput::Concentration;
         computePhysisorptionEquilibriumLoadings(
-            column.physisorptionMixture, column.numberOfGridPoints, column.numberOfComponents, column.maxIsothermTerms,
+            column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
+            column.numberOfAdsorbents, column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxIsothermTerms,
             column.iastPerformance, column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules,
             column.totalPressure, column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
-            column.moleFraction, column.gasTemperature,
-            column.fluidPhase == Column::FluidPhase::Gas
-                ? MixturePrediction::DrivingForceInput::MoleFraction
-                : MixturePrediction::DrivingForceInput::Concentration,
-            column.concentration, column.pH);
+            column.moleFraction, column.gasTemperature, input, column.concentration, column.pH);
         computeChemisorptionEquilibriumLoadings(
-            column.chemisorptionMixture, column.numberOfGridPoints, column.numberOfComponents,
+            column.chemisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
+            column.numberOfAdsorbents, column.fractionOfAdsorbent, column.hasAdsorbentOfType,
             column.maxChemisorptionSites, column.iastPerformance, column.idealGasMolFractions,
             column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
             column.equilibriumChemisorption, column.cachedChemisorptionPressure,
-            column.cachedChemisorptionGrandPotential, column.moleFraction, column.gasTemperature,
-            column.fluidPhase == Column::FluidPhase::Gas
-                ? MixturePrediction::DrivingForceInput::MoleFraction
-                : MixturePrediction::DrivingForceInput::Concentration,
+            column.cachedChemisorptionGrandPotential, column.moleFraction, column.gasTemperature, input,
             column.concentration, column.pH);
       },
       nb::arg("column"));
@@ -1089,14 +949,13 @@ EXPAND_MODULE(MODULE_NAME)
 
   m.def(
       "compute_weno",
-      [](const std::vector<double>& input)
+      [](const std::vector<double>& input, const std::vector<double>& columnDistances)
       {
         std::vector<double> output(input.size(), 0.0);
-        computeWENO(std::span<const double>(input.data(), input.size()),
-                    std::span<double>(output.data(), output.size()));
+        computeWENO(input, columnDistances, output);
         return output;
       },
-      nb::arg("input"));
+      nb::arg("input"), nb::arg("column_distances"));
 
   nb::class_<RungeKutta3>(m, "RungeKutta3")
       .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
@@ -1107,14 +966,6 @@ EXPAND_MODULE(MODULE_NAME)
       .def(
           "advance",
           [](RungeKutta3& self, Column& column, double startTime, double endTime)
-          {
-            Timing timings;
-            self.advance(column, startTime, endTime, timings);
-          },
-          nb::arg("column"), nb::arg("start_time"), nb::arg("end_time"))
-      .def(
-          "advance",
-          [](RungeKutta3& self, MultibedColumn& column, double startTime, double endTime)
           {
             Timing timings;
             self.advance(column, startTime, endTime, timings);
@@ -1140,21 +991,10 @@ EXPAND_MODULE(MODULE_NAME)
       .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
       .def(nb::init<>())
       .def("reinitialize", nb::overload_cast<>(&CVODE::reinitialize))
-      .def(
-          "initialize", [](CVODE& self, Column& column) { self.initialize(column); }, nb::arg("column"))
-      .def(
-          "initialize", [](CVODE& self, MultibedColumn& column) { self.initialize(column); }, nb::arg("column"))
+      .def("initialize", nb::overload_cast<Column&>(&CVODE::initialize), nb::arg("column"))
       .def(
           "advance",
           [](CVODE& self, Column& column, double endTime)
-          {
-            Timing timings;
-            self.advance(column, endTime, timings);
-          },
-          nb::arg("column"), nb::arg("end_time"))
-      .def(
-          "advance",
-          [](CVODE& self, MultibedColumn& column, double endTime)
           {
             Timing timings;
             self.advance(column, endTime, timings);
@@ -1166,8 +1006,7 @@ EXPAND_MODULE(MODULE_NAME)
       .value("CVODE", BreakthroughIntegrationScheme::CVODE)
       .value("SIRK3", BreakthroughIntegrationScheme::SIRK3);
 
-  bindBreakthrough<Column>(m, "Breakthrough");
-  bindBreakthrough<MultibedColumn>(m, "MultibedBreakthrough");
+  bindBreakthrough(m);
 
   nb::class_<Fitting> fitting(m, "Fitting");
 
@@ -1200,8 +1039,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("pressure", &SwingAdsorptionSubStage::pressure)
       .def_rw("duration", &SwingAdsorptionSubStage::duration);
 
-  bindSwingAdsorption<Column>(m, "SwingAdsorption");
-  bindSwingAdsorption<MultibedColumn>(m, "MultibedSwingAdsorption");
+  bindSwingAdsorption(m);
 
   m.def("read_input", [](const std::string& fileName) { return InputReader(fileName); }, nb::arg("file_name"));
 
@@ -1212,22 +1050,15 @@ EXPAND_MODULE(MODULE_NAME)
         InputReader inputReader(fileName);
         switch (inputReader.simulationType)
         {
+          // Breakthrough and SwingAdsorption own a CVODE, which can be neither copied nor moved.
           case InputReader::SimulationType::Breakthrough:
-            if (inputReader.isMultibed())
-            {
-              return nb::cast(Breakthrough<MultibedColumn>(inputReader));
-            }
-            return nb::cast(Breakthrough<Column>(inputReader));
+            return nb::cast(new Breakthrough(inputReader), nb::rv_policy::take_ownership);
           case InputReader::SimulationType::MixturePrediction:
             return nb::cast(MixturePrediction(inputReader));
           case InputReader::SimulationType::Fitting:
             return nb::cast(Fitting(inputReader));
           case InputReader::SimulationType::SwingAdsorption:
-            if (inputReader.isMultibed())
-            {
-              return nb::cast(SwingAdsorption<MultibedColumn>(inputReader));
-            }
-            return nb::cast(SwingAdsorption<Column>(inputReader));
+            return nb::cast(new SwingAdsorption(inputReader), nb::rv_policy::take_ownership);
           case InputReader::SimulationType::Test:
             throw std::invalid_argument("SimulationType 'Test' does not have a Python simulation object");
         }

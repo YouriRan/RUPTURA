@@ -2183,9 +2183,6 @@ void MainWindow::rebuildSimulationEditor()
                    if (value.trimmed().isEmpty()) settings.remove("ReadColumnFile");
                    else settings.insert("ReadColumnFile", value.trimmed());
                  });
-    addCheckField(breakthroughForm, "Use multibed solver for one adsorbent",
-                  simulation.settings.value("DebugForceMultibed").toBool(),
-                  [this](bool value) { simulations_[selectedSimulationIndex_].settings.insert("DebugForceMultibed", value); });
     addNumberField(breakthroughForm, "Grid points [-]", static_cast<double>(simulation.gridPoints), [this](double value)
                    { simulations_[selectedSimulationIndex_].gridPoints = std::max(1, static_cast<int>(value)); });
     if (simulation.integrator != "CVODE")  // CVODE chooses its own internal steps

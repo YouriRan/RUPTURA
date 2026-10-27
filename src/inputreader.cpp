@@ -1054,7 +1054,7 @@ InputReader::InputReader(const std::string fileName) : components()
                         "PressureScale",
                         "ReadColumnFile",
                         "DisplayName",
-                        "DebugForceMultibed",
+                        "DebugForceMultibed",  // ignored: every column runs on the same solver
                         "Temperature",
                         "ColumnVoidFraction",
                         "DynamicViscosity",
@@ -1271,7 +1271,6 @@ InputReader::InputReader(const std::string fileName) : components()
 
   readOptionalString(parsed_data, "ReadColumnFile", readColumnFile);
   readOptionalString(parsed_data, "DisplayName", displayName);
-  readOptionalBool(parsed_data, "DebugForceMultibed", debugForceMultibed);
 
   readOptionalNumber<double>(parsed_data, "Temperature", temperature);
   readOptionalNumber<double>(parsed_data, "ColumnVoidFraction", columnVoidFraction);
@@ -2767,11 +2766,17 @@ InputReader::InputReader(const std::string fileName) : components()
                       "Error: BulkConcentration reactions do not yet supply reaction heat; set energyBalance false");
     requireConfigured(reactions.empty() || breakthroughIntegrator != 2,
                       "Error: the SIRK3 integrator does not evaluate reactions; use CVODE or RungeKutta3");
-    const bool hasPoreTransport =
-        std::any_of(components.begin(), components.end(),
-                    [](const Component& component) { return component.chemisorption.usesSurfacePoreTransport(); });
-    requireConfigured(!hasPoreTransport || breakthroughIntegrator != 2,
-                      "Error: the SIRK3 integrator does not evaluate surface-pore transport; use CVODE or RungeKutta3");
+    // SIRK3 advances only the physisorbed loadings and the gas concentrations of a single adsorbent.
+    const bool hasChemisorption = std::any_of(components.begin(), components.end(), [](const Component& component)
+                                              { return component.chemisorption.numberOfSites > 0; });
+    requireConfigured(!hasChemisorption || breakthroughIntegrator != 2,
+                      "Error: the SIRK3 integrator does not evaluate chemisorption; use CVODE or RungeKutta3");
+    requireConfigured(!energyBalance || breakthroughIntegrator != 2,
+                      "Error: the SIRK3 integrator does not evaluate the energy balance; use CVODE or RungeKutta3");
+    requireConfigured(adsorbentComponents.size() <= 1 || breakthroughIntegrator != 2,
+                      "Error: the SIRK3 integrator supports a single adsorbent; use CVODE or RungeKutta3");
+    requireConfigured(adsorbentComponents.size() <= 1 || mixturePredictionMethod != 6,
+                      "Error: MPD mixture prediction (MPDSettings) supports a single adsorbent");
 
     if (boundaryNeedsInletPressure)
     {
@@ -2805,9 +2810,4 @@ InputReader::InputReader(const std::string fileName) : components()
                         "Error: fixed pressure profile becomes non-positive");
     }
   }
-}
-
-bool InputReader::isMultibed() const
-{
-  return debugForceMultibed || adsorbentComponents.size() > 1;
 }

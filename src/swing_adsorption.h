@@ -2,12 +2,10 @@
 
 #include <cstddef>
 #include <string>
-#include <type_traits>
 #include <vector>
 
 #include "breakthrough.h"
 #include "column.h"
-#include "column_multibed.h"
 #include "inputreader.h"
 #include "timing.h"
 
@@ -25,24 +23,17 @@ struct SwingAdsorptionSubStage
 };
 
 /**
- * \brief Coordinates swing-adsorption stages for a concrete column model.
+ * \brief Runs a breakthrough column through a sequence of swing-adsorption stages.
  */
-template <typename ColumnType>
 struct SwingAdsorption
 {
-  static_assert(std::is_same_v<ColumnType, Column> || std::is_same_v<ColumnType, MultibedColumn>,
-                "SwingAdsorption supports Column and MultibedColumn");
-
   explicit SwingAdsorption(const InputReader& inputReader);
 
   void run();
   void print() const;
   [[nodiscard]] std::string repr() const;
 
-  Breakthrough<ColumnType> breakthrough;           ///< Breakthrough simulation reused across sub-stages.
+  Breakthrough breakthrough;                       ///< Breakthrough simulation reused across sub-stages.
   std::vector<SwingAdsorptionSubStage> subStages;  ///< Ordered swing-adsorption stages.
   Timing timings;                                  ///< Accumulated timing diagnostics.
 };
-
-extern template struct SwingAdsorption<Column>;
-extern template struct SwingAdsorption<MultibedColumn>;

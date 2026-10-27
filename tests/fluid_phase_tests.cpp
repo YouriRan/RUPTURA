@@ -5,7 +5,6 @@
 #include <fstream>
 
 #include "column.h"
-#include "column_multibed.h"
 #include "inputreader.h"
 #include "integrators/cvode.h"
 #include "integrators/rk3.h"
@@ -63,7 +62,7 @@ TEST(LiquidPhaseInput, TransportedPHUsesZeroBasedComponentIdentifier)
   InputReader reader(input.path.string());
   EXPECT_EQ(reader.pHComponent, 1U);
   EXPECT_EQ(reader.components[reader.pHComponent].name, "transported acid");
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   EXPECT_EQ(column.pHComponent, 1U);
   EXPECT_NEAR(column.pH[0], 8.0, 1.0e-14);
@@ -186,10 +185,10 @@ TEST(GasBreakthroughRegression, ExistingMultibedRk3PathRetainsItsOutcome)
   const std::filesystem::path path =
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/Multibed/CO2-N2-polishing/simulation.json";
   InputReader reader(path.string());
-  MultibedColumn column(reader);
-  column.convectionScheme = MultibedColumn::ConvectionScheme::Upwind;  // reference values recorded with upwind
+  Column column(reader);
+  column.convectionScheme = Column::ConvectionScheme::Upwind;  // reference values recorded with upwind
   column.initialize();
-  ASSERT_EQ(column.fluidPhase, MultibedColumn::FluidPhase::Gas);
+  ASSERT_EQ(column.fluidPhase, Column::FluidPhase::Gas);
 
   RungeKutta3 integrator(reader.timeStep);
   Timing timing;
@@ -219,7 +218,7 @@ TEST(LiquidPhase, FixedPHColumnUsesConcentrationsAndExpectedIsotherm)
   EXPECT_NEAR(column.equilibriumPhysisorption[0], 2.0 * activity / (1.0 + activity), 1.0e-14);
   EXPECT_DOUBLE_EQ(column.equilibriumPhysisorption[1], 0.0);
   EXPECT_NEAR(column.totalPressure[1],
-              150000.0 - column.geometry.pressureDrop.gradient(0.00089, 997.0, 0.001) * column.resolution,
+              150000.0 - column.geometries.front().pressureDrop.gradient(0.00089, 997.0, 0.001) * column.resolution,
               1.0e-10);
 
   RungeKutta3 integrator(reader.timeStep);
@@ -229,17 +228,17 @@ TEST(LiquidPhase, FixedPHColumnUsesConcentrationsAndExpectedIsotherm)
   EXPECT_NEAR(column.physisorption[0], 0.0015466082723401815, 1.0e-15);
 }
 
-TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInMultibedColumn)
+TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInColumn)
 {
   const std::filesystem::path path =
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/Liquid/multibed-pH-front/simulation.json";
   InputReader reader(path.string());
-  MultibedColumn column(reader);
-  column.convectionScheme = MultibedColumn::ConvectionScheme::Upwind;  // reference values recorded with upwind
+  Column column(reader);
+  column.convectionScheme = Column::ConvectionScheme::Upwind;  // reference values recorded with upwind
   column.initialize();
 
-  ASSERT_EQ(column.fluidPhase, MultibedColumn::FluidPhase::Liquid);
-  ASSERT_EQ(column.pHMode, MultibedColumn::PHMode::HPlus);
+  ASSERT_EQ(column.fluidPhase, Column::FluidPhase::Liquid);
+  ASSERT_EQ(column.pHMode, Column::PHMode::HPlus);
   EXPECT_EQ(reader.pHComponent, 0U);
   EXPECT_EQ(column.pHComponent, 0U);
   EXPECT_NEAR(column.pH[0], 8.0, 1.0e-14);

@@ -108,7 +108,7 @@ cmake --build build
 Relevant options: `BUILD_CLI` (command-line executable, ON), `BUILD_SUNDIALS`
 (CVODE integrator, ON), `BUILD_PYTHON` (nanobind extension, OFF), `BUILD_APP`
 (Qt application, OFF), `BUILD_DOCS` (Doxygen target, ON), `BUILD_TESTING`
-(C++ unit tests, ON), `BUILD_BENCHMARKS` (OFF).
+(C++ unit tests, ON).
 
 to clean:<br>
 ```

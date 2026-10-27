@@ -4,14 +4,7 @@
 #include <stdexcept>
 
 #include "column.h"
-#include "component.h"
-#include "compute.h"
-#include "mixture_prediction.h"
-#include "sorption.h"
 #include "timing.h"
-#include "utils.h"
-
-struct MultibedColumn;
 
 #if BUILD_SUNDIALS
 #include <cvode/cvode.h>
@@ -124,12 +117,6 @@ struct CVODE
    * \brief Evaluates the Column ODE right-hand side for CVODE.
    */
   static int evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector stateDerivativeVector, void* user_data);
-
-  /**
-   * \brief Evaluates the MultibedColumn ODE right-hand side for CVODE.
-   */
-  static int evaluateMultibedDerivatives(sunrealtype t, N_Vector stateVector, N_Vector stateDerivativeVector,
-                                         void* user_data);
 #endif
 
   /**
@@ -140,19 +127,9 @@ struct CVODE
   void advance(Column& column, double endTime, Timing& timings);
 
   /**
-   * \brief Multibed counterpart of advance(Column&, double, Timing&).
-   */
-  void advance(MultibedColumn& column, double endTime, Timing& timings);
-
-  /**
    * \brief Initializes CVODE state and solver data for the given column.
    */
   void initialize(Column& column);
-
-  /**
-   * \brief Initializes CVODE state and solver data for the given multibed column.
-   */
-  void initialize(MultibedColumn& column);
 
   /**
    * \brief Resets CVODE integration history after an external state or boundary change.
@@ -164,11 +141,6 @@ struct CVODE
    * from the column's current velocity, e.g. after a swing phase changes the inlet velocity.
    */
   void reinitialize(const Column& column);
-
-  /**
-   * \brief Multibed counterpart of reinitialize(const Column&).
-   */
-  void reinitialize(const MultibedColumn& column);
 
   /**
    * \brief Prints CVODE solver statistics, or nothing when the solver was never initialized.

@@ -46,7 +46,7 @@ double exponentialFaceError(size_t intervals)
   values[0] = 1.0;
   for (size_t i = 1; i <= intervals; ++i) values[i] = (std::exp(distances[i]) - std::exp(distances[i - 1])) / h;
   std::vector<double> faces(intervals + 1);
-  computeWENO(values, faces);
+  computeWENO(values, distances, faces);
   double error = 0.0;
   for (size_t i = 0; i < intervals; ++i) error = std::max(error, std::abs(faces[i] - std::exp(distances[i])));
   return error;
@@ -55,6 +55,12 @@ double exponentialFaceError(size_t intervals)
 Component inertComponent(size_t id, double axialDispersion)
 {
   return Component(id, "C" + std::to_string(id), std::vector<Isotherm>{}, 0.0, 0.0, axialDispersion);
+}
+
+// A single adsorbent over the whole column, carrying the components (only their axial dispersion is used).
+std::vector<MixturePrediction> singleAdsorbent(const std::vector<Component>& components)
+{
+  return {MixturePrediction("inert", components, 0, 0, 300.0, 1.0e3, 1.0e5, 2, 0, 0, 0)};
 }
 
 nlohmann::json beaInput()
@@ -76,11 +82,6 @@ TEST(WENO3Reconstruction, IsExactForLinearProfilesOnUniformAndNonUniformGrids)
     // The outlet face is first order (last cell value); every other face is exact.
     for (size_t i = 0; i + 1 < values.size(); ++i) EXPECT_NEAR(faces[i], 0.3 - 1.7 * distances[i], 1.0e-14) << i;
   }
-
-  const std::vector<double> values = linearCellValues(uniform, 0.3, -1.7);
-  std::vector<double> faces(values.size());
-  computeWENO(values, faces);
-  for (size_t i = 0; i + 1 < values.size(); ++i) EXPECT_NEAR(faces[i], 0.3 - 1.7 * uniform[i], 1.0e-14) << i;
 }
 
 TEST(WENO3Reconstruction, IsThirdOrderForASmoothProfile)
@@ -97,7 +98,7 @@ TEST(WENO3Reconstruction, KeepsAStepWithinItsBounds)
   std::vector<double> values(21, 0.0);
   std::fill(values.begin(), values.begin() + 8, 1.0);
   std::vector<double> faces(values.size());
-  computeWENO(values, faces);
+  computeWENO(values, uniformDistances(20, 1.0), faces);
   for (double face : faces)
   {
     EXPECT_GE(face, -1.0e-12);
@@ -105,21 +106,6 @@ TEST(WENO3Reconstruction, KeepsAStepWithinItsBounds)
   }
   EXPECT_NEAR(faces[7], 1.0, 1.0e-12);  // last cell before the step
   EXPECT_NEAR(faces[8], 0.0, 1.0e-12);  // first cell after the step
-}
-
-TEST(WENO3Reconstruction, NonUniformOverloadReducesToTheUniformOne)
-{
-  const std::vector<double> distances = uniformDistances(30, 0.3);
-  std::vector<double> values(distances.size());
-  for (size_t i = 0; i < values.size(); ++i)
-  {
-    values[i] = 0.5 + 0.4 * std::tanh(20.0 * (0.12 - distances[i])) + 0.01 * std::sin(37.0 * distances[i]);
-  }
-  std::vector<double> uniformFaces(values.size());
-  std::vector<double> nonUniformFaces(values.size());
-  computeWENO(values, uniformFaces);
-  computeWENO(values, distances, nonUniformFaces);
-  for (size_t i = 0; i < values.size(); ++i) EXPECT_NEAR(nonUniformFaces[i], uniformFaces[i], 1.0e-13) << i;
 }
 
 TEST(MassBalanceWENO3, GasSpeciesFluxesSumToTheUpwindTotalFlux)
@@ -143,8 +129,10 @@ TEST(MassBalanceWENO3, GasSpeciesFluxesSumToTheUpwindTotalFlux)
   }
   std::vector<double> concentrationDot(concentration.size());
   const std::vector<double> sink(concentration.size(), 0.0);
-  computeMassDerivatives(components, gridPoints, componentCount, resolution, velocity, concentration,
-                         concentrationDot, sink, Column::ConvectionScheme::WENO3, Column::FluidPhase::Gas);
+  const std::vector<double> ones(gridPoints + 1, 1.0);
+  computeMassDerivatives(singleAdsorbent(components), gridPoints, componentCount, 1,
+                         uniformDistances(gridPoints, gridPoints * resolution), ones, velocity, concentration,
+                         concentrationDot, sink, Column::FluidPhase::Gas, ones, Column::ConvectionScheme::WENO3);
 
   auto total = [&](size_t grid)
   {
@@ -179,11 +167,12 @@ TEST(MassBalanceWENO3, IsExactForLinearProfilesInGasAndLiquid)
   }
   const std::vector<double> velocity(gridPoints + 1, v);
   const std::vector<double> sink(concentration.size(), 0.0);
+  const std::vector<double> ones(gridPoints + 1, 1.0);
   for (Column::FluidPhase phase : {Column::FluidPhase::Gas, Column::FluidPhase::Liquid})
   {
     std::vector<double> concentrationDot(concentration.size());
-    computeMassDerivatives(components, gridPoints, 2, resolution, velocity, concentration, concentrationDot, sink,
-                           Column::ConvectionScheme::WENO3, phase);
+    computeMassDerivatives(singleAdsorbent(components), gridPoints, 2, 1, distances, ones, velocity, concentration,
+                           concentrationDot, sink, phase, ones, Column::ConvectionScheme::WENO3);
     for (size_t grid = 1; grid < gridPoints; ++grid)
     {
       EXPECT_NEAR(concentrationDot[2 * grid], -v * 40.0 * -2.0, 1.0e-10) << grid;

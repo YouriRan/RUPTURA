@@ -116,17 +116,12 @@ CVODE second IAST pass (P-ITG-5), then the `R` items.
       argument order of `std::min(0.0, NaN)`; it can never desorb.
 - [ ] **B-ITG-1** SIRK3: fix later. It cannot run the benchmark cases and supports a single adsorbent only. See also
       the banded-matrix layout and the missing temperature/chemisorption update (B-ITG-4) and P-ITG-6.
+      2026-10-27: B-ITG-4 and P-ITG-6 are fixed; SIRK3 is limited to one adsorbent, upwind convection, and
+      physisorption without reactions, chemisorption, or the energy balance.
 - [ ] **B-ITG-2** RK3 close to its stability limit is inaccurate on the dispersion-dominated monolith (fitted D_ax,
       400 ppm): e50 = 0.098 at Δt = 1.25e-3 s (limit ≈ 1.66e-3 s), 2.8e-4 at 4e-4 s. Possibly the clipping of
       negative concentrations at the front (`updateStateRK` max(0, ·); `stampi-bombelli/generate_runs.py`
       mentions it); not checked. Matters for users who pick the largest stable step.
-- [ ] **B-ITG-4 SIRK3 with the energy balance builds the banded LAPACK matrix in the wrong layout.** `rk3_si.cpp:421`
-      uses `std::layout_left` (column-major `ab`); its twin `computeConcentrationUpdateMatrixEnergyBalanceFinal`
-      (`:522`) uses CTAD, which gives `layout_right` (`git show b8a2562` fixed one copy only). SIRK3 also never
-      advances the temperature or chemisorption blocks (`propagate` updates `physisorption` and `concentration`
-      only), but the reader rejects only reactions and pore transport (B-ITG-9). Reject `EnergyBalance` and
-      chemisorption with SIRK3, and merge the EB/non-EB matrix builders (they differ only in the unused
-      `facePressures`).
 - [ ] **B-BC-1** Boundary modes. `FixedPressureInletVelocity` imposes a linear pressure profile and takes the
       velocity from the local Ergun balance without continuity. `FixedVelocity` ignores the sorption
       effect. 3.4.1 results (2026-10-19):
@@ -149,12 +144,15 @@ CVODE second IAST pass (P-ITG-5), then the `R` items.
       isothermal TSA (energy balance off, so T_m is imposed everywhere) stops at the 373 → 298 K step: the
       uptake exceeds the feed, v(L) = −0.63 m/s, "negative outlet pressure" (3.4.2). A PSA
       repressurization step would do the same. Needs flow reversal (F-BC-1) or a one-way outlet.
-- [ ] **B-MBD-1** Multibed gas–wall area comes from bed 0 only (`compute_multibed.cpp:845`); the film and gas–solid
-      areas blend 1/ε_a per bed while the loading prefactor uses ε_total (`:682-687`, `:890` vs `:656-664`).
-- [ ] **B-MBD-2** Single-bed vs multibed drift: multibed `computeChemisorptionTransportDerivatives`
-      (`compute_multibed.cpp:629`) writes `poreDot = −ρ·dq/dt` for every site, the single bed
-      (`transport.cpp:41`) skips non-transport sites; `cvode.cpp:592` passes bed 0's components to
-      `computeReactionDerivatives` for all beds.
+- [ ] **B-MBD-1** Multibed gas–wall area comes from bed 0 only (`computeEnergyDerivatives`); the film and
+      gas–solid areas blend 1/ε_a per bed while the loading prefactor uses ε_total (`computeBulkSpeciesSink`,
+      `computeEnergyDerivatives`).
+- [ ] **B-MBD-2** Single-bed vs multibed drift: the multibed `computeChemisorptionTransportDerivatives` wrote
+      `poreDot = −ρ·dq/dt` for every site, the single bed skipped non-transport sites; `computeReactionDerivatives`
+      gets bed 0's components (capacity limits) for all beds (`rk3.cpp`, `cvode.cpp`).
+      2026-10-27: the pore part is fixed with the single/multibed merge (R-GEN-1): a site without pore transport
+      leaves its surface and pore reservoirs unchanged (test
+      `MultiSiteChemisorption.KeepsDirectAndPoreTransportSiteBalancesIndependent`). The reaction part is open.
 - [ ] **B-FIT-1 GA uniform crossover is a no-op.** `fitting.cpp:522`: `children[i].genotype.substr(j, 1) = …` assigns
       to a temporary.
 - [ ] **B-FIT-2 Nelder–Mead shrink leaves n − 2 function values stale.** `fitting.cpp:931-953` moves every vertex but
@@ -292,6 +290,16 @@ CVODE second IAST pass (P-ITG-5), then the `R` items.
       (B-PHY-3) reads it. CVODE passes `t` correctly.
       Fixed 2026-10-27 (time-based I/O): RK3 and SIRK3 pass the start time of each step (`RungeKutta3::advance`),
       also during the ramp.
+- [x] **B-ITG-4 SIRK3 with the energy balance builds the banded LAPACK matrix in the wrong layout.** `rk3_si.cpp:421`
+      uses `std::layout_left` (column-major `ab`); its twin `computeConcentrationUpdateMatrixEnergyBalanceFinal`
+      (`:522`) uses CTAD, which gives `layout_right` (`git show b8a2562` fixed one copy only). SIRK3 also never
+      advances the temperature or chemisorption blocks (`propagate` updates `physisorption` and `concentration`
+      only), but the reader rejects only reactions and pore transport (B-ITG-9). Reject `EnergyBalance` and
+      chemisorption with SIRK3, and merge the EB/non-EB matrix builders (they differ only in the unused
+      `facePressures`).
+      Fixed 2026-10-27 (single/multibed merge): SIRK3 runs on the one column type with one matrix builder
+      (column-major band storage for I + Δt²L², `rk3_si.cpp`), and the reader rejects `EnergyBalance`,
+      chemisorption, and more than one adsorbent with SIRK3.
 - [x] **B-FIT-5** `Isotherm::isUnphysical` reads `parameters[2]` for `Freundlich`, which has two parameters
       (`src/isotherm.cpp:196`): an out-of-bounds read whenever the fitting cost
       (`src/multi_site_isotherm.cpp:180`) evaluates a Freundlich site. Check only `parameters[0]` and `[1]`.
@@ -566,16 +574,14 @@ I-PHY-5 to I-PHY-10 (and the fixed B-PHY-9) were found while building SI Tables 
     sparse (KLU) Jacobian or SPGMR avoids that.
 - [ ] **P-ITG-3** `Timing::measure` calls `steady_clock::now()` 20 times per RK3 step: 3% of the monolith RK3 run.
       Measured 2026-10-23 (outputs byte-identical), not applied.
-- [ ] **P-ITG-5 CVODE right-hand side runs the full IAST pass twice** (`cvode.cpp:397`, `for iteration < 2`; see
-      B-ITG-7), to make the RHS a function of the state only (sink → velocity → pressure → IAST). For
-      `FixedVelocity`, `FixedPressureInletVelocity`, and the liquid boundary modes the velocity and pressure do not
-      depend on the sink, so the second pass repeats the first. Gate it on the boundary mode: byte-identical
-      results, about half the RHS cost for those cases.
-- [ ] **P-ITG-6** SIRK3 copies the whole `Column` twice per step (`rk3_si.cpp:49`, `:274`), as RK3 did before
-      `707e64c`, and allocates `solved`, `implicitInvKLs`, and the LAPACK work arrays per call.
-- [ ] **P-MBD-1** Static multibed blends recomputed in every RHS (`compute_multibed.cpp:476-481`, `720-729`,
-      `849-872`, `909-942`): `fractionOfAdsorbent` is fixed after `initialize()`; precompute per-node tables (the
-      unused `prefactorMassTransfer` looks like it was meant for this).
+- [ ] **P-MBD-1** Static multibed blends recomputed in every RHS (`computeBulkSpeciesSink`,
+      `computeChemisorptionTransportDerivatives`, `computeEnergyDerivatives`, the Ergun law in
+      `updateVelocityAndPressure`): `fractionOfAdsorbent` is fixed after `initialize()`; precompute per-node tables.
+      2026-10-27: the per-adsorbent coefficients (LDF rate, axial dispersion) are read into small tables outside the
+      grid loops, and the chemisorption loops run only over the sites a component has. Against the single-bed code
+      the RK3 runs are still 5–7% slower (BEA C7, Marx T15), mostly the non-uniform-grid WENO and dispersion
+      stencils. A per-call WENO weight table did not change the BEA run time measurably but moved the monolith
+      CVODE run by rounding alone (24,589 → 28,867 steps, 949 instead of 63 Newton failures), so it was dropped.
 - [ ] **P-IO-1** The `column.json` restart checkpoint (`ReadColumnFile`) is serialized with nlohmann `dump(4)` at every
       output step (`src/breakthrough.cpp`, `src/swing_adsorption.cpp`). For marx-T15 with CVODE (`WriteEvery` 1,
       750 outputs) this is 0.47 s of the 3.1 s wall time (15%). Decide whether every N outputs and the end
@@ -600,6 +606,19 @@ I-PHY-5 to I-PHY-10 (and the fixed B-PHY-9) were found while building SI Tables 
       (`rk3.cpp:449-451`, +33%).
       Fixed 2026-10-27 (time-based I/O): the reaction stop criterion evaluates the RHS once per output, not per
       step.
+- [x] **P-ITG-5 CVODE right-hand side runs the full IAST pass twice** (`cvode.cpp:397`, `for iteration < 2`; see
+      B-ITG-7), to make the RHS a function of the state only (sink → velocity → pressure → IAST). For
+      `FixedVelocity`, `FixedPressureInletVelocity`, and the liquid boundary modes the velocity and pressure do not
+      depend on the sink, so the second pass repeats the first. Gate it on the boundary mode: byte-identical
+      results, about half the RHS cost for those cases.
+      Fixed 2026-10-27: one pass for `FixedVelocity`, `FixedPressureInletVelocity`, and the liquid phase. Byte-identical
+      for the monolith and liquid regression cases; where IAST iterates, the second pass had restarted from the
+      first pass's warm start, so BEA C7 (`FixedPressureInletVelocity`, CVODE) moves within the CVODE tolerance
+      (≤5e-4 of the column maximum) and runs 25% faster (2.35 → 1.76 s, the same 6033 steps).
+- [x] **P-ITG-6** SIRK3 copies the whole `Column` twice per step (`rk3_si.cpp:49`, `:274`), as RK3 did before
+      `707e64c`, and allocates `solved`, `implicitInvKLs`, and the LAPACK work arrays per call.
+      Fixed 2026-10-27 (single/multibed merge): SIRK3 advances the column in place and allocates its work arrays
+      once per step.
 - [x] **P-EX-1** `marx2/ternary/T15/simulation.json` (and the other marx2 inputs with `TimeStep` 5e-4, `WriteEvery`
       2000): with CVODE each of the 8,000,000 output steps costs a full right-hand-side/IAST evaluation that is
       written only every 2000th step. `TimeStep` 1, `WriteEvery` 1 gives the same files (same CVODE steps) in 10 s
@@ -624,10 +643,13 @@ I-PHY-5 to I-PHY-10 (and the fixed B-PHY-9) were found while building SI Tables 
       span.
 - [ ] **R-ITG-1** One right-hand-side function. The precompute-plus-derivative block is written out five times
       (`rk3.cpp` ×2, `cvode.cpp` ×2, `rk3_si.cpp`, `swing_adsorption.cpp`).
+      2026-10-27: RK3, SIRK3, the swing phase switch, and the Python bindings share `precompute` +
+      `computeDerivatives`; CVODE keeps its own passes because it evaluates trial states in SUNDIALS vectors.
 - [ ] **R-ITG-2** Template the duplicated integrator helpers (`updateStateRK`, `reactionAutoStopReached`,
       `breakthroughConverged` are identical for both column types), and share the step loop (init ramp,
       write/print cadence, integrator switch, failure dump) between `Breakthrough::run` and
       `SwingAdsorption::run`.
+      2026-10-27: with one column type every helper exists once (R-GEN-1); the shared step loop is open.
 - [ ] **R-GUI-1** `mainwindow.cpp` has ~950 lines of `addNumberField` calls that a `bind(&Config::member)` helper
       would collapse.
 - [ ] **R-PY-1** Python dead code: `_resolve_grid_index`, `_rows_at_grid`, `dt_guess`, `_trace_kwargs`,
@@ -637,20 +659,30 @@ I-PHY-5 to I-PHY-10 (and the fixed B-PHY-9) were found while building SI Tables 
       gcc-toolset-16 once RHEL ships it.
 - [ ] **R-BLD-2** `env.yml` uses Clang because conda-forge's `cxx-compiler` still gives GCC 15 (no `<mdspan>`) on
       Linux; switch back to `cxx-compiler` once it moves to GCC 16.
-- [ ] **R-GEN-1 Drop the single-bed code path.** `column.cpp` is 82% identical to `column_multibed.cpp`, and `Column`
+- [ ] **R-GEN-2** Replace the ~180 hand-written lines of copy constructor/assignment (`column.cpp`), which
+      exist only to call `bindStateViews()`, by an aggregate data base class:
+      `Column(const Column& o) : ColumnData(o) { bindStateViews(); }`.
+- [ ] **R-GEN-3** Dead code: `adsorbentGridPoints`; `Reaction::stoichiometricCoefficient`; the undefined
+      `*BitString*` declarations in `special_functions.h`; `hypergeometric()`, `maxVectorDifference`, `maxTerms`; the
+      never-set `*Flag` members and dead branches of `fit()` in `fitting.cpp`; the 80-line bisection duplicated in
+      `isotherm.h:459-550` and `multi_site_isotherm.cpp:88-172`. Removed 2026-10-27 with R-GEN-1: the members
+      `massFlux`, `facePressures`, `numberOfCalls`, `prefactorMassTransfer`, `adsorbentScaledVoidFraction`, and the
+      two-argument `makeGeometry` overloads; ~~`computeWENO`~~ is used since F-ITG-1.
+- [x] **R-GEN-1 Drop the single-bed code path.** `column.cpp` is 82% identical to `column_multibed.cpp`, and `Column`
       is `MultibedColumn` with one adsorbent (`DebugForceMultibed` and `single_adsorbent_equivalence_tests.cpp`
       show it). Removes `column.{h,cpp}`, `compute.cpp`, `sorption.cpp`, `transport.cpp`, half of `rk3.cpp`,
       `cvode.cpp`, and `swing_adsorption.cpp`, and the class of "fixed in one twin only" bugs (SIRK3 layout
       B-ITG-4, pore-dot drift B-MBD-2, `chemisorptionDot` zeroing): 1,500–2,500 lines.
-- [ ] **R-GEN-2** Replace the ~330 hand-written lines of copy constructor/assignment (`column.cpp:97-255`,
-      `column_multibed.cpp:231-413`), which exist only to call `bindStateViews()`, by an aggregate data base
-      class: `Column(const Column& o) : ColumnData(o) { bindStateViews(); }`.
-- [ ] **R-GEN-3** Dead code: members `massFlux`, `facePressures`, `numberOfCalls`, `prefactorMassTransfer` (two
-      formulas, never read), `adsorbentScaledVoidFraction`, `adsorbentGridPoints`; ~~`computeWENO`~~ (used since F-ITG-1; was: keep if F-ITG-1
-      revives it); the two-argument `makeGeometry` overloads in `transport.cpp`; `Reaction::stoichiometricCoefficient`;
-      the undefined `*BitString*` declarations in `special_functions.h`; `hypergeometric()`, `maxVectorDifference`,
-      `maxTerms`; the never-set `*Flag` members and dead branches of `fit()` in `fitting.cpp`; the 80-line
-      bisection duplicated in `isotherm.h:459-550` and `multi_site_isotherm.cpp:88-172`.
+      Done 2026-10-27: `MultibedColumn` is now `Column` (`src/column.{h,cpp}`); the single-bed `Column`, its kernels
+      (`compute.cpp` single-bed half, `sorption.cpp`, `transport.cpp`), `compute_multibed.*`, `DebugForceMultibed`
+      (now an ignored input key), and `InputReader::isMultibed` are gone; the multibed kernels are split back into
+      `compute.cpp`, `sorption.cpp`, and `transport.cpp`. `Breakthrough` and `SwingAdsorption` are no longer
+      templates. Python: `Column`, `Breakthrough`, and `SwingAdsorption` are the former multibed classes, and
+      `compute_weno` takes the node positions. Single-adsorbent results change at rounding level with RK3 and SIRK3
+      and within the tolerance with CVODE (the multibed kernels sum in a different order). Run time against
+      788fc61 (best of 3): BEA C7 RK3 4.67 → 4.99 s, Marx T15 RK3 2.38 → 2.54 s, T15 CVODE 2.99 → 3.10 s,
+      monolith CVODE 9.29 → 5.59 s (P-ITG-5); see P-MBD-1. Fixed with it: B-ITG-4, P-ITG-6, the pore part of
+      B-MBD-2.
 
 ## Validation and reruns (V)
 

@@ -10,9 +10,11 @@
 #include <string>
 #include <vector>
 
-#include "column_multibed.h"
+#include "column.h"
 #include "inputreader.h"
-#include "integrators/compute_multibed.h"
+#include "integrators/compute.h"
+#include "integrators/sorption.h"
+#include "integrators/transport.h"
 #include "integrators/rk3.h"
 #include "json.h"
 #include "swing_adsorption.h"
@@ -48,7 +50,7 @@ Reaction makeReaction(Reaction::Phase phase)
   return reaction;
 }
 
-void disablePhysisorptionKinetics(MultibedColumn& column)
+void disablePhysisorptionKinetics(Column& column)
 {
   for (MixturePrediction& mixture : column.physisorptionMixtures)
   {
@@ -106,11 +108,11 @@ TEST_F(MultibedInterfaces, AddsInterfaceLengthsAndBuildsSeparateUniformGrids)
     EXPECT_NEAR(reader.columnDistances[grid], expectedNodes[grid], 1e-14);
   }
   EXPECT_DOUBLE_EQ(reader.columnDistances.back(), reader.columnLength);
-  MultibedColumn column(reader);
+  Column column(reader);
   EXPECT_EQ(column.adsorbentInterfaceGridPoints, reader.adsorbentInterfaceGridPoints);
-  const MultibedColumn copy(column);
+  const Column copy(column);
   EXPECT_EQ(copy.adsorbentInterfaceGridPoints, reader.adsorbentInterfaceGridPoints);
-  MultibedColumn assigned(reader);
+  Column assigned(reader);
   assigned.adsorbentInterfaceGridPoints = {0, 0};
   assigned = column;
   EXPECT_EQ(assigned.adsorbentInterfaceGridPoints, reader.adsorbentInterfaceGridPoints);
@@ -118,14 +120,14 @@ TEST_F(MultibedInterfaces, AddsInterfaceLengthsAndBuildsSeparateUniformGrids)
   {
     InputReader configuredReader = reader;
     configuredReader.columnLength = configuredLength;
-    const MultibedColumn configured(configuredReader);
+    const Column configured(configuredReader);
     EXPECT_NEAR(configured.columnLength, 0.20, 1e-14);
   }
 }
 
 TEST_F(MultibedInterfaces, FractionsAreLinearAndInterfacesAddAdsorbentInventory)
 {
-  MultibedColumn column(readInput());
+  Column column(readInput());
   column.initialize();
   const std::vector<std::vector<double>> expected = {{1, 0, 0},
                                                      {1, 0, 0},
@@ -175,7 +177,7 @@ TEST_F(MultibedInterfaces, SharpInterfacesHaveNoNodesAndBoundaryBelongsUpstream)
   const InputReader reader = readInput();
   EXPECT_NEAR(reader.columnLength, 0.15, 1e-14);
   EXPECT_EQ(reader.columnDistances.size(), 11U);
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   for (size_t grid = 0; grid < column.columnDistances.size(); ++grid)
   {
@@ -193,7 +195,7 @@ TEST_F(MultibedInterfaces, EvaluatesFractionsOnGlobalAndExplicitGrids)
   input["NumberOfGridPoints"] = 20;
   const InputReader uniformReader = readInput();
   EXPECT_EQ(uniformReader.columnDistances.size(), 21U);
-  MultibedColumn uniform(uniformReader);
+  Column uniform(uniformReader);
   uniform.initialize();
   EXPECT_NEAR(uniform.columnDistances[7], 0.07, 1e-14);
   EXPECT_NEAR(uniform.fractionOfAdsorbent[7 * 3], 0.5, 1e-14);
@@ -202,7 +204,7 @@ TEST_F(MultibedInterfaces, EvaluatesFractionsOnGlobalAndExplicitGrids)
   input["ColumnDistances"] = {0.0, 0.06, 0.065, 0.075, 0.08, 0.12, 0.135, 0.15, 0.20};
   const InputReader explicitReader = readInput();
   EXPECT_EQ(explicitReader.numberOfGridPoints, 8U);
-  MultibedColumn explicitColumn(explicitReader);
+  Column explicitColumn(explicitReader);
   explicitColumn.initialize();
   EXPECT_NEAR(explicitColumn.fractionOfAdsorbent[2 * 3], 0.75, 1e-14);
   EXPECT_NEAR(explicitColumn.fractionOfAdsorbent[3 * 3], 0.25, 1e-14);
@@ -217,7 +219,7 @@ TEST_F(MultibedInterfaces, SharpBoundaryRemainsUpstreamWithSectionRounding)
   input["ColumnSections"][0]["NumberOfGridPoints"] = 13;
   input["ColumnSections"][1] = {{"InterfaceLength", 0.0}};
   input["ColumnSections"][3] = {{"InterfaceLength", 0.0}};
-  MultibedColumn column(readInput());
+  Column column(readInput());
   column.initialize();
   EXPECT_DOUBLE_EQ(column.columnDistances[13], 0.06);
   EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[13 * 3], 1.0);
@@ -232,7 +234,7 @@ TEST_F(MultibedInterfaces, OneIntervalInterfacesKeepOnlyTheirEndpoints)
   const InputReader reader = readInput();
   EXPECT_EQ(reader.columnDistances.size(), 13U);
   EXPECT_EQ(reader.adsorbentInterfaceGridPoints, (std::vector<size_t>{1, 1}));
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   EXPECT_NEAR(column.columnDistances[3], 0.06, 1e-14);
   EXPECT_NEAR(column.columnDistances[4], 0.08, 1e-14);
@@ -249,7 +251,7 @@ TEST_F(MultibedInterfaces, SingleAdsorbentHasNoInterfaces)
   EXPECT_EQ(reader.columnDistances.size(), 4U);
   EXPECT_TRUE(reader.adsorbentInterfaceLengths.empty());
   EXPECT_TRUE(reader.adsorbentInterfaceGridPoints.empty());
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   for (double fraction : column.fractionOfAdsorbent) EXPECT_DOUBLE_EQ(fraction, 1.0);
 }
@@ -258,7 +260,7 @@ TEST_F(MultibedInterfaces, LongInterfacesRemainSeparateFromPureSections)
 {
   input["ColumnSections"][1]["InterfaceLength"] = 0.2;
   input["ColumnSections"][3]["InterfaceLength"] = 0.3;
-  MultibedColumn column(readInput());
+  Column column(readInput());
   column.initialize();
   EXPECT_NEAR(column.columnLength, 0.65, 1e-14);
   EXPECT_DOUBLE_EQ(column.fractionOfAdsorbent[3 * 3], 1.0);
@@ -334,7 +336,7 @@ TEST(MultibedExamples, ParseAndAdvanceWithAdsorbentSpecificParameters)
     }
     ASSERT_EQ(reader.columnDistances.size(), reader.numberOfGridPoints + 1);
 
-    MultibedColumn column(reader);
+    Column column(reader);
     column.initialize();
     EXPECT_EQ(column.numberOfAdsorbents, expectedAdsorbents);
     EXPECT_DOUBLE_EQ(column.columnDistances.front(), 0.0);
@@ -362,45 +364,36 @@ TEST(MultibedExamples, ParseAndAdvanceWithAdsorbentSpecificParameters)
   }
 }
 
-TEST(MultibedDebug, ForcesSingleAdsorbentThroughMultibedImplementation)
+TEST(SingleAdsorbent, RunsAsAOneAdsorbentColumnAndIgnoresDebugForceMultibed)
 {
   const std::filesystem::path sourcePath =
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/MOR-CO2-C3H8/breakthrough/simulation.json";
   std::ifstream source(sourcePath);
   ASSERT_TRUE(source);
   nlohmann::json input = nlohmann::json::parse(source);
-  input["DebugForceMultibed"] = true;
 
-  const std::filesystem::path outputDirectory =
-      testTemporaryDirectory() / "ruptura_debug_force_multibed";
+  const std::filesystem::path outputDirectory = testTemporaryDirectory() / "ruptura_single_adsorbent";
   std::filesystem::create_directories(outputDirectory);
   const std::filesystem::path inputPath = outputDirectory / "simulation.json";
-  std::ofstream output(inputPath);
-  output << input;
-  output.close();
+  std::ofstream(inputPath) << input;
 
   InputReader reader(inputPath.string());
   ASSERT_EQ(reader.adsorbentComponents.size(), 1U);
-  EXPECT_TRUE(reader.debugForceMultibed);
-  EXPECT_TRUE(reader.isMultibed());
+  {
+    WorkingDirectoryGuard workingDirectory(outputDirectory);
+    Breakthrough breakthrough(reader);
+    EXPECT_EQ(breakthrough.column.numberOfAdsorbents, 1U);
+  }
 
-  WorkingDirectoryGuard workingDirectory(outputDirectory);
-  Breakthrough<MultibedColumn> breakthrough(reader);
-  EXPECT_EQ(breakthrough.column.numberOfAdsorbents, 1U);
-}
-
-TEST(MultibedDebug, LeavesSingleAdsorbentOnSingleBedByDefault)
-{
-  InputReader reader(examplePath("examples/MOR-CO2-C3H8/breakthrough/simulation.json"));
-  ASSERT_EQ(reader.adsorbentComponents.size(), 1U);
-  EXPECT_FALSE(reader.debugForceMultibed);
-  EXPECT_FALSE(reader.isMultibed());
+  input["DebugForceMultibed"] = true;
+  std::ofstream(inputPath) << input;
+  EXPECT_NO_THROW(InputReader{inputPath.string()});
 }
 
 TEST(MultibedExamples, LayerFractionsFollowConfiguredSectionsAndInterfaces)
 {
   InputReader reader(examplePath("examples/Multibed/C6-alkanes-layered/simulation.json"));
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
 
   ASSERT_EQ(column.numberOfAdsorbents, 2U);
@@ -432,7 +425,7 @@ TEST(MultibedUniformMix, AppliesConfiguredFractionsOverTheWholeColumn)
   EXPECT_DOUBLE_EQ(reader.columnLength, 0.1);
   EXPECT_TRUE(reader.adsorbentInterfaceLengths.empty());
 
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   for (size_t grid = 0; grid < column.numberOfGridPoints + 1; ++grid)
   {
@@ -494,7 +487,7 @@ TEST(MultibedCvode, BreakthroughParsesInitializesAndPropagates)
       testTemporaryDirectory() / "ruptura_multibed_cvode_breakthrough";
   WorkingDirectoryGuard workingDirectory(outputDirectory);
 
-  Breakthrough<MultibedColumn> breakthrough(reader);
+  Breakthrough breakthrough(reader);
   EXPECT_EQ(breakthrough.integrationScheme, BreakthroughIntegrationScheme::CVODE);
   EXPECT_NO_THROW(breakthrough.advanceToNextOutput());
   EXPECT_TRUE(allFinite(breakthrough.column.state));
@@ -508,7 +501,7 @@ TEST(MultibedCvode, PropagatesPoreReactionState)
   InputReader reader(examplePath("examples/Multibed/CO2-N2-polishing/simulation.json"));
   reader.reactions = {makeReaction(Reaction::Phase::PoreConcentration)};
 
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   disablePhysisorptionKinetics(column);
   std::fill(column.poreConcentration.begin(), column.poreConcentration.end(), 0.0);
@@ -525,13 +518,13 @@ TEST(MultibedCvode, PropagatesPoreReactionState)
 }
 #endif
 
-TEST(MultibedColumn, StateLayoutMatchesColumnConventionAndRebindsCopies)
+TEST(Column, StateLayoutMatchesColumnConventionAndRebindsCopies)
 {
   InputReader reader(examplePath("examples/Multibed/CO2-N2-polishing/simulation.json"));
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
 
-  const MultibedColumnStateLayout layout = column.stateLayout();
+  const ColumnStateLayout layout = column.stateLayout();
   const size_t componentBlockSize = (column.numberOfGridPoints + 1) * column.numberOfComponents;
   const size_t temperatureBlockSize = column.numberOfGridPoints + 1;
 
@@ -544,7 +537,7 @@ TEST(MultibedColumn, StateLayoutMatchesColumnConventionAndRebindsCopies)
   EXPECT_EQ(column.solidTemperature.data(), column.gasTemperature.data() + temperatureBlockSize);
   EXPECT_EQ(column.wallTemperature.data(), column.solidTemperature.data() + temperatureBlockSize);
 
-  MultibedColumn copy(column);
+  Column copy(column);
   EXPECT_NE(copy.state.data(), column.state.data());
   EXPECT_EQ(copy.concentration.data(), copy.state.data());
   EXPECT_EQ(copy.physisorption.data(), copy.state.data() + componentBlockSize);
@@ -553,7 +546,7 @@ TEST(MultibedColumn, StateLayoutMatchesColumnConventionAndRebindsCopies)
   copy.concentration.front() += 1.0;
   EXPECT_NE(copy.concentration.front(), column.concentration.front());
 
-  MultibedColumn assigned(reader);
+  Column assigned(reader);
   assigned = column;
   EXPECT_NE(assigned.state.data(), column.state.data());
   EXPECT_EQ(assigned.concentration.data(), assigned.state.data());
@@ -567,7 +560,7 @@ TEST(MultibedReactions, PhysisorbedSourcesDoNotTransferMassToTheBulk)
   reader.energyBalance = true;
   reader.reactions = {makeReaction(Reaction::Phase::Physisorbed)};
 
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   disablePhysisorptionKinetics(column);
 
@@ -622,7 +615,7 @@ TEST(MultibedReactions, ParsesReactionTogetherWithAdsorbents)
   const std::filesystem::path runDirectory =
       testTemporaryDirectory() / "ruptura_multibed_reaction_breakthrough";
   WorkingDirectoryGuard workingDirectory(runDirectory);
-  Breakthrough<MultibedColumn> breakthrough(reader);
+  Breakthrough breakthrough(reader);
   EXPECT_TRUE(breakthrough.advanceToNextOutput());
   EXPECT_TRUE(allFinite(breakthrough.column.state));
 }
@@ -640,7 +633,7 @@ TEST(MultibedReactions, ChemisorbedSourcesUseTheSharedSiteState)
   }
   reader.reactions = {makeReaction(Reaction::Phase::Chemisorbed)};
 
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   disablePhysisorptionKinetics(column);
 
@@ -663,7 +656,7 @@ TEST(MultibedReactions, PoreSourcesAreIntegratedWithoutDirectBulkTransfer)
   InputReader reader(examplePath("examples/Multibed/CO2-N2-polishing/simulation.json"));
   reader.reactions = {makeReaction(Reaction::Phase::PoreConcentration)};
 
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   disablePhysisorptionKinetics(column);
   ASSERT_TRUE(column.surfacePoreTransportEnabled);
@@ -696,7 +689,7 @@ TEST(MultibedReactions, BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs)
   reaction.adsorbents = {0U};
   reader.reactions = {reaction};
 
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
   disablePhysisorptionKinetics(column);
 
@@ -734,7 +727,7 @@ TEST(MultibedReactions, BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs)
 TEST(MultibedCompute, BulkSpeciesSinkUsesBedWeightedSolidLoading)
 {
   InputReader reader(examplePath("examples/Multibed/C6-alkanes-layered/simulation.json"));
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
 
   size_t blendedGrid = column.numberOfGridPoints + 1;
@@ -757,11 +750,10 @@ TEST(MultibedCompute, BulkSpeciesSinkUsesBedWeightedSolidLoading)
 
   computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
                          column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries,
-                         column.adsorbentVoidFractions,
-                         column.particleDensities, column.particleDiameters, column.fractionOfAdsorbent,
-                         column.totalVoidFraction, column.concentration, column.physisorptionDot,
-                         column.chemisorptionDot, column.surfaceConcentration, column.bulkSpeciesSink,
-                         column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
+                         column.particleDensities, column.fractionOfAdsorbent, column.totalVoidFraction,
+                         column.concentration, column.physisorptionDot, column.chemisorptionDot,
+                         column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
+                         column.reactionChemisorptionSource);
 
   double solidLoadingDensity = 0.0;
   for (size_t ads = 0; ads < column.numberOfAdsorbents; ++ads)
@@ -778,7 +770,7 @@ TEST(MultibedCompute, BulkSpeciesSinkUsesBedWeightedSolidLoading)
   }
 }
 
-TEST(MultibedSwingAdsorption, AdvancesConcreteMultibedColumnAcrossStages)
+TEST(MultibedSwingAdsorption, AdvancesConcreteColumnAcrossStages)
 {
   InputReader reader(examplePath("examples/Multibed/CO2-N2-polishing/simulation.json"));
   reader.simulationType = InputReader::SimulationType::SwingAdsorption;
@@ -801,7 +793,7 @@ TEST(MultibedSwingAdsorption, AdvancesConcreteMultibedColumnAcrossStages)
   const std::filesystem::path outputDirectory = testTemporaryDirectory() / "ruptura_multibed_swing";
   WorkingDirectoryGuard workingDirectory(outputDirectory);
 
-  SwingAdsorption<MultibedColumn> swing(reader);
+  SwingAdsorption swing(reader);
   EXPECT_EQ(swing.breakthrough.column.numberOfAdsorbents, 2U);
   ASSERT_EQ(swing.subStages.size(), 2U);
 
@@ -839,7 +831,7 @@ TEST(MultibedSwingAdsorption, AdvancesWithCvode)
       testTemporaryDirectory() / "ruptura_multibed_cvode_swing";
   WorkingDirectoryGuard workingDirectory(outputDirectory);
 
-  SwingAdsorption<MultibedColumn> swing(reader);
+  SwingAdsorption swing(reader);
   EXPECT_EQ(swing.breakthrough.integrationScheme, BreakthroughIntegrationScheme::CVODE);
   EXPECT_NO_THROW(swing.run());
   EXPECT_TRUE(allFinite(swing.breakthrough.column.state));
@@ -851,7 +843,7 @@ TEST(MultibedSwingAdsorption, AdvancesWithCvode)
 TEST(MultibedOutput, UsesSingleBedComponentColumnSchema)
 {
   InputReader reader(examplePath("examples/Multibed/C6-alkanes-layered/simulation.json"));
-  MultibedColumn column(reader);
+  Column column(reader);
   column.initialize();
 
   const std::filesystem::path outputDirectory = ::testing::TempDir();

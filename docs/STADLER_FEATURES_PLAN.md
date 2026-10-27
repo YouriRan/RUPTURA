@@ -73,8 +73,7 @@ the authors fitted.
     - `swing_adsorption.cpp:24` (`refreshColumnState`);
     - the initialisation in `column.cpp:445` and `column_multibed.cpp:669`.
 
-    `rk3_si.cpp` has no reaction or transport terms at all. If phase 2 of
-    `docs/SIRK3_ANALYTIC_JACOBIAN_PLAN.md` lands first, this becomes one place.
+    `rk3_si.cpp` has no reaction or transport terms at all.
   - Heat: `reactionHeat` is per kg of solid. Convert with ρ_cat/(ρ_p(1−ε)). It is irrelevant for Stadler
     (isothermal).
 - Input:

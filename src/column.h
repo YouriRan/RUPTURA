@@ -14,17 +14,14 @@
 #include <vector>
 
 #include "component.h"
-#include "geometry.h"
 #include "inputreader.h"
 #include "mixture_prediction.h"
 #include "reaction.h"
 #include "utils.h"
 
 /**
- * \brief Centralized view of the flattened Column ODE state layout.
- *
- * The component blocks are grid-major arrays of size (numberOfGridPoints + 1) * numberOfComponents.
- * Optional surface/pore concentration blocks are present only for mechanistic chemisorption.
+ * \brief Centralized view of the flattened column ODE state layout: gas concentration, physisorption,
+ * chemisorption, optional surface/pore concentration, and temperature fields.
  */
 struct ColumnStateLayout
 {
@@ -52,11 +49,6 @@ struct ColumnStateLayout
     return {base + block * componentBlockSize(), componentBlockSize()};
   }
 
-  [[nodiscard]] std::span<const double> componentBlock(const double* base, size_t block) const noexcept
-  {
-    return {base + block * componentBlockSize(), componentBlockSize()};
-  }
-
   [[nodiscard]] std::span<double> concentration(double* base) const noexcept { return componentBlock(base, 0); }
   [[nodiscard]] std::span<double> physisorption(double* base) const noexcept { return componentBlock(base, 1); }
   [[nodiscard]] std::span<double> chemisorption(double* base) const noexcept
@@ -65,10 +57,9 @@ struct ColumnStateLayout
   }
   [[nodiscard]] std::span<double> surfaceConcentration(double* base) const noexcept
   {
-    return includeSurfacePoreTransport
-               ? std::span<double>{base + (2 + chemisorptionSiteCount()) * componentBlockSize(),
-                                   chemisorptionSiteCount() * componentBlockSize()}
-               : std::span<double>{};
+    return includeSurfacePoreTransport ? std::span<double>{base + (2 + chemisorptionSiteCount()) * componentBlockSize(),
+                                                           chemisorptionSiteCount() * componentBlockSize()}
+                                       : std::span<double>{};
   }
   [[nodiscard]] std::span<double> poreConcentration(double* base) const noexcept
   {
@@ -94,8 +85,9 @@ struct ColumnStateLayout
 /**
  * \brief Packed-column model state and configuration.
  *
- * Stores column parameters, component data, cache arrays, scratch arrays, and
- * canonical ODE state storage.
+ * Holds one or more adsorbents, as layered sections (with optional linear interfaces) or as a uniform mixture; a
+ * single adsorbent is the one-section case. Stores column parameters, component data, cache arrays, scratch arrays,
+ * and canonical ODE state storage.
  */
 struct Column
 {
@@ -138,73 +130,64 @@ struct Column
    *
    * Allocates grid, component, cache, scratch, and ODE-state arrays.
    */
-  Column(MixturePrediction physisorptionMixture, std::vector<Component> components,
-         BoundaryCondition boundaryCondition,
-         bool energyBalance, size_t numberOfGridPoints, size_t maxIsothermTerms, size_t carrierGasComponent,
-         double temperature, double inletPressure, double outletPressure, double pressureGradient,
-         double columnVoidFraction, double particleDensity, double columnEntranceVelocity, double columnLength,
-         double dynamicViscosity, double particleDiameter, double influxTemperature, double internalDiameter,
-         double outerDiameter, double wallDensity, double gasThermalConductivity, double wallThermalConductivity,
-         double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
-         double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
-         std::vector<Reaction> reactions = {}, FluidPhase fluidPhase = FluidPhase::Gas,
-         double liquidDensity = 1000.0, PHMode pHMode = PHMode::Fixed, double pHValue = 7.0,
-         double pKw = 14.0, size_t pHComponent = 0)
-      : Column(std::move(physisorptionMixture), std::move(components), boundaryCondition, energyBalance,
-               numberOfGridPoints, maxIsothermTerms, carrierGasComponent, temperature, inletPressure,
-               outletPressure, pressureGradient, columnVoidFraction, particleDensity, columnEntranceVelocity,
-               columnLength, dynamicViscosity, particleDiameter, influxTemperature, internalDiameter,
-               outerDiameter, wallDensity, gasThermalConductivity, wallThermalConductivity,
-               heatTransferGasSolid, heatTransferGasWall, heatTransferWallExternal, heatCapacityGas,
-               heatCapacitySolid, heatCapacityWall,
-               makeGeometry(PackedBedTubeSpec{.voidFraction = columnVoidFraction,
-                                              .particleDiameter = particleDiameter,
-                                              .internalDiameter = internalDiameter,
-                                              .outerDiameter = outerDiameter}),
-               std::move(reactions), fluidPhase, liquidDensity, pHMode, pHValue, pKw, pHComponent)
-  {
-  }
-
-  Column(MixturePrediction physisorptionMixture, std::vector<Component> components,
-         BoundaryCondition boundaryCondition,
-         bool energyBalance, size_t numberOfGridPoints, size_t maxIsothermTerms, size_t carrierGasComponent,
-         double temperature, double inletPressure, double outletPressure, double pressureGradient,
-         double columnVoidFraction, double particleDensity, double columnEntranceVelocity, double columnLength,
-         double dynamicViscosity, double particleDiameter, double influxTemperature, double internalDiameter,
-         double outerDiameter, double wallDensity, double gasThermalConductivity, double wallThermalConductivity,
-         double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
-         double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall, Geometry geometry,
-         std::vector<Reaction> reactions = {}, FluidPhase fluidPhase = FluidPhase::Gas,
-         double liquidDensity = 1000.0, PHMode pHMode = PHMode::Fixed, double pHValue = 7.0,
-         double pKw = 14.0, size_t pHComponent = 0)
-      : physisorptionMixture(std::move(physisorptionMixture)),
+  Column(std::vector<MixturePrediction> physisorptionMixtures, std::vector<Component> components,
+                 BoundaryCondition boundaryCondition, bool energyBalance, size_t numberOfGridPoints,
+                 size_t maxIsothermTerms, size_t carrierGasComponent, double temperature, double inletPressure,
+                 double outletPressure, double pressureGradient, std::vector<double> adsorbentVoidFractions,
+                 std::vector<double> particleDensities, double columnEntranceVelocity,
+                 std::vector<double> adsorbentLengths, std::vector<double> adsorbentInterfaceLengths,
+                 std::vector<size_t> adsorbentGridPoints, std::vector<size_t> adsorbentInterfaceGridPoints,
+                 double dynamicViscosity, std::vector<double> particleDiameters, double influxTemperature,
+                 double internalDiameter, double outerDiameter, double wallDensity, double gasThermalConductivity,
+                 double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
+                 double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid,
+                 double heatCapacityWall, std::vector<double> columnDistances = {},
+                 std::vector<Reaction> reactions = {}, std::vector<Geometry> geometries = {},
+                 std::vector<double> adsorbentMixFractions = {}, double configuredColumnLength = -1.0,
+                 FluidPhase fluidPhase = FluidPhase::Gas, double liquidDensity = 1000.0, PHMode pHMode = PHMode::Fixed,
+                 double pHValue = 7.0, double pKw = 14.0, size_t pHComponent = 0)
+      : physisorptionMixtures(std::move(physisorptionMixtures)),
         components(std::move(components)),
         boundaryCondition(boundaryCondition),
         fluidPhase(fluidPhase),
         pHMode(pHMode),
         energyBalance(energyBalance),
-        geometry(std::move(geometry)),
         reactions(std::move(reactions)),
         numberOfGridPoints(numberOfGridPoints),
         numberOfComponents(this->components.size()),
+        numberOfAdsorbents(this->physisorptionMixtures.size()),
         maxIsothermTerms(maxIsothermTerms),
-        maxChemisorptionSites(maximumChemisorptionSites(this->components)),
-        numberOfCalls(0),
+        maxChemisorptionSites(maximumChemisorptionSites(this->physisorptionMixtures)),
         carrierGasComponent(carrierGasComponent),
         pHComponent(pHComponent),
+        adsorbentLengths(std::move(adsorbentLengths)),
+        adsorbentInterfaceLengths(std::move(adsorbentInterfaceLengths)),
+        adsorbentMixFractions(std::move(adsorbentMixFractions)),
+        adsorbentGridPoints(std::move(adsorbentGridPoints)),
+        adsorbentInterfaceGridPoints(std::move(adsorbentInterfaceGridPoints)),
+        adsorbentVoidFractions(std::move(adsorbentVoidFractions)),
+        particleDensities(std::move(particleDensities)),
+        particleDiameters(std::move(particleDiameters)),
+        geometries(geometries.empty() ? makePackedBedGeometries(this->adsorbentVoidFractions, this->particleDiameters,
+                                                                internalDiameter, outerDiameter)
+                                      : std::move(geometries)),
         externalTemperature(temperature),
         inletPressure(inletPressure),
         outletPressure(outletPressure),
         pressureGradient(pressureGradient),
-        voidFraction(columnVoidFraction),
-        particleDensity(particleDensity),
         columnEntranceVelocity(columnEntranceVelocity),
-        columnLength(columnLength),
+        columnLength(
+            !this->adsorbentMixFractions.empty() && configuredColumnLength > 0.0
+                ? configuredColumnLength
+                : std::reduce(this->adsorbentLengths.begin(), this->adsorbentLengths.end(), 0.0) +
+                      std::reduce(this->adsorbentInterfaceLengths.begin(), this->adsorbentInterfaceLengths.end(), 0.0)),
         dynamicViscosity(dynamicViscosity),
-        particleDiameter(particleDiameter),
         liquidDensity(liquidDensity),
         pHValue(pHValue),
         pKw(pKw),
+        columnDistances(columnDistances.empty()
+                            ? makeUniformColumnDistances(this->numberOfGridPoints, this->columnLength)
+                            : std::move(columnDistances)),
         influxTemperature(influxTemperature),
         internalDiameter(internalDiameter),
         outerDiameter(outerDiameter),
@@ -219,9 +202,8 @@ struct Column
         heatCapacityWall(heatCapacityWall),
         resolution(this->columnLength / static_cast<double>(this->numberOfGridPoints)),
         timeNormalizationFactor(this->columnEntranceVelocity / this->columnLength),
-        surfacePoreTransportEnabled(requiresSurfacePoreTransport(this->components) ||
+        surfacePoreTransportEnabled(requiresSurfacePoreTransport(this->physisorptionMixtures) ||
                                     reactionsRequirePoreConcentration(this->reactions)),
-        prefactorMassTransfer(this->numberOfComponents),
         idealGasMolFractions(this->numberOfComponents),
         adsorbedMolFractions(this->numberOfComponents),
         numberOfMolecules(this->numberOfComponents),
@@ -230,41 +212,43 @@ struct Column
         totalConcentration(this->numberOfGridPoints + 1),
         totalPressure(this->numberOfGridPoints + 1),
         pH(this->numberOfGridPoints + 1, pHValue),
+        totalVoidFraction(this->numberOfGridPoints + 1),
+        particleDensity(this->numberOfGridPoints + 1),
         moleFraction((this->numberOfGridPoints + 1) * this->numberOfComponents),
         partialPressure((this->numberOfGridPoints + 1) * this->numberOfComponents),
         equilibriumPhysisorption((this->numberOfGridPoints + 1) * this->numberOfComponents),
-        equilibriumChemisorption(this->maxChemisorptionSites *
-                                 (this->numberOfGridPoints + 1) * this->numberOfComponents),
-        cachedPressure((this->numberOfGridPoints + 1) * this->numberOfComponents * this->maxIsothermTerms),
-        cachedGrandPotential((this->numberOfGridPoints + 1) * this->maxIsothermTerms),
-        cachedChemisorptionPressure(this->maxChemisorptionSites *
-                                    (this->numberOfGridPoints + 1) * this->numberOfComponents),
-        cachedChemisorptionGrandPotential(this->maxChemisorptionSites *
-                                          (this->numberOfGridPoints + 1)),
+        equilibriumChemisorption(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                 this->numberOfComponents),
+        fractionOfAdsorbent((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
+        hasAdsorbentOfType((this->numberOfGridPoints + 1) * this->numberOfAdsorbents),
+        cachedPressure((this->numberOfGridPoints + 1) * this->numberOfAdsorbents * this->numberOfComponents *
+                       this->maxIsothermTerms),
+        cachedGrandPotential((this->numberOfGridPoints + 1) * this->numberOfAdsorbents * this->maxIsothermTerms),
+        cachedChemisorptionPressure(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                    this->numberOfAdsorbents * this->numberOfComponents),
+        cachedChemisorptionGrandPotential(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                          this->numberOfAdsorbents),
         coeffDiffusion(this->numberOfGridPoints + 1),
-        facePressures(this->numberOfGridPoints),
-        massFlux((this->numberOfGridPoints + 1) * this->numberOfComponents),
         bulkSpeciesSink((this->numberOfGridPoints + 1) * this->numberOfComponents),
         reactionPhysisorptionSource((this->numberOfGridPoints + 1) * this->numberOfComponents),
-        reactionChemisorptionSource(this->maxChemisorptionSites *
-                                    (this->numberOfGridPoints + 1) * this->numberOfComponents),
-        reactionPoreConcentrationSource(this->maxChemisorptionSites *
-                                        (this->numberOfGridPoints + 1) * this->numberOfComponents),
+        reactionChemisorptionSource(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                    this->numberOfComponents),
+        reactionPoreConcentrationSource(this->maxChemisorptionSites * (this->numberOfGridPoints + 1) *
+                                        this->numberOfComponents),
         reactionBulkSource((this->numberOfGridPoints + 1) * this->numberOfComponents),
         reactionHeat(this->numberOfGridPoints + 1),
-        state(ColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents,
-                                this->maxChemisorptionSites,
-                                this->surfacePoreTransportEnabled}
+        state(ColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents, this->maxChemisorptionSites,
+                                        this->surfacePoreTransportEnabled}
                   .stateSize(),
               0.0),
         stateDot(ColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents,
-                                   this->maxChemisorptionSites,
-                                   this->surfacePoreTransportEnabled}
+                                           this->maxChemisorptionSites, this->surfacePoreTransportEnabled}
                      .stateSize(),
                  0.0)
   {
+    validateColumnDistances(this->columnDistances, this->numberOfGridPoints, this->columnLength);
     bindStateViews();
-    chemisorptionMixture = makeChemisorptionMixture(this->physisorptionMixture, this->components);
+    chemisorptionMixtures = makeChemisorptionMixtures(this->physisorptionMixtures);
   }
 
   /**
@@ -273,25 +257,46 @@ struct Column
    * Allocates grid, component, cache, scratch, and ODE-state arrays.
    */
   Column(const InputReader& inputReader)
-      : Column(MixturePrediction(inputReader), inputReader.components, BoundaryCondition(inputReader.boundaryCondition),
-               inputReader.energyBalance, inputReader.numberOfGridPoints, inputReader.maxIsothermTerms,
-               inputReader.carrierGasComponent, inputReader.temperature, inputReader.inletPressure,
-               inputReader.outletPressure, inputReader.pressureGradient, inputReader.columnVoidFraction,
-               inputReader.particleDensity, inputReader.columnEntranceVelocity, inputReader.columnLength,
-               inputReader.dynamicViscosity, inputReader.particleDiameter, inputReader.influxTemperature,
-               inputReader.internalDiameter, inputReader.outerDiameter, inputReader.wallDensity,
-               inputReader.fluidPhase == 1 ? inputReader.liquidThermalConductivity
-                                           : inputReader.gasThermalConductivity,
-               inputReader.wallThermalConductivity,
-               inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidSolid
-                                           : inputReader.heatTransferGasSolid,
-               inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidWall
-                                           : inputReader.heatTransferGasWall,
-               inputReader.heatTransferWallExternal,
-               inputReader.fluidPhase == 1 ? inputReader.heatCapacityLiquid : inputReader.heatCapacityGas,
-               inputReader.heatCapacitySolid, inputReader.heatCapacityWall, inputReader.geometry,
-               inputReader.reactions, FluidPhase(inputReader.fluidPhase), inputReader.liquidDensity,
-               PHMode(inputReader.pHMode), inputReader.pHValue, inputReader.pKw, inputReader.pHComponent)
+      : Column(
+            [&inputReader]()
+            {
+              std::vector<MixturePrediction> mixtures;
+              mixtures.reserve(inputReader.adsorbentComponents.size());
+              for (const std::vector<Component>& componentsForAdsorbent : inputReader.adsorbentComponents)
+              {
+                // MPD loads its particle distribution from MPDSettings, which describes the single adsorbent.
+                if (inputReader.mixturePredictionMethod ==
+                    static_cast<size_t>(MixturePrediction::PredictionMethod::MPD))
+                {
+                  mixtures.emplace_back(inputReader);
+                  continue;
+                }
+                mixtures.emplace_back(inputReader.displayName, componentsForAdsorbent, inputReader.numberOfCarrierGases,
+                                      inputReader.carrierGasComponent, inputReader.temperature,
+                                      inputReader.pressureStart, inputReader.pressureEnd,
+                                      inputReader.numberOfPressurePoints, inputReader.pressureScale,
+                                      inputReader.mixturePredictionMethod, inputReader.IASTMethod);
+              }
+              return mixtures;
+            }(),
+            inputReader.components, BoundaryCondition(inputReader.boundaryCondition), inputReader.energyBalance,
+            inputReader.numberOfGridPoints, inputReader.maxIsothermTerms, inputReader.carrierGasComponent,
+            inputReader.temperature, inputReader.inletPressure, inputReader.outletPressure,
+            inputReader.pressureGradient, inputReader.adsorbentVoidFractions, inputReader.adsorbentParticleDensities,
+            inputReader.columnEntranceVelocity, inputReader.adsorbentLengths, inputReader.adsorbentInterfaceLengths,
+            inputReader.adsorbentGridPoints, inputReader.adsorbentInterfaceGridPoints, inputReader.dynamicViscosity,
+            inputReader.adsorbentParticleDiameters, inputReader.influxTemperature, inputReader.internalDiameter,
+            inputReader.outerDiameter, inputReader.wallDensity,
+            inputReader.fluidPhase == 1 ? inputReader.liquidThermalConductivity : inputReader.gasThermalConductivity,
+            inputReader.wallThermalConductivity,
+            inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidSolid : inputReader.heatTransferGasSolid,
+            inputReader.fluidPhase == 1 ? inputReader.heatTransferLiquidWall : inputReader.heatTransferGasWall,
+            inputReader.heatTransferWallExternal,
+            inputReader.fluidPhase == 1 ? inputReader.heatCapacityLiquid : inputReader.heatCapacityGas,
+            inputReader.heatCapacitySolid, inputReader.heatCapacityWall, inputReader.columnDistances,
+            inputReader.reactions, inputReader.adsorbentGeometries, inputReader.adsorbentMixFractions,
+            inputReader.columnLength, FluidPhase(inputReader.fluidPhase), inputReader.liquidDensity,
+            PHMode(inputReader.pHMode), inputReader.pHValue, inputReader.pKw, inputReader.pHComponent)
   {
     convectionScheme = ConvectionScheme(inputReader.convectionScheme);
   }
@@ -306,152 +311,155 @@ struct Column
   Column& operator=(const Column& other);
 
   // Model configuration and component data.
-  MixturePrediction physisorptionMixture;  ///< Competitive physisorption equilibrium model.
-  MixturePrediction chemisorptionMixture;  ///< Multisite competitive chemisorption equilibrium model.
-  std::vector<Component> components;    ///< Component definitions and isotherm parameters; size numberOfComponents.
-  BoundaryCondition boundaryCondition;  ///< Selected breakthrough boundary-condition pair.
-  FluidPhase fluidPhase;                ///< Gas or liquid mobile phase.
-  PHMode pHMode;                        ///< Fixed or transported pH representation.
+  std::vector<MixturePrediction> physisorptionMixtures;  ///< One physisorption mixture-prediction object per bed.
+  std::vector<MixturePrediction> chemisorptionMixtures;  ///< One competitive chemisorption model per bed.
+  std::vector<Component> components;                     ///< Feed component definitions; size numberOfComponents.
+  BoundaryCondition boundaryCondition;                   ///< Selected breakthrough boundary-condition pair.
+  FluidPhase fluidPhase;                                 ///< Gas or liquid mobile phase.
+  PHMode pHMode;                                         ///< Fixed or transported pH representation.
   ConvectionScheme convectionScheme{ConvectionScheme::WENO3};  ///< Reconstruction of the convective face values.
-  bool energyBalance;                   ///< Enables gas/solid/wall temperature dynamics when true.
-  Geometry geometry;                    ///< Column/tube/monolith geometry and precomputed shape terms.
-  std::vector<Reaction> reactions;      ///< Optional reactions coupled to adsorbed or pore-phase variables.
+  bool energyBalance;                                    ///< Enables gas/solid/wall temperature dynamics when true.
+  std::vector<Reaction> reactions;                       ///< Reactions coupled to adsorbed or pore-phase variables.
 
   // Dimensions and counters.
-  size_t numberOfGridPoints;   ///< Number of spatial grid intervals; node count is numberOfGridPoints + 1.
-  size_t numberOfComponents;   ///< Number of gas components.
-  size_t maxIsothermTerms;     ///< Maximum number of isotherm sites across all components.
-  size_t maxChemisorptionSites;  ///< Maximum number of chemisorption sites across all components.
-  size_t numberOfCalls;        ///< Counter for model/evaluation calls.
-  size_t carrierGasComponent;  ///< Index of the carrier-gas component.
-  size_t pHComponent;          ///< Component used to derive transported pH.
+  size_t numberOfGridPoints;     ///< Number of spatial grid intervals; node count is numberOfGridPoints + 1.
+  size_t numberOfComponents;     ///< Number of gas components.
+  size_t numberOfAdsorbents;     ///< Number of adsorbents.
+  size_t maxIsothermTerms;       ///< Maximum number of isotherm sites across all components.
+  size_t maxChemisorptionSites;  ///< Maximum chemisorption-site count across all beds and components.
+  size_t carrierGasComponent;    ///< Index of the carrier-gas component.
+  size_t pHComponent;            ///< Component used to derive transported pH.
+
+  // Size numberOfAdsorbents. Indexed as value[ads].
+  std::vector<double> adsorbentLengths;           ///< Pure adsorbent-region lengths in m; empty for a uniform mix.
+  std::vector<double> adsorbentInterfaceLengths;  ///< Linear interface lengths between adsorbents in m.
+  std::vector<double> adsorbentMixFractions;      ///< Uniform adsorbent volume fractions over the whole column.
+  std::vector<size_t> adsorbentGridPoints;        ///< Spatial grid intervals per adsorbent section.
+  std::vector<size_t> adsorbentInterfaceGridPoints;  ///< Intervals per interface; zero for sharp interfaces.
+  std::vector<double> adsorbentVoidFractions;     ///< Packed-bed void fraction for each adsorbent.
+  std::vector<double> particleDensities;          ///< Particle density for each adsorbent in kg/m^3.
+  std::vector<double> particleDiameters;          ///< Particle diameter for each adsorbent in m.
+  std::vector<Geometry> geometries;                ///< Derived geometry for each adsorbent section.
 
   // Column operating conditions and geometry.
-  double externalTemperature;     ///< External/reference gas temperature, T, in K.
-  double inletPressure;           ///< Inlet pressure, P_in, in Pa.
-  double outletPressure;          ///< Outlet pressure, P_out, in Pa.
-  double pressureGradient;        ///< Signed axial pressure gradient dP/dz in Pa/m.
-  double voidFraction;            ///< Packed-bed void fraction, epsilon.
-  double particleDensity;         ///< Particle density in kg/m^3.
-  double columnEntranceVelocity;  ///< Inlet/interstitial velocity, v_in, in m/s.
-  double columnLength;            ///< Column length, L, in m.
-  double dynamicViscosity;        ///< Gas dynamic viscosity used in Ergun calculations in Pa s.
-  double particleDiameter;        ///< Particle diameter used in Ergun calculations in m.
-  double liquidDensity;           ///< Constant liquid density in kg/m^3.
-  double pHValue;                 ///< Fixed pH value when pHMode is Fixed.
-  double pKw;                     ///< Water ion-product exponent used for OH- transport.
+  double externalTemperature;           ///< External/reference gas temperature, T, in K.
+  double inletPressure;                 ///< Inlet pressure, P_in, in Pa.
+  double outletPressure;                ///< Outlet pressure, P_out, in Pa.
+  double pressureGradient;              ///< Signed axial pressure gradient dP/dz in Pa/m.
+  double columnEntranceVelocity;        ///< Inlet/interstitial velocity, v_in, in m/s.
+  double columnLength;                  ///< Column length, L, in m.
+  double dynamicViscosity;              ///< Gas dynamic viscosity used in Ergun calculations.
+  double liquidDensity;                 ///< Constant liquid density in kg/m^3.
+  double pHValue;                       ///< Fixed pH value when pHMode is Fixed.
+  double pKw;                           ///< Water ion-product exponent used for OH- transport.
+  std::vector<double> columnDistances;  ///< Spatial grid node positions in m.
 
   // Energy-balance parameters.
   double influxTemperature;         ///< Feed/influx gas temperature in K.
   double internalDiameter;          ///< Column internal diameter in m.
   double outerDiameter;             ///< Column outer diameter in m.
   double wallDensity;               ///< Wall density in kg/m^3.
-  double gasThermalConductivity;    ///< Gas thermal conductivity in W/(m K).
-  double wallThermalConductivity;   ///< Wall thermal conductivity in W/(m K).
-  double heatTransferGasSolid;      ///< Gas-solid heat-transfer coefficient in W/(m^2 K).
-  double heatTransferGasWall;       ///< Gas-wall heat-transfer coefficient in W/(m^2 K).
-  double heatTransferWallExternal;  ///< Wall-external heat-transfer coefficient in W/(m^2 K).
-  double heatCapacityGas;           ///< Gas heat capacity in J/(kg K).
-  double heatCapacitySolid;         ///< Solid heat capacity in J/(kg K).
-  double heatCapacityWall;          ///< Wall heat capacity in J/(kg K).
+  double gasThermalConductivity;    ///< Gas thermal conductivity.
+  double wallThermalConductivity;   ///< Wall thermal conductivity.
+  double heatTransferGasSolid;      ///< Gas-solid heat-transfer coefficient.
+  double heatTransferGasWall;       ///< Gas-wall heat-transfer coefficient.
+  double heatTransferWallExternal;  ///< Wall-external heat-transfer coefficient.
+  double heatCapacityGas;           ///< Gas heat capacity.
+  double heatCapacitySolid;         ///< Solid heat capacity.
+  double heatCapacityWall;          ///< Wall heat capacity.
 
   // Derived scalar quantities.
-  double resolution;               ///< Spatial grid spacing, dz = L / numberOfGridPoints, in m.
-  double timeNormalizationFactor;  ///< Dimensionless-time factor, v_in / L, in 1/s.
-  bool surfacePoreTransportEnabled;  ///< Adds surface/pore concentration state blocks when true.
+  double resolution;                 ///< Spatial grid spacing, dz = L / numberOfGridPoints.
+  double timeNormalizationFactor;    ///< Dimensionless-time factor, v_in / L.
+  bool surfacePoreTransportEnabled;  ///< Adds surface/pore state for mechanistic or pore reactions.
 
   std::pair<size_t, size_t> iastPerformance{0, 0};  ///< Accumulated mixture-prediction diagnostics.
 
   // Size numberOfComponents. Indexed as value[comp].
-  std::vector<double> prefactorMassTransfer;  ///< Per-component mass-transfer prefactor in kg/m^3/s.
   std::vector<double> idealGasMolFractions;   ///< Temporary gas-phase mole fractions.
   std::vector<double> adsorbedMolFractions;   ///< Temporary adsorbed-phase mole fractions.
   std::vector<double> numberOfMolecules;      ///< Temporary equilibrium loading result per component.
 
   // Size numberOfGridPoints + 1. Indexed as value[grid].
-  std::vector<double> interstitialGasVelocity;  ///< Interstitial gas velocity at each grid node in m/s.
-  std::vector<double> gasDensity;               ///< Gas density at each grid node in kg/m^3.
-  std::vector<double> totalConcentration;       ///< Total gas concentration at each grid node in mol/m^3.
-  std::vector<double> totalPressure;            ///< Total pressure at each grid node in Pa.
+  std::vector<double> interstitialGasVelocity;  ///< Interstitial gas velocity at each grid node.
+  std::vector<double> gasDensity;               ///< Gas density at each grid node.
+  std::vector<double> totalConcentration;       ///< Total gas concentration at each grid node.
+  std::vector<double> totalPressure;            ///< Total pressure at each grid node.
   std::vector<double> pH;                       ///< Local liquid pH; fixed at 7 for gas simulations.
+  std::vector<double> totalVoidFraction;        ///< Packed-bed void fraction, epsilon.
+  std::vector<double> particleDensity;          ///< Particle density in kg/m^3.
 
   // Size (numberOfGridPoints + 1) * numberOfComponents. Grid-major index: grid * numberOfComponents + comp.
-  std::vector<double> moleFraction;          ///< Derived gas-phase mole fraction y_i.
-  std::vector<double> partialPressure;        ///< Component partial pressure at each grid node in Pa.
-  std::vector<double> equilibriumPhysisorption;  ///< Equilibrium physisorbed loading in mol/kg.
-  std::vector<double> equilibriumChemisorption;  ///< Site-major equilibrium chemisorbed loading in mol/kg.
+  std::vector<double> moleFraction;              ///< Derived gas-phase mole fraction y_i.
+  std::vector<double> partialPressure;           ///< Component partial pressure at each grid node.
+  std::vector<double> equilibriumPhysisorption;  ///< Component equilibrium loading at each grid node.
+  std::vector<double> equilibriumChemisorption;  ///< Site-major equilibrium chemisorption loading.
+
+  // Size (numberOfGridPoints + 1) * numberOfAdsorbents. Grid-major index: grid * numberOfAdsorbents + ads.
+  std::vector<double> fractionOfAdsorbent;  ///< Fraction of the column that has this adsorbent
+  std::vector<bool> hasAdsorbentOfType;     ///< Boolean switch to determine if this adsorbent is here.
 
   // Mixture-prediction cache arrays.
-  // cachedPressure: (numberOfGridPoints + 1) * numberOfComponents * maxIsothermTerms; cachedGrandPotential:
-  // (numberOfGridPoints + 1) * maxIsothermTerms.
-  std::vector<double> cachedPressure;        ///< Cached hypothetical pressures for mixture prediction.
-  std::vector<double> cachedGrandPotential;  ///< Cached reduced grand potentials for mixture prediction.
-  std::vector<double> cachedChemisorptionPressure;  ///< Site-major chemical-phase pressure cache.
-  std::vector<double> cachedChemisorptionGrandPotential;  ///< Site-major chemical-phase spreading-pressure cache.
+  // cachedPressure: (numberOfGridPoints + 1) * numberOfAdsorbents * numberOfComponents * maxIsothermTerms
+  // Grid-major index: (grid * numberOfAdsorbents + ads) * numberOfComponents * maxIsothermTerms
+  std::vector<double> cachedPressure;  ///< Cached hypothetical pressures for mixture prediction.
+  // cachedGrandPotential: (numberOfGridPoints + 1) * numberOfAdsorbents * maxIsothermTerms.
+  // Grid-major index: (grid * numberOfAdsorbents + ads) * maxIsothermTerms
+  std::vector<double> cachedGrandPotential;               ///< Cached reduced grand potentials for mixture prediction.
+  std::vector<double> cachedChemisorptionPressure;        ///< Per-bed competitive chemisorption pressure cache.
+  std::vector<double> cachedChemisorptionGrandPotential;  ///< Per-bed chemisorption spreading-pressure cache.
 
   // Scratch/work arrays.
-  // coeffDiffusion is size numberOfGridPoints + 1; facePressures is size numberOfGridPoints; massFlux is grid-major
-  // size (numberOfGridPoints + 1) * numberOfComponents.
-  std::vector<double> coeffDiffusion;  ///< Temporary diffusion coefficient field.
-  std::vector<double> facePressures;   ///< Pressure values at cell faces in Pa.
-  std::vector<double> massFlux;        ///< Component mass flux at each grid node in mol/(m^2 s).
-  std::vector<double> bulkSpeciesSink;  ///< Species sink in the bulk concentration equation, mol/(m^3 s).
-  std::vector<double> reactionPhysisorptionSource;  ///< Reaction-only physisorbed loading source, mol/(kg s).
-  std::vector<double> reactionChemisorptionSource;  ///< Reaction-only chemisorbed loading source, mol/(kg s).
-  std::vector<double> reactionPoreConcentrationSource;  ///< Reaction-only pore concentration source, mol/(m^3 s).
+  std::vector<double> coeffDiffusion;                   ///< Gas thermal diffusivity at each grid node.
+  std::vector<double> bulkSpeciesSink;                  ///< Solid-uptake sink in the bulk gas balance.
+  std::vector<double> reactionPhysisorptionSource;      ///< Reaction-only physisorbed source.
+  std::vector<double> reactionChemisorptionSource;      ///< Reaction-only site-major chemisorbed source.
+  std::vector<double> reactionPoreConcentrationSource;  ///< Reaction-only site-major pore source.
   std::vector<double> reactionBulkSource;  ///< Bulk-concentration reaction source per fluid volume, mol/(m^3 s).
-  std::vector<double> reactionHeat;  ///< Reaction heat release on a solid-mass basis, J/(kg s).
+  std::vector<double> reactionHeat;                     ///< Reaction heat release on a solid-mass basis.
 
   // Canonical ODE storage.
-  // Layout: concentration, physisorption, chemisorption, optional surface concentration, optional pore concentration,
-  // gas T, solid T, wall T.
+  // Layout: concentration, physisorption, chemisorption, optional surface/pore concentration, gas T, solid T, wall T.
   std::vector<double> state;     ///< Canonical ODE state vector.
   std::vector<double> stateDot;  ///< Time derivative of the canonical ODE state vector.
 
   // Views into state/stateDot. Non-owning; rebind after copy/assignment.
   // Size (numberOfGridPoints + 1) * numberOfComponents. Grid-major index: grid * numberOfComponents + comp.
-  std::span<double> concentration;  ///< Gas concentration c_i in mol/m^3; size (numberOfGridPoints + 1) * numberOfComponents.
-  std::span<double> concentrationDot;  ///< Time derivative dc_i/dt in mol/(m^3 s).
-  std::span<double> physisorption;  ///< Physical adsorbed loading in mol/kg.
-  std::span<double> physisorptionDot;  ///< Time derivative of physical adsorbed loading in mol/(kg s).
-  std::span<double> chemisorption;     ///< Chemical adsorbed loading in mol/kg.
-  std::span<double> chemisorptionDot;  ///< Time derivative of chemical adsorbed loading in mol/(kg s).
-  std::span<double> surfaceConcentration;     ///< Surface concentration c_s in mol/m^3 for mechanistic chemisorption.
-  std::span<double> surfaceConcentrationDot;  ///< Time derivative dc_s/dt in mol/(m^3 s).
-  std::span<double> poreConcentration;        ///< Pore concentration c_p in mol/m^3 for mechanistic chemisorption.
-  std::span<double> poreConcentrationDot;     ///< Time derivative dc_p/dt in mol/(m^3 s).
-  std::span<double> gasTemperature;       ///< Gas temperature in K; size numberOfGridPoints + 1.
-  std::span<double> gasTemperatureDot;    ///< Time derivative of gas temperature in K/s; size numberOfGridPoints + 1.
-  std::span<double> solidTemperature;     ///< Solid temperature in K; size numberOfGridPoints + 1.
-  std::span<double> solidTemperatureDot;  ///< Time derivative of solid temperature in K/s; size numberOfGridPoints + 1.
-  std::span<double> wallTemperature;      ///< Wall temperature in K; size numberOfGridPoints + 1.
-  std::span<double> wallTemperatureDot;   ///< Time derivative of wall temperature in K/s; size numberOfGridPoints + 1.
+  std::span<double>
+      concentration;  ///< Gas concentration c_i in mol/m^3; size (numberOfGridPoints + 1) * numberOfComponents.
+  std::span<double> concentrationDot;  ///< Time derivative dc_i/dt; size (numberOfGridPoints + 1) * numberOfComponents.
+  std::span<double> physisorption;     ///< Adsorbed loading q_i; size (numberOfGridPoints + 1) * numberOfComponents.
+  std::span<double> physisorptionDot;  ///< Time derivative dq_i/dt; size (numberOfGridPoints + 1) * numberOfComponents.
+  std::span<double> chemisorption;     ///< Site-major chemisorbed loading.
+  std::span<double> chemisorptionDot;  ///< Site-major chemisorbed loading derivative.
+  std::span<double> surfaceConcentration;     ///< Site-major particle-surface concentration.
+  std::span<double> surfaceConcentrationDot;  ///< Surface-concentration derivative.
+  std::span<double> poreConcentration;        ///< Site-major pore concentration.
+  std::span<double> poreConcentrationDot;     ///< Pore-concentration derivative.
+  std::span<double> gasTemperature;           ///< Gas temperature; size numberOfGridPoints + 1.
+  std::span<double> gasTemperatureDot;        ///< Time derivative of gas temperature; size numberOfGridPoints + 1.
+  std::span<double> solidTemperature;         ///< Solid temperature; size numberOfGridPoints + 1.
+  std::span<double> solidTemperatureDot;      ///< Time derivative of solid temperature; size numberOfGridPoints + 1.
+  std::span<double> wallTemperature;          ///< Wall temperature; size numberOfGridPoints + 1.
+  std::span<double> wallTemperatureDot;       ///< Time derivative of wall temperature; size numberOfGridPoints + 1.
 
   /**
    * \brief Returns the canonical ODE state size.
    */
   size_t stateSize() const noexcept;
 
-  /**
-   * \brief Returns true when any component uses mechanistic surface/pore chemisorption.
-   */
-  static bool requiresSurfacePoreTransport(const std::vector<Component>& components) noexcept;
+  static bool requiresSurfacePoreTransport(const std::vector<MixturePrediction>& mixtures) noexcept;
+  static size_t maximumChemisorptionSites(const std::vector<MixturePrediction>& mixtures) noexcept;
+  static std::vector<Geometry> makePackedBedGeometries(std::span<const double> voidFractions,
+                                                        std::span<const double> particleDiameters,
+                                                        double internalDiameter, double outerDiameter);
+  static std::vector<MixturePrediction> makeChemisorptionMixtures(
+      const std::vector<MixturePrediction>& physisorptionMixtures);
 
   /**
-   * \brief Returns the maximum number of chemisorption sites on any component.
+   * \brief Returns the canonical ODE state layout.
    */
-  static size_t maximumChemisorptionSites(const std::vector<Component>& components) noexcept;
-
-  /**
-   * \brief Builds the multisite competitive chemisorption equilibrium model.
-   */
-  static MixturePrediction makeChemisorptionMixture(
-      const MixturePrediction& physisorptionMixture, const std::vector<Component>& components);
-
-  /**
-   * \brief Returns the centralized state layout for this column.
-   */
-  ColumnStateLayout stateLayout() const noexcept;
+  [[nodiscard]] ColumnStateLayout stateLayout() const noexcept;
 
   /**
    * \brief Rebinds all state/stateDot spans to the current vector storage.

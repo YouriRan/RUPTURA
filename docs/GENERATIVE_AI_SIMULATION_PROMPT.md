@@ -473,8 +473,8 @@ Reactions. Root "Reactions" array; each reaction:
 Restart. "ReadColumnFile": "<column-state JSON>" initializes the column from a saved Ruptura
   state, which must match the grid, components, sites and adsorbents. Use it only on request.
 
-Other root keys: "DisplayName" (label; default "Column"). Do not use "DebugForceMultibed" or
-  SimulationType "Test"; they are for development.
+Other root keys: "DisplayName" (label; default "Column"). Do not use SimulationType "Test"; it is for
+  development.
 
 ==============================================================================================
 12. PARSER DEFAULTS (what silently applies when a key is omitted)
