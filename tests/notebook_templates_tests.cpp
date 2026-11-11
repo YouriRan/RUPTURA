@@ -71,7 +71,7 @@ std::string readFile(const std::filesystem::path& path)
 TEST(NotebookTemplates, SelectsMixturePredictionTemplate)
 {
   const Notebook notebook = RupturaNotebooks::defaultNotebookForSimulation(
-      RupturaNotebooks::SimulationType::MixturePrediction, "run-1", "/repo", "/runs/run-1");
+      RupturaNotebooks::SimulationType::MixturePrediction, "run-1");
   const std::string source = notebookSource(notebook);
 
   expectValidNotebook(notebook);
@@ -83,7 +83,7 @@ TEST(NotebookTemplates, SelectsMixturePredictionTemplate)
 TEST(NotebookTemplates, SelectsBreakthroughTemplate)
 {
   const Notebook notebook = RupturaNotebooks::defaultNotebookForSimulation(
-      RupturaNotebooks::SimulationType::Breakthrough, "run-2", "/repo", "/runs/run-2");
+      RupturaNotebooks::SimulationType::Breakthrough, "run-2");
   const std::string source = notebookSource(notebook);
 
   expectValidNotebook(notebook);
@@ -94,8 +94,8 @@ TEST(NotebookTemplates, SelectsBreakthroughTemplate)
 
 TEST(NotebookTemplates, SelectsFittingTemplate)
 {
-  const Notebook notebook = RupturaNotebooks::defaultNotebookForSimulation(RupturaNotebooks::SimulationType::Fitting,
-                                                                           "run-3", "/repo", "/runs/run-3");
+  const Notebook notebook =
+      RupturaNotebooks::defaultNotebookForSimulation(RupturaNotebooks::SimulationType::Fitting, "run-3");
   const std::string source = notebookSource(notebook);
 
   expectValidNotebook(notebook);
@@ -103,6 +103,18 @@ TEST(NotebookTemplates, SelectsFittingTemplate)
   EXPECT_NE(source.find("_fitted.json"), std::string::npos);
   EXPECT_NE(source.find("all_fit_figure"), std::string::npos);
   EXPECT_EQ(source.find("BreakthroughPlotly"), std::string::npos);
+}
+
+TEST(NotebookTemplates, HoldNoPaths)
+{
+  for (const auto type : {RupturaNotebooks::SimulationType::MixturePrediction,
+                          RupturaNotebooks::SimulationType::Breakthrough, RupturaNotebooks::SimulationType::Fitting})
+  {
+    const std::string source = notebookSource(RupturaNotebooks::defaultNotebookForSimulation(type, "run-4"));
+    EXPECT_NE(source.find("Path.cwd()"), std::string::npos);
+    EXPECT_EQ(source.find("sys.path"), std::string::npos);
+    EXPECT_EQ(source.find(RUPTURA_SOURCE_DIR), std::string::npos);
+  }
 }
 
 TEST(NotebookTemplates, MapsSwingAdsorptionToBreakthroughTemplate)
@@ -116,8 +128,7 @@ TEST(NotebookTemplates, WritesSelectedNotebookToRunDirectory)
   TemporaryDirectory runDirectory;
   const std::filesystem::path notebookPath = runDirectory.path() / "analysis.ipynb";
 
-  EXPECT_EQ(RupturaNotebooks::writeDefaultNotebook(notebookPath, RupturaNotebooks::SimulationType::Fitting, "run-5",
-                                                   "/repo", runDirectory.path()),
+  EXPECT_EQ(RupturaNotebooks::writeDefaultNotebook(notebookPath, RupturaNotebooks::SimulationType::Fitting, "run-5"),
             RupturaNotebooks::WriteResult::Created);
   EXPECT_NE(notebookSource(Notebook::parse(readFile(notebookPath))).find("FittingPlotly"), std::string::npos);
 }
@@ -133,7 +144,7 @@ TEST(NotebookTemplates, NeverOverwritesAnExistingNotebook)
   }
 
   EXPECT_EQ(RupturaNotebooks::writeDefaultNotebook(notebookPath, RupturaNotebooks::SimulationType::Breakthrough,
-                                                   "run-6", "/repo", runDirectory.path()),
+                                                   "run-6"),
             RupturaNotebooks::WriteResult::AlreadyExists);
   EXPECT_EQ(readFile(notebookPath), userNotebook);
 }

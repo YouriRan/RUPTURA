@@ -18,7 +18,7 @@
 #include "integrators/compute.h"
 #include "integrators/cvode.h"
 #include "integrators/rk3.h"
-#include "integrators/rk3_si.h"
+#include "integrators/ros34pw2.h"
 #include "integrators/sorption.h"
 #include "integrators/transport.h"
 #include "isotherm.h"
@@ -62,7 +62,7 @@ double expectedMassDerivative(const Column& column, size_t grid, size_t comp)
 {
   const size_t n = column.numberOfComponents;
   const size_t componentBlockSize = column.concentration.size();
-  const double invDz = 1.0 / column.resolution;
+  const double invDz = static_cast<double>(column.numberOfGridPoints) / column.columnLength;
   const double prefactor = column.geometries.front().loadingPrefactor(column.particleDensities.front());
 
   if (grid == 0)
@@ -140,9 +140,7 @@ void writeGeneralChemisorptionInput(const std::filesystem::path& path, bool useP
         "RateEquation": "General",
         "RateEquationParameters": {
           "AdsorptionRateCoefficient": 1.0e-4,
-          "AdsorptionActivationEnergy": 0.0,
           "DesorptionRateCoefficient": 0.0,
-          "DesorptionActivationEnergy": 0.0,
           "PoreConcentrationOrder": )json"
       << concentrationOrder << R"json(,
           "CapacityOrder": 1,
@@ -219,7 +217,8 @@ void writeMultiSiteChemisorptionInput(const std::filesystem::path& path, bool se
 
 void writeReactionInput(const std::filesystem::path& path, const std::string& phase = "Physisorbed",
                         const std::string& style = "GeneralPowerLaw", bool energyBalance = true,
-                        const std::string& reactants = "[1]", const std::string& products = "[2]")
+                        const std::string& reactants = "[1]", const std::string& products = "[2]",
+                        const std::string& adsorptionConstants = "")
 {
   std::ofstream out(path);
   out << R"json(
@@ -290,10 +289,11 @@ void writeReactionInput(const std::filesystem::path& path, const std::string& ph
         "Products": [1.0]
       },
       "Kinetics": {
-        "forwardRateCoefficient": 1.0,
-        "forwardActivationEnergy": 0.0,
-        "equilibriumConstant": 1.0e9,
-        "gibbsFreeEnergy": -1000.0
+        "ForwardRateCoefficient": 1.0,
+        "EquilibriumConstant": {"Value": 1.0e9, "Law": "VantHoff"},
+        "HeatOfReaction": 1000.0)json"
+      << (adsorptionConstants.empty() ? "" : ",\n        \"AdsorptionConstants\": " + adsorptionConstants)
+      << R"json(
       }
     }
   ]
@@ -341,7 +341,7 @@ TEST(ExampleInputReader, LoadsBeaAlkanesMixturePrediction)
 
   constexpr double pressure = 100000.0;
   const double expectedLoading = langmuir(1.09984, 6.55857e-05, pressure) + langmuir(0.19466, 8.90731e-07, pressure);
-  EXPECT_NEAR(nC7.isotherm.value(pressure, 1.0), expectedLoading, 1e-12);
+  EXPECT_NEAR(nC7.isotherm.value(pressure), expectedLoading, 1e-12);
 
   ASSERT_EQ(reader.adsorbentComponents.size(), 1U);
   EXPECT_EQ(reader.adsorbentComponents[0].size(), reader.components.size());
@@ -435,7 +435,7 @@ TEST(ExampleInputReader, LoadsCoBdpAlkanesBreakthrough)
   constexpr double pressure = 250000.0;
   const double expectedLoading =
       langmuirFreundlich(1.1, 0.000214, 0.6, pressure) + langmuirFreundlich(4.8, 2.39e-05, 1.35, pressure);
-  EXPECT_NEAR(nC6.isotherm.value(pressure, 1.0), expectedLoading, 1e-12);
+  EXPECT_NEAR(nC6.isotherm.value(pressure), expectedLoading, 1e-12);
 
   ASSERT_EQ(reader.adsorbentComponents.size(), 1U);
   EXPECT_EQ(reader.adsorbentComponents[0].size(), reader.components.size());
@@ -444,67 +444,96 @@ TEST(ExampleInputReader, LoadsCoBdpAlkanesBreakthrough)
   EXPECT_DOUBLE_EQ(reader.columnDistances.back(), 0.3);
 }
 
-TEST(ExampleInputReader, ParsesSemiImplicitRungeKuttaIntegrator)
+TEST(ExampleInputReader, ParsesTheAdaptiveROS34PW2Integrator)
 {
   std::ifstream input(examplePath("examples/BEA-alkanes-C7/breakthrough/simulation.json"));
   nlohmann::json data = nlohmann::json::parse(input);
   input.close();
-  data["BreakthroughIntegrator"] = "SIRK3";
-  data["SimulationTime"] = 5.0e-4;
+  data["BreakthroughIntegrator"] = "ROS34PW2";
+  data["SimulationTime"] = 1.0;
+  data["ROS34PW2RelativeTolerance"] = 1.0e-6;
+  data["ROS34PW2AbsoluteToleranceConcentration"] = 1.0e-8;
+  data["ROS34PW2AbsoluteToleranceLoading"] = 1.0e-9;
+  data["ROS34PW2AbsoluteToleranceTemperature"] = 1.0e-5;
+  data["ROS34PW2MaximumTimeStep"] = 0.25;
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_ros34pw2_integrator.json";
+  std::ofstream(path) << data;
 
-  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_sirk3_integrator.json";
-  std::ofstream output(path);
-  output << data;
-  output.close();
+  {
+    InputReader reader(path.string());
+    EXPECT_EQ(reader.breakthroughIntegrator, 2U);
+    EXPECT_EQ(static_cast<BreakthroughIntegrationScheme>(reader.breakthroughIntegrator),
+              BreakthroughIntegrationScheme::ROS34PW2);
+    EXPECT_EQ(reader.convectionScheme, 1U);  // WENO3, as for every integrator
 
-  InputReader reader(path.string());
-  EXPECT_EQ(reader.breakthroughIntegrator, 2U);
-  EXPECT_EQ(static_cast<BreakthroughIntegrationScheme>(reader.breakthroughIntegrator),
-            BreakthroughIntegrationScheme::SIRK3);
+    ROS34PW2 integrator(reader);
+    EXPECT_DOUBLE_EQ(integrator.relativeTolerance, 1.0e-6);
+    EXPECT_DOUBLE_EQ(integrator.absoluteToleranceConcentration, 1.0e-8);
+    EXPECT_DOUBLE_EQ(integrator.absoluteToleranceLoading, 1.0e-9);
+    EXPECT_DOUBLE_EQ(integrator.absoluteToleranceTemperature, 1.0e-5);
+    EXPECT_DOUBLE_EQ(integrator.maximumTimeStep, 0.25);
 
-  SemiImplicitRungeKutta3 integrator(reader);
-  EXPECT_DOUBLE_EQ(integrator.timeStep, reader.timeStep);
-  EXPECT_EQ(integrator.numberOfInitTimeSteps, reader.numberOfInitTimeSteps);
+    Column column(reader);
+    column.initialize();
+    Timing timings;
+    integrator.advance(column, 0.0, reader.simulationTime, timings);
+    EXPECT_GE(integrator.numberOfSteps, 4U);  // the maximum step
+  }
 
-  Column column(reader);
-  column.initialize();
-  Timing timings;
-  integrator.advance(column, 0.0, reader.simulationTime, timings);
-  EXPECT_EQ(integrator.numberOfStepsTaken, 1U);
+  // ROS34PW2 chooses its own steps, like CVODE.
+  data["TimeStep"] = 0.01;
+  std::ofstream(path) << data;
+  EXPECT_THROW(
+      {
+        try
+        {
+          static_cast<void>(InputReader(path.string()));
+        }
+        catch (const std::runtime_error& error)
+        {
+          EXPECT_NE(std::string(error.what()).find("TimeStep is not used by ROS34PW2"), std::string::npos)
+              << error.what();
+          throw;
+        }
+      },
+      std::runtime_error);
+  data.erase("TimeStep");
+  data["ROS34PW2RelativeTolerance"] = 0.0;
+  std::ofstream(path) << data;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+
+  // SIRK3 and ROS3 were removed.
+  data["ROS34PW2RelativeTolerance"] = 1.0e-6;
+  for (const std::string removed : {"SIRK3", "ROS3"})
+  {
+    data["BreakthroughIntegrator"] = removed;
+    std::ofstream(path) << data;
+    EXPECT_THROW(InputReader{path.string()}, std::runtime_error) << removed;
+  }
 }
 
-TEST(ExampleInputReader, Sirk3RejectsReactionsAndSurfacePoreTransport)
+TEST(ExampleInputReader, ROS34PW2AcceptsReactionsChemisorptionAndPoreTransport)
 {
-  auto expectSirk3Rejected = [](const std::filesystem::path& path, const std::string& expectedMessage)
+  // The stage matrices of ROS34PW2 approximate the Jacobian; what they leave out is treated explicitly.
+  auto expectAccepted = [](const std::filesystem::path& path)
   {
     std::ifstream input(path);
     nlohmann::json data = nlohmann::json::parse(input);
     input.close();
-    data["BreakthroughIntegrator"] = "SIRK3";
+    data["BreakthroughIntegrator"] = "ROS34PW2";
+    data.erase("TimeStep");
+    data.erase("NumberOfInitTimeSteps");
     std::ofstream(path) << data;
-
-    EXPECT_THROW(
-        {
-          try
-          {
-            static_cast<void>(InputReader(path.string()));
-          }
-          catch (const std::runtime_error& error)
-          {
-            EXPECT_NE(std::string(error.what()).find(expectedMessage), std::string::npos) << error.what();
-            throw;
-          }
-        },
-        std::runtime_error);
+    EXPECT_NO_THROW(static_cast<void>(InputReader(path.string()))) << path;
   };
 
-  const std::filesystem::path reactionPath = testTemporaryDirectory() / "ruptura_sirk3_physisorbed_reaction.json";
+  const std::filesystem::path reactionPath = testTemporaryDirectory() / "ruptura_ros34pw2_physisorbed_reaction.json";
   writeReactionInput(reactionPath, "Physisorbed", "GeneralPowerLaw", false);
-  expectSirk3Rejected(reactionPath, "does not evaluate reactions");
+  expectAccepted(reactionPath);
 
-  const std::filesystem::path porePath = testTemporaryDirectory() / "ruptura_sirk3_pore_transport.json";
+  const std::filesystem::path porePath = testTemporaryDirectory() / "ruptura_ros34pw2_pore_transport.json";
   writeGeneralChemisorptionInput(porePath, true);
-  expectSirk3Rejected(porePath, "does not evaluate chemisorption");
+  expectAccepted(porePath);
 }
 
 TEST(ExampleInputReader, ParsesAndValidatesCvodeMaximumOrder)
@@ -516,6 +545,7 @@ TEST(ExampleInputReader, ParsesAndValidatesCvodeMaximumOrder)
 
   std::ofstream(path) << data;
   EXPECT_EQ(InputReader(path.string()).cvodeMaximumOrder, 5U);
+  EXPECT_EQ(InputReader(path.string()).cvodeLinearSolver, 1U);
 
   data["CVODEMaximumOrder"] = 3;
   std::ofstream(path) << data;
@@ -531,6 +561,146 @@ TEST(ExampleInputReader, ParsesAndValidatesCvodeMaximumOrder)
     std::ofstream(path) << data;
     EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
   }
+}
+
+TEST(ExampleInputReader, ParsesTheCvodePreconditionerOnlyWithSpgmr)
+{
+  std::ifstream input(examplePath("examples/BEA-alkanes-C7/breakthrough/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(input);
+  input.close();
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_cvode_preconditioner.json";
+
+  std::ofstream(path) << data;
+  EXPECT_EQ(InputReader(path.string()).cvodePreconditioner, 0U);
+
+  data["CVODELinearSolver"] = "SPGMR";
+  data["CVODEPreconditioner"] = "SorptionJacobian";
+  std::ofstream(path) << data;
+  const InputReader reader(path.string());
+  EXPECT_EQ(reader.cvodePreconditioner, 1U);
+#if BUILD_SUNDIALS
+  EXPECT_EQ(CVODE(reader).preconditionerType, CVODE::PreconditionerType::SorptionJacobian);
+#endif
+
+  data["CVODELinearSolver"] = "Dense";
+  std::ofstream(path) << data;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+
+  data["CVODELinearSolver"] = "SPGMR";
+  data["CVODEPreconditioner"] = "Jacobi";
+  std::ofstream(path) << data;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+}
+
+TEST(ExampleInputReader, ParsesTheKluLinearSolverForPhysisorptionOnly)
+{
+  std::ifstream input(examplePath("examples/BEA-alkanes-C7/breakthrough/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(input);
+  input.close();
+  data["BreakthroughIntegrator"] = "CVODE";
+  data["CVODELinearSolver"] = "KLU";
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_cvode_klu.json";
+  std::ofstream(path) << data;
+  const InputReader reader(path.string());
+  EXPECT_EQ(reader.cvodeLinearSolver, 2U);
+#if BUILD_SUNDIALS
+  EXPECT_EQ(CVODE(reader).linearSolverType, CVODE::LinearSolverType::KLU);
+#endif
+
+  const std::filesystem::path reactionPath = testTemporaryDirectory() / "ruptura_cvode_klu_reaction.json";
+  writeReactionInput(reactionPath, "Physisorbed", "GeneralPowerLaw", false);
+  std::ifstream reactionInput(reactionPath);
+  nlohmann::json reactionData = nlohmann::json::parse(reactionInput);
+  reactionInput.close();
+  reactionData["BreakthroughIntegrator"] = "CVODE";
+  reactionData["CVODELinearSolver"] = "KLU";
+  reactionData.erase("TimeStep");
+  reactionData.erase("NumberOfInitTimeSteps");
+  std::ofstream(reactionPath) << reactionData;
+  try
+  {
+    static_cast<void>(InputReader(reactionPath.string()));
+    ADD_FAILURE() << "KLU with a reaction was accepted";
+  }
+  catch (const std::runtime_error& error)
+  {
+    EXPECT_NE(std::string(error.what()).find("CVODELinearSolver KLU"), std::string::npos) << error.what();
+  }
+}
+
+TEST(ExampleInputReader, FittingColumnsAreOneBasedAndDefaultToOneTwoThree)
+{
+  std::ifstream input(examplePath("examples/BEA-alkanes-C7/fitting/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(input);
+  input.close();
+  data.erase("ColumnPressure");
+  data.erase("ColumnLoading");
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_fitting_columns.json";
+
+  std::ofstream(path) << data;
+  const InputReader reader(path.string());
+  EXPECT_EQ(reader.columnPressure, 1U);
+  EXPECT_EQ(reader.columnLoading, 2U);
+  EXPECT_EQ(reader.columnError, 3U);
+  const Fitting fitting(reader);
+  EXPECT_EQ(fitting.columnPressure, 0U);
+  EXPECT_EQ(fitting.columnLoading, 1U);
+  EXPECT_EQ(fitting.columnError, 2U);
+
+  for (int column : {0, -1})
+  {
+    data["ColumnPressure"] = column;
+    std::ofstream(path) << data;
+    EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+  }
+}
+
+TEST(ExampleInputReader, RejectsNegativeCountsAllZeroFeedAndMissingWallProperties)
+{
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_input_validation.json";
+  const auto expectRejected = [&path](const nlohmann::json& data, const std::string& expectedMessage)
+  {
+    std::ofstream(path) << data;
+    EXPECT_THROW(
+        {
+          try
+          {
+            static_cast<void>(InputReader(path.string()));
+          }
+          catch (const std::runtime_error& error)
+          {
+            EXPECT_NE(std::string(error.what()).find(expectedMessage), std::string::npos) << error.what();
+            throw;
+          }
+        },
+        std::runtime_error);
+  };
+
+  std::ifstream input(examplePath("examples/BEA-alkanes-C7/breakthrough/simulation.json"));
+  const nlohmann::json breakthrough = nlohmann::json::parse(input);
+  input.close();
+
+  nlohmann::json data = breakthrough;
+  data["NumberOfGridPoints"] = -1;
+  expectRejected(data, "non-negative integer");
+
+  data = breakthrough;
+  for (nlohmann::json& component : data["Components"]) component["GasPhaseMolFraction"] = 0.0;
+  expectRejected(data, "must not be zero");
+
+  writeReactionInput(path);
+  std::ifstream energyInput(path);
+  const nlohmann::json energyBalance = nlohmann::json::parse(energyInput);
+  energyInput.close();
+  EXPECT_NO_THROW(static_cast<void>(InputReader(path.string())));
+
+  data = energyBalance;
+  data.erase("wallDensity");
+  expectRejected(data, "wallDensity");
+
+  data = energyBalance;
+  data["heatCapacityWall"] = 0.0;
+  expectRejected(data, "heatCapacityWall");
 }
 
 TEST(SwingAdsorptionInput, ParsesStructuredPhasesAndBuildsSubStages)
@@ -771,7 +941,9 @@ TEST(ExampleMassBalance, RecomputesBeaColumnStateDerivatives)
   EXPECT_NEAR(column.concentrationDot[25 * n + 2], expectedMassDerivative(column, 25, 2), 1e-12);
   EXPECT_NEAR(column.concentrationDot[50 * n + 5], expectedMassDerivative(column, 50, 5), 1e-12);
 
-  EXPECT_NEAR(column.concentrationDot[25 * n + 0], 4.4401129693427775e-04, 1e-14);
+  // Helium only convects here: v_i c_i - v_(i-1) c_(i-1) cancels to 3e-10 relative, so the last digits depend on which
+  // product the compiler fuses into an FMA (4.44011296934e-04 or 4.44011297088e-04).
+  EXPECT_NEAR(column.concentrationDot[25 * n + 0], 4.4401129693427775e-04, 1e-12);
   EXPECT_NEAR(column.concentrationDot[25 * n + 2], 1.9394951851919610e-03, 1e-14);
   EXPECT_NEAR(column.concentrationDot[50 * n + 5], 2.0346075380352105e-03, 1e-14);
 }
@@ -810,7 +982,7 @@ TEST(ChemisorptionGeneral, DefaultsToBulkConcentrationWithoutPoreSurfaceTranspor
   const Chemisorption& kinetics = reader.components[1].chemisorption.sites[0];
   EXPECT_EQ(kinetics.type, Chemisorption::Type::General);
   EXPECT_DOUBLE_EQ(kinetics.maximumLoading, 2.0);
-  EXPECT_DOUBLE_EQ(kinetics.adsorptionRateCoefficient, 1.0e-4);
+  EXPECT_DOUBLE_EQ(kinetics.adsorptionRateCoefficient.value, 1.0e-4);
   EXPECT_FALSE(kinetics.usePoreSurfaceTransport);
   EXPECT_FALSE(reader.components[1].chemisorption.usesSurfacePoreTransport());
 
@@ -861,34 +1033,48 @@ TEST(ChemisorptionGeneral, InitializesSurfacePoreStateAndFilmSinkWhenEnabled)
   EXPECT_NEAR(column.bulkSpeciesSink[adsorbateInlet], 0.0, 1.0e-12);
 
   column.surfaceConcentration[adsorbateInlet] = 0.5 * column.concentration[adsorbateInlet];
-  computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
-                         column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries,
-                         column.particleDensities, column.fractionOfAdsorbent, column.totalVoidFraction,
-                         column.concentration, column.physisorptionDot, column.chemisorptionDot,
-                         column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                         column.reactionChemisorptionSource);
+  computeBulkSpeciesSink(
+      column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
+      column.maxChemisorptionSites, column.geometries, column.fractionOfAdsorbent, column.loadingPrefactor,
+      column.concentration, column.physisorptionDot, column.chemisorptionDot, column.surfaceConcentration,
+      column.bulkSpeciesSink, column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
   EXPECT_GT(column.bulkSpeciesSink[adsorbateInlet], 0.0);
 }
 
-TEST(Arrhenius, SupportsAbsoluteAndReferenceTemperatureForms)
+TEST(TemperatureLaw, EvaluatesEachLawWithAndWithoutReferenceTemperature)
 {
-  constexpr double preExponentialFactor = 2.5;
-  constexpr double activationEnergy = 12000.0;
+  using Law = TemperatureLaw::Type;
+  constexpr double value = 2.5;
   constexpr double temperature = 350.0;
   constexpr double referenceTemperature = 300.0;
+  const double inverseDifference = 1.0 / temperature - 1.0 / referenceTemperature;
 
-  EXPECT_NEAR(arrhenius(preExponentialFactor, activationEnergy, temperature),
-              preExponentialFactor * std::exp(-activationEnergy / (R * temperature)), 1.0e-14);
-  EXPECT_NEAR(arrhenius(preExponentialFactor, activationEnergy, temperature, referenceTemperature),
-              preExponentialFactor * std::exp(-activationEnergy / R * (1.0 / temperature - 1.0 / referenceTemperature)),
-              1.0e-14);
+  EXPECT_DOUBLE_EQ(TemperatureLaw(value)(temperature), value);
+  EXPECT_NEAR(TemperatureLaw(Law::VantHoff, value, 12000.0, referenceTemperature)(temperature),
+              value * std::exp(12000.0 / R * inverseDifference), 1.0e-14);
+  EXPECT_NEAR(TemperatureLaw(Law::VantHoff, value, 12000.0)(temperature),
+              value * std::exp(12000.0 / (R * temperature)), 1.0e-14 * value * std::exp(12000.0 / (R * temperature)));
+  EXPECT_NEAR(TemperatureLaw(Law::Arrhenius, value, 12000.0, referenceTemperature)(temperature),
+              value * std::exp(-12000.0 / R * inverseDifference), 1.0e-14);
+  EXPECT_NEAR(TemperatureLaw(Law::Arrhenius, value, 12000.0)(temperature),
+              value * std::exp(-12000.0 / (R * temperature)), 1.0e-14 * value * std::exp(-12000.0 / (R * temperature)));
+  EXPECT_NEAR(TemperatureLaw(Law::Exponential, value, 0.4, referenceTemperature)(temperature),
+              value * std::exp(0.4 * (1.0 - temperature / referenceTemperature)), 1.0e-14);
+  EXPECT_NEAR(TemperatureLaw(Law::Linear, value, -0.01, referenceTemperature)(temperature),
+              value - 0.01 * (temperature - referenceTemperature), 1.0e-14);
+  EXPECT_NEAR(TemperatureLaw(Law::Inverse, value, 0.3, referenceTemperature)(temperature),
+              value + 0.3 * (1.0 - referenceTemperature / temperature), 1.0e-14);
 
-  Component component(0, "test");
-  component.nonIsothermal = true;
-  component.heatOfAdsorption = 12000.0;
-  component.referenceTemperature = referenceTemperature;
-  EXPECT_NEAR(component.scale(temperature),
-              arrhenius(1.0, -component.heatOfAdsorption, temperature, component.referenceTemperature), 1.0e-14);
+  // Every law returns its value at the reference temperature.
+  for (Law law : {Law::VantHoff, Law::Arrhenius, Law::Exponential, Law::Linear, Law::Inverse})
+  {
+    EXPECT_DOUBLE_EQ(TemperatureLaw(law, value, 0.7, referenceTemperature)(referenceTemperature), value);
+  }
+
+  EXPECT_EQ(TemperatureLaw::fromName("vanthoff"), Law::VantHoff);
+  EXPECT_FALSE(TemperatureLaw::fromName("Polynomial").has_value());
+  EXPECT_EQ(TemperatureLaw::describeMask(TemperatureLaw::mask(Law::Linear) | TemperatureLaw::mask(Law::Inverse)),
+            "Linear or Inverse");
 }
 
 TEST(ChemisorptionRate, GeneralAndElovichUseUnifiedRate)
@@ -912,20 +1098,77 @@ TEST(ChemisorptionRate, GeneralAndElovichUseUnifiedRate)
 
 TEST(ChemisorptionRate, AvramiMatchesDerivativeOfIntegratedModel)
 {
+  // The clock-free rate at the loading of q/q* = 1 - exp(-(k t)^n) is the time derivative of that curve (B-PHY-12).
   Chemisorption avrami;
   avrami.type = Chemisorption::Type::Avrami;
-  avrami.rateCoefficient = 3.92e-2;
+  constexpr double rateCoefficient = 3.92e-2;
+  avrami.rateCoefficient = rateCoefficient;
   avrami.order = 1.46;
 
   constexpr double equilibriumLoading = 2.06;
-  constexpr double elapsedTime = 25.0;
-  const double exponent = std::pow(avrami.rateCoefficient * elapsedTime, avrami.order);
-  const double loading = equilibriumLoading * (1.0 - std::exp(-exponent));
-  const double expected = avrami.order * std::pow(avrami.rateCoefficient, avrami.order) *
-                          std::pow(elapsedTime, avrami.order - 1.0) * (equilibriumLoading - loading);
+  for (const double elapsedTime : {1.0, 25.0, 80.0})
+  {
+    const double exponent = std::pow(rateCoefficient * elapsedTime, avrami.order);
+    const double loading = equilibriumLoading * (1.0 - std::exp(-exponent));
+    const double expected = avrami.order * std::pow(rateCoefficient, avrami.order) *
+                            std::pow(elapsedTime, avrami.order - 1.0) * (equilibriumLoading - loading);
+    EXPECT_NEAR(avrami.rate(equilibriumLoading, loading), expected, 1.0e-12 * expected) << "t = " << elapsedTime;
+  }
 
-  EXPECT_NEAR(avrami.rate(equilibriumLoading, loading, 0.0, 298.15, elapsedTime), expected, 1.0e-14);
-  EXPECT_DOUBLE_EQ(avrami.rate(equilibriumLoading, 0.0, 0.0, 298.15, 0.0), 0.0);
+  // Release is linear driving force; n = 1 is first order on both sides.
+  EXPECT_DOUBLE_EQ(avrami.rate(1.0, 1.5), -0.5 * rateCoefficient);
+  avrami.order = 1.0;
+  EXPECT_DOUBLE_EQ(avrami.rate(2.0, 0.5), 1.5 * rateCoefficient);
+}
+
+TEST(ChemisorptionRate, AvramiFromACleanSorbentFollowsTheShiftedAvramiCurve)
+{
+  // From q = 0 the floor of 1e-3 on the equivalent Avrami time k t starts the uptake for n > 1 and caps the rate for
+  // n < 1. Past the floor the loading follows 1 - exp(-(k t)^n), moved in time by (1 - 1/n) 1e-3 / k.
+  constexpr double rateCoefficient = 0.04;
+  constexpr double equilibriumLoading = 2.0;
+  for (const double order : {0.6, 1.46, 3.0})
+  {
+    Chemisorption avrami;
+    avrami.type = Chemisorption::Type::Avrami;
+    avrami.rateCoefficient = rateCoefficient;
+    avrami.order = order;
+    EXPECT_GT(avrami.rate(equilibriumLoading, 0.0), 0.0) << "n = " << order;
+
+    const double shift = (1.0 - 1.0 / order) * 1.0e-3 / rateCoefficient;
+    const double timeStep = 1.0e-4 / rateCoefficient;
+    const auto rate = [&](double loading) { return avrami.rate(equilibriumLoading, loading); };
+    double loading = 0.0;
+    double maximumDeviation = 0.0;
+    for (size_t step = 1; step <= 40000; ++step)
+    {
+      const double k1 = rate(loading);
+      const double k2 = rate(loading + 0.5 * timeStep * k1);
+      const double k3 = rate(loading + 0.5 * timeStep * k2);
+      const double k4 = rate(loading + timeStep * k3);
+      loading += timeStep / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+      const double time = static_cast<double>(step) * timeStep;
+      if (rateCoefficient * time < 1.0e-2) continue;
+      const double expected =
+          equilibriumLoading * (1.0 - std::exp(-std::pow(rateCoefficient * (time + shift), order)));
+      maximumDeviation = std::max(maximumDeviation, std::abs(loading - expected));
+    }
+    EXPECT_LT(maximumDeviation, 1.0e-6 * equilibriumLoading) << "n = " << order;
+  }
+}
+
+TEST(ChemisorptionRate, PseudoNthIsSignPreservingAndDesorbsAboveEquilibrium)
+{
+  Chemisorption site;
+  site.type = Chemisorption::Type::PseudoNth;
+  site.rateCoefficient = 0.05;
+  site.order = 1.5;
+
+  EXPECT_NEAR(site.rate(2.0, 1.75, 0.0, 298.15), 0.05 * std::pow(0.25, 1.5), 1.0e-15);
+  EXPECT_NEAR(site.rate(1.75, 2.0, 0.0, 298.15), -0.05 * std::pow(0.25, 1.5), 1.0e-15);
+
+  site.order = 0.5;
+  EXPECT_DOUBLE_EQ(site.rate(1.0, 1.0, 0.0, 298.15), 0.0);
 }
 
 TEST(ReactionsInput, ParsesGeneralPowerLawReaction)
@@ -942,9 +1185,15 @@ TEST(ReactionsInput, ParsesGeneralPowerLawReaction)
   EXPECT_EQ(reaction.products, std::vector<size_t>{2});
   EXPECT_DOUBLE_EQ(reaction.reactantStoichiometry[0], 1.0);
   EXPECT_DOUBLE_EQ(reaction.productStoichiometry[0], 1.0);
-  EXPECT_DOUBLE_EQ(reaction.forwardRateCoefficient, 1.0);
-  EXPECT_DOUBLE_EQ(reaction.equilibriumConstant, 1.0e9);
-  EXPECT_DOUBLE_EQ(reaction.gibbsFreeEnergy, -1000.0);
+  EXPECT_DOUBLE_EQ(reaction.forwardRateCoefficient.value, 1.0);
+  EXPECT_TRUE(reaction.forwardRateCoefficient.isConstant());
+  EXPECT_DOUBLE_EQ(reaction.equilibriumConstant.value, 1.0e9);
+  // The VantHoff law of K without Energy takes the HeatOfReaction: K(T) = 1e9 exp(1000/(R T)).
+  EXPECT_EQ(reaction.equilibriumConstant.type, TemperatureLaw::Type::VantHoff);
+  EXPECT_TRUE(reaction.equilibriumConstant.energyInherited);
+  EXPECT_DOUBLE_EQ(reaction.equilibriumConstant.coefficient, 1000.0);
+  EXPECT_DOUBLE_EQ(reaction.heatOfReaction, 1000.0);
+  EXPECT_NEAR(reaction.equilibriumConstantAt(400.0), 1.0e9 * std::exp(1000.0 / (R * 400.0)), 1.0e-5);
 }
 
 TEST(ReactionsInput, ParsesParticipantNamesAsComponentIndices)
@@ -994,7 +1243,8 @@ TEST(ReactionsAdsorbed, AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax)
 TEST(ReactionsPore, LangmuirHinshelwoodRequiresAndUsesPoreConcentration)
 {
   const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_lh_pore.json";
-  writeReactionInput(path, "PoreConcentration", "LangmuirHinshelwood", false);
+  writeReactionInput(path, "PoreConcentration", "LangmuirHinshelwood", false, "[1]", "[2]",
+                     R"json({"A": 1.0, "B": 1.0})json");
 
   InputReader reader(path.string());
   ASSERT_EQ(reader.reactions.size(), 1U);
@@ -1014,6 +1264,37 @@ TEST(ReactionsPore, LangmuirHinshelwoodRequiresAndUsesPoreConcentration)
   EXPECT_GT(column.reactionPoreConcentrationSource[product], 0.0);
   EXPECT_NEAR(column.bulkSpeciesSink[reactant], 0.0, 1.0e-12);
   EXPECT_NEAR(column.bulkSpeciesSink[product], 0.0, 1.0e-12);
+}
+
+TEST(ReactionsPore, RejectsASiteBeyondThePoreReservoir)
+{
+  // Without chemisorption sites the pore reservoir has site 0 only; the reader rejects site 1 (R-GEN-4), which the
+  // right-hand side used to find on its first evaluation.
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_lh_pore_site.json";
+  writeReactionInput(path, "PoreConcentration", "LangmuirHinshelwood", false, "[1]", "[2]",
+                     R"json({"A": 1.0, "B": 1.0})json");
+  nlohmann::json data;
+  {
+    std::ifstream input(path);
+    data = nlohmann::json::parse(input);
+  }
+  data["Reactions"][0]["Site"] = 1;
+  std::ofstream(path) << data.dump(2);
+
+  EXPECT_THROW(
+      {
+        try
+        {
+          static_cast<void>(InputReader(path.string()));
+        }
+        catch (const std::runtime_error& error)
+        {
+          EXPECT_NE(std::string(error.what()).find("PoreConcentration reaction 0 uses Site 1"), std::string::npos)
+              << error.what();
+          throw;
+        }
+      },
+      std::runtime_error);
 }
 
 TEST(ReactionsAutoStop, RequiresSlowlyChangingPhaseStates)
@@ -1066,7 +1347,7 @@ TEST(ReactionsAutoStop, BreakthroughSchedulesAutoStopForStableReactionState)
   EXPECT_DOUBLE_EQ(breakthrough.time, 2.0 * reader.writeInterval);
 }
 
-TEST(ReactionsInput, RejectsLHOutsidePoreConcentration)
+TEST(ReactionsInput, RejectsLHOnAdsorbedPhases)
 {
   const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_lh_bad_phase.json";
   writeReactionInput(path, "Physisorbed", "LangmuirHinshelwood", false);
@@ -1084,6 +1365,88 @@ TEST(ReactionsInput, RejectsLHOutsidePoreConcentration)
         }
       },
       std::runtime_error);
+}
+
+TEST(ReactionsRate, LangmuirHinshelwoodUsesCompetitiveCoveragesOfEachComponent)
+{
+  // 0 + 1 -> 2; component 3 adsorbs without taking part in the reaction.
+  Reaction reaction;
+  reaction.phase = Reaction::Phase::BulkConcentration;
+  reaction.style = Reaction::Style::LangmuirHinshelwood;
+  reaction.reactants = {0, 1};
+  reaction.products = {2};
+  reaction.forwardOrders = {1.0, 0.5};
+  reaction.backwardOrders = {1.0};
+  reaction.forwardRateCoefficient = 2.0;
+  reaction.equilibriumConstant = 4.0;
+  reaction.adsorptionConstants = {TemperatureLaw(TemperatureLaw::Type::VantHoff, 0.5, 1000.0), 2.0, 1.0, 3.0};
+  const std::vector<double> concentration{1.0, 0.25, 0.5, 2.0};
+  const double temperature = 400.0;
+  std::vector<double> coverage(concentration.size());
+
+  // theta_j = K_j c_j / (1 + sum_i K_i c_i), with K_0 = 0.5 exp(1000/(R T)).
+  const double adsorptionConstant = 0.5 * std::exp(1000.0 / (R * temperature));
+  const double denominator = 1.0 + adsorptionConstant * 1.0 + 2.0 * 0.25 + 1.0 * 0.5 + 3.0 * 2.0;
+  const double forward = 2.0 * (adsorptionConstant / denominator) * std::sqrt(0.5 / denominator);
+  const double backward = 2.0 / 4.0 * (0.5 / denominator);
+
+  // LH is irreversible; LHHW subtracts k- theta_2 with k- = k+/K.
+  EXPECT_NEAR(reaction.rate(concentration, temperature, coverage), forward, 1.0e-15);
+  reaction.style = Reaction::Style::LangmuirHinshelwoodHougenWatson;
+  EXPECT_NEAR(reaction.rate(concentration, temperature, coverage), forward - backward, 1.0e-15);
+
+  // Component 3 occupies sites: without its adsorption the rate rises.
+  reaction.adsorptionConstants[3] = 0.0;
+  EXPECT_GT(reaction.rate(concentration, temperature, coverage), forward - backward);
+}
+
+TEST(ReactionsInput, ParsesAdsorptionConstantsByComponentName)
+{
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_lhhw_bulk.json";
+  writeReactionInput(path, "BulkConcentration", "LangmuirHinshelwoodHougenWatson", false, "[1]", "[2]",
+                     R"json({"A": 1.0e-3, "b": {"Value": 2.0e-4, "Law": "VantHoff", "Energy": 5000.0}})json");
+
+  InputReader reader(path.string());
+  ASSERT_EQ(reader.reactions.size(), 1U);
+  const Reaction& reaction = reader.reactions[0];
+  EXPECT_EQ(reaction.phase, Reaction::Phase::BulkConcentration);
+  ASSERT_EQ(reaction.adsorptionConstants.size(), 3U);
+  EXPECT_DOUBLE_EQ(reaction.adsorptionConstants[0].value, 0.0);  // the carrier is not named, so it does not adsorb
+  EXPECT_DOUBLE_EQ(reaction.adsorptionConstants[1].value, 1.0e-3);
+  EXPECT_TRUE(reaction.adsorptionConstants[1].isConstant());
+  EXPECT_EQ(reaction.adsorptionConstants[2].type, TemperatureLaw::Type::VantHoff);
+  EXPECT_NEAR(reaction.adsorptionConstants[2](400.0), 2.0e-4 * std::exp(5000.0 / (R * 400.0)), 1.0e-15);
+}
+
+TEST(ReactionsInput, RejectsInvalidAdsorptionConstants)
+{
+  // Style, AdsorptionConstants ("" leaves the key out), and part of the expected error.
+  const std::vector<std::array<std::string, 3>> cases{
+      {"LangmuirHinshelwood", "", "need AdsorptionConstants"},
+      {"LangmuirHinshelwood", R"json({"B": 1.0})json", "reactant 'A'"},
+      {"LangmuirHinshelwood", R"json({"A": -1.0})json", "non-negative"},
+      {"LangmuirHinshelwood", R"json({"A": 1.0, "C": 1.0})json", "'C'"},
+      {"LangmuirHinshelwood", R"json({"A": 1.0, "a": 2.0})json", "appears twice"},
+      {"GeneralPowerLaw", R"json({"A": 1.0})json", "only to LH/LHHW"}};
+  for (const auto& [style, constants, message] : cases)
+  {
+    SCOPED_TRACE(style + " " + constants);
+    const std::filesystem::path path = testTemporaryDirectory() / "ruptura_reaction_bad_adsorption_constants.json";
+    writeReactionInput(path, "PoreConcentration", style, false, "[1]", "[2]", constants);
+    EXPECT_THROW(
+        {
+          try
+          {
+            static_cast<void>(InputReader(path.string()));
+          }
+          catch (const std::runtime_error& error)
+          {
+            EXPECT_NE(std::string(error.what()).find(message), std::string::npos) << error.what();
+            throw;
+          }
+        },
+        std::runtime_error);
+  }
 }
 
 TEST(ChemisorptionInput, RejectsFractionalGeneralOrders)
@@ -1129,6 +1492,31 @@ TEST(ChemisorptionInput, AcceptsFractionalAvramiOrder)
   EXPECT_DOUBLE_EQ(reader.components[1].chemisorption.sites[0].order, 1.46);
 }
 
+TEST(ComponentsInput, RejectsAnObjectOfComponents)
+{
+  // The list order sets the component indices; a JSON object has none once parsed (B-IO-10).
+  const std::filesystem::path validPath = testTemporaryDirectory() / "ruptura_components_list.json";
+  writeGeneralChemisorptionInput(validPath, false);
+  std::ifstream input(validPath);
+  nlohmann::json data = nlohmann::json::parse(input);
+  input.close();
+  nlohmann::json byName = nlohmann::json::object();
+  for (const nlohmann::json& component : data["Components"]) byName[component["Name"].get<std::string>()] = component;
+  data["Components"] = byName;
+
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_components_object.json";
+  std::ofstream(path) << data;
+  try
+  {
+    static_cast<void>(InputReader(path.string()));
+    FAIL() << "an object of components was accepted";
+  }
+  catch (const std::runtime_error& error)
+  {
+    EXPECT_NE(std::string(error.what()).find("'Components' must be a list"), std::string::npos) << error.what();
+  }
+}
+
 TEST(ChemisorptionInput, RequiresExactlyTheParametersForTheSelectedModel)
 {
   const std::filesystem::path validPath = testTemporaryDirectory() / "ruptura_strict_chem_valid.json";
@@ -1167,13 +1555,29 @@ TEST(ChemisorptionInput, RequiresExactlyTheParametersForTheSelectedModel)
 
   nlohmann::json extra = valid;
   extra["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"]["Alpha"] = 1.0;
-  expectRejected(std::move(extra), "extra", "unknown key 'Alpha'");
+  expectRejected(std::move(extra), "extra", "unknown input key 'Alpha'");
 
   nlohmann::json oldAlias = valid;
   auto& oldAliasParameters = oldAlias["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"];
-  oldAliasParameters["Ea_ka"] = oldAliasParameters["AdsorptionActivationEnergy"];
-  oldAliasParameters.erase("AdsorptionActivationEnergy");
-  expectRejected(std::move(oldAlias), "old_alias", "unknown key 'Ea_ka'");
+  oldAliasParameters["Ea_ka"] = 0.0;
+  expectRejected(std::move(oldAlias), "old_alias", "unknown input key 'Ea_ka'");
+
+  // Rate parameters are case-insensitive like every key (R-IO-1), and two keys that differ only in case are rejected.
+  nlohmann::json lowerCase = valid;
+  auto& lowerCaseParameters = lowerCase["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"];
+  lowerCaseParameters["capacityorder"] = lowerCaseParameters["CapacityOrder"];
+  lowerCaseParameters.erase("CapacityOrder");
+  const std::filesystem::path lowerCasePath = testTemporaryDirectory() / "ruptura_strict_chem_lower_case.json";
+  {
+    std::ofstream output(lowerCasePath);
+    output << lowerCase;
+  }
+  EXPECT_NO_THROW(static_cast<void>(InputReader(lowerCasePath.string())));
+
+  nlohmann::json caseDuplicate = valid;
+  auto& caseDuplicateParameters = caseDuplicate["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"];
+  caseDuplicateParameters["capacityorder"] = caseDuplicateParameters["CapacityOrder"];
+  expectRejected(std::move(caseDuplicate), "case_duplicate", "differ only in case");
 
   nlohmann::json explicitCompleteMixture = valid;
   explicitCompleteMixture["MixturePredictionMethod"] = "EI";
@@ -1244,7 +1648,6 @@ TEST(EnergyBalance, GasWallExchangeConservesEnergyInPackedBed)
   // the outer wall is insulated.
   const PackedBedTubeSpec specification{0.4, 3.0e-3, 0.025, 0.04};
   const Geometry geometry = makeGeometry(specification);
-  const std::vector<Component> components{Component(0, "A", std::vector<Isotherm>{}, 1.0, 0.0, 0.0)};
 
   constexpr size_t numberOfGridPoints = 2;
   constexpr size_t nodes = numberOfGridPoints + 1;
@@ -1262,15 +1665,18 @@ TEST(EnergyBalance, GasWallExchangeConservesEnergyInPackedBed)
   std::vector<double> solidTemperatureDot(nodes, 0.0);
   std::vector<double> wallTemperatureDot(nodes, 0.0);
 
-  const std::vector<MixturePrediction> adsorbent{
-      MixturePrediction("A", components, 0, 0, 300.0, 1.0e3, 1.0e5, 2, 0, 0, 0)};
+  // The blends of a single adsorbent filling the column (Column::computeAdsorbentBlends).
   const std::vector<Geometry> geometries{geometry};
-  const std::vector<double> particleDensities{1000.0};
-  const std::vector<double> fractionOfAdsorbent(nodes, 1.0);
+  const std::vector<double> particleDensity(nodes, 1000.0);
+  const std::vector<double> solidFluidContactArea(nodes, geometry.contactAreas.solidFluidPerSolidVolume);
+  const std::vector<double> fluidSolidContactArea(nodes, geometry.contactAreas.fluidSolidPerFluidVolume);
+  const std::vector<double> heatOfAdsorption(nodes, 0.0);
   const std::vector<double> columnDistances{0.0, 0.05, 0.1};
-  computeEnergyDerivatives(adsorbent, numberOfGridPoints, 1, 1, 300.0, geometries, particleDensities,
-                           fractionOfAdsorbent, wallDensity, 0.0, 0.0, 10.0, 50.0, 0.0, heatCapacityGas, 900.0,
-                           heatCapacityWall, columnDistances, velocity, gasDensity, coeffDiffusion, 0,
+  computeEnergyDerivatives(numberOfGridPoints, 1, 300.0, geometries, particleDensity, solidFluidContactArea,
+                           fluidSolidContactArea, heatOfAdsorption, {}, wallDensity, 0.0, 0.0, 10.0, 50.0, 0.0,
+                           heatCapacityGas, 900.0,
+                           heatCapacityWall, columnDistances, velocity, std::vector<double>(nodes, 1.0), gasDensity,
+                           coeffDiffusion, 0,
                            physisorptionDot, {}, gasTemperature, gasTemperatureDot, gasTemperature,
                            solidTemperatureDot, wallTemperature, wallTemperatureDot);
 
@@ -1410,7 +1816,7 @@ TEST(ChemisorptionElovich, ParsesAndSubtractsMassFromBulk)
   ASSERT_EQ(reader.components[1].chemisorption.numberOfSites, 1U);
   const Chemisorption& kinetics = reader.components[1].chemisorption.sites[0];
   EXPECT_EQ(kinetics.type, Chemisorption::Type::Elovich);
-  EXPECT_DOUBLE_EQ(kinetics.elovichAlpha, 0.25);
+  EXPECT_DOUBLE_EQ(kinetics.elovichAlpha.value, 0.25);
   EXPECT_DOUBLE_EQ(kinetics.elovichBeta, 0.5);
   EXPECT_FALSE(kinetics.usesSurfacePoreTransport());
 
@@ -1497,12 +1903,11 @@ TEST(MultiSiteChemisorption, KeepsDirectAndPoreTransportSiteBalancesIndependent)
               1.0e-12);
 
   column.surfaceConcentration[secondSiteInlet] = 0.5 * column.concentration[adsorbateInlet];
-  computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
-                         column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries,
-                         column.particleDensities, column.fractionOfAdsorbent, column.totalVoidFraction,
-                         column.concentration, column.physisorptionDot, column.chemisorptionDot,
-                         column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                         column.reactionChemisorptionSource);
+  computeBulkSpeciesSink(
+      column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
+      column.maxChemisorptionSites, column.geometries, column.fractionOfAdsorbent, column.loadingPrefactor,
+      column.concentration, column.physisorptionDot, column.chemisorptionDot, column.surfaceConcentration,
+      column.bulkSpeciesSink, column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
   EXPECT_GT(column.bulkSpeciesSink[adsorbateInlet],
             loadingPrefactor * (column.physisorptionDot[adsorbateInlet] + column.chemisorptionDot[adsorbateInlet]));
 
@@ -1513,7 +1918,6 @@ TEST(MultiSiteChemisorption, KeepsDirectAndPoreTransportSiteBalancesIndependent)
   restored.initialize();
   restored.readJSON(restartPath.string());
   EXPECT_EQ(toVector(restored.chemisorption), toVector(column.chemisorption));
-  EXPECT_EQ(toVector(restored.equilibriumChemisorption), toVector(column.equilibriumChemisorption));
   EXPECT_EQ(toVector(restored.surfaceConcentration), toVector(column.surfaceConcentration));
   EXPECT_EQ(toVector(restored.poreConcentration), toVector(column.poreConcentration));
 }
@@ -1539,6 +1943,37 @@ TEST(MultiSiteChemisorption, PropagatesMixedSitesWithCvode)
   EXPECT_GT(column.chemisorption[secondSiteInlet], 0.0);
   EXPECT_GE(column.poreConcentration[secondSiteInlet], 0.0);
 }
+
+TEST(CVODEIntegrator, ContinuesACallThatReachesTheStepLimit)
+{
+  // One output interval of 120 s at a step cap of 1e-3 s takes about 120 000 steps, more than one CVode call allows
+  // (100 000). The call is continued instead of failing (B-ITG-19).
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_cvode_step_limit.json";
+  writeReactionInput(path, "Physisorbed", "GeneralPowerLaw", false);
+  nlohmann::json data;
+  {
+    std::ifstream input(path);
+    data = nlohmann::json::parse(input);
+  }
+  data.erase("Reactions");
+  data.erase("TimeStep");
+  data["BreakthroughIntegrator"] = "CVODE";
+  std::ofstream(path) << data.dump(2);
+
+  InputReader reader(path.string());
+  Column column(reader);
+  column.initialize();
+
+  CVODE integrator;
+  integrator.maximumTimeStep = 1.0e-3;
+  Timing timings;
+  integrator.initialize(column);
+  EXPECT_NO_THROW(integrator.advance(column, 120.0, timings));
+  EXPECT_DOUBLE_EQ(integrator.currentTime, 120.0);
+  long steps = 0;
+  CVodeGetNumSteps(integrator.cvodeMem, &steps);
+  EXPECT_GT(steps, 100000);
+}
 #endif
 
 TEST(ExampleFitting, ScoresKnownBeaLangmuirFitWithoutRunningOptimizer)
@@ -1554,12 +1989,72 @@ TEST(ExampleFitting, ScoresKnownBeaLangmuirFitWithoutRunningOptimizer)
   EXPECT_NEAR(fitting.maximumLoading, 1.235003511, 1e-12);
 
   MultiSiteIsotherm fittedIsotherm({
-      Isotherm(Isotherm::Type::Langmuir, {0.19466024781253777, 8.90730767575818e-07}, false),
-      Isotherm(Isotherm::Type::Langmuir, {1.0998368974010369, 6.558568046086507e-05}, false),
+      Isotherm(Isotherm::Type::Langmuir, {0.19466024781253777, 8.90730767575818e-07}),
+      Isotherm(Isotherm::Type::Langmuir, {1.0998368974010369, 6.558568046086507e-05}),
   });
 
   EXPECT_NEAR(fitting.fitness(fittedIsotherm), 0.005825848539239016, 1e-14);
   EXPECT_GT(fitting.RCorrelation(fittedIsotherm), 0.9999);
+}
+
+TEST(ExampleFitting, RelativeWeightingScoresKnownBeaLangmuirFitByRelativeResiduals)
+{
+  InputReader reader(examplePath("examples/BEA-alkanes-C7/fitting/simulation.json"));
+  Fitting fitting(reader);
+  fitting.fittingWeighting = Fitting::FittingWeighting::Relative;
+  fitting.filename[0] = examplePath("examples/BEA-alkanes-C7/fitting/Results.dat-BEA-Repeat-552K-nC7");
+  fitting.readData(0);
+
+  ASSERT_EQ(fitting.rawData.size(), 12U);
+
+  MultiSiteIsotherm fittedIsotherm({
+      Isotherm(Isotherm::Type::Langmuir, {0.19466024781253777, 8.90730767575818e-07}),
+      Isotherm(Isotherm::Type::Langmuir, {1.0998368974010369, 6.558568046086507e-05}),
+  });
+
+  // sqrt(sum(((q - q_fit) / q)^2) / (12 - 4)), evaluated independently with numpy
+  EXPECT_NEAR(fitting.fitness(fittedIsotherm), 0.16940224182602387, 1e-13);
+}
+
+TEST(ExampleFitting, FittingWeightingDefaultsToAbsoluteAndRelativeSkipsZeroLoadings)
+{
+  std::ifstream input(examplePath("examples/BEA-alkanes-C7/fitting/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(input);
+  input.close();
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_fitting_weighting.json";
+  const std::filesystem::path dataPath = testTemporaryDirectory() / "ruptura_fitting_weighting.dat";
+  std::ofstream(dataPath) << "# pressure loading\n10 0.0\n100 0.1\n1000 0.5\n10000 0.9\n";
+
+  std::ofstream(path) << data;
+  {
+    const InputReader reader(path.string());
+    EXPECT_EQ(reader.fittingWeighting, 0U);
+    Fitting fitting(reader);
+    EXPECT_EQ(fitting.fittingWeighting, Fitting::FittingWeighting::Absolute);
+    fitting.columnPressure = 0;
+    fitting.columnLoading = 1;
+    fitting.filename[0] = dataPath.string();
+    fitting.readData(0);
+    EXPECT_EQ(fitting.rawData.size(), 4U);
+  }
+
+  data["fittingweighting"] = "relative";
+  std::ofstream(path) << data;
+  {
+    const InputReader reader(path.string());
+    EXPECT_EQ(reader.fittingWeighting, 1U);
+    Fitting fitting(reader);
+    EXPECT_EQ(fitting.fittingWeighting, Fitting::FittingWeighting::Relative);
+    fitting.columnPressure = 0;
+    fitting.columnLoading = 1;
+    fitting.filename[0] = dataPath.string();
+    // the zero loading is skipped, which leaves 3 points for the 3 Toth parameters
+    EXPECT_THROW(fitting.readData(0), std::runtime_error);
+  }
+
+  data["fittingweighting"] = "Slope";
+  std::ofstream(path) << data;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
 }
 
 TEST(ChemisorptionRate, FirstOrderUsesCoverageDependentDesorptionAboveEquilibrium)
@@ -1607,7 +2102,7 @@ TEST(ChemisorptionInput, ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoa
   InputReader reader(path.string());
   const Chemisorption& kinetics = reader.components[1].chemisorption.sites[0];
   EXPECT_EQ(kinetics.type, Chemisorption::Type::FirstOrder);
-  EXPECT_DOUBLE_EQ(kinetics.rateCoefficient, 0.1125);
+  EXPECT_DOUBLE_EQ(kinetics.rateCoefficient.value, 0.1125);
   EXPECT_DOUBLE_EQ(kinetics.desorptionMassTransferCoefficient, 5.38e-4);
   EXPECT_DOUBLE_EQ(kinetics.desorptionCoverageEnergy, 74000.0);
   EXPECT_DOUBLE_EQ(kinetics.coverageReferenceLoading, 0.3421);
@@ -1656,10 +2151,7 @@ static nlohmann::json makeBulkWaterGasShiftInput()
          {"ForwardOrders", {1, 1}},
          {"BackwardOrders", {1, 1}},
          {"Kinetics",
-          {{"forwardRateCoefficient", 2.0e-3},
-           {"forwardActivationEnergy", 0.0},
-           {"equilibriumConstant", 80.0},
-           {"gibbsFreeEnergy", 0.0}}}}}},
+          {{"ForwardRateCoefficient", 2.0e-3}, {"EquilibriumConstant", 80.0}}}}}},
   };
 }
 
@@ -1700,18 +2192,54 @@ TEST(BulkReaction, WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink)
   }
 }
 
-TEST(BulkReaction, RejectsEnergyBalanceAndSirk3)
+static nlohmann::json makeBulkWaterGasShiftEnergyInput()
+{
+  nlohmann::json data = makeBulkWaterGasShiftInput();
+  data["energyBalance"] = true;
+  data["heatCapacitySolid"] = 1000.0;
+  data["heatCapacityWall"] = 500.0;
+  data["wallDensity"] = 7800.0;
+  data["Reactions"][0]["Kinetics"]["HeatOfReaction"] = 38060.0;
+  return data;
+}
+
+TEST(BulkReaction, ReleasesItsHeatIntoTheSolidPerSolidMass)
+{
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_bulk_wgs_heat.json";
+  std::ofstream(path) << makeBulkWaterGasShiftEnergyInput();
+  InputReader reader(path.string());
+
+  Column column(reader);
+  column.initialize();
+
+  const size_t components = column.numberOfComponents;
+  const size_t grid = 3;
+  const double total = 8.0e5 / (R * 523.15);
+  const std::array<double, 5> fractions{0.78, 0.08, 0.09, 0.03, 0.02};  // N2, CO, H2O, CO2, H2
+  for (size_t comp = 0; comp < components; ++comp)
+  {
+    column.concentration[grid * components + comp] = fractions[comp] * total;
+  }
+
+  computeDerivatives(column);
+
+  // The rate (CO2 source) is per fluid volume, the heat per kg of solid: the source per bed volume, eps Q r, over
+  // the solid mass per bed volume, (1 - eps) rho_p.
+  const double rate = column.reactionBulkSource[grid * components + 3];
+  ASSERT_GT(rate, 0.0);
+  const double heat = 0.4 * 38060.0 * rate / ((1.0 - 0.4) * 800.0);
+  EXPECT_NEAR(column.reactionHeat[grid], heat, 1.0e-12 * heat);
+  // Gas and solid start at the same temperature and nothing adsorbs, so the reaction heat alone heats the solid.
+  EXPECT_NEAR(column.solidTemperatureDot[grid], heat / 1000.0, 1.0e-12 * heat / 1000.0);
+}
+
+TEST(BulkReaction, RejectsASingleBedRestrictionAndAMasslessSolidWithTheEnergyBalance)
 {
   const std::filesystem::path path = testTemporaryDirectory() / "ruptura_bulk_wgs_rejected.json";
 
-  nlohmann::json withEnergy = makeBulkWaterGasShiftInput();
-  withEnergy["energyBalance"] = true;
-  std::ofstream(path) << withEnergy;
-  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
-
-  nlohmann::json withSirk3 = makeBulkWaterGasShiftInput();
-  withSirk3["BreakthroughIntegrator"] = "SIRK3";
-  std::ofstream(path) << withSirk3;
+  nlohmann::json massless = makeBulkWaterGasShiftEnergyInput();
+  massless["ParticleDensity"] = 0.0;
+  std::ofstream(path) << massless;
   EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
 
   nlohmann::json restrictedOnSingleBed = makeBulkWaterGasShiftInput();
@@ -1905,6 +2433,44 @@ TEST(TimeInput, BreakthroughOutputsAtWholeWriteIntervalsAndAtTheEnd)
   EXPECT_TRUE(breakthrough.advanceToNextOutput());
   EXPECT_DOUBLE_EQ(breakthrough.time, 5.0e-4);
   EXPECT_EQ(breakthrough.rk3.numberOfStepsTaken, 5U);
+}
+
+TEST(TimeInput, RestartFromTheColumnFileRecomputesTheDerivedFields)
+{
+  InputReader reader(examplePath("examples/BEA-alkanes-C7/breakthrough/simulation.json"));
+  reader.breakthroughIntegrator = static_cast<size_t>(BreakthroughIntegrationScheme::SSP_RK);
+  reader.timeStep = 1.0e-3;
+  reader.writeInterval = 2.0e-2;
+
+  const std::filesystem::path statePath = testTemporaryDirectory() / "ruptura_restart_column.json";
+  Column original(reader);
+  {
+    WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_restart_original");
+    Breakthrough breakthrough(reader);
+    breakthrough.advanceToNextOutput();
+    breakthrough.column.writeJSON(statePath.string());
+    original = breakthrough.column;
+  }
+  std::ifstream stateFile(statePath);
+  const nlohmann::json state = nlohmann::json::parse(stateFile);
+  EXPECT_TRUE(state.contains("physisorption"));
+  EXPECT_FALSE(state.contains("equilibriumPhysisorption"));
+
+  reader.readColumnFile = statePath.string();
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_restart_restored");
+  Breakthrough restored(reader);
+  EXPECT_EQ(restored.column.state, original.state);
+  // The rates of the original run lag the state by one RK3 stage, so the sink and velocity agree only closely.
+  for (size_t i = 0; i < original.totalPressure.size(); ++i)
+  {
+    EXPECT_NEAR(restored.column.totalPressure[i], original.totalPressure[i], 1.0e-6 * original.totalPressure[i]);
+    EXPECT_NEAR(restored.column.interstitialGasVelocity[i], original.interstitialGasVelocity[i],
+                1.0e-6 * original.interstitialGasVelocity[i]);
+  }
+  for (size_t i = 0; i < original.equilibriumPhysisorption.size(); ++i)
+  {
+    EXPECT_NEAR(restored.column.equilibriumPhysisorption[i], original.equilibriumPhysisorption[i], 1.0e-9);
+  }
 }
 
 TEST(TimeInput, SwingWritesAnOutputAtAPhaseStartUnderThatPhasesConditions)

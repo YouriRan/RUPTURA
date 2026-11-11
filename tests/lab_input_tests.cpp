@@ -2,10 +2,14 @@
 
 #include <algorithm>
 #include <QApplication>
+#include <QComboBox>
 #include <QDir>
 #include <QEventLoop>
 #include <QFile>
+#include <QFormLayout>
 #include <QJsonDocument>
+#include <QLabel>
+#include <QLineEdit>
 #include <QProcess>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -80,6 +84,7 @@ TEST_P(LabExamples, PreservesImportedInputAndSavedState)
 
 INSTANTIATE_TEST_SUITE_P(SupportedExamples, LabExamples, testing::Values(
     "examples/BEA-alkanes-C7/psa/simulation.json",
+    "examples/PSA-H2-activated-carbon/simulation.json",
     "examples/BEA-alkanes-C7/tsa/simulation.json",
     "examples/Chemisorption-CO2-N2/monolith/simulation.json",
     "examples/MOR-CO2-C3H8/siast/simulation.json",
@@ -249,7 +254,8 @@ TEST(LabInput, AllChemisorptionRateEquationsExportValidIndependentKinetics)
 
 TEST(LabInput, AddedIsothermsRetainEveryParameter)
 {
-  for (const auto& pair : {qMakePair(QString("GAB"), QJsonArray{1.0, 1.0, 0.5, 0.0, 0.0}),
+  for (const auto& pair : {qMakePair(QString("GAB"), QJsonArray{1.0, QJsonObject{{"Value", 1.0}, {"Law", "VantHoff"},
+                                                                               {"Energy", 6600.0}}, 0.5}),
                            qMakePair(QString("Bingel&Walton"), QJsonArray{1.0, 1.0e-5, 2.0e-5})})
   {
     auto input = mixture();
@@ -266,6 +272,133 @@ TEST(LabInput, AddedIsothermsRetainEveryParameter)
   }
 }
 
+TEST(LabInput, HumidityIsothermsAndTheWaterComponentRoundTrip)
+{
+  auto input = mixture();
+  input.insert("RelativeHumidity", 0.4);
+  input.insert("WaterSaturationPressureModel", "Wagner");
+  for (const auto& site :
+       {QJsonObject{{"Type", "GAB-modified-Toth"}, {"Parameters", QJsonArray{1.0, 0.98, 0.25, 0.006, 25.0}}},
+        QJsonObject{{"Type", "Exponential-humidity-Toth"}, {"Parameters", QJsonArray{0.81, 6.2, 0.4, 1.11}}}})
+  {
+    SCOPED_TRACE(site.value("Type").toString().toStdString());
+    QJsonArray components;
+    components.append(QJsonObject{{"Name", "CO2"},
+                                  {"GasPhaseMolFraction", 0.5},
+                                  {"MassTransferCoefficient", 0.04},
+                                  {"PhysisorptionSites", QJsonArray{site}}});
+    components.append(QJsonObject{{"Name", "H2O"},
+                                  {"GasPhaseMolFraction", 0.5},
+                                  {"Water", true},
+                                  {"MassTransferCoefficient", 0.04},
+                                  {"PhysisorptionSites",
+                                   QJsonArray{QJsonObject{{"Type", "GAB"}, {"Parameters", QJsonArray{35.0, 0.15, 0.51}}}}}});
+    input.insert("Components", components);
+    MainWindow window;
+    QString error;
+    ASSERT_TRUE(MainWindowTestAccess::import(window, input, &error)) << error.toStdString();
+    const QJsonObject output = MainWindowTestAccess::modeled(window);
+    EXPECT_EQ(output.value("Components"), input.value("Components"));
+    EXPECT_EQ(output.value("RelativeHumidity"), input.value("RelativeHumidity"));
+    EXPECT_EQ(output.value("WaterSaturationPressureModel"), input.value("WaterSaturationPressureModel"));
+    EXPECT_TRUE(LabInput::validate(output, &error)) << error.toStdString();
+  }
+}
+
+TEST(LabInput, FlowDirectionsOfTheColumnAndTheSwingPhasesRoundTrip)
+{
+  // The simulation-wide FlowDirection, and a phase that sets its own while the other inherits it.
+  auto input = example("examples/BEA-alkanes-C7/psa/simulation.json");
+  input.insert("FlowDirection", "Reverse");
+  QJsonArray phases = input.value("SwingAdsorptionPhases").toArray();
+  ASSERT_EQ(phases.size(), 2);
+  QJsonObject second = phases[1].toObject();
+  second.insert("FlowDirection", "Forward");
+  phases[1] = second;
+  input.insert("SwingAdsorptionPhases", phases);
+
+  MainWindow window;
+  QString error;
+  ASSERT_TRUE(MainWindowTestAccess::import(window, input, &error)) << error.toStdString();
+  const QJsonObject output = MainWindowTestAccess::modeled(window);
+  EXPECT_EQ(output.value("FlowDirection").toString(), "Reverse");
+  const QJsonArray outputPhases = output.value("SwingAdsorptionPhases").toArray();
+  ASSERT_EQ(outputPhases.size(), 2);
+  EXPECT_FALSE(outputPhases[0].toObject().contains("FlowDirection"));
+  EXPECT_EQ(outputPhases[1].toObject().value("FlowDirection").toString(), "Forward");
+  EXPECT_TRUE(LabInput::validate(output, &error)) << error.toStdString();
+
+  MainWindow restored;
+  ASSERT_TRUE(MainWindowTestAccess::restore(restored, MainWindowTestAccess::state(window), &error))
+      << error.toStdString();
+  EXPECT_EQ(MainWindowTestAccess::modeled(restored).value("SwingAdsorptionPhases"), output.value("SwingAdsorptionPhases"));
+  EXPECT_EQ(MainWindowTestAccess::modeled(restored).value("FlowDirection"), output.value("FlowDirection"));
+}
+
+TEST(LabInput, TemperatureLawsRoundTripAndValidate)
+{
+  auto input = mixture();
+  auto components = input.value("Components").toArray();
+  auto component = components[0].toObject();
+  component.insert("HeatOfAdsorption", 25000.0);
+  component.insert("ReferenceTemperature", 300.0);
+  component.insert("PhysisorptionSites",
+                   QJsonArray{QJsonObject{{"Type", "Sips"},
+                                          {"Parameters", QJsonArray{QJsonObject{{"Value", 2.0}, {"Law", "Exponential"},
+                                                                                {"Chi", 0.4}},
+                                                                    QJsonObject{{"Value", 1.0e-5}, {"Law", "VantHoff"}},
+                                                                    1.2}}}});
+  components[0] = component;
+  input.insert("Components", components);
+
+  MainWindow window;
+  QString error;
+  ASSERT_TRUE(MainWindowTestAccess::import(window, input, &error)) << error.toStdString();
+  EXPECT_EQ(MainWindowTestAccess::modeled(window).value("Components"), input.value("Components"));
+  EXPECT_TRUE(LabInput::validate(MainWindowTestAccess::modeled(window), &error)) << error.toStdString();
+  MainWindow restored;
+  ASSERT_TRUE(MainWindowTestAccess::restore(restored, MainWindowTestAccess::state(window), &error)) << error.toStdString();
+  EXPECT_EQ(MainWindowTestAccess::modeled(restored).value("Components"), input.value("Components"));
+}
+
+TEST(LabInput, NonIsothermalInputIsConvertedAndSavedStateMigrated)
+{
+  auto input = mixture();
+  auto components = input.value("Components").toArray();
+  auto component = components[0].toObject();
+  component.insert("HeatOfAdsorption", 25000.0);
+  components[0] = component;
+  input.insert("Components", components);
+
+  // An old simulation.json is rejected with the convert.py hint of the input reader.
+  auto oldInput = input;
+  auto oldComponents = oldInput.value("Components").toArray();
+  auto oldComponent = oldComponents[0].toObject();
+  oldComponent.insert("nonIsothermal", true);
+  oldComponents[0] = oldComponent;
+  oldInput.insert("Components", oldComponents);
+  MainWindow rejected;
+  QString error;
+  EXPECT_FALSE(MainWindowTestAccess::import(rejected, oldInput, &error));
+  EXPECT_TRUE(error.contains("convert.py")) << error.toStdString();
+
+  // A workspace saved before temperature laws turns its affinity into a VantHoff law that inherits the heat.
+  MainWindow window;
+  ASSERT_TRUE(MainWindowTestAccess::import(window, input, &error)) << error.toStdString();
+  QJsonObject state = MainWindowTestAccess::state(window);
+  auto stateComponents = state.value("Components").toArray();
+  auto stateComponent = stateComponents[0].toObject();
+  stateComponent.insert("NonIsothermal", true);
+  stateComponents[0] = stateComponent;
+  state.insert("Components", stateComponents);
+  MainWindow restored;
+  ASSERT_TRUE(MainWindowTestAccess::restore(restored, state, &error)) << error.toStdString();
+  const QJsonObject exported = MainWindowTestAccess::modeled(restored).value("Components").toArray()[0].toObject();
+  EXPECT_EQ(exported.value("PhysisorptionSites").toArray()[0].toObject().value("Parameters").toArray()[1],
+            QJsonValue(QJsonObject{{"Value", 1.0e-5}, {"Law", "VantHoff"}}));
+  EXPECT_TRUE(LabInput::validate(MainWindowTestAccess::modeled(restored), &error)) << error.toStdString();
+}
+
 TEST(LabInput, MultibedLengthEditsKeepDistinctAdsorbentIsotherms)
 {
   const auto input = example("examples/Multibed/CO2-N2-polishing/simulation.json");
@@ -280,6 +413,41 @@ TEST(LabInput, MultibedLengthEditsKeepDistinctAdsorbentIsotherms)
   for (qsizetype i = 0; i < beforeBeds.size(); ++i)
     EXPECT_EQ(afterBeds[i].toObject().value("ComponentParameters"), beforeBeds[i].toObject().value("ComponentParameters"));
   EXPECT_TRUE(LabInput::validate(output, &error)) << error.toStdString();
+}
+
+TEST(LabInput, MemberBoundFieldsShowAndEditTheSelectedItem)
+{
+  MainWindow window;
+  const auto field = [&window](const QString& label) -> QWidget*
+  {
+    for (QFormLayout* form : window.findChildren<QFormLayout*>())
+      for (int row = 0; row < form->rowCount(); ++row)
+        if (auto* text = qobject_cast<QLabel*>(form->itemAt(row, QFormLayout::LabelRole)
+                                                   ? form->itemAt(row, QFormLayout::LabelRole)->widget()
+                                                   : nullptr);
+            text && text->text() == label)
+          return form->itemAt(row, QFormLayout::FieldRole)->widget();
+    return nullptr;
+  };
+
+  auto* viscosity = qobject_cast<QLineEdit*>(field("Dynamic viscosity [Pa s]"));
+  ASSERT_NE(viscosity, nullptr);
+  EXPECT_EQ(viscosity->text().toDouble(), MainWindowTestAccess::column(window).dynamicViscosity);
+  emit viscosity->textEdited("2.5e-5");
+  EXPECT_DOUBLE_EQ(MainWindowTestAccess::column(window).dynamicViscosity, 2.5e-5);
+
+  auto* molecularWeight = qobject_cast<QLineEdit*>(field("Molecular weight [kg/mol]"));
+  ASSERT_NE(molecularWeight, nullptr);
+  emit molecularWeight->textEdited("0.044");
+  EXPECT_EQ(MainWindowTestAccess::components(window).front().molecularWeight, std::optional<double>(0.044));
+  emit molecularWeight->textEdited("");
+  EXPECT_FALSE(MainWindowTestAccess::components(window).front().molecularWeight.has_value());
+
+  auto* method = qobject_cast<QComboBox*>(field("Mixture prediction method"));
+  ASSERT_NE(method, nullptr);
+  EXPECT_EQ(method->currentData().toString(), MainWindowTestAccess::simulation(window).mixtureMethod);
+  method->setCurrentIndex(method->findData("SPI"));
+  EXPECT_EQ(MainWindowTestAccess::simulation(window).mixtureMethod, "SPI");
 }
 
 TEST(LabInput, RenamingComponentsUpdatesNamedReactionAndAdsorbentReferences)
@@ -299,6 +467,13 @@ TEST(LabInput, RenamingComponentsUpdatesNamedReactionAndAdsorbentReferences)
         if (participants[j].isDouble()) participants[j] = components[participants[j].toInt()].toObject().value("Name").toString().toLower();
       reaction.insert(key, participants);
     }
+    // The LH/LHHW adsorption constants are keyed by name, too; lower case still has to follow the rename.
+    auto kinetics = reaction.value("Kinetics").toObject();
+    const auto constants = kinetics.value("AdsorptionConstants").toObject();
+    QJsonObject lowercase;
+    for (auto it = constants.begin(); it != constants.end(); ++it) lowercase.insert(it.key().toLower(), it.value());
+    kinetics.insert("AdsorptionConstants", lowercase);
+    reaction.insert("Kinetics", kinetics);
     reactions[i] = reaction;
   }
   input.insert("Reactions", reactions);

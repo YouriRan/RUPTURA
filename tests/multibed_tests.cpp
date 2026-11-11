@@ -45,8 +45,8 @@ Reaction makeReaction(Reaction::Phase phase)
   reaction.forwardOrders = {1.0};
   reaction.backwardOrders = {1.0};
   reaction.forwardRateCoefficient = 1.0;
-  reaction.equilibriumConstant = 1.0e9;
-  reaction.gibbsFreeEnergy = -1000.0;
+  reaction.equilibriumConstant = TemperatureLaw(TemperatureLaw::Type::VantHoff, 1.0e9, 1000.0);
+  reaction.heatOfReaction = 1000.0;
   return reaction;
 }
 
@@ -59,6 +59,7 @@ void disablePhysisorptionKinetics(Column& column)
       component.massTransferCoefficient = 0.0;
     }
   }
+  column.computeAdsorbentBlends();
 }
 }  // namespace
 
@@ -356,7 +357,7 @@ TEST(MultibedExamples, ParseAndAdvanceWithAdsorbentSpecificParameters)
 
     RungeKutta3 integrator(reader.timeStep);
     Timing timings;
-    integrator.step(column, 0.0, reader.timeStep, timings);
+    integrator.step(column, reader.timeStep, timings);
     EXPECT_TRUE(allFinite(column.state));
     EXPECT_TRUE(allFinite(column.totalPressure));
     EXPECT_TRUE(allFinite(column.interstitialGasVelocity));
@@ -443,7 +444,7 @@ TEST(MultibedUniformMix, AppliesConfiguredFractionsOverTheWholeColumn)
 
   RungeKutta3 integrator(reader.timeStep);
   Timing timings;
-  integrator.step(column, 0.0, reader.timeStep, timings);
+  integrator.step(column, reader.timeStep, timings);
   EXPECT_TRUE(allFinite(column.state));
 }
 
@@ -594,10 +595,9 @@ TEST(MultibedReactions, ParsesReactionTogetherWithAdsorbents)
                                                {"Products", nlohmann::json::array({"N2"})},
                                                {"Stoichiometry", {{"Reactants", {1.0}}, {"Products", {1.0}}}},
                                                {"Kinetics",
-                                                {{"forwardRateCoefficient", 1.0},
-                                                 {"forwardActivationEnergy", 0.0},
-                                                 {"equilibriumConstant", 1.0e9},
-                                                 {"gibbsFreeEnergy", -1000.0}}}}});
+                                                {{"ForwardRateCoefficient", 1.0},
+                                                 {"EquilibriumConstant", {{"Value", 1.0e9}, {"Law", "VantHoff"}}},
+                                                 {"HeatOfReaction", 1000.0}}}}});
 
   const std::filesystem::path path =
       testTemporaryDirectory() / "ruptura_multibed_reaction_input.json";
@@ -677,7 +677,7 @@ TEST(MultibedReactions, PoreSourcesAreIntegratedWithoutDirectBulkTransfer)
 
   RungeKutta3 integrator(reader.timeStep);
   Timing timings;
-  integrator.step(column, 0.0, reader.timeStep, timings);
+  integrator.step(column, reader.timeStep, timings);
   EXPECT_TRUE(allFinite(column.state));
   EXPECT_GT(column.poreConcentration[product], 0.0);
 }
@@ -712,7 +712,7 @@ TEST(MultibedReactions, BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs)
     const size_t r = grid * components + reactant;
     const size_t p = grid * components + product;
     // Full rate: k c (equilibrium constant large enough to make the backward term negligible).
-    const double fullRate = reaction.forwardRateCoefficient * column.concentration[r];
+    const double fullRate = reaction.forwardRateCoefficient.value * column.concentration[r];
     EXPECT_NEAR(column.reactionBulkSource[r], -weight * fullRate, 1.0e-6 * fullRate);
     EXPECT_NEAR(column.reactionBulkSource[p], weight * fullRate, 1.0e-6 * fullRate);
     // Without sorption the bulk sink is exactly the negative reaction source.
@@ -748,12 +748,11 @@ TEST(MultibedCompute, BulkSpeciesSinkUsesBedWeightedSolidLoading)
     column.physisorptionDot[blendedGrid * column.numberOfComponents + comp] = 0.25 * static_cast<double>(comp + 1);
   }
 
-  computeBulkSpeciesSink(column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
-                         column.numberOfAdsorbents, column.maxChemisorptionSites, column.geometries,
-                         column.particleDensities, column.fractionOfAdsorbent, column.totalVoidFraction,
-                         column.concentration, column.physisorptionDot, column.chemisorptionDot,
-                         column.surfaceConcentration, column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                         column.reactionChemisorptionSource);
+  computeBulkSpeciesSink(
+      column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
+      column.maxChemisorptionSites, column.geometries, column.fractionOfAdsorbent, column.loadingPrefactor,
+      column.concentration, column.physisorptionDot, column.chemisorptionDot, column.surfaceConcentration,
+      column.bulkSpeciesSink, column.reactionPhysisorptionSource, column.reactionChemisorptionSource);
 
   double solidLoadingDensity = 0.0;
   for (size_t ads = 0; ads < column.numberOfAdsorbents; ++ads)

@@ -9,12 +9,18 @@ Two kinds of input are converted:
 * JSON inputs with the step-based time keys of RUPTURA 2 (``NumberOfTimeSteps``,
   ``WriteEvery``, ``PrintEvery``, and swing-phase ``NumberOfTimeSteps``).  They
   become times in s (``SimulationTime``, ``WriteInterval``, phase ``Duration``);
-  CVODE inputs also lose ``TimeStep`` and ``NumberOfInitTimeSteps``.  Without an
-  output path the file is converted in place and the original is kept next to it
-  as ``_legacy_<name>``.
+  CVODE and ROS34PW2 inputs also lose ``TimeStep`` and ``NumberOfInitTimeSteps``.
+* JSON inputs with the temperature keys that temperature laws replaced
+  (``nonIsothermal``, the five-parameter ``GAB``, the General chemisorption
+  ``AdsorptionActivationEnergy``/``DesorptionActivationEnergy``, and the reaction
+  ``forwardActivationEnergy``/``gibbsFreeEnergy``).  The parameters become
+  temperature laws, ``{"Value": ..., "Law": ...}``.
 
-The time-key rules (see ``convert_time_keys``) are the ones the C++ InputReader
-prints when it rejects a step-based input.
+Without an output path a JSON file is converted in place and the original is kept
+next to it as ``_legacy_<name>``, or as ``_legacy_2_<name>``, ... if that exists.
+
+The rules (see ``convert_time_keys`` and ``convert_temperature_keys``) are the ones
+the C++ InputReader prints when it rejects such an input.
 
 Examples:
     python convert.py simulation.input
@@ -26,6 +32,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import math
 import re
@@ -142,11 +149,11 @@ def convert_time_keys(settings: dict[str, Any]) -> dict[str, Any] | None:
     SimulationTime = NumberOfTimeSteps * TimeStep ("auto" stays "auto"), WriteInterval = WriteEvery * TimeStep
     (WriteEvery defaults to 10000), and each swing phase's Duration = NumberOfTimeSteps * TimeStep, with TimeStep
     defaulting to 5e-4 s.  PrintEvery is dropped (progress is printed at every output), and so is the root
-    NumberOfTimeSteps of a SwingAdsorption input (the phase durations set its length).  CVODE inputs also lose
-    TimeStep and NumberOfInitTimeSteps, which only the fixed-step integrators use.
+    NumberOfTimeSteps of a SwingAdsorption input (the phase durations set its length).  CVODE and ROS34PW2 inputs
+    also lose TimeStep and NumberOfInitTimeSteps, which only the fixed-step RungeKutta3 uses.
     """
     integrator_key = find_key(settings, "BreakthroughIntegrator")
-    cvode = integrator_key is not None and str(settings[integrator_key]).casefold() == "cvode"
+    adaptive = integrator_key is not None and str(settings[integrator_key]).casefold() in ("cvode", "ros34pw2")
     time_step_key = find_key(settings, "TimeStep")
     time_step_value = settings.get(time_step_key) if time_step_key is not None else None
     time_step = (
@@ -160,8 +167,8 @@ def convert_time_keys(settings: dict[str, Any]) -> dict[str, Any] | None:
     has_step_keys = any(find_key(settings, key) is not None for key in STEP_KEYS) or any(
         isinstance(phase, dict) and find_key(phase, "NumberOfTimeSteps") is not None for phase in phases or []
     )
-    dropped_for_cvode = {"timestep", "numberofinittimesteps"} if cvode else set()
-    if not has_step_keys and not any(key.casefold() in dropped_for_cvode for key in settings):
+    dropped_for_adaptive = {"timestep", "numberofinittimesteps"} if adaptive else set()
+    if not has_step_keys and not any(key.casefold() in dropped_for_adaptive for key in settings):
         return None
 
     steps_key = find_key(settings, "NumberOfTimeSteps")
@@ -170,7 +177,7 @@ def convert_time_keys(settings: dict[str, Any]) -> dict[str, Any] | None:
     converted: dict[str, Any] = {}
     for key, value in settings.items():
         folded = key.casefold()
-        if folded in dropped_for_cvode or folded == "printevery":
+        if folded in dropped_for_adaptive or folded == "printevery":
             continue
         if folded == "numberoftimesteps":
             # Only the spelling the reader used counts; duplicates in other capitalization were ignored.
@@ -203,6 +210,267 @@ def convert_time_keys(settings: dict[str, Any]) -> dict[str, Any] | None:
     if has_step_keys and not has_write_interval:
         converted["WriteInterval"] = seconds(LEGACY_WRITE_EVERY, time_step)
     return converted
+
+
+# Gas constant in J/(mol K), as in the C++ code.
+GAS_CONSTANT = 8.31446261815324
+
+# The isotherm types that "nonIsothermal" scaled, and the position of their affinity in Parameters.
+AFFINITY_INDEX = {"langmuir": 1, "ph-langmuir": 1, "sips": 1, "langmuir-freundlich": 1, "toth": 1}
+
+
+def is_number(value: Any) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def renamed(mapping: dict[str, Any], replacements: dict[str, tuple[str, Any] | None]) -> dict[str, Any]:
+    """Return ``mapping`` in its key order, with each key in ``replacements`` (case-insensitive) renamed to a new
+    (key, value) pair, or dropped when its replacement is None."""
+    folded = {key.casefold(): replacement for key, replacement in replacements.items()}
+    result: dict[str, Any] = {}
+    for key, value in mapping.items():
+        if key.casefold() not in folded:
+            result[key] = value
+        elif folded[key.casefold()] is not None:
+            new_key, new_value = folded[key.casefold()]
+            result[new_key] = new_value
+    return result
+
+
+def exponential_law(value: Any, law: str, energy: Any, reference_temperature: float | None) -> Any:
+    """Return the law object of ``value * exp(+-energy/(R T))`` (VantHoff: +, Arrhenius: -), or ``value`` itself for
+    a zero energy.
+
+    These laws were uncentred. A law inherits the ReferenceTemperature of its component, so when the component has
+    one, the value is written at that temperature, V = value exp(+-energy/(R T_ref)), which is the same function.
+    """
+    if not is_number(value) or not is_number(energy) or energy == 0:
+        return value
+    coefficient_key = "Energy" if law == "VantHoff" else "ActivationEnergy"
+    if reference_temperature is not None:
+        sign = 1.0 if law == "VantHoff" else -1.0
+        value = value * math.exp(sign * energy / (GAS_CONSTANT * reference_temperature))
+    return {"Value": value, "Law": law, coefficient_key: energy}
+
+
+def convert_component_temperature_keys(component: dict[str, Any], where: str, global_component: dict[str, Any] | None,
+                                       notes: list[str]) -> dict[str, Any] | None:
+    """Return a component object (or a ComponentParameters override) with temperature laws, or None if it needs none.
+
+    ``global_component`` is the component an override applies to; an override without sites of its own may only
+    repeat its nonIsothermal setting.
+    """
+    def temperature_settings(item: dict[str, Any] | None) -> tuple[bool | None, float | None]:
+        if item is None:
+            return None, None
+        flag = find_key(item, "nonIsothermal")
+        reference = find_key(item, "ReferenceTemperature")
+        return (item[flag] is True if flag is not None else None,
+                float(item[reference]) if reference is not None and is_number(item[reference]) else None)
+
+    flag_key = find_key(component, "nonIsothermal")
+    reference_key = find_key(component, "ReferenceTemperature")
+    heat_key = find_key(component, "HeatOfAdsorption")
+    own_flag, own_reference = temperature_settings(component)
+    global_flag, global_reference = temperature_settings(global_component)
+    # An override starts from the component, so it scales when either sets nonIsothermal, with either's T_ref.
+    non_isothermal = own_flag if own_flag is not None else bool(global_flag)
+    effective_reference = own_reference if own_reference is not None else global_reference
+    site_kinds = [kind for kind in ("PhysisorptionSites", "ChemisorptionSites") if find_key(component, kind)]
+
+    if global_component is not None and own_flag is not None and own_flag != bool(global_flag) and not site_kinds:
+        raise ConversionError(f"{where}: nonIsothermal differs from the component's but the override has no sites "
+                              "of its own; write the temperature laws on the sites")
+
+    # The reference temperature only centred the nonIsothermal scaling. It stays (as ReferenceTemperature) where it
+    # did, and the laws written here inherit it; an override inherits the component's when it gives none.
+    write_reference = non_isothermal and effective_reference is not None
+    global_kept_reference = global_reference if global_flag else None
+    reference_temperature = effective_reference if write_reference else global_kept_reference
+
+    converted = copy.deepcopy(component)
+    changed = flag_key is not None
+    component_heat = component[heat_key] if heat_key is not None else None
+    for kind in site_kinds:
+        sites = converted[find_key(converted, kind)]
+        if not isinstance(sites, list):
+            continue
+        affinity_heats = []
+        for index, site in enumerate(sites):
+            if not isinstance(site, dict):
+                continue
+            type_key = find_key(site, "Type")
+            parameters_key = find_key(site, "Parameters")
+            isotherm_type = str(site[type_key]).casefold() if type_key is not None else ""
+            parameters = site[parameters_key] if parameters_key is not None else None
+            if isinstance(parameters, list) and isotherm_type == "gab" and len(parameters) == 5:
+                # C = C_0 exp(H_C/(R T)) and K = K_0 exp(H_K/(R T)) were scaled by exp(1/(R T)) to the power H_C, H_K.
+                q, c0, k0, hc, hk = parameters
+                site[parameters_key] = [q, exponential_law(c0, "VantHoff", hc, reference_temperature),
+                                        exponential_law(k0, "VantHoff", hk, reference_temperature)]
+                changed = True
+            elif non_isothermal and isinstance(parameters, list) and isotherm_type in AFFINITY_INDEX:
+                position = AFFINITY_INDEX[isotherm_type]
+                enabled = parameters and is_number(parameters[0]) and parameters[0] != 0
+                if enabled and len(parameters) > position and is_number(parameters[position]) and parameters[position]:
+                    parameters[position] = {"Value": parameters[position], "Law": "VantHoff"}
+                    site_heat_key = find_key(site, "HeatOfAdsorption")
+                    affinity_heats.append(site[site_heat_key] if site_heat_key is not None else component_heat)
+            rate_key = find_key(site, "RateEquationParameters")
+            rate_parameters = site.get(rate_key) if rate_key is not None else None
+            if kind == "ChemisorptionSites" and isinstance(rate_parameters, dict):
+                replacements: dict[str, tuple[str, Any] | None] = {}
+                for direction in ("Adsorption", "Desorption"):
+                    energy_key = find_key(rate_parameters, f"{direction}ActivationEnergy")
+                    if energy_key is None:
+                        continue
+                    replacements[energy_key] = None
+                    coefficient_key = find_key(rate_parameters, f"{direction}RateCoefficient")
+                    if coefficient_key is not None:
+                        replacements[coefficient_key] = (
+                            coefficient_key,
+                            exponential_law(rate_parameters[coefficient_key], "Arrhenius",
+                                            rate_parameters[energy_key], reference_temperature))
+                if replacements:
+                    site[rate_key] = renamed(rate_parameters, replacements)
+                    changed = True
+        if kind == "ChemisorptionSites" and len(set(map(repr, affinity_heats))) > 1:
+            # The chemisorption mixture scaled every site with the heat of the first one.
+            raise ConversionError(f"{where}: the chemisorption sites have different heats ({affinity_heats}), but "
+                                  "nonIsothermal scaled all of them with the first; write their VantHoff laws by hand")
+
+    if not changed:
+        return None
+    replacements = {}
+    if flag_key is not None:
+        replacements[flag_key] = None
+    if reference_key is not None:
+        replacements[reference_key] = ("ReferenceTemperature", component[reference_key]) if write_reference else None
+    if heat_key is not None and component_heat == 1.0 and is_gab_heat_placeholder(converted):
+        replacements[heat_key] = None
+        notes.append(f"{where}: dropped HeatOfAdsorption 1.0, which only made GAB see exp(1/(RT)) as its scale")
+    result = renamed(converted, replacements)
+    if write_reference and reference_key is None and global_kept_reference is None:
+        # The component's T_ref centred this override's scaling, but the component does not keep it.
+        result["ReferenceTemperature"] = effective_reference
+    return result
+
+
+def is_gab_heat_placeholder(component: dict[str, Any]) -> bool:
+    """Return whether a HeatOfAdsorption of 1.0 served only GAB: the component has a GAB site, every enabled
+    physisorption site is GAB, and every chemisorption site gives its own HeatOfAdsorption."""
+    sites = {kind: component.get(find_key(component, kind) or "", []) for kind in ("PhysisorptionSites",
+                                                                                   "ChemisorptionSites")}
+    all_sites = [site for kind_sites in sites.values() if isinstance(kind_sites, list) for site in kind_sites
+                 if isinstance(site, dict)]
+
+    def site_type(site: dict[str, Any]) -> str:
+        type_key = find_key(site, "Type")
+        return str(site[type_key]).casefold() if type_key is not None else ""
+
+    def enabled(site: dict[str, Any]) -> bool:
+        parameters = site.get(find_key(site, "Parameters") or "", [])
+        first = parameters[0] if isinstance(parameters, list) and parameters else 0
+        return not is_number(first) or first != 0
+
+    return (any(site_type(site) == "gab" for site in all_sites)
+            and all(site_type(site) == "gab" or not enabled(site) for site in sites["PhysisorptionSites"] or [])
+            and all(find_key(site, "HeatOfAdsorption") is not None for site in sites["ChemisorptionSites"] or []))
+
+
+def convert_reaction_temperature_keys(kinetics: dict[str, Any]) -> dict[str, Any] | None:
+    """Return reaction Kinetics with temperature laws, or None if it has no forwardActivationEnergy or
+    gibbsFreeEnergy.
+
+    k+ = k0 exp(-Ea/(R T)) becomes an Arrhenius ForwardRateCoefficient. K = K0 exp(-dG/(R T)) becomes a VantHoff
+    EquilibriumConstant whose Energy is the HeatOfReaction -dG, which was also the heat released.
+    """
+    energy_key = find_key(kinetics, "forwardActivationEnergy")
+    gibbs_key = find_key(kinetics, "gibbsFreeEnergy")
+    if energy_key is None and gibbs_key is None:
+        return None
+    energy = kinetics[energy_key] if energy_key is not None else 0
+    gibbs = kinetics[gibbs_key] if gibbs_key is not None else 0
+    replacements: dict[str, tuple[str, Any] | None] = {}
+    if energy_key is not None:
+        replacements[energy_key] = None
+    if (rate_key := find_key(kinetics, "ForwardRateCoefficient")) is not None:
+        replacements[rate_key] = ("ForwardRateCoefficient",
+                                  exponential_law(kinetics[rate_key], "Arrhenius", energy, None))
+    if (constant_key := find_key(kinetics, "EquilibriumConstant")) is not None:
+        constant = kinetics[constant_key]
+        replacements[constant_key] = ("EquilibriumConstant",
+                                      {"Value": constant, "Law": "VantHoff"} if is_number(gibbs) and gibbs else constant)
+    if gibbs_key is not None:
+        replacements[gibbs_key] = ("HeatOfReaction", -gibbs) if is_number(gibbs) and gibbs else None
+    return renamed(kinetics, replacements)
+
+
+def convert_temperature_keys(settings: dict[str, Any], notes: list[str] | None = None) -> dict[str, Any] | None:
+    """Return ``settings`` with the temperature keys replaced by temperature laws, or None if it has none.
+
+    ``"nonIsothermal": true`` becomes a VantHoff law on the affinity of each enabled Langmuir, pH-Langmuir, Sips,
+    Langmuir-Freundlich, and Toth site, which inherits the HeatOfAdsorption (and the ReferenceTemperature, now
+    spelled so). ``"nonIsothermal": false`` and its referenceTemperature are dropped. The five-parameter GAB
+    [q_m, C_0, K_0, H_C, H_K] becomes [q_m, VantHoff C_0 with Energy H_C, VantHoff K_0 with Energy H_K], and a
+    HeatOfAdsorption of 1.0 that only served GAB is dropped. The General chemisorption activation energies become
+    Arrhenius laws of their rate coefficients. Reactions are converted by convert_reaction_temperature_keys. These are
+    the rules the C++ InputReader prints when it rejects such an input. Notes on dropped keys are appended to
+    ``notes``.
+    """
+    notes = notes if notes is not None else []
+    converted = copy.deepcopy(settings)
+    changed = False
+
+    components_key = find_key(converted, "Components")
+    components = converted.get(components_key) if components_key is not None else None
+    by_name: dict[str, dict[str, Any]] = {}
+    if isinstance(components, (list, dict)):
+        entries = list(components.items()) if isinstance(components, dict) else list(enumerate(components))
+        for index, component in entries:
+            if not isinstance(component, dict):
+                continue
+            new = convert_component_temperature_keys(component, f"Components[{index}]", None, notes)
+            name_key = find_key(component, "Name")
+            if name_key is not None:
+                by_name[str(component[name_key])] = component
+            if new is not None:
+                components[index] = new
+                changed = True
+
+    adsorbents_key = find_key(converted, "Adsorbents")
+    adsorbents = converted.get(adsorbents_key) if adsorbents_key is not None else None
+    for adsorbent_index, adsorbent in enumerate(adsorbents if isinstance(adsorbents, list) else []):
+        if not isinstance(adsorbent, dict):
+            continue
+        adsorbent_components = adsorbent.get(find_key(adsorbent, "Components") or "")
+        for index, component in enumerate(adsorbent_components if isinstance(adsorbent_components, list) else []):
+            if isinstance(component, dict):
+                new = convert_component_temperature_keys(
+                    component, f"Adsorbents[{adsorbent_index}].Components[{index}]", None, notes)
+                if new is not None:
+                    adsorbent_components[index] = new
+                    changed = True
+        overrides = adsorbent.get(find_key(adsorbent, "ComponentParameters") or "")
+        for name, override in (overrides.items() if isinstance(overrides, dict) else []):
+            if isinstance(override, dict):
+                new = convert_component_temperature_keys(
+                    override, f"Adsorbents[{adsorbent_index}].ComponentParameters.{name}", by_name.get(name), notes)
+                if new is not None:
+                    overrides[name] = new
+                    changed = True
+
+    reactions_key = find_key(converted, "Reactions")
+    reactions = converted.get(reactions_key) if reactions_key is not None else None
+    for reaction in reactions if isinstance(reactions, list) else []:
+        kinetics_key = find_key(reaction, "Kinetics") if isinstance(reaction, dict) else None
+        if kinetics_key is not None and isinstance(reaction[kinetics_key], dict):
+            new = convert_reaction_temperature_keys(reaction[kinetics_key])
+            if new is not None:
+                reaction[kinetics_key] = new
+                changed = True
+
+    return converted if changed else None
 
 
 def first_argument(arguments: str, keyword: str, line_number: int) -> str:
@@ -473,8 +741,8 @@ def default_output_path(input_path: Path) -> Path:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Convert a deprecated RUPTURA text input file, or a JSON input with step-based time keys, "
-        "to the current JSON format.",
+        description="Convert a deprecated RUPTURA text input file, or a JSON input with step-based time keys or "
+        "removed temperature keys, to the current JSON format.",
     )
     parser.add_argument("input", type=Path, help="legacy text input file, or JSON input file (*.json)")
     parser.add_argument(
@@ -482,7 +750,7 @@ def build_parser() -> argparse.ArgumentParser:
         type=Path,
         nargs="?",
         help="output JSON file (default: input name with .json suffix; a JSON input is converted in place and "
-        "the original kept as _legacy_<name>)",
+        "the original kept as _legacy_<name>, or _legacy_2_<name>, ... if that exists)",
     )
     parser.add_argument(
         "--allow-lossy",
@@ -492,7 +760,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="overwrite an existing output file (or _legacy_ archive)",
+        help="overwrite an existing output file",
     )
     parser.add_argument(
         "--indent",
@@ -508,23 +776,28 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.input.suffix.casefold() == ".json":
         output_path = args.output or args.input
+        # The original is kept under the first free name, so that an earlier conversion's archive survives.
         archive_path = args.input.with_name("_legacy_" + args.input.name)
+        archive_number = 2
+        while archive_path.exists():
+            archive_path = args.input.with_name(f"_legacy_{archive_number}_{args.input.name}")
+            archive_number += 1
+        notes: list[str] = []
         try:
             text = args.input.read_text(encoding="utf-8")
             settings = json.loads(text)
             if not isinstance(settings, dict):
                 raise ConversionError(f"{args.input} is not a JSON object")
-            converted = convert_time_keys(settings)
+            time_converted = convert_time_keys(settings)
+            converted = convert_temperature_keys(time_converted or settings, notes) or time_converted
             if converted is None:
-                print(f"{args.input} has no step-based time keys; nothing to convert")
+                print(f"{args.input} has no step-based time keys or temperature keys; nothing to convert")
                 return 0
             if output_path != args.input and output_path.exists() and not args.force:
                 raise ConversionError(f"output file {output_path} already exists; use --force to overwrite it")
             if output_path == args.input:
-                if archive_path.exists() and not args.force:
-                    raise ConversionError(f"archive {archive_path} already exists; use --force to overwrite it")
                 archive_path.write_text(text, encoding="utf-8")
-            # Keep the indentation of the input file, so that a converted file differs only in its time keys.
+            # Keep the indentation of the input file, so that a converted file differs only in the converted keys.
             indented = re.search(r"\n( +)\S", text)
             indent = args.indent if args.indent is not None else (len(indented.group(1)) if indented else 2)
             output_path.write_text(json.dumps(converted, indent=indent, ensure_ascii=False) + "\n", encoding="utf-8")
@@ -533,6 +806,8 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         kept = f" (original kept as {archive_path})" if output_path == args.input else ""
         print(f"Converted {args.input} -> {output_path}{kept}")
+        for note in notes:
+            print(f"  note: {note}")
         return 0
 
     output_path = args.output or default_output_path(args.input)

@@ -40,8 +40,9 @@ _CORE_EXPORTS = [
     "MixturePrediction",
     "MultiSiteChemisorption",
     "MultiSiteIsotherm",
+    "ROS34PW2",
     "RungeKutta3",
-    "SemiImplicitRungeKutta3",
+    "SwingAdsorptionPhaseRecord",
     "SwingAdsorptionSubStage",
     "SwingAdsorption",
     "compute_equilibrium_loadings",
@@ -98,20 +99,40 @@ MIXTURE_FILE_CHEMISORPTION_COLUMNS = (
     "mixture_total_loading",
 )
 
+# Breakthrough.compute() rows hold the columns of the output files: those of column.data, then for each component
+# those of its component_<i>_<name>.data file after the time and position columns.
 BREAKTHROUGH_BASE_COLUMNS = (
     "dimensionless_time",
     "time_min",
     "position",
     "interstitial_gas_velocity",
     "total_pressure",
+    "gas_temperature",
+    "gas_temperature_dot",
+    "solid_temperature",
+    "solid_temperature_dot",
+    "wall_temperature",
+    "wall_temperature_dot",
+    "gas_density",
 )
 
+# column.data of a liquid-phase run adds the pH; its gas_density column holds the liquid density.
+BREAKTHROUGH_LIQUID_BASE_COLUMNS = BREAKTHROUGH_BASE_COLUMNS + ("ph",)
+
+# For a liquid, partial_pressure holds the concentration that drives the isotherm, and normalized_partial_pressure the
+# concentration over its feed value.
 BREAKTHROUGH_COMPONENT_COLUMNS = (
+    "concentration",
+    "concentration_dot",
+    "mole_fraction",
     "physisorption",
-    "equilibrium_adsorption",
-    "partial_pressure",
-    "normalized_partial_pressure",
     "physisorption_dot",
+    "chemisorption",
+    "chemisorption_dot",
+    "partial_pressure",
+    "equilibrium_physisorption",
+    "normalized_partial_pressure",
+    "equilibrium_chemisorption",
 )
 
 
@@ -160,13 +181,18 @@ def load_simulation(file_name: str | Path) -> Any:
     return core.simulation_from_file(str(file_name))
 
 
-def breakthrough_columns(number_of_components: int) -> tuple[str, ...]:
-    columns = list(BREAKTHROUGH_BASE_COLUMNS)
-    for component in range(number_of_components):
-        columns.extend(
-            f"component_{component}_{field}"
-            for field in BREAKTHROUGH_COMPONENT_COLUMNS
-        )
+def breakthrough_columns(simulation: Any) -> tuple[str, ...]:
+    """Names of the last axis of ``Breakthrough.compute()``, in the order of the output files."""
+
+    core = _require_core()
+    column = simulation.column
+    liquid = column.fluid_phase == core.Column.FluidPhase.LIQUID
+    columns = list(BREAKTHROUGH_LIQUID_BASE_COLUMNS if liquid else BREAKTHROUGH_BASE_COLUMNS)
+    for component in range(int(simulation.number_of_components)):
+        columns.extend(f"component_{component}_{field}" for field in BREAKTHROUGH_COMPONENT_COLUMNS)
+        for site in column.surface_pore_transport_sites(component):
+            columns.append(f"component_{component}_site_{site}_surface_concentration")
+            columns.append(f"component_{component}_site_{site}_pore_concentration")
     return tuple(columns)
 
 
@@ -175,7 +201,7 @@ def result_columns(simulation: Any) -> tuple[str, ...]:
     if isinstance(simulation, core.MixturePrediction):
         return MIXTURE_RESULT_COLUMNS
     if isinstance(simulation, core.Breakthrough):
-        return breakthrough_columns(int(simulation.number_of_components))
+        return breakthrough_columns(simulation)
     raise TypeError(
         "Only MixturePrediction and Breakthrough have in-memory NumPy compute results."
     )
@@ -198,7 +224,7 @@ def compute(simulation: Any, *, labeled: bool = True) -> np.ndarray | Simulation
     if isinstance(simulation, core.Breakthrough):
         return SimulationResult(
             data=data,
-            columns=breakthrough_columns(int(simulation.number_of_components)),
+            columns=breakthrough_columns(simulation),
             kind="breakthrough",
         )
     return SimulationResult(data=data, columns=(), kind=type(simulation).__name__)
@@ -282,6 +308,7 @@ def __getattr__(name: str) -> Any:
 __all__ = [
     *_CORE_EXPORTS,
     "BREAKTHROUGH_BASE_COLUMNS",
+    "BREAKTHROUGH_LIQUID_BASE_COLUMNS",
     "BREAKTHROUGH_COMPONENT_COLUMNS",
     "MIXTURE_FILE_CHEMISORPTION_COLUMNS",
     "MIXTURE_FILE_COLUMNS",

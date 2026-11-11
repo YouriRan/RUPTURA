@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <print>
+#include <string_view>
 
 #include "breakthrough.h"
 #include "fitting.h"
@@ -10,10 +11,6 @@
 #include "notebook_templates.h"
 #include "special_functions.h"
 #include "swing_adsorption.h"
-
-#ifndef RUPTURA_SOURCE_DIR
-#define RUPTURA_SOURCE_DIR ""
-#endif
 
 namespace
 {
@@ -45,8 +42,7 @@ void ensureDefaultNotebook(InputReader::SimulationType simulationType)
   const std::filesystem::path runDirectory = std::filesystem::current_path();
   const std::filesystem::path notebookPath = runDirectory / "analysis.ipynb";
   const std::string runId = runDirectory.filename().string();
-  const auto result = RupturaNotebooks::writeDefaultNotebook(notebookPath, notebookType(simulationType), runId,
-                                                             RUPTURA_SOURCE_DIR, runDirectory);
+  const auto result = RupturaNotebooks::writeDefaultNotebook(notebookPath, notebookType(simulationType), runId);
   if (result == RupturaNotebooks::WriteResult::Created)
   {
     std::println("Wrote default analysis notebook: {}", notebookPath.string());
@@ -92,11 +88,7 @@ int main(int argc, char* argv[])
       }
       case InputReader::SimulationType::MixturePrediction:
       {
-        MixturePrediction mixture(reader);
-
-        mixture.print();
-        mixture.run();
-        mixture.print();
+        runSimulation<MixturePrediction>(reader);
         break;
       }
       case InputReader::SimulationType::Fitting:
@@ -115,7 +107,10 @@ int main(int argc, char* argv[])
   }
   catch (std::exception const& e)
   {
-    std::cerr << e.what();
+    // Some messages end in a newline and most do not; each is printed with exactly one.
+    std::string_view message = e.what();
+    while (message.ends_with('\n')) message.remove_suffix(1);
+    std::println(stderr, "{}", message);
     exit(-1);
   }
 

@@ -12,6 +12,7 @@
 #include <QFormLayout>
 #include <QFrame>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -39,6 +40,8 @@
 
 #include "simulationinput.h"
 #include "inputreader.h"
+#include "isotherm.h"
+#include "temperature_law.h"
 
 namespace
 {
@@ -54,14 +57,19 @@ QJsonObject selectSettings(const QJsonObject& object, const QStringList& keys)
 }
 
 const QStringList columnSettingKeys{
-    "FluidPhase", "LiquidDensity", "pHMode", "pHValue", "pKw", "liquidThermalConductivity",
-    "heatTransferLiquidSolid", "heatTransferLiquidWall", "heatCapacityLiquid"};
+    "FluidPhase", "LiquidDensity", "pHMode", "pHValue", "pKw", "RelativeHumidity", "WaterSaturationPressureModel",
+    "WaterSaturationPressure", "liquidThermalConductivity",
+    "heatTransferLiquidSolid", "heatTransferLiquidWall", "heatCapacityLiquid", "AxialDispersionReferenceTemperature",
+    "AxialDispersionReferencePressure"};
 const QStringList simulationSettingKeys{
-    "IASTMethod", "ConvectionScheme", "CVODERelativeTolerance", "CVODEAbsoluteToleranceConcentration",
+    "IASTMethod", "ConvectionScheme", "InletCondition", "FlowDirection", "CVODERelativeTolerance",
+    "CVODEAbsoluteToleranceConcentration",
     "CVODEAbsoluteToleranceLoading",
     "CVODEAbsoluteToleranceTemperature", "CVODEMaximumTimeStep", "CVODEMaximumOrder", "CVODELinearSolver",
-    "CVODEKrylovDimension", "ColumnDistances", "ReadColumnFile", "DebugForceMultibed", "ColumnPressure",
-    "ColumnLoading", "ColumnError"};
+    "CVODEKrylovDimension", "ROS34PW2RelativeTolerance", "ROS34PW2AbsoluteToleranceConcentration",
+    "ROS34PW2AbsoluteToleranceLoading", "ROS34PW2AbsoluteToleranceTemperature", "ROS34PW2MaximumTimeStep",
+    "ColumnDistances", "ReadColumnFile", "DebugForceMultibed", "ColumnPressure",
+    "ColumnLoading", "ColumnError", "FittingWeighting"};
 const QStringList componentSettingKeys{"LiquidPhaseConcentration", "InitialLiquidPhaseConcentration", "FileName"};
 
 void mergeSettings(QJsonObject& object, const QJsonObject& settings)
@@ -120,14 +128,24 @@ QVariantMap defaultsFor(const QList<ParameterDefinition>& definitions, const QVa
   return result;
 }
 
+// A temperature-scalable parameter holds a number or a law map {"Value", "Law", <coefficient>, "ReferenceTemperature"}.
 double parameterNumber(const QVariantMap& parameters, const ParameterDefinition& definition)
 {
-  return parameters.value(definition.key, definition.defaultValue).toDouble();
+  const QVariant value = parameters.value(definition.key, definition.defaultValue);
+  return value.typeId() == QMetaType::QVariantMap ? value.toMap().value("Value").toDouble() : value.toDouble();
 }
 
 bool parameterBool(const QVariantMap& parameters, const ParameterDefinition& definition)
 {
   return parameters.value(definition.key, definition.defaultValue != 0.0).toBool();
+}
+
+QJsonValue parameterJson(const QVariantMap& parameters, const ParameterDefinition& definition)
+{
+  if (definition.boolean) return parameterBool(parameters, definition);
+  const QVariant value = parameters.value(definition.key, definition.defaultValue);
+  if (value.typeId() == QMetaType::QVariantMap) return QJsonObject::fromVariantMap(value.toMap());
+  return value.toDouble();
 }
 
 void clearLayout(QLayout* layout)
@@ -186,7 +204,9 @@ QList<QPair<QString, QString>> physisorptionTypeOptions()
 {
   return valueOptions({"Langmuir", "Anti-Langmuir", "BET", "Henry", "Freundlich", "Sips", "Langmuir-Freundlich",
                        "Redlich-Peterson", "Toth", "Unilan", "OBrien&Myers", "Quadratic", "Temkin",
-                       "Bingel&Walton", "pH-Langmuir", "GAB"});
+                       "Bingel&Walton", "pH-Langmuir", "GAB", "Humidity-enhanced-Langmuir",
+                       "Moisture-swing-Langmuir", "GAB-coadsorption-Langmuir", "GAB-coadsorption-Sips",
+                       "GAB-coadsorption-Toth", "GAB-modified-Toth", "Exponential-humidity-Toth"});
 }
 
 QList<QPair<QString, QString>> chemisorptionTypeOptions()
@@ -196,7 +216,7 @@ QList<QPair<QString, QString>> chemisorptionTypeOptions()
 
 QList<QPair<QString, QString>> reactionPhaseOptions()
 {
-  return valueOptions({"Physisorbed", "Chemisorbed", "PoreConcentration"});
+  return valueOptions({"Physisorbed", "Chemisorbed", "PoreConcentration", "BulkConcentration"});
 }
 
 QList<QPair<QString, QString>> reactionStyleOptions()
@@ -206,97 +226,183 @@ QList<QPair<QString, QString>> reactionStyleOptions()
 
 QList<ParameterDefinition> phyDefs(const QString& type)
 {
-  if (type == "pH-Langmuir")
-    return {{"qmax", "Maximum loading [mol/kg]", 1.0}, {"affinityConstant", "Affinity [m3/mol]", 0.5},
-            {"pKa", "pKa [-]", 7.0}};
-  if (type == "Bingel&Walton")
-    return {{"qmax", "Saturation loading [mol/kg]", 1.0}, {"a", "a [1/Pa]", 1.0e-5}, {"b", "b [1/Pa]", 1.0e-5}};
-  if (type == "GAB")
-    return {{"qmax", "Monolayer loading [mol/kg]", 1.0}, {"c0", "C_0 [-]", 1.0}, {"k0", "K_0 [-]", 0.5},
-            {"dHC", "Delta H_C [J/mol]", 0.0}, {"dHK", "Delta H_K [J/mol]", 0.0}};
-  if (type == "Anti-Langmuir")
+  QList<ParameterDefinition> definitions = [&type]() -> QList<ParameterDefinition>
   {
-    return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
-            {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5}};
-  }
-  if (type == "BET")
+    if (type == "pH-Langmuir")
+      return {{"qmax", "Maximum loading [mol/kg]", 1.0}, {"affinityConstant", "Affinity [m3/mol]", 0.5},
+              {"pKa", "pKa [-]", 7.0}};
+    if (type == "Bingel&Walton")
+      return {{"qmax", "Saturation loading [mol/kg]", 1.0}, {"a", "a [1/Pa]", 1.0e-5}, {"b", "b [1/Pa]", 1.0e-5}};
+    if (type == "GAB")
+      return {{"qmax", "Monolayer loading [mol/kg]", 1.0}, {"c0", "C [-]", 1.0}, {"k0", "K [-]", 0.5}};
+    // The humidity-dependent types: RH comes from the Water component or the fixed RelativeHumidity, the water
+    // loading q_w from the isotherm of the Water component.
+    if (type == "Humidity-enhanced-Langmuir")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Dry affinity b [1/Pa]", 1.0e-5},
+              {"humidityEnhancement", "Humidity enhancement alpha [-]", 1.0},
+              {"waterAffinity", "Water affinity k_w [-]", 1.0}};
+    }
+    if (type == "Moisture-swing-Langmuir")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity at RH = 1, b [1/Pa]", 1.0e-5},
+              {"humidityExponent", "Humidity exponent n_w [-]", 1.0}};
+    }
+    if (type == "GAB-coadsorption-Langmuir")
+    {
+      return {{"saturationLoading", "Dry saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Dry affinity b [1/Pa]", 1.0e-5},
+              {"waterEnhancement", "Water enhancement alpha [kg/mol]", 0.0},
+              {"waterBlocking", "Water blocking omega [kg/mol]", 0.0}};
+    }
+    if (type == "GAB-coadsorption-Sips")
+    {
+      return {{"saturationLoading", "Dry saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Dry affinity b [1/Pa]", 1.0e-5},
+              {"heterogeneityExponent", "Heterogeneity exponent n [-]", 1.0},
+              {"waterEnhancement", "Water enhancement alpha [kg/mol]", 0.0},
+              {"waterBlocking", "Water blocking omega [kg/mol]", 0.0}};
+    }
+    if (type == "GAB-coadsorption-Toth")
+    {
+      return {{"saturationLoading", "Dry saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Dry affinity b [1/Pa]", 1.0e-5},
+              {"heterogeneityParameter", "Toth heterogeneity t [-]", 1.0},
+              {"waterEnhancement", "Water enhancement alpha [kg/mol]", 0.0},
+              {"waterBlocking", "Water blocking omega [kg/mol]", 0.0}};
+    }
+    if (type == "GAB-modified-Toth")
+    {
+      return {{"saturationLoading", "Dry saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Dry affinity b [1/Pa]", 1.0e-5},
+              {"heterogeneityParameter", "Toth heterogeneity t [-]", 1.0},
+              {"waterCapacityCoefficient", "Capacity coefficient gamma [kg/mol]", 0.0},
+              {"waterAffinityCoefficient", "Affinity coefficient beta [kg/mol]", 0.0}};
+    }
+    if (type == "Exponential-humidity-Toth")
+    {
+      return {{"saturationLoading", "Dry saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity b [1/Pa]", 1.0e-5},
+              {"heterogeneityParameter", "Toth heterogeneity t [-]", 1.0},
+              {"humidityCapacityCoefficient", "Humidity coefficient a [-]", 0.0}};
+    }
+    if (type == "Anti-Langmuir")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5}};
+    }
+    if (type == "BET")
+    {
+      return {{"monolayerLoading", "Monolayer loading q_m [mol/kg]", 1.0},
+              {"cParameter", "BET C parameter [-]", 10.0},
+              {"saturationPressureFactor", "Saturation pressure factor [-]", 1.0e-5}};
+    }
+    if (type == "Henry")
+    {
+      return {{"henryConstant", "Henry constant K_H [mol/kg/Pa]", 1.0e-5}};
+    }
+    if (type == "Freundlich")
+    {
+      return {{"freundlichConstant", "Freundlich constant K_F", 1.0e-5},
+              {"heterogeneityExponent", "Heterogeneity exponent n [-]", 1.0}};
+    }
+    if (type == "Sips")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
+              {"heterogeneityExponent", "Heterogeneity exponent n [-]", 1.0}};
+    }
+    if (type == "Langmuir-Freundlich")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
+              {"heterogeneityExponent", "Heterogeneity exponent nu [-]", 1.0}};
+    }
+    if (type == "Redlich-Peterson")
+    {
+      return {{"linearConstant", "Linear constant K_R [mol/kg/Pa]", 1.0e-5},
+              {"affinityConstant", "Affinity constant a_R", 1.0e-5},
+              {"exponent", "Exponent g [-]", 1.0}};
+    }
+    if (type == "Toth")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
+              {"heterogeneityParameter", "Toth heterogeneity t [-]", 1.0}};
+    }
+    if (type == "Unilan")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
+              {"energyDistributionWidth", "Energy distribution width s [-]", 1.0}};
+    }
+    if (type == "OBrien&Myers")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
+              {"variance", "Energy variance [-]", 1.0}};
+    }
+    if (type == "Quadratic")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"linearAffinity", "Linear affinity b [1/Pa]", 1.0e-5},
+              {"quadraticAffinity", "Quadratic affinity c [1/Pa^2]", 1.0e-10}};
+    }
+    if (type == "Temkin")
+    {
+      return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
+              {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
+              {"interactionParameter", "Interaction parameter theta [-]", 0.1}};
+    }
+    return {{"qmax", "Maximum loading qmax [mol/kg]", 1.0}, {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5}};
+  }();
+
+  // Which parameters may depend on temperature comes from the table the input reader uses.
+  static const QList<QPair<QString, Isotherm::Type>> isothermTypes{
+      {"Langmuir", Isotherm::Type::Langmuir},
+      {"pH-Langmuir", Isotherm::Type::Langmuir_pH},
+      {"Henry", Isotherm::Type::Henry},
+      {"Freundlich", Isotherm::Type::Freundlich},
+      {"Sips", Isotherm::Type::Sips},
+      {"Langmuir-Freundlich", Isotherm::Type::Langmuir_Freundlich},
+      {"Redlich-Peterson", Isotherm::Type::Redlich_Peterson},
+      {"Toth", Isotherm::Type::Toth},
+      {"GAB", Isotherm::Type::GAB},
+      {"Humidity-enhanced-Langmuir", Isotherm::Type::Langmuir_humidity},
+      {"Moisture-swing-Langmuir", Isotherm::Type::Langmuir_moisture_swing},
+      {"GAB-coadsorption-Langmuir", Isotherm::Type::GAB_Langmuir},
+      {"GAB-coadsorption-Sips", Isotherm::Type::GAB_Sips},
+      {"GAB-coadsorption-Toth", Isotherm::Type::GAB_Toth},
+      {"GAB-modified-Toth", Isotherm::Type::GAB_modified_Toth},
+      {"Exponential-humidity-Toth", Isotherm::Type::Toth_exponential_humidity}};
+  for (const auto& [name, isothermType] : isothermTypes)
   {
-    return {{"monolayerLoading", "Monolayer loading q_m [mol/kg]", 1.0},
-            {"cParameter", "BET C parameter [-]", 10.0},
-            {"saturationPressureFactor", "Saturation pressure factor [-]", 1.0e-5}};
+    if (name.compare(type, Qt::CaseInsensitive) != 0) continue;
+    const std::span<const TemperatureParameterSpec> laws = Isotherm::temperatureParameters(isothermType);
+    for (qsizetype i = 0; i < definitions.size() && static_cast<size_t>(i) < laws.size(); ++i)
+    {
+      definitions[i].temperatureLaws = laws[static_cast<size_t>(i)].allowedLaws;
+      definitions[i].heatLinked = laws[static_cast<size_t>(i)].heatLinked;
+    }
   }
-  if (type == "Henry")
-  {
-    return {{"henryConstant", "Henry constant K_H [mol/kg/Pa]", 1.0e-5}};
-  }
-  if (type == "Freundlich")
-  {
-    return {{"freundlichConstant", "Freundlich constant K_F", 1.0e-5},
-            {"heterogeneityExponent", "Heterogeneity exponent n [-]", 1.0}};
-  }
-  if (type == "Sips")
-  {
-    return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
-            {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
-            {"heterogeneityExponent", "Heterogeneity exponent n [-]", 1.0}};
-  }
-  if (type == "Langmuir-Freundlich")
-  {
-    return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
-            {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
-            {"heterogeneityExponent", "Heterogeneity exponent nu [-]", 1.0}};
-  }
-  if (type == "Redlich-Peterson")
-  {
-    return {{"linearConstant", "Linear constant K_R [mol/kg/Pa]", 1.0e-5},
-            {"affinityConstant", "Affinity constant a_R", 1.0e-5},
-            {"exponent", "Exponent g [-]", 1.0}};
-  }
-  if (type == "Toth")
-  {
-    return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
-            {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
-            {"heterogeneityParameter", "Toth heterogeneity t [-]", 1.0}};
-  }
-  if (type == "Unilan")
-  {
-    return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
-            {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
-            {"energyDistributionWidth", "Energy distribution width s [-]", 1.0}};
-  }
-  if (type == "OBrien&Myers")
-  {
-    return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
-            {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
-            {"variance", "Energy variance [-]", 1.0}};
-  }
-  if (type == "Quadratic")
-  {
-    return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
-            {"linearAffinity", "Linear affinity b [1/Pa]", 1.0e-5},
-            {"quadraticAffinity", "Quadratic affinity c [1/Pa^2]", 1.0e-10}};
-  }
-  if (type == "Temkin")
-  {
-    return {{"saturationLoading", "Saturation loading q_sat [mol/kg]", 1.0},
-            {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5},
-            {"interactionParameter", "Interaction parameter theta [-]", 0.1}};
-  }
-  return {{"qmax", "Maximum loading qmax [mol/kg]", 1.0}, {"affinityConstant", "Affinity constant b [1/Pa]", 1.0e-5}};
+  return definitions;
 }
 
 QList<ParameterDefinition> chemDefs(const QString& type)
 {
+  constexpr unsigned arrhenius = TemperatureLaw::mask(TemperatureLaw::Type::Arrhenius);
   if (type == "PseudoNth")
   {
-    return {{"rateCoefficient", "Rate coefficient k", 0.04},
+    return {{"rateCoefficient", "Rate coefficient k", 0.04, false, false, arrhenius},
             {"order", "Reaction order n [-]", 1.0},
             {"maximumLoading", "Maximum chemisorption loading q_max [mol/kg]", 0.8},
             {"heatOfChemisorption", "Heat of chemisorption Delta H [J/mol]", 42000.0}};
   }
   if (type == "Avrami")
   {
-    return {{"rateCoefficient", "Rate coefficient k", 0.04},
+    return {{"rateCoefficient", "Rate coefficient k", 0.04, false, false, arrhenius},
             {"order", "Avrami order n [-]", 1.0},
             {"maximumLoading", "Maximum chemisorption loading q_max [mol/kg]", 0.8},
             {"heatOfChemisorption", "Heat of chemisorption Delta H [J/mol]", 42000.0}};
@@ -305,10 +411,8 @@ QList<ParameterDefinition> chemDefs(const QString& type)
   {
     return {{"maximumLoading", "Maximum chemisorption loading q_max [mol/kg]", 0.55},
             {"heatOfChemisorption", "Heat of chemisorption Delta H [J/mol]", 52000.0},
-            {"adsorptionRateCoefficient", "Adsorption rate coefficient k_ads", 2.5e-5},
-            {"adsorptionActivationEnergy", "Adsorption activation energy E_ads [J/mol]", 0.0},
-            {"desorptionRateCoefficient", "Desorption rate coefficient k_des", 1.0e-6},
-            {"desorptionActivationEnergy", "Desorption activation energy E_des [J/mol]", 0.0},
+            {"adsorptionRateCoefficient", "Adsorption rate coefficient k_ads", 2.5e-5, false, false, arrhenius},
+            {"desorptionRateCoefficient", "Desorption rate coefficient k_des", 1.0e-6, false, false, arrhenius},
             {"poreConcentrationOrder", "Pore concentration order [-]", 1.0, true},
             {"capacityOrder", "Capacity order [-]", 1.0, true},
             {"desorptionOrder", "Desorption order [-]", 1.0, true},
@@ -320,13 +424,13 @@ QList<ParameterDefinition> chemDefs(const QString& type)
   {
     return {{"maximumLoading", "Maximum chemisorption loading q_max [mol/kg]", 0.25},
             {"heatOfChemisorption", "Heat of chemisorption Delta H [J/mol]", 46000.0},
-            {"alpha", "Elovich alpha", 0.02},
+            {"alpha", "Elovich alpha", 0.02, false, false, arrhenius},
             {"beta", "Elovich beta", 3.0},
             {"filmMassTransferCoefficient", "Film mass transfer coefficient [m/s]", 1.0e-3},
             {"poreDiffusivity", "Pore diffusivity [m2/s]", 5.0e-11},
             {"usePoreSurfaceTransport", "Use pore surface transport", 1.0, false, true}};
   }
-  return {{"rateCoefficient", "Rate coefficient k [1/s]", 0.04},
+  return {{"rateCoefficient", "Rate coefficient k [1/s]", 0.04, false, false, arrhenius},
           {"maximumLoading", "Maximum chemisorption loading q_max [mol/kg]", 0.8},
           {"heatOfChemisorption", "Heat of chemisorption Delta H [J/mol]", 42000.0}};
 }
@@ -388,6 +492,10 @@ QVariantMap parametersFromArray(const QJsonArray& array, const QList<ParameterDe
     {
       result.insert(definition.key, definition.integer ? static_cast<int>(array[i].toInt()) : array[i].toDouble());
     }
+    else if (i < array.size() && array[i].isObject() && definition.temperatureLaws != 0)
+    {
+      result.insert(definition.key, array[i].toObject().toVariantMap());
+    }
   }
   return defaultsFor(definitions, result);
 }
@@ -406,6 +514,10 @@ QVariantMap parametersFromObject(const QJsonObject& object, const QList<Paramete
     {
       result.insert(definition.key, definition.integer ? static_cast<int>(value.toInt()) : value.toDouble());
     }
+    else if (value.isObject() && definition.temperatureLaws != 0)
+    {
+      result.insert(definition.key, value.toObject().toVariantMap());
+    }
   }
   return defaultsFor(definitions, result);
 }
@@ -415,8 +527,7 @@ QJsonObject parametersToObject(const QVariantMap& parameters, const QList<Parame
   QJsonObject object;
   for (const ParameterDefinition& definition : definitions)
   {
-    object.insert(definition.key, definition.boolean ? QJsonValue(parameterBool(parameters, definition))
-                                                     : QJsonValue(parameterNumber(parameters, definition)));
+    object.insert(definition.key, parameterJson(parameters, definition));
   }
   return object;
 }
@@ -444,6 +555,21 @@ PhysisorptionSiteConfig phySiteFromObject(const QJsonObject& object, const QStri
   {
     site.parameters = defaultsFor(phyDefs(site.type));
   }
+  if (site.type == "GAB")
+  {
+    // A workspace saved before temperature laws keeps the GAB energies as dHC and dHK; they are now the VantHoff laws
+    // of C and K. (An imported simulation.json has passed the input reader, which rejects the old form.)
+    const QJsonObject named = parameters.toObject();
+    for (const auto& [key, energy] :
+         {qMakePair(QString("c0"), named.value("dHC")), qMakePair(QString("k0"), named.value("dHK"))})
+    {
+      if (energy.isDouble() && energy.toDouble() != 0.0 && site.parameters.value(key).typeId() != QMetaType::QVariantMap)
+      {
+        site.parameters.insert(
+            key, QVariantMap{{"Value", site.parameters.value(key).toDouble()}, {"Law", "VantHoff"}, {"Energy", energy.toDouble()}});
+      }
+    }
+  }
   return site;
 }
 
@@ -468,6 +594,7 @@ ChemisorptionSiteConfig chemSiteFromObject(const QJsonObject& object, const QStr
       else key[0] = key[0].toUpper();
       if (kinetics.contains(key)) site.parameters.insert(definition.key, kinetics.value(key).toVariant());
     }
+
     site.parameters.insert("maximumLoading", readNumber(object, "MaximumLoading", 0.8));
     // An absent site heat inherits the component heat at import.
     site.parameters.insert("heatOfChemisorption", readNumber(object, "HeatOfAdsorption", heatOfAdsorption));
@@ -478,6 +605,15 @@ ChemisorptionSiteConfig chemSiteFromObject(const QJsonObject& object, const QStr
   site.type = readString(object, "Type", "FirstOrder");
   const QJsonObject parameters = object.value("Parameters").toObject();
   site.parameters = parametersFromObject(parameters, chemDefs(site.type));
+  // A workspace saved before temperature laws keeps the General activation energies apart.
+  for (const QString& direction : {QString("adsorption"), QString("desorption")})
+  {
+    const double energy = readNumber(parameters, direction + "ActivationEnergy", 0.0);
+    const QString key = direction + "RateCoefficient";
+    if (energy != 0.0 && site.parameters.value(key).typeId() != QMetaType::QVariantMap)
+      site.parameters.insert(key, QVariantMap{{"Value", site.parameters.value(key).toDouble()}, {"Law", "Arrhenius"},
+                                              {"ActivationEnergy", energy}});
+  }
 
   const QJsonValue isothermValue =
       parameters.contains("Isotherm") ? parameters.value("Isotherm") : object.value("Isotherm");
@@ -524,11 +660,14 @@ QJsonArray swingPhasesStateJson(const QList<SwingPhaseConfig>& phases)
   QJsonArray array;
   for (const SwingPhaseConfig& phase : phases)
   {
-    array.append(QJsonObject{{"Id", phase.id},
-                             {"Name", phase.name},
-                             {"Temperature", phase.temperature},
-                             {"InletPressure", phase.inletPressure},
-                             {"Duration", phase.duration}});
+    QJsonObject object{{"Id", phase.id},
+                       {"Name", phase.name},
+                       {"Temperature", phase.temperature},
+                       {"InletPressure", phase.inletPressure},
+                       {"Duration", phase.duration}};
+    if (!phase.flowDirection.isEmpty()) object.insert("FlowDirection", phase.flowDirection);
+    for (auto key = phase.otherKeys.begin(); key != phase.otherKeys.end(); ++key) object.insert(key.key(), key.value());
+    array.append(object);
   }
   return array;
 }
@@ -543,6 +682,12 @@ SwingPhaseConfig swingPhaseFromObject(const QJsonObject& object, const QString& 
   phase.inletPressure = readNumber(object, "InletPressure", fallbackInletPressure);
   const double duration = readNumber(object, "Duration", fallbackDuration);
   phase.duration = duration > 0.0 ? duration : fallbackDuration;
+  phase.flowDirection = readString(object, "FlowDirection", "");
+  phase.otherKeys = object;
+  for (const QString& key : {"Id", "Name", "Temperature", "InletPressure", "Duration", "FlowDirection"})
+  {
+    phase.otherKeys.remove(key);
+  }
   return phase;
 }
 
@@ -774,7 +919,7 @@ ReactionConfig reactionFromObject(const QJsonObject& object, const QString& fall
   reaction.name = readString(object, "Name", fallbackName);
   reaction.phase = readString(object, "Phase", reaction.phase);
   reaction.style = readString(object, "Style", reaction.style);
-  if (!QStringList{"Physisorbed", "Chemisorbed", "PoreConcentration"}.contains(reaction.phase))
+  if (!QStringList{"Physisorbed", "Chemisorbed", "PoreConcentration", "BulkConcentration"}.contains(reaction.phase))
   {
     reaction.phase = "Physisorbed";
   }
@@ -783,7 +928,7 @@ ReactionConfig reactionFromObject(const QJsonObject& object, const QString& fall
   {
     reaction.style = "GeneralPowerLaw";
   }
-  if (reaction.style != "GeneralPowerLaw")
+  if (reaction.style != "GeneralPowerLaw" && reaction.phase != "BulkConcentration")
   {
     reaction.phase = "PoreConcentration";
   }
@@ -824,18 +969,47 @@ ReactionConfig reactionFromObject(const QJsonObject& object, const QString& fall
 
   const QJsonObject kinetics = object.value("Kinetics").toObject();
   const QJsonObject& numeric = kinetics.isEmpty() ? object : kinetics;
-  reaction.forwardRateCoefficient =
-      readNumber(numeric, "forwardRateCoefficient",
-                 readNumber(numeric, "rateCoefficient",
-                            readNumber(object, "ForwardRateCoefficient", reaction.forwardRateCoefficient)));
-  reaction.forwardActivationEnergy =
-      readNumber(numeric, "forwardActivationEnergy",
-                 readNumber(numeric, "activationEnergy",
-                            readNumber(object, "ForwardActivationEnergy", reaction.forwardActivationEnergy)));
-  reaction.equilibriumConstant = readNumber(numeric, "equilibriumConstant",
-                                            readNumber(object, "EquilibriumConstant", reaction.equilibriumConstant));
-  reaction.gibbsFreeEnergy =
-      readNumber(numeric, "gibbsFreeEnergy", readNumber(object, "GibbsFreeEnergy", reaction.gibbsFreeEnergy));
+  // Each coefficient is a number or a temperature law, in the Kinetics of simulation.json or at the top level of a
+  // saved workspace (keys are case-insensitive in simulation.json).
+  for (const auto& [key, target] : {qMakePair(QString("ForwardRateCoefficient"), &reaction.forwardRateCoefficient),
+                                    qMakePair(QString("EquilibriumConstant"), &reaction.equilibriumConstant)})
+  {
+    for (const QString& candidate : {key, key.at(0).toLower() + key.mid(1)})
+    {
+      const QJsonValue value = numeric.value(candidate);
+      if (value.isDouble() || value.isObject()) *target = value.toVariant();
+    }
+  }
+  if (hasNumber(numeric, "rateCoefficient")) reaction.forwardRateCoefficient = numeric.value("rateCoefficient").toDouble();
+  reaction.heatOfReaction = readOptionalNumber(numeric, "HeatOfReaction");
+  // LH/LHHW adsorption constants: keyed by component id in a saved workspace and by (case-insensitive) component
+  // name in simulation.json.
+  const QJsonObject adsorptionConstants = numeric.value("AdsorptionConstants").toObject();
+  for (auto it = adsorptionConstants.begin(); it != adsorptionConstants.end(); ++it)
+  {
+    const auto component =
+        std::find_if(components.cbegin(), components.cend(), [&it](const ComponentConfig& item)
+                     { return item.id == it.key() || item.name.compare(it.key(), Qt::CaseInsensitive) == 0; });
+    reaction.adsorptionConstants.insert(component == components.cend() ? it.key() : component->id,
+                                        it.value().toVariant());
+  }
+  // A workspace saved before temperature laws keeps the activation energy apart, and GibbsFreeEnergy dG set K(T) and
+  // the heat: they are an Arrhenius law of k+, and a VantHoff K that takes HeatOfReaction = -dG.
+  const double activationEnergy = readNumber(numeric, "ForwardActivationEnergy", 0.0);
+  if (activationEnergy != 0.0 && reaction.forwardRateCoefficient.typeId() != QMetaType::QVariantMap)
+  {
+    reaction.forwardRateCoefficient = QVariantMap{
+        {"Value", reaction.forwardRateCoefficient.toDouble()}, {"Law", "Arrhenius"}, {"ActivationEnergy", activationEnergy}};
+  }
+  const double gibbsFreeEnergy = readNumber(numeric, "GibbsFreeEnergy", 0.0);
+  if (gibbsFreeEnergy != 0.0 && !reaction.heatOfReaction)
+  {
+    reaction.heatOfReaction = -gibbsFreeEnergy;
+    if (reaction.equilibriumConstant.typeId() != QMetaType::QVariantMap)
+    {
+      reaction.equilibriumConstant = QVariantMap{{"Value", reaction.equilibriumConstant.toDouble()}, {"Law", "VantHoff"}};
+    }
+  }
   reaction.rateLimitTime = readNumber(object, "RateLimitTime", reaction.rateLimitTime);
   return reaction;
 }
@@ -845,18 +1019,22 @@ QJsonArray reactionsStateJson(const QList<ReactionConfig>& reactions, const QLis
   QJsonArray array;
   for (const ReactionConfig& reaction : reactions)
   {
-    array.append(QJsonObject{{"Id", reaction.id},
-                             {"Name", reaction.name},
-                             {"Phase", reaction.phase},
-                             {"Style", reaction.style},
-                             {"Site", reaction.site},
-                             {"Reactants", reactionParticipantsStateJson(reaction.reactants, components)},
-                             {"Products", reactionParticipantsStateJson(reaction.products, components)},
-                             {"ForwardRateCoefficient", reaction.forwardRateCoefficient},
-                             {"ForwardActivationEnergy", reaction.forwardActivationEnergy},
-                             {"EquilibriumConstant", reaction.equilibriumConstant},
-                             {"GibbsFreeEnergy", reaction.gibbsFreeEnergy},
-                             {"RateLimitTime", reaction.rateLimitTime}});
+    QJsonObject json{{"Id", reaction.id},
+                     {"Name", reaction.name},
+                     {"Phase", reaction.phase},
+                     {"Style", reaction.style},
+                     {"Site", reaction.site},
+                     {"Reactants", reactionParticipantsStateJson(reaction.reactants, components)},
+                     {"Products", reactionParticipantsStateJson(reaction.products, components)},
+                     {"ForwardRateCoefficient", QJsonValue::fromVariant(reaction.forwardRateCoefficient)},
+                     {"EquilibriumConstant", QJsonValue::fromVariant(reaction.equilibriumConstant)},
+                     {"RateLimitTime", reaction.rateLimitTime}};
+    addOptionalNumber(json, "HeatOfReaction", reaction.heatOfReaction);
+    if (!reaction.adsorptionConstants.isEmpty())
+    {
+      json.insert("AdsorptionConstants", QJsonObject::fromVariantMap(reaction.adsorptionConstants));
+    }
+    array.append(json);
   }
   return array;
 }
@@ -925,6 +1103,53 @@ int numericIdSuffix(const QString& id)
   return ok ? value : 0;
 }
 }  // namespace
+
+template <>
+ColumnConfig& MainWindow::selected<ColumnConfig>()
+{
+  return columns_[selectedColumnIndex_];
+}
+
+template <>
+SimulationConfig& MainWindow::selected<SimulationConfig>()
+{
+  return simulations_[selectedSimulationIndex_];
+}
+
+template <>
+ComponentConfig& MainWindow::selected<ComponentConfig>()
+{
+  return components_[selectedComponentIndex_];
+}
+
+template <>
+ReactionConfig& MainWindow::selected<ReactionConfig>()
+{
+  return reactions_[selectedReactionIndex_];
+}
+
+template <typename Config>
+QLineEdit* MainWindow::addNumberField(QFormLayout* form, const QString& label, double Config::*member)
+{
+  return addNumberField(form, label, selected<Config>().*member,
+                        [this, member](double value) { selected<Config>().*member = value; });
+}
+
+template <typename Config>
+QLineEdit* MainWindow::addOptionalNumberField(QFormLayout* form, const QString& label,
+                                              std::optional<double> Config::*member)
+{
+  return addOptionalNumberField(form, label, selected<Config>().*member,
+                                [this, member](std::optional<double> value) { selected<Config>().*member = value; });
+}
+
+template <typename Config>
+QComboBox* MainWindow::addComboField(QFormLayout* form, const QString& label, QString Config::*member,
+                                     const QList<QPair<QString, QString>>& options)
+{
+  return addComboField(form, label, selected<Config>().*member, options,
+                       [this, member](const QString& value) { selected<Config>().*member = value; });
+}
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent)
 {
@@ -1362,23 +1587,13 @@ void MainWindow::rebuildComponentEditor()
                   components_[selectedComponentIndex_].carrier = value;
                   QTimer::singleShot(0, this, [this]() { refreshAll(); });
                 });
-  addOptionalNumberField(form, "Mass transfer coefficient [1/s]", component.massTransfer,
-                         [this](std::optional<double> value)
-                         { components_[selectedComponentIndex_].massTransfer = value; });
-  addOptionalNumberField(form, "Axial dispersion coefficient [m2/s]", component.axialDispersion,
-                         [this](std::optional<double> value)
-                         { components_[selectedComponentIndex_].axialDispersion = value; });
-  addOptionalNumberField(form, "Molecular weight [kg/mol]", component.molecularWeight,
-                         [this](std::optional<double> value)
-                         { components_[selectedComponentIndex_].molecularWeight = value; });
-  addOptionalNumberField(form, "Heat of adsorption [J/mol]", component.heatOfAdsorption,
-                         [this](std::optional<double> value)
-                         { components_[selectedComponentIndex_].heatOfAdsorption = value; });
-  addOptionalNumberField(form, "Reference temperature [K]", component.referenceTemperature,
-                         [this](std::optional<double> value)
-                         { components_[selectedComponentIndex_].referenceTemperature = value; });
-  addCheckField(form, "Non-isothermal adsorption", component.nonIsothermal,
-                [this](bool value) { components_[selectedComponentIndex_].nonIsothermal = value; });
+  addCheckField(form, "Water (sets the relative humidity)", component.water,
+                [this](bool value) { components_[selectedComponentIndex_].water = value; });
+  addOptionalNumberField(form, "Mass transfer coefficient [1/s]", &ComponentConfig::massTransfer);
+  addOptionalNumberField(form, "Axial dispersion coefficient [m2/s]", &ComponentConfig::axialDispersion);
+  addOptionalNumberField(form, "Molecular weight [kg/mol]", &ComponentConfig::molecularWeight);
+  addOptionalNumberField(form, "Heat of adsorption [J/mol]", &ComponentConfig::heatOfAdsorption);
+  addOptionalNumberField(form, "Reference temperature [K]", &ComponentConfig::referenceTemperature);
   addSettingNumbers(form, component.settings,
                     {{"LiquidPhaseConcentration", "Liquid inlet concentration [mol/m3]", 0.0},
                      {"InitialLiquidPhaseConcentration", "Initial liquid concentration [mol/m3]", 0.0}});
@@ -1507,6 +1722,44 @@ void MainWindow::rebuildColumnEditor()
                                              {"pHValue", "Fixed pH [-]", 7.0}, {"pKw", "pKw [-]", 14.0}});
     addSettingCombo(form, "pH mode", column.settings, "pHMode", "Fixed", {"Fixed", "HPlus", "OHMinus"});
   }
+  else
+  {
+    // The axial dispersion coefficients are then given at this state and scale as (T/T_ref)^1.75 (P_ref/P).
+    addSettingNumbers(form, column.settings,
+                      {{"AxialDispersionReferenceTemperature", "Dispersion reference temperature [K] (0 = none)", 0.0},
+                       {"AxialDispersionReferencePressure", "Dispersion reference pressure [Pa] (0 = none)", 0.0}});
+    // The humidity-dependent isotherms take RH from the Water component unless RelativeHumidity fixes it.
+    const QStringList humiditySources{"Water component", "Fixed"};
+    addComboField(form, "Relative humidity",
+                  QString(column.settings.contains("RelativeHumidity") ? "Fixed" : "Water component"),
+                  valueOptions(humiditySources),
+                  [this, &column](const QString& value)
+                  {
+                    if (value == "Fixed")
+                      column.settings.insert("RelativeHumidity", column.settings.value("RelativeHumidity").toDouble(0.5));
+                    else
+                      column.settings.remove("RelativeHumidity");
+                    QTimer::singleShot(0, this, [this]() { refreshAll(); });
+                  });
+    if (column.settings.contains("RelativeHumidity"))
+    {
+      addSettingNumbers(form, column.settings, {{"RelativeHumidity", "Fixed relative humidity [-]", 0.5}});
+    }
+    const QStringList saturationModels{"Antoine", "Wagner", "Constant"};
+    addComboField(form, "Water saturation pressure",
+                  choice(column.settings.value("WaterSaturationPressureModel").toString("Antoine"), saturationModels),
+                  valueOptions(saturationModels),
+                  [this, &column](const QString& value)
+                  {
+                    column.settings.insert("WaterSaturationPressureModel", value);
+                    if (value != "Constant") column.settings.remove("WaterSaturationPressure");
+                    QTimer::singleShot(0, this, [this]() { refreshAll(); });
+                  });
+    if (column.settings.value("WaterSaturationPressureModel").toString() == "Constant")
+    {
+      addSettingNumbers(form, column.settings, {{"WaterSaturationPressure", "Water saturation pressure [Pa]", 3169.0}});
+    }
+  }
   addTextField(form, "Name", column.name,
                [this](const QString& value)
                {
@@ -1523,27 +1776,20 @@ void MainWindow::rebuildColumnEditor()
                   columns_[selectedColumnIndex_].mode = value;
                   QTimer::singleShot(0, this, [this]() { refreshAll(); });
                 });
-  addComboField(form, "Boundary condition", column.boundaryCondition,
+  addComboField(form, "Boundary condition", &ColumnConfig::boundaryCondition,
                 {{"Inlet pressure + velocity", "InletPressureInletVelocity"},
                  {"Inlet + outlet pressure", "InletPressureOutletPressure"},
                  {"Velocity + outlet pressure", "InletVelocityOutletPressure"},
                  {"Fixed velocity", "FixedVelocity"},
-                 {"Fixed pressure + velocity", "FixedPressureInletVelocity"}},
-                [this](const QString& value) { columns_[selectedColumnIndex_].boundaryCondition = value; });
-  addNumberField(form, "Temperature [K]", column.temperature,
-                 [this](double value) { columns_[selectedColumnIndex_].temperature = value; });
-  addNumberField(form, "Dynamic viscosity [Pa s]", column.dynamicViscosity,
-                 [this](double value) { columns_[selectedColumnIndex_].dynamicViscosity = value; });
-  addNumberField(form, "Void fraction [-]", column.voidFraction,
-                 [this](double value) { columns_[selectedColumnIndex_].voidFraction = value; });
-  addNumberField(form, "Particle density [kg/m3]", column.particleDensity,
-                 [this](double value) { columns_[selectedColumnIndex_].particleDensity = value; });
-  addNumberField(form, "Particle diameter [m]", column.particleDiameter,
-                 [this](double value) { columns_[selectedColumnIndex_].particleDiameter = value; });
+                 {"Fixed pressure + velocity", "FixedPressureInletVelocity"}});
+  addNumberField(form, "Temperature [K]", &ColumnConfig::temperature);
+  addNumberField(form, "Dynamic viscosity [Pa s]", &ColumnConfig::dynamicViscosity);
+  addNumberField(form, "Void fraction [-]", &ColumnConfig::voidFraction);
+  addNumberField(form, "Particle density [kg/m3]", &ColumnConfig::particleDensity);
+  addNumberField(form, "Particle diameter [m]", &ColumnConfig::particleDiameter);
   if (column.mode != "multibed")
   {
-    addNumberField(form, "Column length [m]", column.length,
-                   [this](double value) { columns_[selectedColumnIndex_].length = value; });
+    addNumberField(form, "Column length [m]", &ColumnConfig::length);
   }
   QLabel* totalLengthLabel = nullptr;
   if (column.mode == "multibed")
@@ -1557,14 +1803,10 @@ void MainWindow::rebuildColumnEditor()
     totalLengthLabel = new QLabel(numberText(totalLength));
     form->addRow("Total column length [m]", totalLengthLabel);
   }
-  addNumberField(form, "Inlet pressure [Pa]", column.inletPressure,
-                 [this](double value) { columns_[selectedColumnIndex_].inletPressure = value; });
-  addOptionalNumberField(form, "Outlet pressure [Pa]", column.outletPressure, [this](std::optional<double> value)
-                         { columns_[selectedColumnIndex_].outletPressure = value; });
-  addNumberField(form, "Pressure gradient [Pa/m]", column.pressureGradient,
-                 [this](double value) { columns_[selectedColumnIndex_].pressureGradient = value; });
-  addNumberField(form, "Column entrance velocity [m/s]", column.velocity,
-                 [this](double value) { columns_[selectedColumnIndex_].velocity = value; });
+  addNumberField(form, "Inlet pressure [Pa]", &ColumnConfig::inletPressure);
+  addOptionalNumberField(form, "Outlet pressure [Pa]", &ColumnConfig::outletPressure);
+  addNumberField(form, "Pressure gradient [Pa/m]", &ColumnConfig::pressureGradient);
+  addNumberField(form, "Column entrance velocity [m/s]", &ColumnConfig::velocity);
   addCheckField(form, "Energy balance", column.energyBalance,
                 [this](bool value)
                 {
@@ -1583,58 +1825,46 @@ void MainWindow::rebuildColumnEditor()
   if (column.geometryType == "Monolith")
   {
     addComboField(
-        geometryForm, "Channel shape", column.channelShape,
-        {{"Triangular", "triangular"}, {"Square", "square"}, {"Hexagonal", "hexagonal"}, {"Circular", "circular"}},
-        [this](const QString& value) { columns_[selectedColumnIndex_].channelShape = value; });
-    addNumberField(geometryForm, "Internal channel dimension [m]", column.internalChannelDimension,
-                   [this](double value) { columns_[selectedColumnIndex_].internalChannelDimension = value; });
-    addNumberField(geometryForm, "Outer diameter [m]", column.outerDiameter,
-                   [this](double value) { columns_[selectedColumnIndex_].outerDiameter = value; });
+        geometryForm, "Channel shape", &ColumnConfig::channelShape,
+        {{"Triangular", "triangular"}, {"Square", "square"}, {"Hexagonal", "hexagonal"}, {"Circular", "circular"}});
+    addNumberField(geometryForm, "Internal channel dimension [m]", &ColumnConfig::internalChannelDimension);
+    addNumberField(geometryForm, "Outer diameter [m]", &ColumnConfig::outerDiameter);
     addNumberField(geometryForm, "Number of channels [-]", static_cast<double>(column.numberOfChannels),
                    [this](double value)
                    { columns_[selectedColumnIndex_].numberOfChannels = std::max(1, static_cast<int>(value)); });
-    addNumberField(geometryForm, "Washcoat thickness [m]", column.washcoatThickness,
-                   [this](double value) { columns_[selectedColumnIndex_].washcoatThickness = value; });
-    addOptionalNumberField(geometryForm, "Washcoat volume / channel volume [-]", column.washcoatVolumePerChannelVolume,
-                           [this](std::optional<double> value)
-                           { columns_[selectedColumnIndex_].washcoatVolumePerChannelVolume = value; });
+    addNumberField(geometryForm, "Washcoat thickness [m]", &ColumnConfig::washcoatThickness);
+    addOptionalNumberField(geometryForm, "Washcoat volume / channel volume [-]",
+                           &ColumnConfig::washcoatVolumePerChannelVolume);
   }
   else
   {
-    addNumberField(geometryForm, "Internal diameter [m]", column.internalDiameter,
-                   [this](double value) { columns_[selectedColumnIndex_].internalDiameter = value; });
-    addNumberField(geometryForm, "Outer diameter [m]", column.outerDiameter,
-                   [this](double value) { columns_[selectedColumnIndex_].outerDiameter = value; });
+    addNumberField(geometryForm, "Internal diameter [m]", &ColumnConfig::internalDiameter);
+    addNumberField(geometryForm, "Outer diameter [m]", &ColumnConfig::outerDiameter);
   }
+  addSettingNumbers(geometryForm, column.geometrySettings, {{"AxialDispersivity", "Axial dispersivity [m]", 0.0}});
   if (column.geometryType == "Monolith")
+  {
     addSettingNumbers(geometryForm, column.geometrySettings,
                       {{"ForchheimerCoefficient", "Forchheimer coefficient [1/m]", 0.0}});
+    addCheckField(geometryForm, "Taylor-Aris dispersion", column.geometrySettings.value("TaylorArisDispersion").toBool(),
+                  [this](bool value) { columns_[selectedColumnIndex_].geometrySettings.insert("TaylorArisDispersion", value); });
+  }
   columnEditorLayout_->addWidget(geometry);
 
   if (column.energyBalance)
   {
     auto* thermal = new QGroupBox("Thermal");
     auto* thermalForm = new QFormLayout(thermal);
-    addNumberField(thermalForm, "Influx temperature [K]", column.influxTemperature,
-                   [this](double value) { columns_[selectedColumnIndex_].influxTemperature = value; });
-    addNumberField(thermalForm, "Wall density [kg/m3]", column.wallDensity,
-                   [this](double value) { columns_[selectedColumnIndex_].wallDensity = value; });
-    addNumberField(thermalForm, "Gas thermal conductivity [W/m/K]", column.gasThermalConductivity,
-                   [this](double value) { columns_[selectedColumnIndex_].gasThermalConductivity = value; });
-    addNumberField(thermalForm, "Wall thermal conductivity [W/m/K]", column.wallThermalConductivity,
-                   [this](double value) { columns_[selectedColumnIndex_].wallThermalConductivity = value; });
-    addNumberField(thermalForm, "Gas-solid heat transfer [W/m2/K]", column.heatTransferGasSolid,
-                   [this](double value) { columns_[selectedColumnIndex_].heatTransferGasSolid = value; });
-    addNumberField(thermalForm, "Gas-wall heat transfer [W/m2/K]", column.heatTransferGasWall,
-                   [this](double value) { columns_[selectedColumnIndex_].heatTransferGasWall = value; });
-    addNumberField(thermalForm, "Wall-external heat transfer [W/m2/K]", column.heatTransferWallExternal,
-                   [this](double value) { columns_[selectedColumnIndex_].heatTransferWallExternal = value; });
-    addNumberField(thermalForm, "Gas heat capacity [J/kg/K]", column.heatCapacityGas,
-                   [this](double value) { columns_[selectedColumnIndex_].heatCapacityGas = value; });
-    addNumberField(thermalForm, "Solid heat capacity [J/kg/K]", column.heatCapacitySolid,
-                   [this](double value) { columns_[selectedColumnIndex_].heatCapacitySolid = value; });
-    addNumberField(thermalForm, "Wall heat capacity [J/kg/K]", column.heatCapacityWall,
-                   [this](double value) { columns_[selectedColumnIndex_].heatCapacityWall = value; });
+    addNumberField(thermalForm, "Influx temperature [K]", &ColumnConfig::influxTemperature);
+    addNumberField(thermalForm, "Wall density [kg/m3]", &ColumnConfig::wallDensity);
+    addNumberField(thermalForm, "Gas thermal conductivity [W/m/K]", &ColumnConfig::gasThermalConductivity);
+    addNumberField(thermalForm, "Wall thermal conductivity [W/m/K]", &ColumnConfig::wallThermalConductivity);
+    addNumberField(thermalForm, "Gas-solid heat transfer [W/m2/K]", &ColumnConfig::heatTransferGasSolid);
+    addNumberField(thermalForm, "Gas-wall heat transfer [W/m2/K]", &ColumnConfig::heatTransferGasWall);
+    addNumberField(thermalForm, "Wall-external heat transfer [W/m2/K]", &ColumnConfig::heatTransferWallExternal);
+    addNumberField(thermalForm, "Gas heat capacity [J/kg/K]", &ColumnConfig::heatCapacityGas);
+    addNumberField(thermalForm, "Solid heat capacity [J/kg/K]", &ColumnConfig::heatCapacitySolid);
+    addNumberField(thermalForm, "Wall heat capacity [J/kg/K]", &ColumnConfig::heatCapacityWall);
     if (column.settings.value("FluidPhase").toString().compare("Liquid", Qt::CaseInsensitive) == 0)
       addSettingNumbers(thermalForm, column.settings,
                         {{"liquidThermalConductivity", "Liquid thermal conductivity [W/m/K]", 0.6},
@@ -1699,7 +1929,7 @@ void MainWindow::rebuildColumnEditor()
                      { columns_[selectedColumnIndex_].beds[bedIndex].particleDensity = value; });
       addNumberField(bedForm, "Particle diameter [m]", bed.particleDiameter, [this, bedIndex](double value)
                      { columns_[selectedColumnIndex_].beds[bedIndex].particleDiameter = value; });
-      addJsonField(bedForm, "Component overrides (ComponentParameters / Components)", bed.settings,
+      addJsonField(bedForm, "Overrides (ComponentParameters / Components / AxialDispersivity)", bed.settings,
                    [this, bedIndex](const QJsonValue& value)
                    { columns_[selectedColumnIndex_].beds[bedIndex].settings = value.toObject(); });
       if (column.mode == "multibed" && bedIndex + 1 < column.beds.size())
@@ -1781,7 +2011,8 @@ void MainWindow::rebuildReactionEditor()
                 {
                   ReactionConfig& current = reactions_[selectedReactionIndex_];
                   current.phase = value;
-                  if (value != "PoreConcentration" && current.style != "GeneralPowerLaw")
+                  if (value != "PoreConcentration" && value != "BulkConcentration" &&
+                      current.style != "GeneralPowerLaw")
                   {
                     current.style = "GeneralPowerLaw";
                     QTimer::singleShot(0, this, [this]() { refreshAll(); });
@@ -1793,11 +2024,12 @@ void MainWindow::rebuildReactionEditor()
                 {
                   ReactionConfig& current = reactions_[selectedReactionIndex_];
                   current.style = value;
-                  if (value != "GeneralPowerLaw")
+                  if (value != "GeneralPowerLaw" && current.phase != "BulkConcentration")
                   {
                     current.phase = "PoreConcentration";
-                    QTimer::singleShot(0, this, [this]() { refreshAll(); });
                   }
+                  // LH/LHHW show the adsorption constants, so the editor is rebuilt on every style change.
+                  QTimer::singleShot(0, this, [this]() { refreshAll(); });
                   refreshReactionList();
                 });
   addNumberField(form, "Site [-]", static_cast<double>(reaction.site),
@@ -1918,17 +2150,29 @@ void MainWindow::rebuildReactionEditor()
 
   auto* kinetics = new QGroupBox("Kinetics");
   auto* kineticsForm = new QFormLayout(kinetics);
-  addNumberField(kineticsForm, "k0", reaction.forwardRateCoefficient,
-                 [this](double value) { reactions_[selectedReactionIndex_].forwardRateCoefficient = value; });
-  addNumberField(kineticsForm, "Ea [J/mol]", reaction.forwardActivationEnergy,
-                 [this](double value) { reactions_[selectedReactionIndex_].forwardActivationEnergy = value; });
-  addNumberField(kineticsForm, "Keq", reaction.equilibriumConstant,
-                 [this](double value) { reactions_[selectedReactionIndex_].equilibriumConstant = value; });
-  addNumberField(kineticsForm, "Delta G [J/mol]", reaction.gibbsFreeEnergy,
-                 [this](double value) { reactions_[selectedReactionIndex_].gibbsFreeEnergy = value; });
-  addNumberField(kineticsForm, "Limit [s]", reaction.rateLimitTime,
-                 [this](double value) { reactions_[selectedReactionIndex_].rateLimitTime = value; });
+  addTemperatureLawField(kineticsForm, "k+", reaction.forwardRateCoefficient,
+                         TemperatureLaw::mask(TemperatureLaw::Type::Arrhenius), false,
+                         [this](const QVariant& value) { reactions_[selectedReactionIndex_].forwardRateCoefficient = value; });
+  addTemperatureLawField(kineticsForm, "Keq", reaction.equilibriumConstant,
+                         TemperatureLaw::mask(TemperatureLaw::Type::VantHoff), true,
+                         [this](const QVariant& value) { reactions_[selectedReactionIndex_].equilibriumConstant = value; });
+  addOptionalNumberField(kineticsForm, "Heat of reaction [J/mol]", &ReactionConfig::heatOfReaction);
+  addNumberField(kineticsForm, "Limit [s]", &ReactionConfig::rateLimitTime);
   reactionEditorLayout_->addWidget(kinetics);
+  if (reaction.style != "GeneralPowerLaw")
+  {
+    // theta_j = K_j c_j / (1 + sum_i K_i c_i), one K_j per component.
+    auto* adsorption = new QGroupBox("Adsorption constants K_j [m^3/mol] (0: does not adsorb)");
+    auto* adsorptionForm = new QFormLayout(adsorption);
+    for (const ComponentConfig& component : components_)
+    {
+      addTemperatureLawField(adsorptionForm, component.name, reaction.adsorptionConstants.value(component.id, 0.0),
+                             TemperatureLaw::mask(TemperatureLaw::Type::VantHoff), false,
+                             [this, id = component.id](const QVariant& value)
+                             { reactions_[selectedReactionIndex_].adsorptionConstants.insert(id, value); });
+    }
+    reactionEditorLayout_->addWidget(adsorption);
+  }
   reactionEditorLayout_->addStretch(1);
 }
 
@@ -1974,9 +2218,8 @@ void MainWindow::rebuildSimulationEditor()
                   simulations_[selectedSimulationIndex_].selectedColumnId = value;
                   refreshColumnList();
                 });
-  addComboField(form, "Mixture prediction method", simulation.mixtureMethod,
-                valueOptions({"SIAST", "IAST", "EI", "SEI", "SCI", "SPI"}),
-                [this](const QString& value) { simulations_[selectedSimulationIndex_].mixtureMethod = value; });
+  addComboField(form, "Mixture prediction method", &SimulationConfig::mixtureMethod,
+                valueOptions({"SIAST", "IAST", "EI", "SEI", "SCI", "SPI"}));
   addSettingCombo(form, "IAST solver", simulation.settings, "IASTMethod", "FastIAST",
                   {"FastIAST", "NestedLoopBisection"});
   const auto* feedColumn = selectedColumnFor(simulation);
@@ -1985,9 +2228,7 @@ void MainWindow::rebuildSimulationEditor()
   {
     auto pHOptions = componentDropdownOptions(components_, simulation.pHComponentId);
     pHOptions.prepend({"Select component", QString{}});
-    addComboField(form, "Transported pH component", simulation.pHComponentId,
-                  pHOptions,
-                  [this](const QString& value) { simulations_[selectedSimulationIndex_].pHComponentId = value; });
+    addComboField(form, "Transported pH component", &SimulationConfig::pHComponentId, pHOptions);
   }
 
   auto* feedGroup = new QGroupBox("Feed components");
@@ -2123,15 +2364,13 @@ void MainWindow::rebuildSimulationEditor()
   {
     auto* mixture = new QGroupBox("Pressure range");
     auto* mixtureForm = new QFormLayout(mixture);
-    addNumberField(mixtureForm, "Pressure start [Pa]", simulation.pressureStart,
-                   [this](double value) { simulations_[selectedSimulationIndex_].pressureStart = value; });
-    addNumberField(mixtureForm, "Pressure end [Pa]", simulation.pressureEnd,
-                   [this](double value) { simulations_[selectedSimulationIndex_].pressureEnd = value; });
+    addNumberField(mixtureForm, "Pressure start [Pa]", &SimulationConfig::pressureStart);
+    addNumberField(mixtureForm, "Pressure end [Pa]", &SimulationConfig::pressureEnd);
     addNumberField(mixtureForm, "Pressure points [-]", static_cast<double>(simulation.pressurePoints),
                    [this](double value)
                    { simulations_[selectedSimulationIndex_].pressurePoints = std::max(1, static_cast<int>(value)); });
-    addComboField(mixtureForm, "Pressure scale", simulation.pressureScale, {{"Log", "log"}, {"Linear", "linear"}},
-                  [this](const QString& value) { simulations_[selectedSimulationIndex_].pressureScale = value; });
+    addComboField(mixtureForm, "Pressure scale", &SimulationConfig::pressureScale,
+                  {{"Log", "log"}, {"Linear", "linear"}});
     simulationEditorLayout_->addWidget(mixture);
   }
   else
@@ -2144,29 +2383,39 @@ void MainWindow::rebuildSimulationEditor()
 #if BUILD_SUNDIALS
                       "CVODE",
 #endif
-                      "RungeKutta3", "SIRK3"}),
+                      "RungeKutta3", "ROS34PW2"}),
                   [this](const QString& value)
                   {
                     simulations_[selectedSimulationIndex_].integrator = value;
                     QTimer::singleShot(0, this, [this]() { refreshAll(); });
                   });
-    if (simulation.integrator != "SIRK3")  // SIRK3 supports only Upwind
-    {
-      addSettingCombo(breakthroughForm, "Convection scheme", simulation.settings, "ConvectionScheme", "WENO3",
-                      {"WENO3", "Upwind"});
-    }
+    addSettingCombo(breakthroughForm, "Convection scheme", simulation.settings, "ConvectionScheme", "WENO3",
+                    {"WENO3", "Upwind"});
+    addSettingCombo(breakthroughForm, "Inlet condition", simulation.settings, "InletCondition", "Danckwerts",
+                    {"Danckwerts", "Dirichlet"});
+    addSettingCombo(breakthroughForm, "Flow direction (feed end)", simulation.settings, "FlowDirection", "Forward",
+                    {"Forward", "Reverse"});
     if (simulation.integrator == "CVODE")
     {
       addSettingNumbers(breakthroughForm, simulation.settings,
-                        {{"CVODERelativeTolerance", "Relative tolerance [-]", 1.0e-4},
-                         {"CVODEAbsoluteToleranceConcentration", "Concentration absolute tolerance [mol/m3]", 1.0e-5},
-                         {"CVODEAbsoluteToleranceLoading", "Loading absolute tolerance [mol/kg]", 1.0e-6},
-                         {"CVODEAbsoluteToleranceTemperature", "Temperature absolute tolerance [K]", 1.0e-3},
+                        {{"CVODERelativeTolerance", "Relative tolerance [-]", 1.0e-5},
+                         {"CVODEAbsoluteToleranceConcentration", "Concentration absolute tolerance [mol/m3]", 1.0e-6},
+                         {"CVODEAbsoluteToleranceLoading", "Loading absolute tolerance [mol/kg]", 1.0e-7},
+                         {"CVODEAbsoluteToleranceTemperature", "Temperature absolute tolerance [K]", 1.0e-4},
                          {"CVODEMaximumTimeStep", "Maximum internal step [s] (-1 = auto, 0 = unlimited)", -1.0},
                          {"CVODEMaximumOrder", "Maximum BDF order [-] (1-5)", 5.0, true},
                          {"CVODEKrylovDimension", "Krylov dimension [-]", 30.0, true}});
-      addSettingCombo(breakthroughForm, "CVODE linear solver", simulation.settings, "CVODELinearSolver", "Dense",
+      addSettingCombo(breakthroughForm, "CVODE linear solver", simulation.settings, "CVODELinearSolver", "SPGMR",
                       {"Dense", "SPGMR"});
+    }
+    if (simulation.integrator == "ROS34PW2")
+    {
+      addSettingNumbers(breakthroughForm, simulation.settings,
+                        {{"ROS34PW2RelativeTolerance", "Relative tolerance [-]", 1.0e-6},
+                         {"ROS34PW2AbsoluteToleranceConcentration", "Concentration absolute tolerance [mol/m3]", 1.0e-7},
+                         {"ROS34PW2AbsoluteToleranceLoading", "Loading absolute tolerance [mol/kg]", 1.0e-8},
+                         {"ROS34PW2AbsoluteToleranceTemperature", "Temperature absolute tolerance [K]", 1.0e-5},
+                         {"ROS34PW2MaximumTimeStep", "Maximum step [s] (0 = unlimited)", 0.0}});
     }
     addJsonField(breakthroughForm, "Multibed grid positions [m] (empty = automatic)",
                  simulation.settings.value("ColumnDistances").toArray(),
@@ -2185,16 +2434,14 @@ void MainWindow::rebuildSimulationEditor()
                  });
     addNumberField(breakthroughForm, "Grid points [-]", static_cast<double>(simulation.gridPoints), [this](double value)
                    { simulations_[selectedSimulationIndex_].gridPoints = std::max(1, static_cast<int>(value)); });
-    if (simulation.integrator != "CVODE")  // CVODE chooses its own internal steps
+    if (simulation.integrator == "RungeKutta3")  // CVODE and ROS34PW2 choose their own internal steps
     {
-      addNumberField(breakthroughForm, "Time step [s]", simulation.timeStep,
-                     [this](double value) { simulations_[selectedSimulationIndex_].timeStep = value; });
+      addNumberField(breakthroughForm, "Time step [s]", &SimulationConfig::timeStep);
       addNumberField(breakthroughForm, "Initialization steps [-]", static_cast<double>(simulation.initSteps),
                      [this](double value)
                      { simulations_[selectedSimulationIndex_].initSteps = std::max(0, static_cast<int>(value)); });
     }
-    addNumberField(breakthroughForm, "Write interval [s]", simulation.writeInterval,
-                   [this](double value) { simulations_[selectedSimulationIndex_].writeInterval = value; });
+    addNumberField(breakthroughForm, "Write interval [s]", &SimulationConfig::writeInterval);
     if (!isSwing)
     {
       addCheckField(breakthroughForm, "Automatic simulation time", simulation.autoTime,
@@ -2205,8 +2452,7 @@ void MainWindow::rebuildSimulationEditor()
                     });
       if (!simulation.autoTime)
       {
-        addNumberField(breakthroughForm, "Simulation time [s]", simulation.simulationTime,
-                       [this](double value) { simulations_[selectedSimulationIndex_].simulationTime = value; });
+        addNumberField(breakthroughForm, "Simulation time [s]", &SimulationConfig::simulationTime);
       }
     }
     simulationEditorLayout_->addWidget(breakthrough);
@@ -2235,6 +2481,12 @@ void MainWindow::rebuildSimulationEditor()
                        { simulations_[selectedSimulationIndex_].swingPhases[phaseIndex].inletPressure = value; });
         addNumberField(phaseForm, "Duration [s]", phase.duration, [this, phaseIndex](double value)
                        { simulations_[selectedSimulationIndex_].swingPhases[phaseIndex].duration = value; });
+        // Reverse feeds the phase at z = L; empty keeps the FlowDirection of the simulation.
+        addComboField(phaseForm, "Flow direction", phase.flowDirection,
+                      {{"Simulation setting", ""}, {"Forward (feed at z = 0)", "Forward"},
+                       {"Reverse (feed at z = L)", "Reverse"}},
+                      [this, phaseIndex](const QString& value)
+                      { simulations_[selectedSimulationIndex_].swingPhases[phaseIndex].flowDirection = value; });
 
         auto* remove = new QPushButton("Remove phase");
         connect(remove, &QPushButton::clicked, this,
@@ -2626,7 +2878,7 @@ QJsonObject MainWindow::buildModeledSimulationJson() const
   const bool isSwing = simulation->type == "SwingAdsorption";
 
   const QString integrator =
-      (simulation->integrator == "RungeKutta3" || simulation->integrator == "SIRK3") ? simulation->integrator : "CVODE";
+      (simulation->integrator == "RungeKutta3" || simulation->integrator == "ROS34PW2") ? simulation->integrator : "CVODE";
   QJsonObject json{
       {"SimulationType", isSwing ? "SwingAdsorption" : "Breakthrough"},
       {"DisplayName", simulation->displayName},
@@ -2641,8 +2893,8 @@ QJsonObject MainWindow::buildModeledSimulationJson() const
   {
     json.insert("SimulationTime", simulation->autoTime ? QJsonValue("auto") : QJsonValue(simulation->simulationTime));
   }
-  // CVODE chooses its own internal steps and takes no TimeStep.
-  if (integrator != "CVODE")
+  // CVODE and ROS34PW2 choose their own internal steps and take no TimeStep.
+  if (integrator == "RungeKutta3")
   {
     json.insert("TimeStep", simulation->timeStep);
     json.insert("NumberOfInitTimeSteps", simulation->initSteps);
@@ -2736,15 +2988,15 @@ QJsonObject MainWindow::componentToJson(const ComponentConfig& component, double
   {
     json.insert("CarrierGas", true);
   }
+  if (component.water)
+  {
+    json.insert("Water", true);
+  }
   addOptionalNumber(json, "MassTransferCoefficient", component.massTransfer);
   addOptionalNumber(json, "AxialDispersionCoefficient", component.axialDispersion);
   addOptionalNumber(json, "MolecularWeight", component.molecularWeight);
   addOptionalNumber(json, "HeatOfAdsorption", component.heatOfAdsorption);
-  addOptionalNumber(json, "referenceTemperature", component.referenceTemperature);
-  if (component.nonIsothermal)
-  {
-    json.insert("nonIsothermal", true);
-  }
+  addOptionalNumber(json, "ReferenceTemperature", component.referenceTemperature);
   if (!component.carrier && !component.physisorptionSites.isEmpty())
   {
     QJsonArray sites;
@@ -2812,11 +3064,23 @@ QJsonObject MainWindow::reactionToJson(const ReactionConfig& reaction, const Sim
                      {"Products", products},
                      {"Stoichiometry", QJsonObject{{"Reactants", stoichiometryToJson(reaction.reactants)},
                                                    {"Products", stoichiometryToJson(reaction.products)}}},
-                     {"Kinetics", QJsonObject{{"forwardRateCoefficient", reaction.forwardRateCoefficient},
-                                              {"forwardActivationEnergy", reaction.forwardActivationEnergy},
-                                              {"equilibriumConstant", reaction.equilibriumConstant},
-                                              {"gibbsFreeEnergy", reaction.gibbsFreeEnergy}}},
                      {"RateLimitTime", reaction.rateLimitTime}};
+  QJsonObject kinetics{{"ForwardRateCoefficient", QJsonValue::fromVariant(reaction.forwardRateCoefficient)},
+                       {"EquilibriumConstant", QJsonValue::fromVariant(reaction.equilibriumConstant)}};
+  addOptionalNumber(kinetics, "HeatOfReaction", reaction.heatOfReaction);
+  if (reaction.style != "GeneralPowerLaw")
+  {
+    // By name, for the components this simulation exports; a constant of 0 is the same as none.
+    QJsonObject adsorptionConstants;
+    for (auto it = reaction.adsorptionConstants.cbegin(); it != reaction.adsorptionConstants.cend(); ++it)
+    {
+      const bool zero = it.value().typeId() != QMetaType::QVariantMap && it.value().toDouble() == 0.0;
+      if (zero || !componentIds.contains(it.key())) continue;
+      adsorptionConstants.insert(componentNameForId(components_, it.key()), QJsonValue::fromVariant(it.value()));
+    }
+    kinetics.insert("AdsorptionConstants", adsorptionConstants);
+  }
+  json.insert("Kinetics", kinetics);
   for (const auto& pair : {qMakePair(QString("ForwardOrders"), &reaction.reactants),
                            qMakePair(QString("BackwardOrders"), &reaction.products)})
   {
@@ -2835,7 +3099,7 @@ QJsonObject MainWindow::phySiteToJson(const PhysisorptionSiteConfig& site) const
   QJsonArray parameters;
   for (const ParameterDefinition& definition : phyDefs(site.type))
   {
-    parameters.append(parameterNumber(site.parameters, definition));
+    parameters.append(parameterJson(site.parameters, definition));
   }
   QJsonObject json = site.settings;
   json.insert("Type", site.type);
@@ -2853,8 +3117,7 @@ QJsonObject MainWindow::chemSiteToJson(const ChemisorptionSiteConfig& site) cons
     QString key = definition.key;
     if (key == "rateCoefficient" && site.type == "FirstOrder") key = "MassTransferCoefficient";
     else key[0] = key[0].toUpper();
-    kinetics.insert(key, definition.boolean ? QJsonValue(parameterBool(site.parameters, definition))
-                                           : QJsonValue(parameterNumber(site.parameters, definition)));
+    kinetics.insert(key, parameterJson(site.parameters, definition));
   }
   json.insert("RateEquation", site.type);
   json.insert("RateEquationParameters", kinetics);
@@ -2868,10 +3131,13 @@ QJsonArray MainWindow::swingPhasesToJson(const SimulationConfig& simulation) con
   QJsonArray phases;
   for (const SwingPhaseConfig& phase : simulation.swingPhases)
   {
-    phases.append(QJsonObject{{"Name", phase.name.isEmpty() ? "Phase" : phase.name},
-                              {"Temperature", phase.temperature},
-                              {"InletPressure", phase.inletPressure},
-                              {"Duration", phase.duration}});
+    QJsonObject object{{"Name", phase.name.isEmpty() ? "Phase" : phase.name},
+                       {"Temperature", phase.temperature},
+                       {"InletPressure", phase.inletPressure},
+                       {"Duration", phase.duration}};
+    if (!phase.flowDirection.isEmpty()) object.insert("FlowDirection", phase.flowDirection);
+    for (auto key = phase.otherKeys.begin(); key != phase.otherKeys.end(); ++key) object.insert(key.key(), key.value());
+    phases.append(object);
   }
   return phases;
 }
@@ -2909,6 +3175,7 @@ void MainWindow::applyColumnToBreakthrough(QJsonObject& simulationJson, const Co
     geometry.insert("OuterDiameter", column.outerDiameter);
   }
   mergeSettings(geometry, column.geometrySettings);
+  if (column.geometryType != "Monolith") geometry.remove("TaylorArisDispersion");
   simulationJson.insert("Geometry", geometry);
 
   if ((column.mode == "multibed" || column.mode == "mixed") && !column.beds.isEmpty())
@@ -2986,7 +3253,7 @@ QJsonObject MainWindow::buildStateJson() const
     QJsonObject object{{"Id", component.id},
                        {"Name", component.name},
                        {"CarrierGas", component.carrier},
-                       {"NonIsothermal", component.nonIsothermal},
+                       {"Water", component.water},
                        {"Settings", component.settings},
                        {"PhysisorptionSites", phySitesStateJson(component.physisorptionSites)},
                        {"ChemisorptionSites", chemSitesStateJson(component.chemisorptionSites)}};
@@ -3133,12 +3400,13 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
     component.id = readString(object, "Id", QString("component-%1").arg(i + 1));
     component.name = readString(object, "Name", QString("Component %1").arg(i + 1));
     component.carrier = readBool(object, "CarrierGas", false);
+    component.water = readBool(object, "Water", false);
     component.massTransfer = readOptionalNumber(object, "MassTransferCoefficient");
     component.axialDispersion = readOptionalNumber(object, "AxialDispersionCoefficient");
     component.molecularWeight = readOptionalNumber(object, "MolecularWeight");
     component.heatOfAdsorption = readOptionalNumber(object, "HeatOfAdsorption");
     component.referenceTemperature = readOptionalNumber(object, "ReferenceTemperature");
-    component.nonIsothermal = readBool(object, "NonIsothermal", false);
+    const bool nonIsothermal = readBool(object, "NonIsothermal", false);
     component.settings = object.value("Settings").toObject();
 
     const QJsonArray physisorptionSites = object.value("PhysisorptionSites").toArray();
@@ -3158,6 +3426,29 @@ bool MainWindow::loadStateJson(const QJsonObject& state, QString* error)
         component.chemisorptionSites.push_back(chemSiteFromObject(
             chemisorptionSites[siteIndex].toObject(), QString("chem-%1-%2").arg(i + 1).arg(siteIndex + 1),
             QString("chemiso-%1-%2").arg(i + 1).arg(siteIndex + 1)));
+      }
+    }
+
+    // Saved before temperature laws: nonIsothermal scaled the affinity with the heat of adsorption. The affinity is now
+    // a VantHoff law that inherits that heat.
+    if (nonIsothermal)
+    {
+      QList<PhysisorptionSiteConfig*> isotherms;
+      for (PhysisorptionSiteConfig& site : component.physisorptionSites) isotherms.push_back(&site);
+      for (ChemisorptionSiteConfig& site : component.chemisorptionSites) isotherms.push_back(&site.isotherm);
+      for (PhysisorptionSiteConfig* site : isotherms)
+      {
+        const QList<ParameterDefinition> definitions = phyDefs(site->type);
+        if (definitions.isEmpty() || parameterNumber(site->parameters, definitions.front()) == 0.0) continue;
+        for (const ParameterDefinition& definition : definitions)
+        {
+          const double affinity = parameterNumber(site->parameters, definition);
+          if (definition.heatLinked && affinity != 0.0 &&
+              site->parameters.value(definition.key).typeId() != QMetaType::QVariantMap)
+          {
+            site->parameters.insert(definition.key, QVariantMap{{"Value", affinity}, {"Law", "VantHoff"}});
+          }
+        }
       }
     }
     newComponents.push_back(component);
@@ -3429,6 +3720,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
     component.id = QString("component-%1").arg(i + 1);
     component.name = readString(object, "Name", QString("Component %1").arg(i + 1));
     component.carrier = readBool(object, "CarrierGas", false);
+    component.water = readBool(object, "Water", false);
     component.massTransfer = readOptionalNumber(object, "MassTransferCoefficient");
     component.axialDispersion = readOptionalNumber(object, "AxialDispersionCoefficient");
     component.molecularWeight = readOptionalNumber(object, "MolecularWeight");
@@ -3439,7 +3731,6 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
       component.referenceTemperature = readOptionalNumber(object, "ReferenceTemperature");
     }
     component.settings = selectSettings(object, componentSettingKeys);
-    component.nonIsothermal = readBool(object, "nonIsothermal", readBool(object, "NonIsothermal", false));
 
     const QJsonArray physisorptionSites = object.value("PhysisorptionSites").toArray();
     for (qsizetype siteIndex = 0; siteIndex < physisorptionSites.size(); ++siteIndex)
@@ -3509,7 +3800,8 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
   column.energyBalance = readBool(simulationJson, "energyBalance", readBool(simulationJson, "EnergyBalance", false));
   column.influxTemperature = readNumber(simulationJson, "InfluxTemperature", column.influxTemperature);
   const QJsonObject geometry = simulationJson.value("Geometry").toObject();
-  column.geometrySettings = selectSettings(geometry, {"ForchheimerCoefficient"});
+  column.geometrySettings =
+      selectSettings(geometry, {"ForchheimerCoefficient", "AxialDispersivity", "TaylorArisDispersion"});
   if (!geometry.isEmpty())
   {
     const QString geometryType = readString(geometry, "Type", column.geometryType);
@@ -3572,7 +3864,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
         bed.mixFraction = readNumber(adsorbent, "MixFraction", bed.mixFraction);
         bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
         bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
-        bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components"});
+        bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components", "AxialDispersivity"});
         bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
         column.beds.push_back(bed);
       }
@@ -3613,7 +3905,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
         bed.gridPoints = readInt(section, "NumberOfGridPoints", 0);
         bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
         bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
-        bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components"});
+        bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components", "AxialDispersivity"});
         bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
         column.beds.push_back(bed);
       }
@@ -3634,7 +3926,7 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
       bed.voidFraction = readNumber(adsorbent, "ColumnVoidFraction", column.voidFraction);
       bed.particleDensity = readNumber(adsorbent, "ParticleDensity", column.particleDensity);
       bed.particleDiameter = readNumber(adsorbent, "ParticleDiameter", column.particleDiameter);
-      bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components"});
+      bed.settings = selectSettings(adsorbent, {"ComponentParameters", "Components", "AxialDispersivity"});
       column.beds.push_back(bed);
     }
   }
@@ -3658,10 +3950,10 @@ bool MainWindow::importSimulationJson(const QJsonObject& input, QString* error, 
   simulation.pressurePoints = std::max(1, readInt(simulationJson, "NumberOfPressurePoints", simulation.pressurePoints));
   simulation.pressureScale = readString(simulationJson, "PressureScale", simulation.pressureScale);
   simulation.integrator = choice(readString(simulationJson, "BreakthroughIntegrator", "RungeKutta3"),
-                                 {"CVODE", "RungeKutta3", "SIRK3"});
-  if (simulation.integrator != "CVODE" && simulation.integrator != "RungeKutta3" && simulation.integrator != "SIRK3")
+                                 {"CVODE", "RungeKutta3", "ROS34PW2"});
+  if (simulation.integrator != "CVODE" && simulation.integrator != "RungeKutta3" && simulation.integrator != "ROS34PW2")
   {
-    if (error != nullptr) *error = "BreakthroughIntegrator must be CVODE, RungeKutta3, or SIRK3.";
+    if (error != nullptr) *error = "BreakthroughIntegrator must be CVODE, RungeKutta3, or ROS34PW2.";
     return false;
   }
   const QJsonValue simulationTime = simulationJson.value("SimulationTime");
@@ -4178,6 +4470,13 @@ void MainWindow::addParameterFields(QFormLayout* form, QVariantMap& parameters,
       form->addRow(definition.label, check);
       continue;
     }
+    if (definition.temperatureLaws != 0)
+    {
+      addTemperatureLawField(form, definition.label, parameters.value(definition.key), definition.temperatureLaws,
+                             definition.heatLinked, [&parameters, definition](const QVariant& value)
+                             { parameters.insert(definition.key, value); });
+      continue;
+    }
 
     auto* edit = new QLineEdit(numberText(parameterNumber(parameters, definition)));
     connect(edit, &QLineEdit::textEdited, this,
@@ -4197,6 +4496,95 @@ void MainWindow::addParameterFields(QFormLayout* form, QVariantMap& parameters,
             });
     form->addRow(definition.label, edit);
   }
+}
+
+void MainWindow::addTemperatureLawField(QFormLayout* form, const QString& label, const QVariant& value,
+                                        unsigned allowedLaws, bool heatLinked,
+                                        const std::function<void(const QVariant&)>& setter)
+{
+  // The value is a number (constant) or a law {"Value", "Law", <coefficient>, "ReferenceTemperature"}, written to
+  // simulation.json as is. An empty coefficient of a heat-linked VantHoff law takes the heat of adsorption (or of
+  // reaction), and an empty T_ref the ReferenceTemperature of the component (or Kinetics).
+  const QVariantMap law = value.typeId() == QMetaType::QVariantMap ? value.toMap() : QVariantMap{};
+  const double number = law.isEmpty() ? value.toDouble() : law.value("Value").toDouble();
+  const QString lawName = law.value("Law", "Constant").toString();
+
+  auto* container = new QWidget;
+  auto* layout = new QHBoxLayout(container);
+  layout->setContentsMargins(0, 0, 0, 0);
+  auto* valueEdit = new QLineEdit(numberText(number));
+  auto* lawCombo = new QComboBox;
+  lawCombo->addItem("Constant", "Constant");
+  for (const TemperatureLaw::Type type : {TemperatureLaw::Type::VantHoff, TemperatureLaw::Type::Arrhenius,
+                                          TemperatureLaw::Type::Exponential, TemperatureLaw::Type::Linear,
+                                          TemperatureLaw::Type::Inverse})
+  {
+    if ((allowedLaws & TemperatureLaw::mask(type)) == 0) continue;
+    const QString name = QString::fromUtf8(TemperatureLaw::name(type).data(),
+                                           static_cast<qsizetype>(TemperatureLaw::name(type).size()));
+    lawCombo->addItem(name, name);
+  }
+  lawCombo->setCurrentIndex(std::max(0, lawCombo->findData(lawName, Qt::UserRole, Qt::MatchFixedString)));
+  auto* coefficientEdit = new QLineEdit;
+  auto* referenceEdit = new QLineEdit(law.contains("ReferenceTemperature")
+                                          ? numberText(law.value("ReferenceTemperature").toDouble())
+                                          : QString{});
+  referenceEdit->setPlaceholderText("T_ref [K]");
+  layout->addWidget(valueEdit, 2);
+  layout->addWidget(lawCombo, 2);
+  layout->addWidget(coefficientEdit, 2);
+  layout->addWidget(referenceEdit, 1);
+
+  const auto coefficientKey = [lawCombo]()
+  {
+    const std::optional<TemperatureLaw::Type> type =
+        TemperatureLaw::fromName(lawCombo->currentData().toString().toStdString());
+    const std::string_view key = TemperatureLaw::coefficientKey(type.value_or(TemperatureLaw::Type::Constant));
+    return QString::fromUtf8(key.data(), static_cast<qsizetype>(key.size()));
+  };
+  const auto showLaw = [=]()
+  {
+    const QString key = coefficientKey();
+    coefficientEdit->setVisible(!key.isEmpty());
+    referenceEdit->setVisible(!key.isEmpty());
+    const QString units = key == "Energy" || key == "ActivationEnergy" ? " [J/mol]" : key == "Slope" ? " [1/K]" : "";
+    coefficientEdit->setPlaceholderText(key == "Energy" && heatLinked ? "Energy [J/mol] (empty: heat)" : key + units);
+  };
+  coefficientEdit->setText(law.contains(coefficientKey()) ? numberText(law.value(coefficientKey()).toDouble())
+                                                          : QString{});
+  showLaw();
+
+  const auto update = [this, valueEdit, lawCombo, coefficientEdit, referenceEdit, coefficientKey, setter]()
+  {
+    bool ok = false;
+    const double valueNumber = valueEdit->text().toDouble(&ok);
+    if (!ok) return;
+    const QString key = coefficientKey();
+    if (key.isEmpty())
+    {
+      setter(valueNumber);
+    }
+    else
+    {
+      QVariantMap result{{"Value", valueNumber}, {"Law", lawCombo->currentData().toString()}};
+      const double coefficient = coefficientEdit->text().toDouble(&ok);
+      if (ok) result.insert(key, coefficient);
+      const double referenceTemperature = referenceEdit->text().toDouble(&ok);
+      if (ok) result.insert("ReferenceTemperature", referenceTemperature);
+      setter(result);
+    }
+    updatePreview();
+  };
+  connect(valueEdit, &QLineEdit::textEdited, this, update);
+  connect(coefficientEdit, &QLineEdit::textEdited, this, update);
+  connect(referenceEdit, &QLineEdit::textEdited, this, update);
+  connect(lawCombo, qOverload<int>(&QComboBox::currentIndexChanged), this,
+          [showLaw, update](int)
+          {
+            showLaw();
+            update();
+          });
+  form->addRow(label, container);
 }
 
 void MainWindow::addSettingNumbers(QFormLayout* form, QJsonObject& settings,

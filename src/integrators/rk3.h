@@ -9,13 +9,27 @@
 
 /**
  * \brief Evaluates the state derivatives (sorption rates, pore transport, reactions, bulk sink, mass and energy
- *        balances) from the current state and the fields set by precompute; elapsedTime in s.
+ *        balances) of the state in views, with the fields that precompute set in column. The time enters through the
+ *        pressure fields that Column::advancePressureRamp sets.
+ *
+ * views holds the state and receives its derivatives: the column's own, or a trial state of CVODE. With sorptionOnly
+ * the evaluation stops after the bulk sink, without the velocity rebuild and the mass and energy balances.
  */
-void computeDerivatives(Column& column, double elapsedTime = 0.0);
+void computeDerivatives(ColumnData& column, const ColumnStateViews& views, bool sorptionOnly = false);
 
 /**
- * \brief Updates the fields that depend on the state only: the bulk sink, velocity, pressure, mole fractions and
- *        equilibrium loadings.
+ * \brief computeDerivatives of the column's own state.
+ */
+void computeDerivatives(Column& column);
+
+/**
+ * \brief Updates the fields that depend on the state in views only: the bulk sink (from the derivatives in views),
+ *        velocity, pressure, mole fractions and equilibrium loadings.
+ */
+void precompute(ColumnData& column, const ColumnStateViews& views, Timing& timings);
+
+/**
+ * \brief precompute of the column's own state.
  */
 void precompute(Column& column, Timing& timings);
 
@@ -25,7 +39,7 @@ void precompute(Column& column, Timing& timings);
 bool reactionAutoStopReached(const Column& column) noexcept;
 
 /**
- * \brief Fixed-step integration over a time interval, shared by RungeKutta3 and SemiImplicitRungeKutta3.
+ * \brief Fixed-step integration over a time interval, for RungeKutta3.
  *
  * During the first numberOfInitTimeSteps steps the step grows smoothly from 1e-4 timeStep to timeStep. Afterwards
  * whole steps of timeStep are taken, and the last step is shortened to land on endTime unless the interval is a whole
@@ -38,10 +52,12 @@ struct FixedStepIntegrator
   size_t numberOfStepsTaken{0};  ///< Steps taken so far; drives the initial ramp.
 
   /**
-   * \brief Advances the column from startTime to endTime in s with self.step(column, start, dt, timings).
+   * \brief Advances the column from startTime to endTime in s with self.step(column, dt, timings).
    */
   void advance(this auto& self, Column& column, double startTime, double endTime, Timing& timings)
   {
+    // Timed per call, not per step, to keep the clock calls out of the step loop.
+    auto totalTimer = timings.scoped(timings.total);
     constexpr double initialTimeStepFraction = 1.0e-4;
 
     double time = startTime;
@@ -55,7 +71,7 @@ struct FixedStepIntegrator
                                                          (3.0 * progress * progress - 2.0 * progress * progress * progress));
       const double remaining = endTime - time;
       if (remaining <= 0.0) return;
-      self.step(column, time, std::min(rampTimeStep, remaining), timings);
+      self.step(column, std::min(rampTimeStep, remaining), timings);
       ++self.numberOfStepsTaken;
       if (rampTimeStep >= remaining) return;
       time += rampTimeStep;
@@ -68,13 +84,13 @@ struct FixedStepIntegrator
         static_cast<size_t>(wholeNumberOfSteps ? std::round(numberOfSteps) : std::floor(numberOfSteps));
     for (size_t i = 0; i < fullSteps; ++i)
     {
-      self.step(column, time + static_cast<double>(i) * self.timeStep, self.timeStep, timings);
+      self.step(column, self.timeStep, timings);
     }
     self.numberOfStepsTaken += fullSteps;
     if (!wholeNumberOfSteps)
     {
       const double lastStartTime = time + static_cast<double>(fullSteps) * self.timeStep;
-      self.step(column, lastStartTime, endTime - lastStartTime, timings);
+      self.step(column, endTime - lastStartTime, timings);
       ++self.numberOfStepsTaken;
     }
   }
@@ -96,7 +112,7 @@ struct RungeKutta3 : FixedStepIntegrator
   }
 
   /**
-   * \brief Advances the column by one RK3 step of size dt in s, starting at startTime in s.
+   * \brief Advances the column by one RK3 step of size dt in s.
    */
-  void step(Column& column, double startTime, double dt, Timing& timings);
+  void step(Column& column, double dt, Timing& timings);
 };

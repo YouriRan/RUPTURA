@@ -95,6 +95,28 @@ function field(definition, prefix = [], extra = "") {
   }
   return `<div class="field">${fieldHeader(id, definition.label, description, reset)}${control}</div>`;
 }
+// A temperature-scalable parameter holds a number or a law {Value, Law, <coefficient>, ReferenceTemperature}
+// (state.schema.temperatureLaws). A Constant law keeps the number; another law shows its coefficient and T_ref, whose
+// blank values take the heat (for a heat-linked VantHoff law) and the enclosing ReferenceTemperature.
+function lawField(definition, prefix, spec) {
+  if (!spec) return field(definition, prefix);
+  const path = [...prefix, definition.key], value = getPath(config(), path);
+  const law = value && typeof value === "object" ? value.Law || "Constant" : "Constant";
+  const id = `law-${path.join("-")}`, description = "Choose how this parameter depends on temperature: a constant number or one of the laws allowed here.";
+  const select = `<div class="field">${fieldHeader(id, "Temperature law", description)}<select id="${id}" data-law-path="${escapeHtml(JSON.stringify(path))}">${["Constant", ...spec.laws].map(name => `<option value="${name}" ${name === law ? "selected" : ""}>${name}</option>`).join("")}</select></div>`;
+  if (law === "Constant") return field(definition, prefix) + select;
+  const [key, label] = state.schema.temperatureLaws.coefficients[law] || [];
+  const inherits = law === "VantHoff" && spec.heat;
+  const coefficient = {...describe(key, inherits ? `${label} (blank: heat)` : label), description: state.schema.help[key === "Alpha" ? "InverseAlpha" : key]};
+  return field({...definition, key: "Value"}, path) + select + field(coefficient, path) +
+    field(describe("ReferenceTemperature", "Reference temperature [K] (blank: inherited)"), path);
+}
+function changeLaw(target) {
+  const path = JSON.parse(target.dataset.lawPath), value = getPath(config(), path);
+  const number = value && typeof value === "object" ? value.Value : value;
+  setPath(config(), path, target.value === "Constant" ? number : {Value: number, Law: target.value});
+  scheduleSave(); header(); renderContent();
+}
 function fields(group, prefix = [], filter = () => true) { return `<div class="form-grid">${state.schema[group].filter(filter).map(item => field(item, prefix)).join("")}</div>`; }
 function card(title, content, subtitle = "", action = "") {
   return `<section class="card"><div class="card-header"><div><h2>${escapeHtml(title)}</h2>${subtitle ? `<p>${escapeHtml(subtitle)}</p>` : ""}</div>${action}</div><div class="card-body">${content}</div></section>`;
@@ -169,12 +191,14 @@ function renderSetup() {
   const input = config(), mixture = input.SimulationType === "MixturePrediction";
   let main = card("Experiment", `<div class="form-grid">${field(describe("DisplayName", "Simulation name", null, null, "text"))}${field(describe("SimulationType", "Simulation type", "Breakthrough", state.schema.types))}</div>`);
   main += card("Operating conditions", fields("operating"), "The conditions shared by your components and column.");
-  main += mixture ? card("Pressure range", fields("pressure")) : card("Time integration", fields("integration", [], item => !(input.BreakthroughIntegrator === "CVODE" && ["TimeStep","NumberOfInitTimeSteps"].includes(item.key)) && !(input.BreakthroughIntegrator === "SIRK3" && item.key === "ConvectionScheme") && !(input.SimulationType === "SwingAdsorption" && item.key === "SimulationTime")), "Times are in seconds; enter auto to run until breakthrough. CVODE chooses its own steps.");
+  main += mixture ? card("Pressure range", fields("pressure")) : card("Time integration", fields("integration", [], item => !(["CVODE","ROS34PW2"].includes(input.BreakthroughIntegrator) && ["TimeStep","NumberOfInitTimeSteps"].includes(item.key)) && !(input.SimulationType === "SwingAdsorption" && item.key === "SimulationTime")), "Times are in seconds; enter auto to run until breakthrough. CVODE and ROS34PW2 choose their own steps.");
   if (!mixture && input.BreakthroughIntegrator === "CVODE") main += card("CVODE controls", fields("cvode"));
+  if (!mixture && input.BreakthroughIntegrator === "ROS34PW2") main += card("ROS34PW2 controls", fields("ros34pw2"));
   if (input.FluidPhase === "Liquid") main += card("Liquid & pH", fields("liquid"), "The acid/base component is a zero-based index from the component list.");
+  else main += card("Humidity", fields("humidity", [], item => item.key !== "WaterSaturationPressure" || input.WaterSaturationPressureModel === "Constant"), "For the humidity-dependent isotherms: mark the water component, or fix the relative humidity.");
   if (input.SimulationType === "SwingAdsorption") {
     main += card("Swing phases", (input.SwingAdsorptionPhases || []).map((phase, i) => `<div class="site"><div class="site-header"><strong>Phase ${i + 1}</strong><button class="icon-button" data-action="remove-phase" data-index="${i}" aria-label="Remove phase ${i + 1}">✕</button></div><div class="form-grid">${[
-      describe("Name", "Phase name", null, null, "text"), describe("Temperature", "Temperature [K] (blank inherits)"), describe("InletPressure", "Inlet pressure [Pa] (blank inherits)"), describe("Duration", "Duration [s]", 1)
+      describe("Name", "Phase name", null, null, "text"), describe("Temperature", "Temperature [K] (blank inherits)"), describe("InletPressure", "Inlet pressure [Pa] (blank inherits)"), describe("Duration", "Duration [s]", 1), describe("FlowDirection", "Flow direction (blank inherits)", null, ["Forward", "Reverse"])
     ].map(def => field(def, ["SwingAdsorptionPhases", i])).join("")}</div></div>`).join("") + `<button class="button" data-action="add-phase">＋ Add phase</button>`);
   }
   const secondary = card("Column at a glance", diagram() + `<div class="mini-spec"><span>Geometry</span><strong>${escapeHtml(input.Geometry?.Type || "PackedBed")}</strong></div><div class="mini-spec"><span>Components</span><strong>${input.Components.length}</strong></div><div class="mini-spec"><span>Inlet pressure</span><strong>${format((input.InletPressure ?? 0) / 1000)} kPa</strong></div>`, "A view of your current configuration.");
@@ -183,10 +207,11 @@ function renderSetup() {
 function siteEditor(site, path, chemical) {
   const defs = state.schema.isotherms[site.Type] || state.schema.isotherms.Langmuir;
   const isothermSelect = field(describe("Type", "Equilibrium isotherm", "Langmuir", Object.keys(state.schema.isotherms)), path);
-  let body = `<div class="form-grid">${isothermSelect}${defs.map(([key,label,value], i) => field(describe(i, label, value), [...path, "Parameters"])).join("")}</div>`;
+  const laws = state.schema.temperatureLaws.isotherms[site.Type] || [];
+  let body = `<div class="form-grid">${isothermSelect}${defs.map(([key,label,value], i) => lawField(describe(i, label, value), [...path, "Parameters"], laws[i])).join("")}</div>`;
   if (chemical) {
     const kinetics = site.RateEquation || "FirstOrder";
-    body += `<div class="subheading">Kinetics</div><div class="form-grid">${field(describe("RateEquation", "Rate equation", "FirstOrder", Object.keys(state.schema.kinetics)), path)}${field(describe("MaximumLoading", "Maximum loading [mol/kg]", 0.8), path)}${field(describe("HeatOfAdsorption", "Heat of chemisorption [J/mol]"), path)}${state.schema.kinetics[kinetics].map(([key,label,value]) => field(describe(key,label,value,null,typeof value === "boolean" ? "boolean" : "number"), [...path,"RateEquationParameters"])).join("")}</div>`;
+    body += `<div class="subheading">Kinetics</div><div class="form-grid">${field(describe("RateEquation", "Rate equation", "FirstOrder", Object.keys(state.schema.kinetics)), path)}${field(describe("MaximumLoading", "Maximum loading [mol/kg]", 0.8), path)}${field(describe("HeatOfAdsorption", "Heat of chemisorption [J/mol]"), path)}${state.schema.kinetics[kinetics].map(([key,label,value]) => lawField(describe(key,label,value,null,typeof value === "boolean" ? "boolean" : "number"), [...path,"RateEquationParameters"], state.schema.temperatureLaws.kinetics[key])).join("")}</div>`;
   } else {
     body += `<details style="margin-top:16px"><summary class="helper">Site transfer & heat overrides</summary><div class="form-grid" style="margin-top:12px">${field(describe("MassTransferCoefficient", "Site mass transfer [1/s]"), [...path,"RateEquationParameters"])}${field(describe("HeatOfAdsorption", "Site heat [J/mol]"), path)}</div></details>`;
   }
@@ -196,7 +221,7 @@ function renderComponents() {
   const liquid=config().FluidPhase==="Liquid",total=config().Components.reduce((sum,item)=>sum+(item.GasPhaseMolFraction||0),0);
   $("#content").innerHTML=`<div class="section-title"><div><h2>Components & adsorption</h2><p>Set the feed, species properties, and adsorption models for this simulation.</p></div><div class="actions">${liquid?"":`<button class="button" data-action="normalize-feed">Normalize feed · Σ ${format(total)}</button>`}<button class="button" data-action="add-component">＋ Add component</button></div></div>`+config().Components.map((component,i)=>{
     const path=["Components",i];
-    let body=`<div class="form-grid">${field(describe("Name","Component name",null,null,"text"),path)}${liquid?"":field(describe("CarrierGas","Carrier gas",false,null,"boolean"),path)}</div><div style="height:18px"></div>`;
+    let body=`<div class="form-grid">${field(describe("Name","Component name",null,null,"text"),path)}${liquid?"":field(describe("CarrierGas","Carrier gas",false,null,"boolean"),path)}${liquid?"":field(describe("Water","Water (sets the humidity)",false,null,"boolean"),path)}</div><div style="height:18px"></div>`;
     body+=fields("component",path,def=>liquid?def.key!=="GasPhaseMolFraction":!["LiquidPhaseConcentration","InitialLiquidPhaseConcentration"].includes(def.key));
     {
       for(const [kind,label] of [["PhysisorptionSites","Physisorption"],["ChemisorptionSites","Chemisorption"]]) body+=`<div class="subheading">${label}</div>${(component[kind]||[]).map((site,j)=>siteEditor(site,[...path,kind,j],kind==="ChemisorptionSites")).join("")}<button class="button" data-action="add-site" data-index="${i}" data-kind="${kind}">＋ ${label} site</button>`;
@@ -206,7 +231,7 @@ function renderComponents() {
 }
 function renderColumn() {
   const input=config(),mode=!input.Adsorbents?.length?"single":input.Adsorbents[0].MixFraction!==undefined?"mixed":"layered";
-  let html=`<div class="two-column"><div>${card("Column & transport",fields("column"),"Boundary conditions and physical properties for this simulation.")}${card("Geometry",fields("geometry",["Geometry"],def=>input.Geometry?.Type==="Monolith"?!["ColumnVoidFraction","ParticleDiameter","InternalDiameter"].includes(def.key):["Type","ColumnVoidFraction","ParticleDiameter","InternalDiameter","OuterDiameter"].includes(def.key)))}</div><div class="secondary">${card("Column structure",diagram()+`<div class="field" style="margin-top:20px">${fieldHeader("bed-mode","Adsorbent arrangement","Choose one adsorbent, separate beds, or a uniform mixture of adsorbents for this simulation.")}<select id="bed-mode"><option value="single" ${mode==="single"?"selected":""}>Single adsorbent</option><option value="layered" ${mode==="layered"?"selected":""}>Layered beds</option><option value="mixed" ${mode==="mixed"?"selected":""}>Uniform mixture</option></select></div>`)}${card("Spatial grid & initial state",jsonEditor(input.ColumnDistances||[],"grid")+`<div style="height:18px"></div>${field(describe("ReadColumnFile","Initial column state file",null,null,"text"))}<p class="helper">Explicit grid positions are supported for multibed columns. File paths are local to the server workspace.</p>`)}</div></div>`;
+  let html=`<div class="two-column"><div>${card("Column & transport",fields("column"),"Boundary conditions and physical properties for this simulation.")}${card("Geometry",fields("geometry",["Geometry"],def=>input.Geometry?.Type==="Monolith"?!["ColumnVoidFraction","ParticleDiameter","InternalDiameter"].includes(def.key):["Type","ColumnVoidFraction","ParticleDiameter","InternalDiameter","OuterDiameter","AxialDispersivity"].includes(def.key)))}</div><div class="secondary">${card("Column structure",diagram()+`<div class="field" style="margin-top:20px">${fieldHeader("bed-mode","Adsorbent arrangement","Choose one adsorbent, separate beds, or a uniform mixture of adsorbents for this simulation.")}<select id="bed-mode"><option value="single" ${mode==="single"?"selected":""}>Single adsorbent</option><option value="layered" ${mode==="layered"?"selected":""}>Layered beds</option><option value="mixed" ${mode==="mixed"?"selected":""}>Uniform mixture</option></select></div>`)}${card("Spatial grid & initial state",jsonEditor(input.ColumnDistances||[],"grid")+`<div style="height:18px"></div>${field(describe("ReadColumnFile","Initial column state file",null,null,"text"))}<p class="helper">Explicit grid positions are supported for multibed columns. File paths are local to the server workspace.</p>`)}</div></div>`;
   if(mode!=="single") html+=card("Adsorbent beds",input.Adsorbents.map((bed,i)=>{
     const sectionIndex=input.ColumnSections?.findIndex(section=>section.Adsorbent===bed.Name)??-1;
     const sectionPath=sectionIndex>=0?["ColumnSections",sectionIndex]:["Adsorbents",i];
@@ -224,7 +249,7 @@ function renderReactions() {
   if(!(config().Reactions||[]).length) html+=card("Add chemistry to your column",'<p class="section-note">Configure power-law, Langmuir–Hinshelwood, or LHHW reactions coupled to the component balances.</p>');
   html+=(config().Reactions||[]).map((reaction,i)=>{
     const path=["Reactions",i],options=config().Components.map((component,j)=>({value:j,label:`${j} · ${component.Name}`}));
-    let body=`<div class="form-grid">${field(describe("Phase","Phase","Physisorbed",["Physisorbed","Chemisorbed","PoreConcentration"]),path)}${field(describe("Style","Rate law","GeneralPowerLaw",["GeneralPowerLaw","LangmuirHinshelwood","LangmuirHinshelwoodHougenWatson"]),path)}${field(describe("Site","Site index",0),path)}${field(describe("RateLimitTime","Rate limit time [s]",1e-4),path)}</div>`;
+    let body=`<div class="form-grid">${field(describe("Phase","Phase","Physisorbed",["Physisorbed","Chemisorbed","PoreConcentration","BulkConcentration"]),path)}${field(describe("Style","Rate law","GeneralPowerLaw",["GeneralPowerLaw","LangmuirHinshelwood","LangmuirHinshelwoodHougenWatson"]),path)}${field(describe("Site","Site index",0),path)}${field(describe("RateLimitTime","Rate limit time [s]",1e-4),path)}</div>`;
     for(const side of ["Reactants","Products"]) {
       body+=`<div class="subheading">${side}</div>`+(reaction[side]||[]).map((_,j)=>{
         const offset=side==="Reactants"?j:(reaction.Reactants?.length||0)+j;
@@ -232,7 +257,16 @@ function renderReactions() {
         return `<div class="participant-row">${field(describe(j,"Component",null,options),[...path,side])}${field(describe(Array.isArray(reaction.Stoichiometry)?offset:j,"Stoichiometry",1),stoichPath)}${field(describe(j,"Order (optional)",1),[...path,side==="Reactants"?"ForwardOrders":"BackwardOrders"])}<button class="icon-button" data-action="remove-participant" data-index="${i}" data-side="${side}" data-row="${j}" aria-label="Remove participant">✕</button></div>`;
       }).join("")+`<button class="button" data-action="add-participant" data-index="${i}" data-side="${side}">＋ ${side==="Reactants"?"Reactant":"Product"}</button>`;
     }
-    body+=`<div class="subheading">Kinetic constants</div><div class="form-grid">${[describe("forwardRateCoefficient","Forward rate coefficient",1),describe("forwardActivationEnergy","Activation energy [J/mol]",0),describe("equilibriumConstant","Equilibrium constant",1),describe("gibbsFreeEnergy","Gibbs free energy [J/mol]",0)].map(def=>field(def,[...path,"Kinetics"])).join("")}</div>`;
+    const kineticLaws=state.schema.temperatureLaws.reactions;
+    body+=`<div class="subheading">Kinetic constants</div><div class="form-grid">${lawField(describe("ForwardRateCoefficient","Forward rate coefficient k+",1),[...path,"Kinetics"],kineticLaws.ForwardRateCoefficient)}${lawField(describe("EquilibriumConstant","Equilibrium constant K",1),[...path,"Kinetics"],kineticLaws.EquilibriumConstant)}${field(describe("HeatOfReaction","Heat of reaction [J/mol]"),[...path,"Kinetics"])}${field(describe("ReferenceTemperature","Reference temperature [K]"),[...path,"Kinetics"])}</div>`;
+    if(reaction.Style&&reaction.Style!=="GeneralPowerLaw") {
+      // One adsorption constant per component, keyed by its name (matched case-insensitively, as the input reader does).
+      const constants=reaction.Kinetics?.AdsorptionConstants||{};
+      body+=`<div class="subheading">Adsorption constants K<sub>j</sub> [m³/mol]</div><p class="helper">Coverages θ<sub>j</sub> = K<sub>j</sub>c<sub>j</sub> / (1 + Σ K<sub>i</sub>c<sub>i</sub>); leave a component blank if it does not adsorb.</p><div class="form-grid">${config().Components.map(component=>{
+        const key=Object.keys(constants).find(name=>name.toLowerCase()===component.Name.toLowerCase())??component.Name;
+        return lawField({...describe(key,component.Name),description:state.schema.help.AdsorptionConstants},[...path,"Kinetics","AdsorptionConstants"],kineticLaws.AdsorptionConstants);
+      }).join("")}</div>`;
+    }
     return card(`Reaction ${i+1}`,body,"",`<button class="icon-button" data-action="remove-reaction" data-index="${i}" aria-label="Remove reaction ${i+1}">✕</button>`);
   }).join("");
   $("#content").innerHTML=html;
@@ -435,6 +469,10 @@ function renameComponent(oldName,newName) {
     for (const component of bed.Components || []) if (component.Name === oldName) component.Name = newName;
   }
   for (const reaction of config().Reactions || []) for (const side of ["Reactants","Products"]) reaction[side] = reaction[side].map(item => typeof item === "string" && item.toLowerCase() === oldName.toLowerCase() ? newName : item);
+  for (const reaction of config().Reactions || []) {
+    const constants = reaction.Kinetics?.AdsorptionConstants;
+    if (constants) for (const name of Object.keys(constants)) if (name.toLowerCase() === oldName.toLowerCase()) { const value = constants[name]; delete constants[name]; constants[newName] = value; }
+  }
 }
 function initializeReactionArray(path) {
   if (path[0] !== "Reactions") return;
@@ -454,7 +492,7 @@ function changeField(target) {
   let value = target.type === "checkbox" ? target.checked : target.value;
   if(target.tagName === "SELECT" && value === "" && target.dataset.default !== undefined) value=JSON.parse(target.dataset.default);
   if (target.type !== "checkbox" && value === "") {
-    if (typeof path.at(-1) === "number") { target.setCustomValidity("Enter a value for this parameter."); target.reportValidity(); return; }
+    if (typeof path.at(-1) === "number" || path.at(-1) === "Value") { target.setCustomValidity("Enter a value for this parameter."); target.reportValidity(); return; }
     value = undefined;
   } else if (target.type === "number" || (path.at(-1) === "SimulationTime" && value !== "auto") || (path[0] === "Reactions" && ["Reactants","Products"].includes(path[2]))) {
     value = Number(value); if (!Number.isFinite(value)) { target.setCustomValidity("Enter a finite number, or auto for the simulation time."); target.reportValidity(); return; }
@@ -470,18 +508,20 @@ function changeField(target) {
   if (path[0] === "Geometry" && path.at(-1) === "Type" && value === "Monolith") Object.assign(config().Geometry,{ChannelShape:config().Geometry.ChannelShape || "circular",InternalChannelDimension:config().Geometry.InternalChannelDimension || .001,NumberOfChannels:config().Geometry.NumberOfChannels || 10,OuterDiameter:config().Geometry.OuterDiameter || .01});
   if (path.length === 1 && ["ColumnVoidFraction","ParticleDiameter"].includes(path[0]) && config().Geometry?.[path[0]] === previous) setPath(config(),["Geometry",path[0]],value);
   if (path.at(-1) === "CarrierGas" && value) config().Components.forEach((item,i) => { if (i !== path[1]) delete item.CarrierGas; });
+  if (path.at(-1) === "Water" && value) config().Components.forEach((item,i) => { if (i !== path[1]) delete item.Water; });
+  if (path[0] === "WaterSaturationPressureModel" && value !== "Constant") delete config().WaterSaturationPressure;
   if (path[0] === "FluidPhase" && value === "Liquid") { config().Components.forEach(item => delete item.CarrierGas); config().MixturePredictionMethod = "SPI"; }
   if (path[0] === "SimulationType" && value === "SwingAdsorption" && !config().SwingAdsorptionPhases?.length) config().SwingAdsorptionPhases = [{Name:"Adsorption",Duration:1},{Name:"Regeneration",InletPressure:20000,Duration:1}];
-  // The phase durations set the simulated time of a swing run; CVODE chooses its own steps.
+  // The phase durations set the simulated time of a swing run; CVODE and ROS34PW2 choose their own steps.
   if (path[0] === "SimulationType" && value === "SwingAdsorption") delete config().SimulationTime;
-  if (path[0] === "BreakthroughIntegrator" && value === "CVODE") { delete config().TimeStep; delete config().NumberOfInitTimeSteps; }
+  if (path[0] === "BreakthroughIntegrator" && ["CVODE","ROS34PW2"].includes(value)) { delete config().TimeStep; delete config().NumberOfInitTimeSteps; }
   if (path[0] === "SimulationType" && value === "MixturePrediction") Object.assign(config(),{PressureStart:config().PressureStart ?? 1,PressureEnd:config().PressureEnd ?? 1e6,NumberOfPressurePoints:config().NumberOfPressurePoints ?? 100});
   if (path[0] === "SimulationType" && ["Breakthrough","SwingAdsorption"].includes(value)) {
     for(const key of ["Geometry","BoundaryCondition","InletPressure","ColumnEntranceVelocity","ColumnLength","ColumnVoidFraction","ParticleDensity","ParticleDiameter","DynamicViscosity","BreakthroughIntegrator","TimeStep","WriteInterval","NumberOfGridPoints",...(value === "Breakthrough" ? ["SimulationTime"] : [])])
       if(config()[key]===undefined) config()[key]=clone(state.presets.breakthrough[key]);
-    if (config().BreakthroughIntegrator === "CVODE") delete config().TimeStep;
+    if (["CVODE","ROS34PW2"].includes(config().BreakthroughIntegrator)) delete config().TimeStep;
   }
-  if (path[0] === "Reactions" && path.at(-1) === "Style" && value !== "GeneralPowerLaw") config().Reactions[path[1]].Phase = "PoreConcentration";
+  if (path[0] === "Reactions" && path.at(-1) === "Style" && value !== "GeneralPowerLaw" && config().Reactions[path[1]].Phase !== "BulkConcentration") config().Reactions[path[1]].Phase = "PoreConcentration";
   if (path.includes("ColumnSections") || path.at(-1) === "AdsorbentLength") syncLengths();
   scheduleSave(); header(); if (refresh) renderContent();
 }
@@ -577,6 +617,7 @@ async function action(name,button) {
       config().Components.splice(index,1);
       for(const reaction of config().Reactions||[]) for(const side of ["Reactants","Products"]) reaction[side]=(reaction[side]||[]).map(item=>typeof item==="number"&&item>index?item-1:item);
       for(const bed of config().Adsorbents||[]) {if(bed.ComponentParameters) for(const name of Object.keys(bed.ComponentParameters)) if(name.toLowerCase()===old.toLowerCase()) delete bed.ComponentParameters[name];if(bed.Components) bed.Components=bed.Components.filter(item=>item.Name.toLowerCase()!==old.toLowerCase());}
+      for(const reaction of config().Reactions||[]) {const constants=reaction.Kinetics?.AdsorptionConstants;if(constants) for(const name of Object.keys(constants)) if(name.toLowerCase()===old.toLowerCase()) delete constants[name];}
       if(config().pHComponent===index) delete config().pHComponent;else if(config().pHComponent>index) config().pHComponent--;
       render();scheduleSave();break;
     }
@@ -603,7 +644,7 @@ async function action(name,button) {
       if(!input.Adsorbents.length) {delete input.Adsorbents;delete input.ColumnSections;}else syncLengths();
       renderContent();scheduleSave();break;
     }
-    case "add-reaction": (config().Reactions??=[]).push({Phase:"PoreConcentration",Style:"GeneralPowerLaw",Site:0,Reactants:[0],Products:[Math.min(1,config().Components.length-1)],Kinetics:{forwardRateCoefficient:1,forwardActivationEnergy:0,equilibriumConstant:1,gibbsFreeEnergy:0},RateLimitTime:.0001});renderContent();scheduleSave();break;
+    case "add-reaction": (config().Reactions??=[]).push({Phase:"PoreConcentration",Style:"GeneralPowerLaw",Site:0,Reactants:[0],Products:[Math.min(1,config().Components.length-1)],Kinetics:{ForwardRateCoefficient:1,EquilibriumConstant:1},RateLimitTime:.0001});renderContent();scheduleSave();break;
     case "remove-reaction": config().Reactions.splice(index,1);renderContent();scheduleSave();break;
     case "add-participant": {
       const reaction=config().Reactions[index],side=button.dataset.side,used=[...reaction.Reactants,...reaction.Products].map(item=>typeof item==="number"?item:config().Components.findIndex(component=>component.Name.toLowerCase()===item.toLowerCase()));
@@ -762,6 +803,7 @@ document.addEventListener("change",event=>{
   if(target.id==="theme-select") {applyTheme(target.value);return;}
   if(target.id==="experiment-notes") {simulation().notes=target.value;scheduleSave();return;}
   if(target.dataset.path) {try{changeField(target);}catch(error){fail(error);} return;}
+  if(target.dataset.lawPath) {try{changeLaw(target);}catch(error){fail(error);} return;}
   if(target.id==="bed-mode") {arrangeBeds(target.value); render(); scheduleSave();return;}
   if(target.id==="run-selector") {stopPlayback();state.selectedRun=target.value;state.metadata=null;state.plotOptions={};renderContent();return;}
   if(target.id==="upload") {const file=target.files[0];if(file) file.text().then(text=>importWorkspace({document:JSON.parse(text)})).catch(fail);target.value="";return;}

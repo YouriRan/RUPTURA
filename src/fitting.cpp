@@ -19,13 +19,6 @@
 #include "json.h"
 #include "random_numbers.h"
 #include "special_functions.h"
-#if __cplusplus >= 201703L && __has_include(<filesystem>)
-#include <filesystem>
-#elif __cplusplus >= 201703L && __has_include(<experimental/filesystem>)
-#include <experimental/filesystem>
-#else
-#include <sys/stat.h>
-#endif
 
 Fitting::Fitting(const InputReader& inputreader)
     : numberOfComponents(inputreader.components.size()),
@@ -38,6 +31,7 @@ Fitting::Fitting(const InputReader& inputreader)
       columnLoading(inputreader.columnLoading - 1),
       columnError(inputreader.columnError - 1),
       pressureScale(PressureScale(inputreader.pressureScale)),
+      fittingWeighting(FittingWeighting(inputreader.fittingWeighting)),
       geneticAlgorithmSize(static_cast<size_t>(std::pow(2.0, 12.0))),
       geneticAlgorithmMutationRate(1.0 / 3.0),
       geneticAlgorithmEliteRate(0.15),
@@ -138,6 +132,7 @@ void Fitting::readData(size_t ID)
 
   maximumLoading = 0.0;
   rawData.clear();
+  size_t numberOfSkippedPoints{0};
   while (std::getline(fileInput, line))
   {
     std::string trimmedLine = trim(line);
@@ -157,6 +152,11 @@ void Fitting::readData(size_t ID)
           s >> pressure;
           std::istringstream t(results[columnLoading]);
           t >> loading;
+          if (fittingWeighting == FittingWeighting::Relative && !(loading > 0.0))
+          {
+            ++numberOfSkippedPoints;
+            continue;
+          }
           if (loading > maximumLoading)
           {
             maximumLoading = loading;
@@ -167,9 +167,23 @@ void Fitting::readData(size_t ID)
     }
   }
 
+  if (numberOfSkippedPoints > 0)
+  {
+    std::print("Skipped {} data point(s) with zero or negative loading: Relative weighting divides by the loading\n",
+               numberOfSkippedPoints);
+  }
+
   if (rawData.empty())
   {
     throw std::runtime_error("Error: no pressure points found");
+  }
+
+  // the RMSE divides by (number of points - number of parameters)
+  if (rawData.size() <= isotherms[ID].numberOfParameters)
+  {
+    throw std::runtime_error("Error: '" + filename[ID] + "' has " + std::to_string(rawData.size()) +
+                             " usable data points, but fitting needs more points than the " +
+                             std::to_string(isotherms[ID].numberOfParameters) + " isotherm parameters");
   }
 
   // sort the pressures
@@ -179,6 +193,7 @@ void Fitting::readData(size_t ID)
   logPressureRange = std::make_pair(std::log(pressureRange.first), std::log(pressureRange.second));
 
   std::print("Found {} data points\n", rawData.size());
+  std::print("Fitting weighting: {}\n", fittingWeighting == FittingWeighting::Relative ? "Relative" : "Absolute");
   for (const std::pair<double, double>& data : rawData)
   {
     std::print("{} {}\n", data.first, data.second);
@@ -314,7 +329,8 @@ void Fitting::updateCitizen(DNA& citizen) { citizen.fitness = fitness(citizen.ph
 
 double Fitting::fitness(const MultiSiteIsotherm& phenotype)
 // For evaluating isotherm goodness-of-fit:
-// Residual Root Mean Square Error (RMSE)
+// Residual Root Mean Square Error (RMSE), of the loading in mol/kg (Absolute weighting)
+// or of the loading relative to the data (Relative weighting)
 {
   double fitnessValue = phenotype.fitness();
   size_t m = rawData.size();                // number of observations
@@ -323,9 +339,9 @@ double Fitting::fitness(const MultiSiteIsotherm& phenotype)
   {
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
-    double difference = loading - phenotype.value(pressure, 1.0);
+    double difference = loading - phenotype.value(pressure);
     // double weight = 1.0/(1.0+loading);
-    double weight = 1.0;
+    double weight = fittingWeighting == FittingWeighting::Relative ? 1.0 / (loading * loading) : 1.0;
     fitnessValue += weight * difference * difference;
   }
   fitnessValue = sqrt(fitnessValue / static_cast<double>(m - p));
@@ -356,16 +372,16 @@ double Fitting::RCorrelation(const MultiSiteIsotherm& phenotype)
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
     loading_avg_o += loading / static_cast<double>(m);
-    loading_avg_e += phenotype.value(pressure, 1.0) / static_cast<double>(m);
+    loading_avg_e += phenotype.value(pressure) / static_cast<double>(m);
   }
 
   for (std::pair<double, double> dataPoint : rawData)
   {
     double pressure = dataPoint.first;
     double loading = dataPoint.second;
-    tmp1 += (loading - loading_avg_o) * (phenotype.value(pressure, 1.0) - loading_avg_e);
+    tmp1 += (loading - loading_avg_o) * (phenotype.value(pressure) - loading_avg_e);
     tmp2 += (loading - loading_avg_o) * (loading - loading_avg_o);
-    tmp3 += (phenotype.value(pressure, 1.0) - loading_avg_e) * (phenotype.value(pressure, 1.0) - loading_avg_e);
+    tmp3 += (phenotype.value(pressure) - loading_avg_e) * (phenotype.value(pressure) - loading_avg_e);
   }
   RCorrelationValue = tmp1 / sqrt(tmp2 * tmp3);
 
@@ -507,6 +523,7 @@ void Fitting::crossover(size_t ID, size_t s1, size_t s2, size_t i1, size_t i2, s
       // ------------------
       size_t bitStringSize = (sizeof(double) * CHAR_BIT) * isotherms[ID].numberOfParameters;
       size_t rolling_k = k1;
+      children[i].genotype.resize(bitStringSize);
       for (size_t j = 0; j < bitStringSize; j++)
       {
         if (RandomNumber::Uniform() < 0.25)
@@ -520,7 +537,7 @@ void Fitting::crossover(size_t ID, size_t s1, size_t s2, size_t i1, size_t i2, s
             rolling_k = k1;
           }
         }
-        children[i].genotype.substr(j, 1) = parents[rolling_k].genotype.substr(j, 1);
+        children[i].genotype[j] = parents[rolling_k].genotype[j];
       }
       // convert the bit-strings to doubles
       for (size_t j = 0; j < children[i].phenotype.numberOfParameters; ++j)
@@ -579,7 +596,7 @@ void Fitting::mate(size_t ID)
             geneticAlgorithmElitists + static_cast<size_t>(static_cast<double>(geneticAlgorithmMotleists) * 0.5), 0,
             geneticAlgorithmElitists, 0, geneticAlgorithmElitists);
   crossover(ID,
-            geneticAlgorithmElitists + static_cast<size_t>(static_cast<double>(geneticAlgorithmMotleists) * 0.5) + 1,
+            geneticAlgorithmElitists + static_cast<size_t>(static_cast<double>(geneticAlgorithmMotleists) * 0.5),
             geneticAlgorithmSize - geneticAlgorithmElitists, 0, geneticAlgorithmElitists, geneticAlgorithmElitists,
             geneticAlgorithmSize - 1);
 
@@ -614,19 +631,20 @@ void Fitting::sortByFitness() { std::sort(parents.begin(), parents.end(), &DNA_F
 void Fitting::writeCitizen(size_t citizen, size_t id, size_t step, size_t variety, size_t fullfilledCondition)
 {
   char info[256];
+  const double correlation = RCorrelation(parents[citizen].phenotype);
   if (fullfilledCondition > 0)
   {
     snprintf(info, 256,
              "mol: %2ld  step: %5ld  Fitness: %10.6lf R^2: %10.6lf Similarity: %5ld/%-5ld Finishing: %3ld/%-3d\n", id,
-             step, parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety,
-             geneticAlgorithmSize, fullfilledCondition, 100);
+             step, parents[citizen].fitness, correlation * correlation, variety, geneticAlgorithmSize,
+             fullfilledCondition, 100);
   }
   else
   {
     snprintf(info, 256, "mol: %2ld  step: %5ld  Fitness: %10.6lf R^2: %10.6lf Similarity: %5ld/%-5ld\n", id, step,
-             parents[citizen].fitness, pow(RCorrelation(parents[citizen].phenotype), 2), variety, geneticAlgorithmSize);
+             parents[citizen].fitness, correlation * correlation, variety, geneticAlgorithmSize);
   }
-  std::print("{}", info);
+  std::print("{}", std::string_view(info));
   std::print("number of parameters: {}\n", parents[citizen].phenotype.numberOfParameters);
   for (size_t i = 0; i < parents[citizen].phenotype.numberOfParameters; ++i)
   {
@@ -664,35 +682,6 @@ Fitting::DNA Fitting::fit(size_t ID)
 
   // print Initial (and unsorted) population
   writeCitizen(0, ID, 0, 0.0, 0);
-
-  if (refittingFlag)
-  {
-    std::print("Refitting activated\n");
-    for (size_t citizen = 0; citizen < 2; ++citizen)
-    {
-      parents[citizen].genotype.clear();
-      parents[citizen].genotype.reserve((sizeof(double) * CHAR_BIT) * parents[citizen].phenotype.numberOfParameters);
-      for (size_t i = 0; i < parents[citizen].phenotype.numberOfParameters; ++i)
-      {
-        // convert from double to bitset
-        uint64_t p;
-        std::memcpy(&p, &parents[citizen].phenotype.parameters(i), sizeof(double));
-        std::bitset<sizeof(double) * CHAR_BIT> bitset(p);
-
-        // add the bit-string to the genotype representation
-        parents[citizen].genotype += bitset.to_string();
-      }
-      parents[citizen].hash = std::hash<MultiSiteIsotherm>{}(parents[citizen].phenotype);
-      updateCitizen(parents[citizen]);
-    }
-    std::copy(parents.begin(), parents.end(), children.begin());
-
-    mate(ID);
-
-    std::swap(parents, children);
-
-    sortByFitness();
-  }
 
   isotherms[ID] = parents[0].phenotype;
 
@@ -767,7 +756,9 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
   double fc;                                                          // value of function at contraction point
   size_t iprint{0};
   size_t MAX_IT = 1000000;
-  double EPSILON = 1.0e-4;
+  // relative size of the simplex at convergence; near the minimum the RMSE changes with the square of the parameter
+  // change, so parameters are resolved to about sqrt(machine epsilon) ~ 1e-8 at best
+  double EPSILON = 1.0e-8;
   double ALPHA = 1.0;
   double BETA = 0.5;
   double GAMMA = 2.0;
@@ -780,6 +771,8 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
   }
 
   // values used to create initial simplex
+  // the steps are relative to the magnitude of each parameter, because the parameters span many orders of
+  // magnitude (e.g. q_sat ~ 1 mol/kg, b ~ 1e-5 1/Pa); a zero parameter gets an absolute step
   double pn = scale * (std::sqrt(static_cast<double>(n) + 1.0) - 1.0 + static_cast<double>(n)) /
               (static_cast<double>(n) * sqrt(2.0));
   double qn = scale * (std::sqrt(static_cast<double>(n) + 1.0) - 1.0) / (static_cast<double>(n) * sqrt(2.0));
@@ -787,13 +780,15 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
   {
     for (size_t j = 0; j < n; ++j)
     {
+      const double parameter = citizen.phenotype.parameters(j);
+      const double magnitude = parameter != 0.0 ? std::abs(parameter) : 1.0;
       if (i - 1 == j)
       {
-        v[i][j] = pn + citizen.phenotype.parameters(j);
+        v[i][j] = parameter + pn * magnitude;
       }
       else
       {
-        v[i][j] = qn + citizen.phenotype.parameters(j);
+        v[i][j] = parameter + qn * magnitude;
       }
     }
   }
@@ -938,38 +933,44 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
             }
           }
         }
-        for (size_t m = 0; m < n; ++m)
+        for (size_t row = 0; row <= n; ++row)
         {
-          vtmp[m] = v[vg][m];
-          citizen.phenotype.parameters(m) = vtmp[m];
+          if (row != vs)
+          {
+            for (size_t m = 0; m < n; ++m)
+            {
+              vtmp[m] = v[row][m];
+              citizen.phenotype.parameters(m) = vtmp[m];
+            }
+            f[row] = fitness(citizen.phenotype);
+          }
         }
-        f[vg] = fitness(citizen.phenotype);
-
-        for (size_t m = 0; m < n; ++m)
-        {
-          vtmp[m] = v[vh][m];
-          citizen.phenotype.parameters(m) = vtmp[m];
-        }
-        f[vh] = fitness(citizen.phenotype);
       }
     }
 
-    // Step 6: Test for convergence
+    // Step 6: Test for convergence: every vertex lies within a relative distance EPSILON
+    // of the best vertex, in every parameter
     // ====================================================================
-    double fsum = 0.0;
-    for (size_t j = 0; j <= n; ++j)
+    vs = static_cast<size_t>(std::distance(f.begin(), std::min_element(f.begin(), f.end())));
+    bool simplexConverged = true;
+    for (size_t i = 0; i <= n; ++i)
     {
-      fsum = fsum + f[j];
+      for (size_t j = 0; j < n; ++j)
+      {
+        if (std::abs(v[i][j] - v[vs][j]) > EPSILON * std::abs(v[vs][j]))
+        {
+          simplexConverged = false;
+        }
+      }
     }
-    double favg = fsum / (static_cast<double>(n) + 1.0);
 
-    if (favg < EPSILON || itr == MAX_IT)
+    if (simplexConverged || itr == MAX_IT)
     {
       // print out the value at each iteration
 
-      if (itr != MAX_IT)
+      if (simplexConverged)
       {
-        std::print("Nelder-Mead has converged: {} < {}\n\n", favg, EPSILON);
+        std::print("Nelder-Mead has converged after {} steps: relative simplex size < {}\n\n", itr, EPSILON);
       }
       else
       {
@@ -990,7 +991,8 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
       {
         std::print("{} ", v[vs][j]);
       }
-      std::print("Fit: {} R2: {}\n\n", min, pow(RCorrelation(citizen.phenotype), 2));
+      const double correlation = RCorrelation(citizen.phenotype);
+      std::print("Fit: {} R2: {}\n\n", min, correlation * correlation);
 
       return citizen;
     }

@@ -96,7 +96,7 @@ class JsonIsothermSite:
             temp2 = 1.0 + temp1
             return parameters[0] * (
                 temp1 / temp2
-                + parameters[2] * parameters[2] * temp1 * (1.0 - temp1) / (temp2 * temp2 * temp2)
+                + 0.5 * parameters[2] * parameters[2] * temp1 * (1.0 - temp1) / (temp2 * temp2 * temp2)
             )
 
         if type_key == "quadratic":

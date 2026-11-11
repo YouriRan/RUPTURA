@@ -5,6 +5,7 @@
 #include <string>
 
 #include "isotherm.h"
+#include "temperature_law.h"
 
 struct Chemisorption
 {
@@ -19,18 +20,17 @@ struct Chemisorption
   };
 
   Type type{Type::None};
-  double rateCoefficient{0.0};
+  // The rate coefficients may depend on temperature (Arrhenius laws); rate() evaluates them at its temperature.
+  TemperatureLaw rateCoefficient{0.0};  ///< FirstOrder, PseudoNth, and Avrami rate coefficient k.
   double order{1.0};
   double maximumLoading{0.0};
-  double heatOfChemisorption{0.0};
-  double adsorptionRateCoefficient{0.0};
-  double adsorptionActivationEnergy{0.0};
-  double desorptionRateCoefficient{0.0};
-  double desorptionActivationEnergy{0.0};
+  double heatOfChemisorption{0.0};  ///< Heat released per mole chemisorbed on this site, in J/mol.
+  TemperatureLaw adsorptionRateCoefficient{0.0};  ///< General adsorption coefficient k+.
+  TemperatureLaw desorptionRateCoefficient{0.0};  ///< General desorption coefficient k-.
   size_t poreConcentrationOrder{1};
   size_t capacityOrder{1};
   size_t desorptionOrder{1};
-  double elovichAlpha{0.0};
+  TemperatureLaw elovichAlpha{0.0};  ///< Elovich alpha in m^3/(kg s).
   double elovichBeta{0.0};
   // Optional coverage-dependent desorption for FirstOrder (Stadler et al., Front. Chem. Eng. 4 (2022) 1000064,
   // Eqs. 7-10): when q > q*, the coefficient is k_des = k1 exp(beta (q/q_ref)/(R T)) instead of rateCoefficient.
@@ -43,7 +43,7 @@ struct Chemisorption
   std::optional<Isotherm> isotherm{std::nullopt};
 
   [[nodiscard]] double rate(double equilibriumLoading, double loading, double concentration = 0.0,
-                            double temperature = 298.15, double elapsedTime = 0.0) const;
+                            double temperature = 298.15) const;
   [[nodiscard]] bool enabled() const noexcept { return type != Type::None; }
   [[nodiscard]] bool usesEquilibriumLoading() const noexcept
   {

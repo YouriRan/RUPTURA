@@ -53,7 +53,7 @@ class TemperatureUnitSpec:
 class BreakthroughYSpec:
     title: str
     mode: str
-    component_col_0based: Optional[int]
+    component_col_0based: int
     hover_label: str
     normalized: bool = False
 
@@ -88,12 +88,6 @@ COLUMN_METRICS: Dict[str, MetricSpec] = {
 COMPONENT_METRICS: Dict[str, MetricSpec] = {
     "C": MetricSpec("Concentration, c<sub>i</sub> [mol/m³]", "component", 3, "Concentration, c_i [mol/m^3]"),
     "Cdot": MetricSpec(
-        "Concentration derivative, dc<sub>i</sub>/dt [mol/m³/s]",
-        "component",
-        4,
-        "Concentration time derivative, dc_i/dt [mol/m^3/s]",
-    ),
-    "Dcdt": MetricSpec(
         "Concentration derivative, dc<sub>i</sub>/dt [mol/m³/s]",
         "component",
         4,
@@ -469,55 +463,6 @@ class BreakthroughPlotly(BasePlotly):
         info = self._metric_info(metric)
         return int(info["col_0based"])
 
-    def _resolve_grid_index(self, block: np.ndarray, grid_index: Optional[int]) -> int:
-        ngrid_local = block.shape[0]
-        if grid_index is None:
-            return ngrid_local // 2
-
-        idx = grid_index if grid_index >= 0 else ngrid_local + grid_index
-        if idx < 0 or idx >= ngrid_local:
-            raise IndexError(f"grid_index {grid_index} out of range for block with {ngrid_local} grid points")
-        return idx
-
-    def _rows_at_grid(
-        self,
-        blocks: List[np.ndarray],
-        grid_index: Optional[int],
-        fileName: Union[str, Path],
-        min_columns: int,
-    ) -> np.ndarray:
-        if len(blocks) == 0:
-            raise ValueError(f"No blocks found in {fileName}")
-
-        blocks_with_columns = [
-            (block_index, block)
-            for block_index, block in enumerate(blocks)
-            if block.shape[1] >= min_columns
-        ]
-        if len(blocks_with_columns) == 0:
-            column_counts = ", ".join(str(block.shape[1]) for block in blocks)
-            raise ValueError(
-                f"No complete blocks found in {fileName}; expected at least {min_columns} columns "
-                f"but found column counts: {column_counts}"
-            )
-
-        row_counts = {}
-        for _, block in blocks_with_columns:
-            row_counts[block.shape[0]] = row_counts.get(block.shape[0], 0) + 1
-        expected_rows = max(row_counts, key=lambda count: (row_counts[count], count))
-
-        rows = []
-        for _, block in blocks_with_columns:
-            if block.shape[0] != expected_rows:
-                continue
-            idx = self._resolve_grid_index(block, grid_index)
-            rows.append(block[idx, :])
-
-        if len(rows) == 0:
-            raise ValueError(f"No complete blocks found in {fileName}")
-
-        return np.asarray(rows, dtype=float)
-
     def _breakthrough_component_data(
         self,
         fileName: Union[str, Path],
@@ -548,30 +493,8 @@ class BreakthroughPlotly(BasePlotly):
         spec = BREAKTHROUGH_X_SPECS[x_units]
         return data[:, spec.col_0based].astype(float) * spec.scale
 
-    def _y_values(
-        self,
-        data: np.ndarray,
-        y_units: str,
-        column_data: Optional[np.ndarray],
-    ) -> np.ndarray:
-        spec = BREAKTHROUGH_Y_SPECS[y_units]
-        if spec.component_col_0based is not None:
-            return data[:, spec.component_col_0based].astype(float)
-
-        if y_units != "molefraction":
-            raise ValueError(f"Unsupported derived breakthrough y-axis '{y_units}'")
-        if column_data is None:
-            raise ValueError("column.data is required to calculate mole fractions")
-        if column_data.shape[0] != data.shape[0]:
-            raise ValueError(
-                "Cannot calculate mole fraction: component and column files have different block counts "
-                f"({data.shape[0]} vs {column_data.shape[0]})"
-            )
-
-        p_i = data[:, COMPONENT_METRICS["P"].col_0based].astype(float)
-        p_t = column_data[:, COLUMN_METRICS["Pt"].col_0based].astype(float)
-        with np.errstate(divide="ignore", invalid="ignore"):
-            return np.where(p_t != 0.0, p_i / p_t, np.nan)
+    def _y_values(self, data: np.ndarray, y_units: str) -> np.ndarray:
+        return data[:, BREAKTHROUGH_Y_SPECS[y_units].component_col_0based].astype(float)
 
     def _temperature_values(self, values: np.ndarray, y_units: str) -> np.ndarray:
         spec = TEMPERATURE_Y_SPECS[y_units]
@@ -612,8 +535,6 @@ class BreakthroughPlotly(BasePlotly):
         x_spec = BREAKTHROUGH_X_SPECS[x_key]
         y_spec = BREAKTHROUGH_Y_SPECS[y_key]
 
-        column_data = None
-
         fig = go.Figure()
         x_values: List[np.ndarray] = []
         y_values: List[np.ndarray] = []
@@ -627,7 +548,7 @@ class BreakthroughPlotly(BasePlotly):
             data = self._breakthrough_component_data(fileName, grid_index=grid_index, max_points=max_points)
 
             x = self._x_values(data, x_key)
-            y = self._y_values(data, y_key, column_data)
+            y = self._y_values(data, y_key)
             x_values.append(x)
             y_values.append(y)
 
@@ -809,16 +730,23 @@ class BreakthroughPlotly(BasePlotly):
         metric: str,
         every: int = 1,
         show_markers: bool = True,
+        *,
+        block_cache: Optional[Dict[Union[str, Path], List[np.ndarray]]] = None,
     ) -> go.Figure:
+        # block_cache maps data files to their parsed blocks, so that several animations parse each file once.
         info = self._metric_info(metric)
         ylabel = str(info["ylabel"])
         source = str(info["source"])
         col = int(info["col_0based"])
         every = max(1, int(every))
         fig = go.Figure()
+        if block_cache is None:
+            block_cache = {}
 
         if source == "column":
-            blocks = self._read_column_data("column.data")
+            if "column.data" not in block_cache:
+                block_cache["column.data"] = self._read_column_data("column.data")
+            blocks = block_cache["column.data"]
             if len(blocks) == 0:
                 raise ValueError("No blocks found in column.data")
 
@@ -852,7 +780,9 @@ class BreakthroughPlotly(BasePlotly):
             nframes: Optional[int] = None
             for comp in self.components:
                 fileName = self._component_file_name(comp.index, comp.name)
-                blocks = self._read_component_blocks(fileName)
+                if fileName not in block_cache:
+                    block_cache[fileName] = self._read_component_blocks(fileName)
+                blocks = block_cache[fileName]
                 comp_blocks[comp.index] = blocks
                 if nframes is None:
                     nframes = len(blocks)
@@ -972,7 +902,11 @@ class BreakthroughPlotly(BasePlotly):
         return fig
 
     def all_column_figures(self, every: int = 1, show_markers: bool = True) -> Dict[str, go.Figure]:
-        return {metric: self.column_animation(metric, every=every, show_markers=show_markers) for metric in METRIC_SPECS}
+        block_cache: Dict[Union[str, Path], List[np.ndarray]] = {}
+        return {
+            metric: self.column_animation(metric, every=every, show_markers=show_markers, block_cache=block_cache)
+            for metric in METRIC_SPECS
+        }
 
     def explorer(
         self,
@@ -988,7 +922,9 @@ class BreakthroughPlotly(BasePlotly):
         return ColumnDataExplorer(
             data_dir=self.data_dir,
             components=self.components,
-            component_file_names={comp.index: self._component_file_name(comp.index, comp.name) for comp in self.components},
+            component_file_names={
+                comp.index: self._component_file_name(comp.index, comp.name).name for comp in self.components
+            },
             column_file=column_file,
             dt=dt,
             time0=time0,
@@ -996,10 +932,6 @@ class BreakthroughPlotly(BasePlotly):
             carrierGasComponent=self.carrierGasComponent,
             show_markers=show_markers,
         )
-
-    def dt_guess(self, dt: Optional[float]) -> Optional[float]:
-        return dt
-
 
 class ColumnDataExplorer:
     """

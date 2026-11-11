@@ -78,6 +78,70 @@ void computePhysisorptionEquilibriumLoadings(
   }
 }
 
+void computePhysisorptionEquilibriumSensitivities(
+    std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
+    size_t numberOfAdsorbents, std::span<const double> fractionOfAdsorbent, const std::vector<bool>& hasAdsorbentOfType,
+    size_t maxIsothermTerms, std::span<double> idealGasMolFractions, std::span<double> mixtureSensitivity,
+    std::span<const double> totalPressure, std::span<const double> cachedPressure, std::span<const double> moleFraction,
+    std::span<const double> gasTemperature, MixturePrediction::DrivingForceInput input,
+    std::span<const double> concentration, std::span<const double> pH,
+    std::span<double> equilibriumPhysisorptionSensitivity)
+{
+  const size_t blockSize = numberOfComponents * numberOfComponents;
+  const bool gas = input == MixturePrediction::DrivingForceInput::MoleFraction;
+  std::fill(equilibriumPhysisorptionSensitivity.begin(), equilibriumPhysisorptionSensitivity.end(), 0.0);
+
+  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+  {
+    // the driving forces of computePhysisorptionEquilibriumLoadings
+    double sum = 0.0;
+    double totalConcentration = 0.0;
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      idealGasMolFractions[comp] = std::max(
+          0.0, gas ? moleFraction[grid * numberOfComponents + comp] : concentration[grid * numberOfComponents + comp]);
+      sum += idealGasMolFractions[comp];
+      totalConcentration += std::max(0.0, concentration[grid * numberOfComponents + comp]);
+    }
+    for (size_t comp = 0; gas && comp < numberOfComponents; ++comp)
+    {
+      idealGasMolFractions[comp] =
+          sum > 0.0 ? idealGasMolFractions[comp] / sum : 1.0 / static_cast<double>(numberOfComponents);
+    }
+    // dp_j/dc_l = (P / C)(delta_jl - y_j) for gas; zero when the node holds no gas.
+    const double pressurePerConcentration =
+        gas && sum > 0.0 && totalConcentration > 0.0 ? totalPressure[grid] / totalConcentration : 0.0;
+
+    std::span<double> block = equilibriumPhysisorptionSensitivity.subspan(grid * blockSize, blockSize);
+    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+    {
+      if (!hasAdsorbentOfType[grid * numberOfAdsorbents + ads]) continue;
+
+      physisorptionMixtures[ads].predictMixtureSensitivities(
+          idealGasMolFractions, gas ? totalPressure[grid] : 1.0,
+          cachedPressure.subspan((grid * numberOfAdsorbents + ads) * numberOfComponents * maxIsothermTerms,
+                                 numberOfComponents * maxIsothermTerms),
+          gasTemperature[grid], pH[grid], mixtureSensitivity);
+
+      const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
+      for (size_t i = 0; i < numberOfComponents; ++i)
+      {
+        double compositionSlope = 0.0;
+        for (size_t j = 0; j < numberOfComponents; ++j)
+        {
+          compositionSlope += mixtureSensitivity[i + j * numberOfComponents] * idealGasMolFractions[j];
+        }
+        for (size_t l = 0; l < numberOfComponents; ++l)
+        {
+          const double slope = mixtureSensitivity[i + l * numberOfComponents];
+          block[i + l * numberOfComponents] +=
+              fraction * (gas ? pressurePerConcentration * (slope - compositionSlope) : slope);
+        }
+      }
+    }
+  }
+}
+
 void computeChemisorptionEquilibriumLoadings(
     std::vector<MixturePrediction>& chemisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
     size_t numberOfAdsorbents, std::span<const double> fractionOfAdsorbent, const std::vector<bool>& hasAdsorbentOfType,
@@ -140,34 +204,14 @@ void computeChemisorptionEquilibriumLoadings(
   }
 }
 
-void computePhysisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
-                          size_t numberOfComponents, size_t numberOfAdsorbents,
-                          std::span<const double> fractionOfAdsorbent, std::span<const double> equilibriumPhysisorption,
-                          std::span<const double> physisorption, std::span<double> physisorptionDot)
+void computePhysisorption(size_t numberOfGridPoints, size_t numberOfComponents,
+                          std::span<const double> massTransferCoefficient,
+                          std::span<const double> equilibriumPhysisorption, std::span<const double> physisorption,
+                          std::span<double> physisorptionDot)
 {
-  std::vector<double> coefficients(numberOfAdsorbents * numberOfComponents);
-  for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+  for (size_t index = 0; index < (numberOfGridPoints + 1) * numberOfComponents; ++index)
   {
-    for (size_t comp = 0; comp < numberOfComponents; ++comp)
-    {
-      coefficients[ads * numberOfComponents + comp] = physisorptionMixtures[ads].components[comp].massTransferCoefficient;
-    }
-  }
-
-  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
-  {
-    for (size_t comp = 0; comp < numberOfComponents; ++comp)
-    {
-      double massTransferCoefficient = 0.0;
-      for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
-      {
-        massTransferCoefficient +=
-            fractionOfAdsorbent[grid * numberOfAdsorbents + ads] * coefficients[ads * numberOfComponents + comp];
-      }
-
-      const size_t index = grid * numberOfComponents + comp;
-      physisorptionDot[index] = massTransferCoefficient * (equilibriumPhysisorption[index] - physisorption[index]);
-    }
+    physisorptionDot[index] = massTransferCoefficient[index] * (equilibriumPhysisorption[index] - physisorption[index]);
   }
 }
 
@@ -187,7 +231,7 @@ std::vector<size_t> chemisorptionSitesPerComponent(const std::vector<MixturePred
 
 void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
                           size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
-                          double externalTemperature, double elapsedTime, std::span<const double> fractionOfAdsorbent,
+                          double externalTemperature, std::span<const double> fractionOfAdsorbent,
                           std::span<const double> particleDensities,
                           std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
                           std::span<const double> chemisorption, std::span<double> chemisorptionDot,
@@ -232,8 +276,8 @@ void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMix
           {
             equilibriumLoading = std::min(equilibriumLoading, kinetics.maximumLoading);
           }
-          double rate = kinetics.rate(equilibriumLoading, spanChemisorption[site, grid, comp], drivingConcentration,
-                                      temperature, elapsedTime);
+          double rate =
+              kinetics.rate(equilibriumLoading, spanChemisorption[site, grid, comp], drivingConcentration, temperature);
           if (kinetics.usesSurfacePoreTransport())
           {
             // Pore-reservoir concentration removed per unit chemisorbed loading: the reservoir holds the solid

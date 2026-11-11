@@ -51,32 +51,28 @@ std::string Component::repr() const
   std::string s;
   auto out = std::back_inserter(s);
 
-  auto appendThermalScaling = [&]()
+  // The temperature laws of the isotherm parameters are printed with the isotherm sites.
+  auto appendHeatOfAdsorption = [&]()
   {
-    if (!nonIsothermal) return;
+    if (heatOfAdsorption == 0.0) return;
 
-    std::format_to(out, "    temperature scaling:      {}\n",
-                   referenceTemperature.has_value() ? "exp((beta - beta_ref) H)" : "exp(beta H)");
-    std::format_to(out, "        H:       {:8.4e} [J/mol]\n", heatOfAdsorption);
-    if (referenceTemperature.has_value())
-    {
-      std::format_to(out, "        T_ref:   {:8.4e} [K]\n", referenceTemperature.value());
-    }
+    std::format_to(out, "    heat of adsorption:       {:8.4e} [J/mol]\n", heatOfAdsorption);
   };
 
   s += "Component id: " + std::to_string(id) + " [" + name + "]:\n";
   if (isCarrierGas)
   {
     s += "    carrier-gas\n";
-    appendThermalScaling();
+    appendHeatOfAdsorption();
     s += isotherm.repr();
   }
   s += "    mol-fraction in the gas:   " + std::to_string(initialGasMoleFraction) + " [-]\n";
   if (!isCarrierGas)
   {
+    if (isWater) s += "    water (sets the relative humidity)\n";
     s += "    mas-transfer coefficient: " + std::to_string(massTransferCoefficient) + " [1/s]\n";
     s += "    diffusion coefficient:     " + std::to_string(axialDispersionCoefficient) + " [m^2/s]\n";
-    appendThermalScaling();
+    appendHeatOfAdsorption();
     s += isotherm.repr();
   }
   if (chemisorption.enabled())

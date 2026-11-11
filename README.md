@@ -298,8 +298,11 @@ See the cited article.
 Simulated time and output are set in seconds: `SimulationTime` (a time, or
 `"auto"` to stop 10% after the breakthrough or reaction steady state is
 reached) and `WriteInterval` (one column profile and progress line every so
-many seconds). `TimeStep` is the fixed step of `RungeKutta3` and `SIRK3`;
-`CVODE` chooses its own steps and rejects `TimeStep`. The step-based keys of
+many seconds). `TimeStep` is the fixed step of `RungeKutta3`; `CVODE` and
+`ROS34PW2` (an adaptive Rosenbrock-W method with the analytical sorption
+Jacobian, controlled by `ROS34PW2RelativeTolerance` and the
+`ROS34PW2AbsoluteTolerance...` keys) choose their own steps and reject
+`TimeStep`. The step-based keys of
 RUPTURA 2 (`NumberOfTimeSteps`, `WriteEvery`, `PrintEvery`) are rejected with
 the equivalent times; `python convert.py simulation.json` converts a file in
 place and keeps the original as `_legacy_simulation.json`.
@@ -318,6 +321,117 @@ override temperature, inlet pressure, or both:
 Swing adsorption inputs must use `SwingAdsorptionPhases`; array-based phase
 definitions are not supported in this release. See
 `examples/BEA-alkanes-C7/psa` and `examples/BEA-alkanes-C7/tsa`.
+
+A phase can close one end of the column and ramp the pressure, which gives the
+pressurization and blowdown steps of a PSA cycle (`examples/PSA-H2-activated-carbon`):
+
+```json
+"SwingAdsorptionPhases": [
+  {"Name": "Pressurization", "ClosedEnd": "ProductEnd", "InletPressure": 1.0e6, "Duration": 30.0,
+   "PressureRamp": {"Shape": "Exponential", "TimeConstant": 5.0}},
+  {"Name": "Adsorption", "InletPressure": 1.0e6, "ColumnEntranceVelocity": 0.03, "Duration": 60.0},
+  {"Name": "Blowdown", "ClosedEnd": "ProductEnd", "InletPressure": 1.0e5, "Duration": 30.0,
+   "PressureRamp": {"Shape": "Exponential", "TimeConstant": 5.0}},
+  {"Name": "Purge", "InletPressure": 1.0e5, "ColumnEntranceVelocity": 0.1, "FlowDirection": "Reverse",
+   "GasPhaseMolFractions": {"H2": 1.0}, "Duration": 60.0}
+]
+```
+
+- `ClosedEnd` is `FeedEnd` (z = 0) or `ProductEnd` (z = L). The velocity is zero there, and
+  the other end is open at the phase `InletPressure`. Gas leaves through the open end, or
+  enters there with the phase `GasPhaseMolFractions`, as the pressure and the uptake
+  require. It takes the place of `FlowDirection` and `ColumnEntranceVelocity`, and needs
+  `BoundaryCondition` `InletPressureInletVelocity` and the Danckwerts inlet.
+- `PressureRamp` takes the inlet pressure (at the open end of a closed-end phase) from the
+  pressure at that end at the end of the previous phase, P₀, to the phase `InletPressure`:
+  `Exponential` follows P(t) = P + (P₀ − P) exp(−t/`TimeConstant`), and `Linear` reaches P
+  after `TimeConstant` and stays there. It needs `InletPressureInletVelocity`. The whole
+  column follows the ramp, with the accumulation c dP/dt / P in the continuity closure and,
+  with the energy balance, the pressure work (dP/dt)/(ρ c_p) in the gas. The time derivative
+  of the pressure drop is left out, so that the pressure drop must stay small against the
+  lowest pressure.
+- The gas takes the pressure profile of a new phase at its composition,
+  c_i ← c_i P/(R T Σc), after a pressure step without a ramp, a temperature step without
+  the energy balance, and when the end where the pressure is set changes (a reverse phase
+  after a forward one, or the other way), which moves the profile by the pressure drop. This
+  holds for `InletPressureInletVelocity` and `InletPressureOutletPressure`; `FixedVelocity`
+  and `FixedPressureInletVelocity` let the feed displace the gas, and
+  `InletVelocityOutletPressure` does not follow the phase pressure. A large pressure step can
+  stop the run with a negative outlet pressure, when what desorbs at once cannot leave
+  through the bed at the new pressure; a `PressureRamp` or a `ClosedEnd` then avoids it.
+- `phases.data` holds, per phase, the start and end time, the pressures at both ends, the
+  largest |R T Σc/P − 1| at the end, and the gas and adsorbed amount of each component at
+  the start and end, per unit column cross-section in mol/m². What entered minus what left
+  in a phase is the change of these amounts, which gives product purity and recovery
+  without integrating the outlet. In Python, `SwingAdsorption.phase_records` holds the same
+  after `run()`.
+- ROS34PW2 and CVODE both hold Σc at P/(R T) over many cycles; ROS34PW2 is usually several
+  times faster. Its stage matrix leaves out the continuity closure, so that with
+  `InletPressureInletVelocity` and `InletVelocityOutletPressure` it is projected on the
+  closure: the stages change Σc of a cell as the right-hand side does. In the T15
+  temperature-swing cycles of the paper (30 cycles of 2 × 1000 s), max |R T Σc/P − 1| stays
+  below 1e-4.
+
+Temperature-dependent parameters
+--------------------------------
+
+A temperature-dependent parameter is written as a temperature law in place of
+its number, wherever the input reader accepts one:
+
+```json
+{"Name": "CO2", "HeatOfAdsorption": 24860.0, "ReferenceTemperature": 318.0,
+ "PhysisorptionSites": [{"Type": "Sips", "Parameters": [
+     {"Value": 12.45, "Law": "Exponential", "Chi": 0.4},
+     {"Value": 4.39e-7, "Law": "VantHoff"},
+     1.36]}]}
+```
+
+`Value` is the parameter at the reference temperature `T_ref`, and the
+coefficient key belongs to the law:
+
+| Law | p(T) | Coefficient |
+|---|---|---|
+| `VantHoff` | V exp[Q/R (1/T − 1/T_ref)] | `Energy` Q [J/mol] |
+| `Arrhenius` | V exp[−E/R (1/T − 1/T_ref)] | `ActivationEnergy` E [J/mol] |
+| `Exponential` | V exp[χ (1 − T/T_ref)] | `Chi` χ [-] |
+| `Linear` | V + a (T − T_ref) | `Slope` a [unit of V per K] |
+| `Inverse` | V + α (1 − T_ref/T) | `Alpha` α [unit of V] |
+
+A law without its own `ReferenceTemperature` takes that of its component (or,
+for a reaction, of `Kinetics`). Without any, `VantHoff` and `Arrhenius` are
+uncentred, V exp[Q/(RT)] and V exp[−E/(RT)]; the other laws need one.
+
+Only some parameters accept a law, and each only the laws of its kind:
+
+- saturation capacities (Langmuir, pH-Langmuir, Sips, Langmuir-Freundlich,
+  Toth, GAB): `Exponential`, `Linear`;
+- the affinity of Henry, Freundlich, Langmuir, pH-Langmuir, Sips,
+  Langmuir-Freundlich, and Toth: `VantHoff`;
+- heterogeneity exponents (Freundlich, Sips, Langmuir-Freundlich, Toth,
+  Redlich-Peterson): `Linear`, `Inverse`;
+- the two Redlich-Peterson affinities and the GAB C and K: `VantHoff` with an
+  `Energy`;
+- chemisorption rate coefficients (`MassTransferCoefficient`, `RateCoefficient`,
+  `AdsorptionRateCoefficient`, `DesorptionRateCoefficient`, `Alpha`) and a
+  reaction's `ForwardRateCoefficient`: `Arrhenius`;
+- a reaction's `EquilibriumConstant`: `VantHoff`;
+- the LH/LHHW `AdsorptionConstants` of a reaction (one per component name):
+  `VantHoff` with an `Energy`.
+
+The affinity and the heat of adsorption are linked. A `VantHoff` affinity
+without `Energy` takes the component's `HeatOfAdsorption`. Without a
+`HeatOfAdsorption`, the heat released in the energy balance is the `Energy`
+of the affinity laws, which must then agree. A given `HeatOfAdsorption` is
+always the energy-balance heat, and a law with its own `Energy` keeps it. A
+chemisorption site uses its own `HeatOfAdsorption`, else the `Energy` of its
+affinity law, else the component's. Reactions link `HeatOfReaction` (positive
+when exothermic) and a `VantHoff` `EquilibriumConstant` in the same way.
+
+The keys these laws replaced (`nonIsothermal`, the five-parameter GAB, the
+`ActivationEnergy` keys of General chemisorption and reactions, and the
+reaction `gibbsFreeEnergy`) are rejected with their replacement. `python
+convert.py simulation.json` converts a file in place; the original is kept as
+`_legacy_simulation.json`, or `_legacy_2_simulation.json` if that exists.
 
 Liquid breakthrough and pH-dependent adsorption
 ------------------------------------------------
@@ -487,6 +601,23 @@ result = ruptura.run("simulation.json")
 All bound C++ objects, such as `InputReader`, `Component`, `Isotherm`,
 `MixturePrediction`, `Column`, `Breakthrough`, `Fitting`, and
 `SwingAdsorption`, are available from the top-level `ruptura` namespace.
+
+`ruptura.selfdriving` (needs scipy: `pip install "ruptura[selfdriving]"`) uses
+the interface for a closed-loop optimization in the manner of a self-driving
+lab: `PressureSwingCycle` runs a pressure-swing cycle with product backfill to
+its cyclic steady state and reads purity, recovery, and productivity from
+`SwingAdsorption.phase_records`, and `Campaign` proposes batches by Bayesian
+optimization, runs them in parallel processes, and keeps a lab notebook:
+
+```python
+from ruptura.selfdriving import Campaign, PressureSwingCycle
+
+cycle = PressureSwingCycle("simulation.json", product="H2", purity_target=0.999)
+Campaign(cycle, "campaign", rounds=15, batch_size=8, workers=8).run()
+```
+
+`examples/Self-driving-lab-H2-PSA/analysis.ipynb` runs and analyzes such a
+campaign for H2 from the T15 feed on activated carbon.
 
 A released version can also be installed from an index, without a source
 checkout:

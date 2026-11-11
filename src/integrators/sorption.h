@@ -21,6 +21,23 @@ void computePhysisorptionEquilibriumLoadings(
     std::span<const double> pH);
 
 /**
+ * \brief Computes the derivatives dq*_i/dc_l of the bed-weighted physisorption equilibrium at every node.
+ *
+ * Uses the hypothetical pressures of the last computePhysisorptionEquilibriumLoadings call (see
+ * MixturePrediction::predictMixtureSensitivities). Gas: p_j = y_j P with y_j = c_j / C, C = sum_k c_k, at a frozen
+ * total pressure P, so dp_j/dc_l = (P / C)(delta_jl - y_j); liquid: p_j = c_j. Output, column-major per node:
+ * equilibriumPhysisorptionSensitivity[(grid * N + l) * N + i] = dq*_i/dc_l, with N the number of components.
+ */
+void computePhysisorptionEquilibriumSensitivities(
+    std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
+    size_t numberOfAdsorbents, std::span<const double> fractionOfAdsorbent, const std::vector<bool>& hasAdsorbentOfType,
+    size_t maxIsothermTerms, std::span<double> idealGasMolFractions, std::span<double> mixtureSensitivity,
+    std::span<const double> totalPressure, std::span<const double> cachedPressure,
+    std::span<const double> moleFraction, std::span<const double> gasTemperature,
+    MixturePrediction::DrivingForceInput input, std::span<const double> concentration, std::span<const double> pH,
+    std::span<double> equilibriumPhysisorptionSensitivity);
+
+/**
  * \brief Computes per-bed chemisorption equilibrium and blends interface loadings.
  */
 void computeChemisorptionEquilibriumLoadings(
@@ -36,10 +53,10 @@ void computeChemisorptionEquilibriumLoadings(
 /**
  * \brief Computes linear-driving-force physisorption derivatives.
  */
-void computePhysisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
-                          size_t numberOfComponents, size_t numberOfAdsorbents,
-                          std::span<const double> fractionOfAdsorbent, std::span<const double> equilibriumPhysisorption,
-                          std::span<const double> physisorption, std::span<double> physisorptionDot);
+void computePhysisorption(size_t numberOfGridPoints, size_t numberOfComponents,
+                          std::span<const double> massTransferCoefficient,
+                          std::span<const double> equilibriumPhysisorption, std::span<const double> physisorption,
+                          std::span<double> physisorptionDot);
 
 /**
  * \brief Largest chemisorption site count of each component over the adsorbents.
@@ -52,7 +69,7 @@ std::vector<size_t> chemisorptionSitesPerComponent(const std::vector<MixturePred
  */
 void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
                           size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
-                          double externalTemperature, double elapsedTime, std::span<const double> fractionOfAdsorbent,
+                          double externalTemperature, std::span<const double> fractionOfAdsorbent,
                           std::span<const double> particleDensities,
                           std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
                           std::span<const double> chemisorption, std::span<double> chemisorptionDot,

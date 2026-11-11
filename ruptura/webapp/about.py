@@ -65,7 +65,7 @@ ABOUT = {
 }
 
 
-ABOUT["licenseText"] = Path(__file__).with_name("LICENSE.txt").read_text()
+ABOUT["licenseText"] = Path(__file__).with_name("LICENSE.txt").read_text(encoding="utf-8")
 
 
 def example_notes(experiment):

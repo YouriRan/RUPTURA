@@ -31,6 +31,8 @@ struct ParameterDefinition
   double defaultValue{0.0};
   bool integer{false};
   bool boolean{false};
+  unsigned temperatureLaws{0};  ///< Mask (TemperatureLaw::mask) of the laws the value accepts; 0: a number only.
+  bool heatLinked{false};       ///< A VantHoff law without Energy takes the heat of adsorption.
 };
 
 struct PhysisorptionSiteConfig
@@ -54,12 +56,12 @@ struct ComponentConfig
   QString id;
   QString name;
   bool carrier{false};
+  bool water{false};  ///< Sets the relative humidity of the humidity-dependent isotherms.
   std::optional<double> massTransfer;
   std::optional<double> axialDispersion;
   std::optional<double> molecularWeight;
   std::optional<double> heatOfAdsorption;
   std::optional<double> referenceTemperature;
-  bool nonIsothermal{false};
   QJsonObject settings{};
   QList<PhysisorptionSiteConfig> physisorptionSites;
   QList<ChemisorptionSiteConfig> chemisorptionSites;
@@ -133,6 +135,8 @@ struct SwingPhaseConfig
   double temperature{300.0};
   double inletPressure{100000.0};
   double duration{50.0};  // s
+  QString flowDirection{};  // "Forward" or "Reverse"; empty: the FlowDirection of the simulation
+  QJsonObject otherKeys{};  // Phase keys without a form control (ClosedEnd, PressureRamp, ...), kept as they are.
 };
 
 struct ReactionParticipantConfig
@@ -151,10 +155,12 @@ struct ReactionConfig
   int site{0};
   QList<ReactionParticipantConfig> reactants;
   QList<ReactionParticipantConfig> products;
-  double forwardRateCoefficient{1.0};
-  double forwardActivationEnergy{0.0};
-  double equilibriumConstant{1.0};
-  double gibbsFreeEnergy{0.0};
+  // A number or a temperature law {"Value", "Law", <coefficient>, "ReferenceTemperature"}, as in simulation.json.
+  QVariant forwardRateCoefficient{1.0};
+  QVariant equilibriumConstant{1.0};
+  std::optional<double> heatOfReaction;  ///< Q_r in J/mol; without it, the Energy of a VantHoff K.
+  // LH/LHHW adsorption constant K_j per component id: a number or a VantHoff law; absent or 0 does not adsorb.
+  QVariantMap adsorptionConstants;
   double rateLimitTime{1.0e-4};
 };
 
@@ -176,8 +182,8 @@ struct SimulationConfig
   bool autoTime{true};            // SimulationTime "auto"
   double simulationTime{3600.0};  // s
   double writeInterval{5.0};      // s
-  int initSteps{0};               // RungeKutta3 and SIRK3 only
-  double timeStep{0.0005};        // s, RungeKutta3 and SIRK3 only
+  int initSteps{0};               // RungeKutta3 only
+  double timeStep{0.0005};        // s, RungeKutta3 only
   int gridPoints{100};
   QString selectedColumnId{"column-1"};
   QString pHComponentId;
@@ -321,7 +327,22 @@ class MainWindow : public QMainWindow
   QComboBox* addComboField(QFormLayout* form, const QString& label, const QString& value,
                            const QList<QPair<QString, QString>>& options,
                            const std::function<void(const QString&)>& setter);
+  /**
+   * \brief The selected item of a config type: the selected column, simulation, component, or reaction.
+   */
+  template <typename Config>
+  Config& selected();
+  // Fields bound to a member of the selected item (selected<Config>()): they show the member and write it back.
+  template <typename Config>
+  QLineEdit* addNumberField(QFormLayout* form, const QString& label, double Config::*member);
+  template <typename Config>
+  QLineEdit* addOptionalNumberField(QFormLayout* form, const QString& label, std::optional<double> Config::*member);
+  template <typename Config>
+  QComboBox* addComboField(QFormLayout* form, const QString& label, QString Config::*member,
+                           const QList<QPair<QString, QString>>& options);
   void addParameterFields(QFormLayout* form, QVariantMap& parameters, const QList<ParameterDefinition>& definitions);
+  void addTemperatureLawField(QFormLayout* form, const QString& label, const QVariant& value, unsigned allowedLaws,
+                              bool heatLinked, const std::function<void(const QVariant&)>& setter);
   void addSettingNumbers(QFormLayout* form, QJsonObject& settings, const QList<ParameterDefinition>& definitions);
   void addSettingCombo(QFormLayout* form, const QString& label, QJsonObject& settings, const QString& key,
                        const QString& fallback, const QStringList& values);

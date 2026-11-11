@@ -43,7 +43,7 @@ class StateStore:
         self.lock = threading.RLock()
         migrated = False
         if self.path.exists():
-            loaded = json.loads(self.path.read_text())
+            loaded = json.loads(self.path.read_text(encoding="utf-8"))
             self.state = import_document(loaded)
             migrated = loaded != self.state
         else:
@@ -109,7 +109,7 @@ class RunManager:
         self.closed = False
         for path in self.root.glob("*/manifest.json"):
             try:
-                record = json.loads(path.read_text())
+                record = json.loads(path.read_text(encoding="utf-8"))
                 identifier = path.parent.name
                 record.update(id=identifier, directory=str(path.parent.resolve()), simulationPath=str(path.parent / "simulation.json"),
                               notebookPath=str(path.parent / "analysis.ipynb"), logPath=str(path.parent / "run.log"))
@@ -142,10 +142,10 @@ class RunManager:
         if not capabilities.get("input_validation"):
             raise ValueError(capabilities.get("error", "The CLI does not support validation."))
         if config.get("BreakthroughIntegrator") == "CVODE" and not capabilities.get("sundials"):
-            raise ValueError("This CLI was built without CVODE. Select RungeKutta3 or SIRK3.")
+            raise ValueError("This CLI was built without CVODE. Select RungeKutta3 or ROS34PW2.")
         with tempfile.TemporaryDirectory(prefix="ruptura-validate-") as temporary:
             path = Path(temporary) / "simulation.json"
-            path.write_text(json.dumps(config, allow_nan=False))
+            path.write_text(json.dumps(config, allow_nan=False), encoding="utf-8")
             process = subprocess.run([self.cli, "--validate", str(path)], cwd=self.workspace, capture_output=True, text=True, timeout=30)
             if process.returncode:
                 raise ValueError((process.stderr or process.stdout or "Invalid simulation input.").strip())
@@ -175,7 +175,7 @@ class RunManager:
                 raise ValueError("The Lab server is stopping.")
             directory.mkdir()
             atomic_json(directory / "simulation.json", config)
-            (directory / "run.log").write_text(f"Ruptura: {self.cli}\nWorking directory: {directory}\n\n")
+            (directory / "run.log").write_text(f"Ruptura: {self.cli}\nWorking directory: {directory}\n\n", encoding="utf-8")
             record = {"id": identifier, "name": name, "simulationId": simulation_id, "simulationType": config.get("SimulationType", "Breakthrough"),
                       "directory": str(directory), "simulationPath": str(directory / "simulation.json"), "notebookPath": str(directory / "analysis.ipynb"),
                       "logPath": str(directory / "run.log"), "status": "queued", "createdAt": timestamp(), "startedAt": None,

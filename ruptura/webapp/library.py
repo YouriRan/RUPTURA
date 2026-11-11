@@ -11,7 +11,7 @@ import uuid
 
 FEED_KEYS = ["GasPhaseMolFraction", "LiquidPhaseConcentration", "InitialLiquidPhaseConcentration", "CarrierGas"]
 ADSORPTION_KEYS = ["PhysisorptionSites", "ChemisorptionSites", "MassTransferCoefficient", "AxialDispersionCoefficient",
-                   "HeatOfAdsorption", "referenceTemperature", "nonIsothermal"]
+                   "HeatOfAdsorption", "ReferenceTemperature", "referenceTemperature"]
 COLUMN_KEYS = ["Geometry", "Adsorbents", "ColumnSections", "ColumnLength", "ColumnVoidFraction", "ParticleDensity",
                "ParticleDiameter", "wallDensity", "wallThermalConductivity", "heatTransferGasSolid", "heatTransferGasWall",
                "heatTransferWallExternal", "heatCapacitySolid", "heatCapacityWall", "heatTransferLiquidSolid", "heatTransferLiquidWall"]
