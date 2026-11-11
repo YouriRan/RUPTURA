@@ -118,6 +118,7 @@ Geometry makeGeometry(const PackedBedTubeSpec& specification)
   requirePositive(specification.particleDiameter, "ParticleDiameter");
   requireNonNegative(specification.internalDiameter, "InternalDiameter");
   requireNonNegative(specification.outerDiameter, "OuterDiameter");
+  requireNonNegative(specification.axialDispersivity, "AxialDispersivity");
   if (specification.internalDiameter > 0.0 && specification.outerDiameter > 0.0 &&
       specification.outerDiameter <= specification.internalDiameter)
   {
@@ -167,6 +168,7 @@ Geometry makeGeometry(const PackedBedTubeSpec& specification)
       (specification.particleDiameter * specification.particleDiameter);
   geometry.pressureDrop.inertialCoefficient =
       1.75 * solidToFluidVolumeRatio / specification.particleDiameter;
+  geometry.dispersion.dispersivity = specification.axialDispersivity;
   return geometry;
 }
 
@@ -180,6 +182,7 @@ Geometry makeGeometry(const MonolithSpec& specification)
   }
   requireNonNegative(specification.washcoatThickness, "WashcoatThickness");
   requireNonNegative(specification.forchheimerCoefficient, "ForchheimerCoefficient");
+  requireNonNegative(specification.axialDispersivity, "AxialDispersivity");
   if (specification.washcoatVolumePerChannelVolume.has_value())
   {
     requireNonNegative(*specification.washcoatVolumePerChannelVolume, "WashcoatVolumePerChannelVolume");
@@ -236,5 +239,9 @@ Geometry makeGeometry(const MonolithSpec& specification)
   geometry.pressureDrop.viscousCoefficient =
       32.0 / std::max(channel.hydraulicDiameter * channel.hydraulicDiameter, tinyLength);
   geometry.pressureDrop.inertialCoefficient = specification.forchheimerCoefficient;
+  // Taylor-Aris: laminar flow in a circular tube, D_m + v^2 d^2 / (192 D_m), taken with the hydraulic diameter.
+  geometry.dispersion.dispersivity = specification.axialDispersivity;
+  geometry.dispersion.taylorArisCoefficient =
+      specification.taylorArisDispersion ? channel.hydraulicDiameter * channel.hydraulicDiameter / 192.0 : 0.0;
   return geometry;
 }

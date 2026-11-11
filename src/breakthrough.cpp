@@ -58,7 +58,7 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
       maxIsothermTerms(inputReader.maxIsothermTerms),
       column(inputReader),
       rk3(inputReader),
-      sirk3(inputReader),
+      ros34pw2(inputReader),
       cvode(inputReader),
       integrationScheme(BreakthroughIntegrationScheme(inputReader.breakthroughIntegrator))
 {
@@ -66,6 +66,11 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
   if (inputReader.readColumnFile.has_value())
   {
     column.readJSON(*inputReader.readColumnFile);
+    // The file holds the state (Column::writeJSON): derived fields (velocity, pressure, equilibrium), then the rates
+    // and the sink they feed back into.
+    precompute(column, timings);
+    computeDerivatives(column);
+    precompute(column, timings);
   }
 
   if (integrationScheme == BreakthroughIntegrationScheme::CVODE) cvode.initialize(column);
@@ -95,19 +100,31 @@ void Breakthrough::run()
   try
   {
     bool finished = false;
+    bool warnedIdealGasDeviation = false;
     while (true)
     {
       column.writeJSON("column.json");
       column.writeOutput(componentStreams, columnStream, time);
       std::print("Output {}, time: {:6.5f} [s]\n", numberOfOutputs, time);
       std::print("    Average number of mixture-prediction steps: {:6.5f}\n", averageMixturePredictionSteps(column));
+      // The continuity closures keep sum_j c_j at P/RT; a departure means the gas inventory is no longer consistent.
+      if (const double deviation = column.idealGasDeviation(); deviation > 0.0)
+      {
+        std::print("    Max |R T sum(c) / P - 1|: {:.3e}\n", deviation);
+        if (deviation > 1.0e-2 && !warnedIdealGasDeviation)
+        {
+          std::print("    Warning: R T sum(c) departs from the closure pressure by more than 1 %; the closures do "
+                     "not follow changes of the pressure drop\n");
+          warnedIdealGasDeviation = true;
+        }
+      }
       std::fflush(stdout);
 
       if (finished) break;
       finished = advanceToNextOutput();
     }
   }
-  catch (const std::runtime_error&)
+  catch (const std::exception&)
   {
     column.writeJSON("failed_state.json");
     throw;
@@ -116,6 +133,7 @@ void Breakthrough::run()
   std::print("Final time: {:6.5f} [s]\n\n", time);
   timings.print();
   if (integrationScheme == BreakthroughIntegrationScheme::CVODE) cvode.printStatistics();
+  if (integrationScheme == BreakthroughIntegrationScheme::ROS34PW2) ros34pw2.printStatistics();
 }
 
 void Breakthrough::advanceTo(double endTime, Timing& accumulatedTimings)
@@ -128,8 +146,8 @@ void Breakthrough::advanceTo(double endTime, Timing& accumulatedTimings)
     case BreakthroughIntegrationScheme::CVODE:
       cvode.advance(column, endTime, accumulatedTimings);
       break;
-    case BreakthroughIntegrationScheme::SIRK3:
-      sirk3.advance(column, time, endTime, accumulatedTimings);
+    case BreakthroughIntegrationScheme::ROS34PW2:
+      ros34pw2.advance(column, time, endTime, accumulatedTimings);
       break;
   }
   time = endTime;
@@ -154,8 +172,9 @@ bool Breakthrough::advanceToNextOutput()
     }
     else
     {
-      // RK3 leaves the rates of its last stage behind; CVODE has already evaluated them at the output state.
-      if (integrationScheme != BreakthroughIntegrationScheme::CVODE) computeDerivatives(column, time);
+      // RK3 and ROS34PW2 leave the rates of their last stage behind; CVODE has already evaluated them at the output
+      // state.
+      if (integrationScheme != BreakthroughIntegrationScheme::CVODE) computeDerivatives(column);
       converged = reactionAutoStopReached(column);
       if (converged) std::print("\nReaction convergence criteria reached, running 10% longer\n\n\n");
     }
@@ -201,14 +220,21 @@ std::string Breakthrough::repr() const
     case BreakthroughIntegrationScheme::CVODE:
       result += "Time step:                     adaptive (CVODE)\n";
       break;
-    case BreakthroughIntegrationScheme::SIRK3:
-      result += std::format("Time step:                     {} [s]\n", sirk3.timeStep);
+    case BreakthroughIntegrationScheme::ROS34PW2:
+      result += "Time step:                     adaptive (ROS34PW2)\n";
       break;
   }
+  // Explicit and multibed grids are not uniform: the spacing is then given as its range.
+  const auto [smallestSpacing, largestSpacing] = std::ranges::minmax(
+      std::views::iota(size_t{1}, column.columnDistances.size()) |
+      std::views::transform([&](size_t grid) { return gridSpacing(column.columnDistances, grid); }));
   result += std::format(
       "Number of column grid points:  {}\n"
       "Column spacing:                {} [m]\n\n\n",
-      numberOfGridPoints, column.resolution);
+      numberOfGridPoints,
+      largestSpacing - smallestSpacing <= 1.0e-12 * largestSpacing
+          ? std::format("{:.6g}", largestSpacing)
+          : std::format("{:.6g} to {:.6g}", smallestSpacing, largestSpacing));
 
   result += std::format(
       "Adsorbent component data\n"

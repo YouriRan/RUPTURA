@@ -15,10 +15,15 @@ add_executable(ruptura_tests
   convection_tests.cpp
   example_inputreader_tests.cpp
   fluid_phase_tests.cpp
+  humidity_isotherm_tests.cpp
   mixture_prediction_tests.cpp
   multibed_tests.cpp
   notebook_templates_tests.cpp
+  pressure_swing_tests.cpp
+  ros34pw2_tests.cpp
   single_adsorbent_equivalence_tests.cpp
+  sorption_jacobian_tests.cpp
+  temperature_law_tests.cpp
 )
 
 target_compile_options(ruptura_tests PRIVATE

@@ -106,6 +106,19 @@ struct PressureDropLaw
 };
 
 /**
+ * \brief Coefficients of the velocity-dependent axial dispersion,
+ *        D_ax,j = D_0,j theta + dispersivity |v| + taylorArisCoefficient v^2 / (D_0,j theta).
+ *
+ * D_0,j is the velocity-independent part of component j and theta the scaling of the molecular diffusivity with
+ * temperature and pressure; both belong to the column, the coefficients here to the geometry.
+ */
+struct DispersionLaw
+{
+  double dispersivity{0.0};           ///< Mechanical dispersion length lambda, m.
+  double taylorArisCoefficient{0.0};  ///< Laminar-channel Taylor-Aris coefficient d_h^2/192, m^2.
+};
+
+/**
  * \brief Fully derived geometry stored and consumed by a simulation.
  *
  * Geometry is an ordinary copyable value. Geometry-specific validation and
@@ -132,6 +145,7 @@ struct Geometry
   ContactAreaDensities contactAreas;
   GeometryDimensions dimensions;
   PressureDropLaw pressureDrop;
+  DispersionLaw dispersion{};
 
   [[nodiscard]] double loadingPrefactor(double particleDensity) const noexcept
   {
@@ -148,6 +162,7 @@ struct PackedBedTubeSpec
   double particleDiameter{1.0e-3};
   double internalDiameter{0.0};
   double outerDiameter{0.0};
+  double axialDispersivity{0.0};  ///< Mechanical dispersion length lambda, m.
 };
 
 /**
@@ -162,6 +177,8 @@ struct MonolithSpec
   double washcoatThickness{0.0};
   std::optional<double> washcoatVolumePerChannelVolume;
   double forchheimerCoefficient{0.0};  ///< Channel Forchheimer coefficient b_M, 1/m.
+  double axialDispersivity{0.0};       ///< Mechanical dispersion length lambda, m.
+  bool taylorArisDispersion{false};    ///< Adds the Taylor-Aris dispersion of laminar channel flow.
 };
 
 [[nodiscard]] Geometry makeGeometry(const PackedBedTubeSpec& specification);

@@ -104,9 +104,9 @@ TEST(LiquidPhaseInput, TransportedPHRejectsInvalidComponentIdentifiers)
 TEST(GasMixturePredictionRegression, MoleFractionsRemainTheDrivingForceForSPI)
 {
   Component first(0, "first");
-  first.isotherm.add(Isotherm(Isotherm::Type::Langmuir, {2.0, 1.0e-5}, false));
+  first.isotherm.add(Isotherm(Isotherm::Type::Langmuir, {2.0, 1.0e-5}));
   Component second(1, "second");
-  second.isotherm.add(Isotherm(Isotherm::Type::Langmuir, {4.0, 2.0e-5}, false));
+  second.isotherm.add(Isotherm(Isotherm::Type::Langmuir, {4.0, 2.0e-5}));
 
   MixturePrediction prediction("gas SPI regression", {first, second}, 0, 0, 298.15, 1.0e3, 1.0e5, 2, 1,
                                static_cast<size_t>(MixturePrediction::PredictionMethod::SPI),
@@ -130,9 +130,9 @@ TEST(GasMixturePredictionRegression, MoleFractionsRemainTheDrivingForceForSPI)
 TEST(GasMixturePredictionRegression, MoleFractionsRemainTheDrivingForceForSCI)
 {
   Component first(0, "first");
-  first.isotherm.add(Isotherm(Isotherm::Type::Langmuir, {2.0, 1.0e-5}, false));
+  first.isotherm.add(Isotherm(Isotherm::Type::Langmuir, {2.0, 1.0e-5}));
   Component second(1, "second");
-  second.isotherm.add(Isotherm(Isotherm::Type::Langmuir, {2.0, 2.0e-5}, false));
+  second.isotherm.add(Isotherm(Isotherm::Type::Langmuir, {2.0, 2.0e-5}));
 
   MixturePrediction prediction("gas SCI regression", {first, second}, 0, 0, 298.15, 1.0e3, 1.0e5, 2, 1,
                                static_cast<size_t>(MixturePrediction::PredictionMethod::SCI),
@@ -162,13 +162,15 @@ TEST(GasBreakthroughRegression, ExistingColumnCvodePathRetainsItsOutcome)
   ASSERT_EQ(column.fluidPhase, Column::FluidPhase::Gas);
 
   CVODE integrator;
-  // The tolerances of the reference values (the CVODE defaults when they were recorded), so that later changes of
-  // the defaults do not move them.
+  // The tolerances, order, and linear solver of the reference values (the CVODE defaults when they were recorded),
+  // so that later changes of the defaults do not move them.
 #if BUILD_SUNDIALS
   integrator.relativeTolerance = 1.0e-3;
   integrator.absoluteToleranceConcentration = 1.0e-6;
   integrator.absoluteToleranceLoading = 1.0e-6;
   integrator.absoluteToleranceTemperature = 1.0e-6;
+  integrator.maximumOrder = 5;
+  integrator.linearSolverType = CVODE::LinearSolverType::Dense;
 #endif
   Timing timing;
   integrator.initialize(column);
@@ -192,11 +194,13 @@ TEST(GasBreakthroughRegression, ExistingMultibedRk3PathRetainsItsOutcome)
 
   RungeKutta3 integrator(reader.timeStep);
   Timing timing;
-  integrator.step(column, 0.0, reader.timeStep, timing);
+  integrator.step(column, reader.timeStep, timing);
 
+  // Recorded after the velocity is rebuilt from the stage's own uptake sink (B-BC-2, 2026-10-30); the values
+  // before, with the velocity of the previous stage's sink, were 0.29182638429337593 and 0.0072778674138634803.
   const size_t index = column.numberOfComponents + 1;
-  EXPECT_NEAR(column.concentration[index], 0.29182638429337593, 1.0e-13);
-  EXPECT_NEAR(column.moleFraction[index], 0.0072778674138634803, 1.0e-15);
+  EXPECT_NEAR(column.concentration[index], 0.2918223504845725, 1.0e-13);
+  EXPECT_NEAR(column.moleFraction[index], 0.007279038072736773, 1.0e-15);
 }
 
 TEST(LiquidPhase, FixedPHColumnUsesConcentrationsAndExpectedIsotherm)
@@ -205,7 +209,8 @@ TEST(LiquidPhase, FixedPHColumnUsesConcentrationsAndExpectedIsotherm)
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/Liquid/pH-dependent/simulation.json";
   InputReader reader(path.string());
   Column column(reader);
-  column.convectionScheme = Column::ConvectionScheme::Upwind;  // reference values recorded with upwind
+  column.convectionScheme = Column::ConvectionScheme::Upwind;   // reference values recorded with upwind
+  column.inletCondition = Column::InletCondition::Dirichlet;  // and with the Dirichlet inlet
   column.initialize();
 
   ASSERT_EQ(column.fluidPhase, Column::FluidPhase::Liquid);
@@ -218,12 +223,13 @@ TEST(LiquidPhase, FixedPHColumnUsesConcentrationsAndExpectedIsotherm)
   EXPECT_NEAR(column.equilibriumPhysisorption[0], 2.0 * activity / (1.0 + activity), 1.0e-14);
   EXPECT_DOUBLE_EQ(column.equilibriumPhysisorption[1], 0.0);
   EXPECT_NEAR(column.totalPressure[1],
-              150000.0 - column.geometries.front().pressureDrop.gradient(0.00089, 997.0, 0.001) * column.resolution,
+              150000.0 - column.geometries.front().pressureDrop.gradient(0.00089, 997.0, 0.001) *
+                               column.columnLength / static_cast<double>(column.numberOfGridPoints),
               1.0e-10);
 
   RungeKutta3 integrator(reader.timeStep);
   Timing timing;
-  integrator.step(column, 0.0, reader.timeStep, timing);
+  integrator.step(column, reader.timeStep, timing);
   EXPECT_NEAR(column.concentration[1], 0.012766632220756373, 1.0e-14);
   EXPECT_NEAR(column.physisorption[0], 0.0015466082723401815, 1.0e-15);
 }
@@ -234,7 +240,8 @@ TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInColumn)
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/Liquid/multibed-pH-front/simulation.json";
   InputReader reader(path.string());
   Column column(reader);
-  column.convectionScheme = Column::ConvectionScheme::Upwind;  // reference values recorded with upwind
+  column.convectionScheme = Column::ConvectionScheme::Upwind;   // reference values recorded with upwind
+  column.inletCondition = Column::InletCondition::Dirichlet;  // and with the Dirichlet inlet
   column.initialize();
 
   ASSERT_EQ(column.fluidPhase, Column::FluidPhase::Liquid);
@@ -251,12 +258,14 @@ TEST(LiquidPhase, TransportedPHAndSuperficialFluxWorkInColumn)
   }
 
   CVODE integrator;
-  // The tolerances of the reference value (the CVODE defaults when it was recorded).
+  // The tolerances, order, and linear solver of the reference value (the CVODE defaults when it was recorded).
 #if BUILD_SUNDIALS
   integrator.relativeTolerance = 1.0e-3;
   integrator.absoluteToleranceConcentration = 1.0e-6;
   integrator.absoluteToleranceLoading = 1.0e-6;
   integrator.absoluteToleranceTemperature = 1.0e-6;
+  integrator.maximumOrder = 5;
+  integrator.linearSolverType = CVODE::LinearSolverType::Dense;
 #endif
   Timing timing;
   integrator.initialize(column);

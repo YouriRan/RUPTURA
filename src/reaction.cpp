@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -18,11 +19,6 @@ double finiteNonNegative(double value) noexcept
   return std::max(0.0, value);
 }
 
-double boundedExp(double exponent)
-{
-  return std::exp(std::clamp(exponent, -700.0, 700.0));
-}
-
 double productPower(std::span<const double> activity, const std::vector<size_t>& components,
                     const std::vector<double>& orders)
 {
@@ -36,66 +32,16 @@ double productPower(std::span<const double> activity, const std::vector<size_t>&
   return std::isfinite(product) ? product : 0.0;
 }
 
-std::vector<double> langmuirActivities(const Reaction& reaction, std::span<const double> activity,
-                                       double temperature)
-{
-  const double K = reaction.equilibriumConstantAt(temperature);
-  std::vector<double> theta(activity.size(), 0.0);
-  for (size_t comp = 0; comp < activity.size(); ++comp)
-  {
-    const double Kc = K * finiteNonNegative(activity[comp]);
-    theta[comp] = Kc / std::max(1.0 + Kc, tiny);
-  }
-  return theta;
-}
-
-std::vector<double> lhhwActivities(const Reaction& reaction, std::span<const double> activity,
-                                   double temperature)
-{
-  const double K = reaction.equilibriumConstantAt(temperature);
-  double denominator = 1.0;
-  for (double value : activity)
-  {
-    denominator += K * finiteNonNegative(value);
-  }
-  denominator = std::max(denominator, tiny);
-
-  std::vector<double> theta(activity.size(), 0.0);
-  for (size_t comp = 0; comp < activity.size(); ++comp)
-  {
-    theta[comp] = K * finiteNonNegative(activity[comp]) / denominator;
-  }
-  return theta;
-}
-
 }  // namespace
-
-double Reaction::stoichiometricCoefficient(size_t component) const noexcept
-{
-  double coefficient = 0.0;
-  for (size_t i = 0; i < reactants.size(); ++i)
-  {
-    if (reactants[i] == component) coefficient -= reactantStoichiometry[i];
-  }
-  for (size_t i = 0; i < products.size(); ++i)
-  {
-    if (products[i] == component) coefficient += productStoichiometry[i];
-  }
-  return coefficient;
-}
 
 double Reaction::equilibriumConstantAt(double temperature) const
 {
-  const double exponent = -gibbsFreeEnergy / (R * std::max(temperature, 1.0e-10));
-  return std::max(tiny, equilibriumConstant * boundedExp(exponent));
+  return std::max(tiny, equilibriumConstant(temperature));
 }
 
-double Reaction::forwardRateConstant(double temperature) const
-{
-  return arrhenius(forwardRateCoefficient, forwardActivationEnergy, temperature);
-}
+double Reaction::forwardRateConstant(double temperature) const { return forwardRateCoefficient(temperature); }
 
-double Reaction::rate(std::span<const double> activity, double temperature) const
+double Reaction::rate(std::span<const double> activity, double temperature, std::span<double> coverage) const
 {
   if (!enabled()) return 0.0;
 
@@ -108,16 +54,28 @@ double Reaction::rate(std::span<const double> activity, double temperature) cons
       return kf * productPower(activity, reactants, forwardOrders) -
              kb * productPower(activity, products, backwardOrders);
     case Style::LangmuirHinshelwood:
-    {
-      const std::vector<double> theta = langmuirActivities(*this, activity, temperature);
-      return kf * productPower(theta, reactants, forwardOrders) -
-             kb * productPower(theta, products, backwardOrders);
-    }
     case Style::LangmuirHinshelwoodHougenWatson:
     {
-      const std::vector<double> theta = lhhwActivities(*this, activity, temperature);
-      return kf * productPower(theta, reactants, forwardOrders) -
-             kb * productPower(theta, products, backwardOrders);
+      // Competitive coverages theta_j = K_j c_j / (1 + sum_i K_i c_i), one adsorption constant per component, in the
+      // caller's work array.
+      if (coverage.size() < activity.size())
+      {
+        throw std::runtime_error("Error: the reaction coverage work array is smaller than the activity vector");
+      }
+      const std::span<double> theta = coverage.first(activity.size());
+      std::ranges::fill(theta, 0.0);
+      double denominator = 1.0;
+      for (size_t comp = 0; comp < std::min(adsorptionConstants.size(), activity.size()); ++comp)
+      {
+        theta[comp] = adsorptionConstants[comp](temperature) * finiteNonNegative(activity[comp]);
+        denominator += theta[comp];
+      }
+      for (double& value : theta) value /= denominator;
+
+      // LH is irreversible; LHHW subtracts the backward rate on the product coverages.
+      const double forward = kf * productPower(theta, reactants, forwardOrders);
+      if (style == Style::LangmuirHinshelwood) return forward;
+      return forward - kb * productPower(theta, products, backwardOrders);
     }
   }
   return 0.0;
@@ -155,16 +113,22 @@ std::string Reaction::repr() const
     return "Unknown";
   }();
 
-  return std::format(
+  std::string text = std::format(
       "    reaction:\n"
       "        phase:                 {}\n"
       "        style:                 {}\n"
-      "        forward k0:            {:8.4e}\n"
-      "        forward Ea:            {:8.4e} [J/mol]\n"
-      "        equilibrium constant:  {:8.4e}\n"
-      "        delta Gibbs energy:    {:8.4e} [J/mol]\n",
-      phaseName, styleName, forwardRateCoefficient, forwardActivationEnergy,
-      equilibriumConstant, gibbsFreeEnergy);
+      "        forward k:             {:8.4e}  {}\n"
+      "        equilibrium constant:  {:8.4e}  {}\n"
+      "        heat of reaction:      {:8.4e} [J/mol]\n",
+      phaseName, styleName, forwardRateCoefficient.value, forwardRateCoefficient.repr(), equilibriumConstant.value,
+      equilibriumConstant.repr(), heatOfReaction);
+  for (size_t comp = 0; comp < adsorptionConstants.size(); ++comp)
+  {
+    if (adsorptionConstants[comp].value == 0.0) continue;
+    text += std::format("        {:<23}{:8.4e}  {}\n", std::format("adsorption K[{}]:", comp),
+                        adsorptionConstants[comp].value, adsorptionConstants[comp].repr());
+  }
+  return text;
 }
 
 bool reactionsRequirePoreConcentration(const std::vector<Reaction>& reactions) noexcept

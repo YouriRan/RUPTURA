@@ -59,7 +59,7 @@ class BlockIndex:
                     self.shape = shape
                 if shape != self.shape or any(len(line.split()) != columns for line in lines):
                     continue
-                entry = (self.total, offset, len(block))
+                entry = (self.total, offset, len(block), float(lines[0].split()[1]))  # time of the frame
                 last = entry
                 if self.total % stride == 0:
                     self.frames.append(entry)
@@ -77,7 +77,7 @@ class BlockIndex:
             frame += len(self.frames)
         if frame < 0 or frame >= len(self.frames):
             raise ValueError("The selected frame is outside the available results.")
-        _, offset, length = self.frames[frame]
+        _, offset, length, _ = self.frames[frame]
         with self.path.open("rb") as handle:
             handle.seek(offset)
             return np.loadtxt(io.BytesIO(handle.read(length)), comments="#", ndmin=2)
@@ -100,7 +100,6 @@ def index(path):
 
 def metrics(config):
     result = {**COLUMN_METRICS, **COMPONENT_METRICS}
-    result.pop("Dcdt", None)
     if config.get("FluidPhase", "Gas") == "Liquid":
         for key in ("V", "Tg", "dTgdt", "rho"):
             spec = result[key]
@@ -115,7 +114,7 @@ def metrics(config):
 
 def metadata(directory):
     directory = Path(directory)
-    config = json.loads((directory / "simulation.json").read_text())
+    config = json.loads((directory / "simulation.json").read_text(encoding="utf-8"))
     components = [{"index": i, "name": component["Name"], "carrier": bool(component.get("CarrierGas")),
                    "adsorbing": bool(component.get("PhysisorptionSites") or component.get("ChemisorptionSites"))}
                   for i, component in enumerate(config["Components"])]
@@ -134,7 +133,7 @@ def metadata(directory):
             "metrics": [{"id": key, "label": spec.ylabel, "source": spec.source} for key, spec in metrics(config).items()
                         if spec.source != "column" or spec.col_0based < first.shape[1]],
             "frames": len(data.frames), "totalFrames": data.total, "sampled": len(data.frames) < data.total,
-            "times": [float(data.read(i)[0, 1]) for i in range(len(data.frames))], "positions": first[:, 2].tolist(),
+            "times": [time for *_, time in data.frames], "positions": first[:, 2].tolist(),
             "liquid": config.get("FluidPhase", "Gas") == "Liquid"}
 
 
@@ -151,7 +150,7 @@ def _phase_lines(figure, config, units):
 def figure(directory, options=None):
     directory = Path(directory)
     options = options or {}
-    config = json.loads((directory / "simulation.json").read_text())
+    config = json.loads((directory / "simulation.json").read_text(encoding="utf-8"))
     mode = options.get("plot", "loading" if config.get("SimulationType") == "MixturePrediction" else "breakthrough")
     if mode == "profile":
         axis = options.get("xAxis", "position")

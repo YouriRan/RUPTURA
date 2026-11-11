@@ -41,14 +41,16 @@
       "AxialDispersionCoefficient": 4.3e-06,
       "MolecularWeight": 0.044,
       "HeatOfAdsorption": 24860.0,
-      "referenceTemperature": 318,
-      "nonIsothermal": true,
+      "ReferenceTemperature": 318,
       "PhysisorptionSites": [
         {
           "Type": "Sips",
           "Parameters": [
             12.45,
-            4.39e-07,
+            {
+              "Value": 4.39e-07,
+              "Law": "VantHoff"
+            },
             1.36
           ]
         }
@@ -61,14 +63,16 @@
       "AxialDispersionCoefficient": 4.3e-06,
       "MolecularWeight": 0.028,
       "HeatOfAdsorption": 16360.0,
-      "referenceTemperature": 298,
-      "nonIsothermal": true,
+      "ReferenceTemperature": 298,
       "PhysisorptionSites": [
         {
           "Type": "Sips",
           "Parameters": [
             5.65,
-            2.77e-07,
+            {
+              "Value": 2.77e-07,
+              "Law": "VantHoff"
+            },
             1.18
           ]
         }
@@ -81,14 +85,16 @@
       "AxialDispersionCoefficient": 4.3e-06,
       "MolecularWeight": 0.002016,
       "HeatOfAdsorption": 9730.0,
-      "referenceTemperature": 298,
-      "nonIsothermal": true,
+      "ReferenceTemperature": 298,
       "PhysisorptionSites": [
         {
           "Type": "Sips",
           "Parameters": [
             7.54,
-            2.94e-08,
+            {
+              "Value": 2.94e-08,
+              "Law": "VantHoff"
+            },
             1.08
           ]
         }

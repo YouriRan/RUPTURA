@@ -55,18 +55,26 @@ def export_mp4(directory, options):
     def chart(frame):
         return figure(directory, {**base, "frame" if axis == "position" else "grid": frame})
 
-    # Fix both axes across the video so changing frames cannot rescale the data.
+    # Build every frame once and keep only what the renderer draws; fix both axes across the video so changing
+    # frames cannot rescale the data.
+    frames = []
     limits = {"x": [np.inf, -np.inf], "y": [np.inf, -np.inf]}
     for frame in range(count):
-        for trace in chart(frame).data:
-            for key in ("x", "y"):
-                values = np.asarray(getattr(trace, key), dtype=float)
+        plot = chart(frame)
+        traces = [(np.asarray(trace.x, dtype=float), np.asarray(trace.y, dtype=float), plain(trace.name))
+                  for trace in plot.data]
+        for trace in traces:
+            for key, values in zip(("x", "y"), trace):
                 values = values[np.isfinite(values)]
                 if values.size:
                     limits[key][0] = min(limits[key][0], float(values.min()))
                     limits[key][1] = max(limits[key][1], float(values.max()))
+        vertical_lines = [shape.x0 for shape in plot.layout.shapes or () if shape.type == "line" and shape.x0 == shape.x1]
+        frames.append((traces, vertical_lines, plain(plot.layout.xaxis.title.text),
+                       plain(plot.layout.yaxis.title.text), plain(plot.layout.title.text)))
     if not all(np.isfinite(value) for pair in limits.values() for value in pair):
         raise ValueError("Select at least one component with finite data before exporting an MP4.")
+    layout = plot.layout  # theme colours are the same in every frame
     for key, pair in limits.items():
         padding = (pair[1] - pair[0]) * (0.05 if key == "y" else 0)
         if pair[0] == pair[1]:
@@ -82,23 +90,20 @@ def export_mp4(directory, options):
         with tempfile.TemporaryFile() as errors:
             process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL, stderr=errors)
             try:
-                for frame in range(count):
-                    plot = chart(frame)
+                for frame, (traces, vertical_lines, xlabel, ylabel, title) in enumerate(frames):
                     light = options.get("theme") == "light"
                     ink = "#182e3b" if light else "#e6edf3"
-                    canvas_figure = Figure(figsize=(12.8, 7.2), dpi=100, facecolor=plot.layout.paper_bgcolor)
+                    canvas_figure = Figure(figsize=(12.8, 7.2), dpi=100, facecolor=layout.paper_bgcolor)
                     canvas = FigureCanvasAgg(canvas_figure)
                     axes = canvas_figure.add_subplot(111)
-                    axes.set_facecolor(plot.layout.plot_bgcolor)
-                    colors = plot.layout.colorway
-                    for i, trace in enumerate(plot.data):
-                        axes.plot(trace.x, trace.y, label=plain(trace.name), color=colors[i % len(colors)], linewidth=2,
+                    axes.set_facecolor(layout.plot_bgcolor)
+                    colors = layout.colorway
+                    for i, (x, y, name) in enumerate(traces):
+                        axes.plot(x, y, label=name, color=colors[i % len(colors)], linewidth=2,
                                   marker="o" if options.get("markers") else None, markersize=3)
-                    for shape in plot.layout.shapes or ():
-                        if shape.type == "line" and shape.x0 == shape.x1:
-                            axes.axvline(shape.x0, color=ink, linestyle=":", alpha=0.5)
-                    axes.set(xlim=limits["x"], ylim=limits["y"], xlabel=plain(plot.layout.xaxis.title.text),
-                             ylabel=plain(plot.layout.yaxis.title.text), title=plain(plot.layout.title.text))
+                    for x0 in vertical_lines:
+                        axes.axvline(x0, color=ink, linestyle=":", alpha=0.5)
+                    axes.set(xlim=limits["x"], ylim=limits["y"], xlabel=xlabel, ylabel=ylabel, title=title)
                     axes.tick_params(colors=ink)
                     axes.xaxis.label.set_color(ink)
                     axes.yaxis.label.set_color(ink)
@@ -106,8 +111,8 @@ def export_mp4(directory, options):
                     for spine in axes.spines.values():
                         spine.set_color(ink)
                     axes.grid(alpha=0.2, color=ink)
-                    axes.legend(loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=min(4, len(plot.data)),
-                                facecolor=plot.layout.paper_bgcolor, labelcolor=ink)
+                    axes.legend(loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=min(4, len(traces)),
+                                facecolor=layout.paper_bgcolor, labelcolor=ink)
                     units = options.get("xUnits", "min")
                     factor = 60 if units == "s" else 1 / 60 if units == "hr" else 1
                     label = (f"Time: {meta['times'][frame] * factor:.6g} {units}" if axis == "position"

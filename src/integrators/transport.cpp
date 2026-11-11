@@ -15,7 +15,7 @@ using mdspan3d_mut = std::mdspan<double, std::dextents<size_t, 3>>;
 void computeChemisorptionTransportDerivatives(
     const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
     size_t numberOfAdsorbents, size_t maxChemisorptionSites, std::span<const double> fractionOfAdsorbent,
-    std::span<const Geometry> geometries, std::span<const double> particleDensities,
+    std::span<const Geometry> geometries, std::span<const double> poreLoadingConversion,
     std::span<const double> concentration, std::span<const double> chemisorptionDot,
     std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
     std::span<const double> poreConcentration, std::span<double> poreConcentrationDot)
@@ -39,19 +39,7 @@ void computeChemisorptionTransportDerivatives(
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
     // The surface and pore reservoirs hold the solid volume (the film flux enters them per solid volume), so the
-    // pore reservoir loses the solid mass per solid volume times dq/dt: the solid-volume-weighted particle density,
-    // which is rho_p in a pure section.
-    double solidLoadingDensity = 0.0;
-    double solidVolumeDensity = 0.0;
-    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
-    {
-      const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
-      const double solidVolume = fraction * geometries[ads].solidToFluidVolumeRatio * geometries[ads].voidFraction;
-      solidLoadingDensity += solidVolume * particleDensities[ads];
-      solidVolumeDensity += solidVolume;
-    }
-    const double poreLoadingConversion = solidLoadingDensity / std::max(1.0e-30, solidVolumeDensity);
-
+    // pore reservoir loses poreLoadingConversion (the solid-volume-weighted particle density) times dq/dt.
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
       for (size_t site = 0; site < sitesOfComponent[comp]; ++site)
@@ -81,7 +69,7 @@ void computeChemisorptionTransportDerivatives(
         if (!poreTransport) continue;
         spanSurfaceDot[site, grid, comp] = film - poreDiffusion;
         spanPoreDot[site, grid, comp] =
-            poreDiffusion - poreLoadingConversion * spanChemisorptionDot[site, grid, comp];
+            poreDiffusion - poreLoadingConversion[grid] * spanChemisorptionDot[site, grid, comp];
       }
     }
   }
@@ -89,9 +77,8 @@ void computeChemisorptionTransportDerivatives(
 
 void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
                             size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
-                            std::span<const Geometry> geometries, std::span<const double> particleDensities,
-                            std::span<const double> fractionOfAdsorbent, std::span<const double> totalVoidFraction,
-                            std::span<const double> concentration,
+                            std::span<const Geometry> geometries, std::span<const double> fractionOfAdsorbent,
+                            std::span<const double> loadingPrefactor, std::span<const double> concentration,
                             std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot,
                             std::span<const double> surfaceConcentration, std::span<double> bulkSpeciesSink,
                             std::span<const double> reactionPhysisorptionSource,
@@ -107,21 +94,12 @@ void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionM
 
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
-    double solidLoadingDensity = 0.0;
-    for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
-    {
-      const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
-      solidLoadingDensity += fraction * geometries[ads].solidToFluidVolumeRatio *
-                             geometries[ads].voidFraction * particleDensities[ads];
-    }
-
-    const double loadingPrefactor = solidLoadingDensity / std::max(1e-10, totalVoidFraction[grid]);
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
       const size_t index = grid * numberOfComponents + comp;
       const double reactionPhysisorption =
           reactionPhysisorptionSource.empty() ? 0.0 : reactionPhysisorptionSource[index];
-      double sink = loadingPrefactor * (physisorptionDot[index] - reactionPhysisorption);
+      double sink = loadingPrefactor[grid] * (physisorptionDot[index] - reactionPhysisorption);
 
       for (size_t site = 0; site < sitesOfComponent[comp]; ++site)
       {
@@ -148,8 +126,9 @@ void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionM
         const size_t siteIndex = site * (numberOfGridPoints + 1) * numberOfComponents + index;
         const double reactionChemisorption =
             reactionChemisorptionSource.empty() ? 0.0 : reactionChemisorptionSource[siteIndex];
-        sink += loadingPrefactor * directFraction * (spanChemisorptionDot[site, grid, comp] - reactionChemisorption) +
-                filmSink;
+        sink +=
+            loadingPrefactor[grid] * directFraction * (spanChemisorptionDot[site, grid, comp] - reactionChemisorption) +
+            filmSink;
       }
       if (!reactionBulkSource.empty())
       {

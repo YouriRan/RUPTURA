@@ -13,6 +13,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <algorithm>
+#include <utility>
 
 #include "notebook_templates.h"
 #include "simulationinput.h"
@@ -21,21 +22,16 @@
 #define RUPTURA_CLI_EXECUTABLE "ruptura"
 #endif
 
-#ifndef RUPTURA_SOURCE_DIR
-#define RUPTURA_SOURCE_DIR ""
-#endif
-
 namespace
 {
 bool ensureDefaultNotebook(const QString& notebookPath, const QJsonObject& simulation, const QString& runId,
-                           const QString& repoRoot, const QString& runDirectory, QString* errorMessage)
+                           QString* errorMessage)
 {
   try
   {
     const auto simulationType = RupturaNotebooks::simulationTypeFromName(
         simulation.value("SimulationType").toString("Breakthrough").toStdString());
-    RupturaNotebooks::writeDefaultNotebook(notebookPath.toStdString(), simulationType, runId.toStdString(),
-                                           repoRoot.toStdString(), runDirectory.toStdString());
+    RupturaNotebooks::writeDefaultNotebook(notebookPath.toStdString(), simulationType, runId.toStdString());
     return true;
   }
   catch (const std::exception& exception)
@@ -73,13 +69,7 @@ QJsonObject runRecordJson(const RupturaRunner::RunRecord& record)
 RupturaRunner::RupturaRunner(QObject* parent) : QObject(parent)
 {
   qRegisterMetaType<RupturaRunner::RunRecord>("RupturaRunner::RunRecord");
-  repoRoot_ = QString::fromUtf8(RUPTURA_SOURCE_DIR);
   cliExecutable_ = LabInput::findCli(QCoreApplication::applicationDirPath(), QString::fromUtf8(RUPTURA_CLI_EXECUTABLE));
-
-  if (repoRoot_.isEmpty())
-  {
-    repoRoot_ = QDir::currentPath();
-  }
 }
 
 bool RupturaRunner::isRunning() const { return runProcess_ != nullptr && runProcess_->state() != QProcess::NotRunning; }
@@ -172,7 +162,7 @@ bool RupturaRunner::startRun(const QJsonObject& input, QString* errorMessage)
   }
   simulationFile.close();
 
-  if (!ensureDefaultNotebook(record.notebookPath, simulation, record.id, repoRoot_, record.directory, errorMessage))
+  if (!ensureDefaultNotebook(record.notebookPath, simulation, record.id, errorMessage))
   {
     return false;
   }
@@ -338,8 +328,8 @@ bool RupturaRunner::openAnalysis(const QString& runId, QString* errorMessage)
     }
 
     const QJsonDocument simulationDocument = QJsonDocument::fromJson(simulationFile.readAll());
-    if (!simulationDocument.isObject() || !ensureDefaultNotebook(record.notebookPath, simulationDocument.object(),
-                                                                 record.id, repoRoot_, record.directory, errorMessage))
+    if (!simulationDocument.isObject() ||
+        !ensureDefaultNotebook(record.notebookPath, simulationDocument.object(), record.id, errorMessage))
     {
       if (errorMessage != nullptr && errorMessage->isEmpty())
       {
@@ -467,17 +457,20 @@ void RupturaRunner::stopJupyter()
     return;
   }
 
-  if (jupyterProcess_->state() != QProcess::NotRunning)
+  // waitForFinished emits readyReadStandardOutput and finished synchronously; their handlers read and null
+  // jupyterProcess_, so detach the process from them first.
+  QProcess* process = std::exchange(jupyterProcess_, nullptr);
+  process->disconnect(this);
+  if (process->state() != QProcess::NotRunning)
   {
-    jupyterProcess_->terminate();
-    if (!jupyterProcess_->waitForFinished(1500))
+    process->terminate();
+    if (!process->waitForFinished(1500))
     {
-      jupyterProcess_->kill();
-      jupyterProcess_->waitForFinished(1500);
+      process->kill();
+      process->waitForFinished(1500);
     }
   }
-  jupyterProcess_->deleteLater();
-  jupyterProcess_ = nullptr;
+  process->deleteLater();
   jupyterUrl_.clear();
 }
 
@@ -536,7 +529,6 @@ void RupturaRunner::writeManifest(const RunRecord& record) const
   }
 
   QJsonObject manifest = runRecordJson(record);
-  manifest.insert("repoRoot", repoRoot_);
   manifest.insert("cliExecutable", cliExecutable_);
   file.write(QJsonDocument(manifest).toJson(QJsonDocument::Indented));
 }

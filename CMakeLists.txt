@@ -30,6 +30,10 @@ option(RUPTURA_NATIVE_ARCH
   "Optimize for the build machine's CPU with -march=native; turn OFF for redistributable binaries"
   ON
 )
+option(RUPTURA_TIMING_BREAKDOWN
+  "Also time the velocity/pressure, equilibrium-loading, and derivative phases of every RK3/SIRK3 stage (~3% slower)"
+  OFF
+)
 
 set(BUILD_TESTING ${_ruptura_default_testing} CACHE BOOL "Build the C++ unit tests")
 include(CTest)
@@ -241,8 +245,11 @@ set(RUPTURA_SOURCES
   src/reaction.cpp
   src/special_functions.cpp
   src/swing_adsorption.cpp
+  src/temperature_law.cpp
   src/integrators/rk3.cpp
-  src/integrators/rk3_si.cpp
+  src/integrators/ros34pw2.cpp
+  src/integrators/block_banded.cpp
+  src/integrators/jacobian.cpp
   src/integrators/cvode.cpp
   src/integrators/compute.cpp
   src/integrators/sorption.cpp
@@ -286,6 +293,7 @@ target_compile_options(rupturalib PRIVATE
 
 target_compile_definitions(rupturalib PUBLIC
   BUILD_SUNDIALS=$<BOOL:${BUILD_SUNDIALS}>
+  RUPTURA_TIMING_BREAKDOWN=$<BOOL:${RUPTURA_TIMING_BREAKDOWN}>
 )
 
 target_include_directories(rupturalib PUBLIC
@@ -303,10 +311,6 @@ if(BUILD_CLI)
 
   target_compile_options(${PROJECT_NAME} PRIVATE
     ${RUPTURA_COMPILE_OPTIONS}
-  )
-
-  target_compile_definitions(${PROJECT_NAME} PRIVATE
-    RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
   )
 
   target_link_libraries(${PROJECT_NAME} PRIVATE

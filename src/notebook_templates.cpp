@@ -47,8 +47,6 @@ Notebook codeCell(const std::string& source)
   };
 }
 
-std::string pythonString(const std::filesystem::path& path) { return Notebook(path.string()).dump(); }
-
 Notebook notebook(const Notebook& cells)
 {
   return Notebook{
@@ -61,20 +59,14 @@ Notebook notebook(const Notebook& cells)
   };
 }
 
-Notebook setupCell(const std::filesystem::path& repoRoot, const std::filesystem::path& runDirectory)
+// The notebook holds no paths: Jupyter starts its kernel in the folder of the notebook, which is the run directory,
+// and the plotting code comes from the installed ruptura package. A run directory can then be moved or shared (B-PY-4).
+Notebook setupCell()
 {
   return codeCell(
       "from pathlib import Path\n"
-      "import json\n"
-      "import sys\n\n"
-      "repo_root = Path(" +
-      pythonString(repoRoot) +
-      ").resolve()\n"
-      "run_dir = Path(" +
-      pythonString(runDirectory) +
-      ").resolve()\n"
-      "if repo_root.is_dir() and str(repo_root) not in sys.path:\n"
-      "    sys.path.insert(0, str(repo_root))\n\n"
+      "import json\n\n"
+      "run_dir = Path.cwd()  # the folder of this notebook, which holds the simulation results\n"
       "simulation_json = run_dir / 'simulation.json'\n"
       "data_dir = run_dir\n"
       "simulation_config = json.loads(simulation_json.read_text())\n\n"
@@ -82,12 +74,11 @@ Notebook setupCell(const std::filesystem::path& repoRoot, const std::filesystem:
       "simulation_config.get('SimulationType')\n");
 }
 
-Notebook initialCells(const std::string& title, const std::string& description, std::string_view runId,
-                      const std::filesystem::path& repoRoot, const std::filesystem::path& runDirectory)
+Notebook initialCells(const std::string& title, const std::string& description, std::string_view runId)
 {
   Notebook cells = Notebook::array();
   cells.push_back(markdownCell("# " + title + "\n\n" + description + "\n\nSimulation `" + std::string(runId) + "`"));
-  cells.push_back(setupCell(repoRoot, runDirectory));
+  cells.push_back(setupCell());
   return cells;
 }
 }  // namespace
@@ -101,12 +92,10 @@ SimulationType simulationTypeFromName(std::string_view name)
   return SimulationType::Breakthrough;
 }
 
-Notebook defaultMixturePredictionNotebook(std::string_view runId, const std::filesystem::path& repoRoot,
-                                          const std::filesystem::path& runDirectory)
+Notebook defaultMixturePredictionNotebook(std::string_view runId)
 {
   Notebook cells = initialCells("Mixture prediction analysis",
-                                "Run the cells after the simulation has written its component data files.", runId,
-                                repoRoot, runDirectory);
+                                "Run the cells after the simulation has written its component data files.", runId);
   cells.push_back(markdownCell("## Load the mixture-prediction results"));
   cells.push_back(
       codeCell("from ruptura.plot_mixture import MixturePredictionPlotly\n\n"
@@ -131,13 +120,12 @@ Notebook defaultMixturePredictionNotebook(std::string_view runId, const std::fil
   return notebook(cells);
 }
 
-Notebook defaultBreakthroughNotebook(std::string_view runId, const std::filesystem::path& repoRoot,
-                                     const std::filesystem::path& runDirectory)
+Notebook defaultBreakthroughNotebook(std::string_view runId)
 {
   Notebook cells = initialCells("Breakthrough analysis",
                                 "Run the cells after the simulation has written `column.data` and its component data "
                                 "files.",
-                                runId, repoRoot, runDirectory);
+                                runId);
   cells.push_back(markdownCell("## Load the breakthrough results"));
   cells.push_back(
       codeCell("from ruptura.plot_breakthrough import BreakthroughPlotly\n\n"
@@ -171,12 +159,11 @@ Notebook defaultBreakthroughNotebook(std::string_view runId, const std::filesyst
   return notebook(cells);
 }
 
-Notebook defaultFittingNotebook(std::string_view runId, const std::filesystem::path& repoRoot,
-                                const std::filesystem::path& runDirectory)
+Notebook defaultFittingNotebook(std::string_view runId)
 {
   Notebook cells =
       initialCells("Fitting analysis", "Run the cells after fitting has written the fitted-components JSON file.",
-                   runId, repoRoot, runDirectory);
+                   runId);
   cells.push_back(markdownCell("## Load the fitting results"));
   cells.push_back(
       codeCell("from ruptura.plot_fitting import FittingPlotly\n\n"
@@ -196,24 +183,22 @@ Notebook defaultFittingNotebook(std::string_view runId, const std::filesystem::p
   return notebook(cells);
 }
 
-Notebook defaultNotebookForSimulation(SimulationType simulationType, std::string_view runId,
-                                      const std::filesystem::path& repoRoot, const std::filesystem::path& runDirectory)
+Notebook defaultNotebookForSimulation(SimulationType simulationType, std::string_view runId)
 {
   switch (simulationType)
   {
     case SimulationType::MixturePrediction:
-      return defaultMixturePredictionNotebook(runId, repoRoot, runDirectory);
+      return defaultMixturePredictionNotebook(runId);
     case SimulationType::Fitting:
-      return defaultFittingNotebook(runId, repoRoot, runDirectory);
+      return defaultFittingNotebook(runId);
     case SimulationType::Breakthrough:
     default:
-      return defaultBreakthroughNotebook(runId, repoRoot, runDirectory);
+      return defaultBreakthroughNotebook(runId);
   }
 }
 
 WriteResult writeDefaultNotebook(const std::filesystem::path& notebookPath, SimulationType simulationType,
-                                 std::string_view runId, const std::filesystem::path& repoRoot,
-                                 const std::filesystem::path& runDirectory)
+                                 std::string_view runId)
 {
   std::error_code existsError;
   if (std::filesystem::exists(notebookPath, existsError)) return WriteResult::AlreadyExists;
@@ -230,7 +215,7 @@ WriteResult writeDefaultNotebook(const std::filesystem::path& notebookPath, Simu
     throw std::runtime_error("Could not create the default analysis notebook '" + notebookPath.string() + "'");
   }
 
-  file << defaultNotebookForSimulation(simulationType, runId, repoRoot, runDirectory).dump(2) << '\n';
+  file << defaultNotebookForSimulation(simulationType, runId).dump(2) << '\n';
   file.close();
   if (!file)
   {

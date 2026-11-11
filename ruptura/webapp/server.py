@@ -30,7 +30,7 @@ class LabServer(ThreadingHTTPServer):
         self.workspace.mkdir(parents=True, exist_ok=True)
         self.store = StateStore(self.workspace)
         settings_path = self.workspace / ".ruptura-lab" / "settings.json"
-        saved = json.loads(settings_path.read_text()) if settings_path.exists() else {}
+        saved = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
         self.manager = RunManager(self.workspace, cli or saved.get("cli"))
         self.session = secrets.token_urlsafe(32)
         try:
@@ -129,7 +129,7 @@ class LabHandler(BaseHTTPRequestHandler):
                 if len(parts) == 4:
                     root = Path(record["directory"])
                     files = [{"name": item.name, "bytes": item.stat().st_size} for item in root.iterdir() if item.is_file() and item.name != "manifest.json"]
-                    config = json.loads((root / "simulation.json").read_text())
+                    config = json.loads((root / "simulation.json").read_text(encoding="utf-8"))
                     self.send({"record": record, "input": config, "files": files})
                 elif parts[4] == "log":
                     self.send(self.server.manager.log(identifier, query.get("offset", [None])[0]))
@@ -180,7 +180,7 @@ class LabHandler(BaseHTTPRequestHandler):
             elif path == "/api/import":
                 if data.get("path"):
                     file = Path(data["path"]).expanduser().resolve()
-                    document = json.loads(file.read_text())
+                    document = json.loads(file.read_text(encoding="utf-8"))
                     directory = file.parent
                 else:
                     document = data.get("document")

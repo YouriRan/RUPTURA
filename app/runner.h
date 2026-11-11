@@ -53,7 +53,6 @@ class RupturaRunner : public QObject
   QProcess* jupyterProcess_{nullptr};
   QString activeRunId_;
   QString latestRunId_;
-  QString repoRoot_;
   QString cliExecutable_;
   QString jupyterUrl_;
 

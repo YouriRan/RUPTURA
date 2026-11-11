@@ -143,17 +143,21 @@ Transport.
 Each component object has a required "Name" (unique string) and optionally:
 
   CarrierGas            bool. Inert, non-adsorbing gas carrier; it needs no sites.
+  Water                 bool. The water component (at most one, not the carrier, gas only): its partial
+                        pressure sets the relative humidity of the humidity-dependent isotherms, and its
+                        isotherm (usually GAB) their water loading q_w (section 6).
   GasPhaseMolFraction   feed mole fraction [-] (gas).
   LiquidPhaseConcentration         feed concentration [mol/m3] (liquid).
   InitialLiquidPhaseConcentration  initial column concentration [mol/m3] (liquid).
   MolecularWeight       [kg/mol]. Give it for every gas component of a column run.
   MassTransferCoefficient   k_LDF [1/s].
-  AxialDispersionCoefficient  D_ax [m2/s].
-  HeatOfAdsorption      positive magnitude [J/mol]. It sets the temperature dependence of the
-                        affinity (if nonIsothermal) and the physisorption heat release (if
-                        energyBalance).
-  nonIsothermal         bool. Scales the isotherm affinity with temperature (section 7).
-  referenceTemperature  [K]. The temperature at which the affinity was fitted (section 7).
+  AxialDispersionCoefficient  D_ax [m2/s]; with a dispersion law (section 9), its velocity-
+                        independent (molecular) part D_0.
+  HeatOfAdsorption      positive magnitude [J/mol]: the physisorption heat released (if
+                        energyBalance). An affinity VantHoff law without "Energy" takes it
+                        (section 7).
+  ReferenceTemperature  [K]. The T_ref of the temperature laws of this component that give none
+                        (section 7).
   PhysisorptionSites    array of isotherm sites (section 7).
   ChemisorptionSites    array of chemisorption sites (section 8).
   FileName              data file. Fitting only.
@@ -170,7 +174,7 @@ Rules:
     and explain that outside the JSON. A site whose first parameter is 0 is disabled.
   - Give MassTransferCoefficient and AxialDispersionCoefficient for every adsorbing component in
     a column run. A value of 0 switches the effect off, so use 0 only deliberately.
-  - "Components" may also be an object keyed by name, but use the array form.
+  - "Components" must be an array: its order sets the component indices.
 
 ==============================================================================================
 5. SIMULATION TYPES AND THEIR REQUIRED KEYS
@@ -180,19 +184,46 @@ Breakthrough (default type). Required:
   SimulationType, DisplayName, FluidPhase, Temperature, MixturePredictionMethod,
   BreakthroughIntegrator, BoundaryCondition plus that condition's inputs (section 6),
   DynamicViscosity, ParticleDensity, ColumnLength (single bed) or the multistack layout
-  (section 9), NumberOfGridPoints, SimulationTime, WriteInterval, TimeStep (RungeKutta3 and
-  SIRK3 only), Geometry, Components. Liquids also need LiquidDensity.
+  (section 9), NumberOfGridPoints, SimulationTime, WriteInterval, TimeStep (RungeKutta3
+  only), Geometry, Components. Liquids also need LiquidDensity.
   Temperature is both the initial column temperature and the isotherm temperature.
 
 SwingAdsorption. Everything a Breakthrough needs, plus "SwingAdsorptionPhases", a non-empty
   ordered array. Each phase object has:
-    Name               optional string
-    Temperature        optional [K]; omitted = the value of the previous setting
-    InletPressure      optional [Pa]; omitted = the base InletPressure
-    Duration           required phase length [s] ("auto" is not allowed here)
+    Name                    optional string
+    Temperature             optional [K]; omitted = the value of the previous setting
+    InletPressure           optional [Pa]; omitted = the base InletPressure
+    Duration                required phase length [s] ("auto" is not allowed here)
+    GasPhaseMolFractions    optional object {component name: mole fraction}, the feed of this
+                            phase (gas only); components not listed are absent from it;
+                            omitted = the GasPhaseMolFraction values of Components
+    ColumnEntranceVelocity  optional [m/s]; omitted = the base value
+    FlowDirection           optional "Forward" (feed at z = 0) or "Reverse" (feed at z = L, e.g.
+                            a counter-current purge); omitted = the root FlowDirection
+    ProductEndGasPhaseMolFractions
+                            optional, forward phases only (gas): the gas that flows back in at
+                            z = L when the uptake exceeds what the feed brings; omitted = the
+                            gas of the last cell
+    ClosedEnd               optional "FeedEnd" (z = 0) or "ProductEnd" (z = L): zero velocity at
+                            that end; the other end is open at InletPressure and gas leaves or
+                            enters there (GasPhaseMolFractions). Do not combine with
+                            FlowDirection, ColumnEntranceVelocity, or
+                            ProductEndGasPhaseMolFractions; needs BoundaryCondition
+                            InletPressureInletVelocity and InletCondition Danckwerts
+    PressureRamp            optional {"Shape": "Exponential" or "Linear", "TimeConstant": s}:
+                            the inlet pressure (at the open end of a closed-end phase) goes from
+                            its value at the end of the previous phase to InletPressure (Linear:
+                            within TimeConstant). Needs BoundaryCondition
+                            InletPressureInletVelocity
   The phases run in array order and the simulated time is the sum of their durations, so omit
-  the root SimulationTime (it is an error for SwingAdsorption). Only temperature and inlet pressure can change between phases; feed
-  composition, velocity, and flow direction stay fixed.
+  the root SimulationTime (it is an error for SwingAdsorption). "NumberOfCycles" (positive
+  integer) repeats the whole phase list. Without a PressureRamp the pressure steps to the phase
+  InletPressure at the start of a phase, and the gas is rescaled to it at its composition. For a
+  PSA cycle use closed-end phases with a ramp for pressurization and blowdown, and open phases at
+  constant pressure for adsorption and purge; the pressure drop must stay small against the
+  lowest pressure. phases.data then holds the gas and adsorbed amounts of each component at the
+  start and end of every phase [mol/m2 of column cross-section], from which purity and recovery
+  follow: what entered minus what left in a phase is the change of these amounts.
 
 MixturePrediction. Gas only. Required:
   SimulationType, DisplayName, Temperature, PressureStart and PressureEnd [Pa, total
@@ -203,15 +234,19 @@ MixturePrediction. Gas only. Required:
 
 Fitting. Required:
   SimulationType "Fitting", ColumnPressure, ColumnLoading, PressureScale, Components.
+  Optional: FittingWeighting ("Absolute", default: minimize the RMSE of the loading in mol/kg;
+  "Relative": minimize the RMSE of (q_data - q_fit)/q_data, which fits the low-loading Henry
+  region as closely as the plateau and skips points with zero loading).
   - Each component needs Name, FileName (whitespace-separated columns; lines starting with # are
     ignored; pressure in Pa, loading in mol/kg), and PhysisorptionSites whose Parameters arrays
-    have the model's exact length. The parameters are starting values; zeros are accepted.
-  - ColumnPressure and ColumnLoading are ONE-based column numbers. Always set ColumnPressure,
-    because its default (0) is invalid. ColumnError is accepted but not used.
+    have the model's exact length. Only their number matters: the fit starts from random
+    values, so zeros are fine. The data file needs more points than the model has parameters.
+  - ColumnPressure and ColumnLoading are ONE-based column numbers (defaults 1 and 2). Always set
+    them explicitly. ColumnError is accepted but not used.
   - Do not add column or breakthrough keys.
 
 ==============================================================================================
-6. BOUNDARY CONDITIONS, FLUID PHASE, AND pH
+6. BOUNDARY CONDITIONS, FLUID PHASE, pH, AND HUMIDITY
 ==============================================================================================
 
 "BoundaryCondition" (default InletPressureInletVelocity) and the keys each value requires:
@@ -226,6 +261,15 @@ Choose the value that matches what the experiment controlled. A flow-controlled 
 inlet pressure is InletPressureInletVelocity; a known outlet (back-pressure) is
 InletVelocityOutletPressure. FixedVelocity ignores the change in velocity caused by uptake, so
 use it only when the user wants that simplification.
+
+"FlowDirection" (default "Forward"): the end at which the feed enters. "Reverse" feeds the column
+at z = L: the inlet keys above then apply at z = L and the outlet keys at z = 0, and the
+velocities in column.data are negative. The column state is not mirrored: the gas that leaves a
+reverse step is that of the first cell, the second node in the output files (the node at z = 0
+keeps the state the first cell had when the step started). Use it per phase in SwingAdsorption for counter-current
+steps; a Breakthrough rarely needs it. If the uptake exceeds what the feed brings, the flow can
+also turn back at the outlet end of a forward step: gas then flows back in there, that of the
+last cell unless ProductEndGasPhaseMolFractions sets it (swing phases).
 The pressure drop uses DynamicViscosity [Pa s] of the fluid (gas or liquid) together with the
 Geometry. Pressures must be > 0 and velocities >= 0.
 
@@ -240,11 +284,21 @@ pH, liquid only:
   the first component). Component names are not accepted. "pKw" (default 14) is used with OHMinus.
   The H+ or OH- component needs a disabled isotherm (section 4).
 
+Humidity, gas only (for the humidity-dependent isotherms of section 7):
+  The relative humidity is RH = p_H2O / p_sat(T), with p_H2O the partial pressure of the component
+  with "Water": true and T the gas temperature, at every grid point. "RelativeHumidity": a number
+  >= 0 fixes RH instead (the Water component then only supplies q_w, at p_H2O = RH p_sat(T)).
+  The water loading q_w is the loading of the Water component's isotherm at that p_H2O.
+  "WaterSaturationPressureModel": "Antoine" (default, 274-373 K), "Wagner" (IAPWS equation of
+  Wagner and Pruss, 273.16-647.096 K), or "Constant" with "WaterSaturationPressure" [Pa]. It also
+  sets the p_sat of GAB.
+
 ==============================================================================================
 7. ISOTHERMS ("PhysisorptionSites", and the equilibrium isotherm of chemisorption sites)
 ==============================================================================================
 
-Site form: {"Type": "<Type>", "Parameters": [numbers in the order below]}. Sites are summed.
+Site form: {"Type": "<Type>", "Parameters": [values in the order below]}. Sites are summed. Each value
+is a number, or, where marked [T] below, a temperature law (see "Temperature dependence").
 
 Physisorption sites may also contain:
   "RateEquation": "FirstOrder" (the only physisorption option), and
@@ -254,16 +308,17 @@ Physisorption sites may also contain:
   instead.
 
 Notation: q in mol/kg; x = partial pressure [Pa] for a gas, concentration [mol/m3] for a liquid.
-The [T] mark means the type supports "nonIsothermal": true.
+The [T] mark means the type has temperature-scalable parameters (listed under "Temperature
+dependence").
 
-  Henry               [K_H]                q = K_H x
-  Freundlich          [K_F, n]             q = K_F x^(1/n)
+  Henry         [T]   [K_H]                q = K_H x
+  Freundlich    [T]   [K_F, n]             q = K_F x^(1/n)
   Langmuir      [T]   [q_sat, b]           q = q_sat b x / (1 + b x)
   Langmuir-Freundlich [T] [q_sat, b, nu]   q = q_sat b x^nu / (1 + b x^nu)
   Sips          [T]   [q_sat, b, n]        q = q_sat (b x)^(1/n) / (1 + (b x)^(1/n))
   Toth          [T]   [q_sat, b, t]        q = q_sat b x / (1 + (b x)^t)^(1/t)
   Anti-Langmuir       [a, b]               q = a x / (1 - b x), valid for b x < 1
-  Redlich-Peterson    [K_R, a_R, g]        q = K_R x / (1 + a_R x^g)
+  Redlich-Peterson [T] [K_R, a_R, g]       q = K_R x / (1 + a_R x^g)
   BET                 [q_m, b, c]          q = q_m b x / ((1 - c x)(1 - c + b x))
   Quadratic           [q_sat, b, c]        q = q_sat (b x + 2 c x^2) / (1 + b x + c x^2)
   Temkin              [q_sat, b, c]        q = q_sat [th + c th^2 (th - 1)], th = b x/(1 + b x)
@@ -272,30 +327,68 @@ The [T] mark means the type supports "nonIsothermal": true.
   Unilan              [q_sat, b, s]        DO NOT USE: the current implementation returns zero.
   pH-Langmuir   [T]   [q_sat, b, pH_0]     b_pH = b / (1 + 10^(pH_0 - pH)),
                                            q = q_sat b_pH x / (1 + b_pH x). Liquid only, SPI only.
-  GAB           [T]   [q_m, C_0, K_0, H_C, H_K]  Water: x_r = p / p_sat(T), with p_sat from a
-                                           built-in Antoine equation for water;
-                                           C = C_0 exp(H_C/(R T)), K = K_0 exp(H_K/(R T));
-                                           q = q_m C K x_r / ((1 - K x_r)(1 + (C - 1) K x_r)),
-                                           valid while K x_r < 1. Gas only, SPI only. The component
-                                           MUST set "nonIsothermal": true and
-                                           "HeatOfAdsorption": 1.0 and must NOT set
-                                           referenceTemperature.
+  GAB           [T]   [q_m, C, K]          Water: x_r = p / p_sat(T), with p_sat from
+                                           WaterSaturationPressureModel (section 6) at the column
+                                           temperature; q = q_m C K x_r / ((1 - K x_r)(1 + (C - 1) K x_r)),
+                                           valid while K x_r < 1. Gas only, SPI only. A
+                                           temperature-dependent C = C_0 exp(H_C/(R T)) is the law
+                                           {"Value": C_0, "Law": "VantHoff", "Energy": H_C}
+                                           without ReferenceTemperature; likewise K.
+
+Humidity-dependent isotherms (gas only, SPI only, not on the Water component, not as chemisorption
+sites). RH and q_w [mol/kg] are those of section 6; each needs a Water component or a
+RelativeHumidity, and the GAB-coadsorption and GAB-modified types need a Water component.
+  Humidity-enhanced-Langmuir [T] [q_sat, b, alpha, k_w]
+                                           b_eff = b [1 + alpha k_w RH / (1 + k_w RH)], Langmuir
+  Moisture-swing-Langmuir    [T] [q_sat, b, n_w]
+                                           b_eff = b RH^(-n_w) (b at RH = 1), Langmuir; q -> q_sat at RH = 0
+  GAB-coadsorption-Langmuir  [T] [q_sat, b, alpha, omega]
+                                           b_eff = b (1 + alpha q_w), q_eff = q_sat max(0, 1 - omega q_w);
+                                           alpha, omega in kg/mol, 0 disables either modifier
+  GAB-coadsorption-Sips      [T] [q_sat, b, n, alpha, omega]    Sips with the same modifiers
+  GAB-coadsorption-Toth      [T] [q_sat, b, t, alpha, omega]    Toth with the same modifiers
+  GAB-modified-Toth          [T] [q_sat, b, t, gamma, beta]
+                                           q_eff = q_sat / (1 - gamma q_w), b_eff = b (1 + beta q_w), Toth
+                                           (Stampi-Bombelli et al. 2020; Liu et al. 2024); gamma q_w < 1
+  Exponential-humidity-Toth  [T] [q_sat, b, t, a]
+                                           q_eff = q_sat exp(a RH), Toth (Liu et al. 2024, eq. 8)
 
 The BET and O'Brien-Myers forms above are the implemented ones and differ from some textbook
 versions. Map a source only after rewriting it in this form, and ask if the forms do not match.
 
-Temperature dependence, for [T] types only:
-  With "nonIsothermal": true and HeatOfAdsorption Q > 0, the affinity b is multiplied by
-    exp[(Q / R)(1/T - 1/T_ref)]  if referenceTemperature T_ref is given (b is the value at T_ref),
-    exp[Q / (R T)]               otherwise (b is a pre-exponential factor).
-  q_sat and the exponents do not depend on temperature. Do not set nonIsothermal on any other
-  type.
+Temperature dependence. A plain number is constant. A temperature law replaces the number:
+  {"Value": V, "Law": "<law>", "<coefficient key>": c, "ReferenceTemperature": T_ref [K, optional]}
+  Law          p(T)                               coefficient key   unit
+  VantHoff     V exp[Q/R (1/T - 1/T_ref)]         "Energy" Q        J/mol (Q > 0: grows as T drops)
+  Arrhenius    V exp[-E/R (1/T - 1/T_ref)]        "ActivationEnergy" E  J/mol (E > 0: grows with T)
+  Exponential  V exp[chi (1 - T/T_ref)]           "Chi" chi         -
+  Linear       V + a (T - T_ref)                  "Slope" a         unit of V per K
+  Inverse      V + alpha (1 - T_ref/T)            "Alpha" alpha     unit of V
+  V is the value at T_ref. A law without ReferenceTemperature takes the component's
+  ReferenceTemperature. Without any T_ref, VantHoff and Arrhenius are V exp[Q/(R T)] and
+  V exp[-E/(R T)] (V is then a pre-exponential factor); the other laws need a T_ref.
+  Where each law is allowed (any other position must be a number):
+    q_sat or q_m (Langmuir, pH-Langmuir, Sips, Langmuir-Freundlich, Toth, GAB, and the [T]
+      humidity types): Exponential, Linear
+    affinity b or k, K_H, K_F (Henry, Freundlich, Langmuir, pH-Langmuir, Sips,
+      Langmuir-Freundlich, Toth, and the [T] humidity types): VantHoff, which may omit "Energy" to
+      take HeatOfAdsorption
+    exponent n, nu, t (Freundlich, Sips, Langmuir-Freundlich, Toth, and the Sips and Toth humidity
+      types) and g (Redlich-Peterson): Linear, Inverse
+    K_R, a_R (Redlich-Peterson) and C, K (GAB): VantHoff with "Energy" given
+  Heat: a given HeatOfAdsorption is the energy-balance heat; affinity laws with their own Energy
+  keep it (it may differ). Without HeatOfAdsorption, the heat is the Energy of the affinity laws,
+  which must then agree when energyBalance is on. A chemisorption site's own HeatOfAdsorption,
+  else the Energy of its affinity law, else the component's HeatOfAdsorption is that site's heat.
+  If the source gives a temperature-dependent isotherm, map each parameter to the law of the same
+  form, and say so; if no law fits, ask.
 
 Mixture methods ("MixturePredictionMethod"; default IAST):
   IAST   ideal adsorbed solution theory. The general default.
   SIAST  IAST applied per site index. Use it when sites represent distinct adsorption
          environments.
-  SPI    sites evaluated independently, without competition. Required for GAB and pH-Langmuir.
+  SPI    sites evaluated independently, without competition. Required for GAB, pH-Langmuir, and
+         the humidity-dependent isotherms.
   SCI    segregated competitive isotherm. Each site index must use ONE model across all
          components, chosen from Langmuir, Anti-Langmuir, Sips, Langmuir-Freundlich,
          Redlich-Peterson, Toth.
@@ -321,17 +414,23 @@ Add this block only when the user's model contains chemisorption. Each site is
   }
 
 RateEquation and its RateEquationParameters:
+  The rate coefficients (MassTransferCoefficient, RateCoefficient, AdsorptionRateCoefficient,
+  DesorptionRateCoefficient, Alpha) are numbers or Arrhenius laws (section 7), k(T) =
+  k0 exp[-E/R (1/T - 1/T_ref)].
   FirstOrder  {"MassTransferCoefficient": k [1/s]}. Optional; default: the component's k_LDF.
   PseudoNth   {"RateCoefficient": k_n [(mol/kg)^(1-n) / s], "Order": n >= 0}
               dq/dt = k_n (q* - q) |q* - q|^(n-1).
-  Avrami      {"RateCoefficient": k_A [1/s], "Order": n >= 0}.
+  Avrami      {"RateCoefficient": k_A [1/s], "Order": n >= 0}
+              uptake: dq/dt = n k_A s^(n-1) (q* - q), s = max([-ln(1 - q/q*)]^(1/n), 1e-3), so a clean sorbent at
+              constant q* follows q/q* = 1 - exp(-(k_A t)^n) with t counted from its own start (no global clock);
+              release (q > q*): dq/dt = k_A (q* - q).
   General     ALL of the following are required:
-              "AdsorptionRateCoefficient", "AdsorptionActivationEnergy" [J/mol],
-              "DesorptionRateCoefficient", "DesorptionActivationEnergy" [J/mol],
+              "AdsorptionRateCoefficient", "DesorptionRateCoefficient",
               "PoreConcentrationOrder", "CapacityOrder", "DesorptionOrder"
               (non-negative integers), "FilmMassTransferCoefficient" [m/s],
               "PoreDiffusivity" [m2/s], "UsePoreSurfaceTransport" (bool).
-              dq/dt = k+(T) c_p^m (q_max - q)^n+ - k-(T) q^n-, with k(T) = k0 exp(-E/(R T)).
+              dq/dt = k+(T) c_p^m (q_max - q)^n+ - k-(T) q^n-; give an activation energy as an
+              Arrhenius law of k+ or k-.
   Elovich     ALL of "Alpha" [m3/(kg s)], "Beta" [kg/mol], "FilmMassTransferCoefficient",
               "PoreDiffusivity", "UsePoreSurfaceTransport". dq/dt = Alpha c_p exp(-Beta q).
 The units of the General rate coefficients depend on the orders. Never guess them; ask.
@@ -360,13 +459,28 @@ Monolith:
   Channel areas: circle pi d^2/4, square d^2, triangle sqrt(3) d^2/4, hexagon 3 sqrt(3) d^2/2.
   The total channel area must be smaller than pi OuterDiameter^2 / 4.
 
+Axial dispersion law (optional; without these keys every D_ax is its constant input value):
+  D_ax,j = D_0,j theta + lambda |v| + kappa v^2 / (D_0,j theta), at the local interstitial velocity v.
+  - D_0,j: the component's AxialDispersionCoefficient (molecular part, species-specific).
+  - lambda: Geometry "AxialDispersivity" [m] (both types, default 0; about d_p/2 in a packed bed);
+    an Adsorbents entry may override it.
+  - kappa = d_h^2/192: Geometry "TaylorArisDispersion": true (Monolith only, default false; the
+    Taylor-Aris dispersion of laminar channel flow). Every component then needs D_0 > 0, the
+    molecular diffusivity.
+  - theta = (T/T_ref)^1.75 (P_ref/P) with root "AxialDispersionReferenceTemperature" [K] and
+    "AxialDispersionReferencePressure" [Pa], given together (gas only); without them theta = 1.
+  Literature correlations map onto it, e.g. D_ax = 0.73 D_m + 0.5 d_p v (packed bed):
+  D_0 = 0.73 D_m, lambda = d_p/2; a correlation in the superficial velocity u = epsilon_b v takes
+  lambda = epsilon_b times its coefficient of u.
+
 Multistacked or mixed beds. Use these only when the column contains several adsorbents.
   Root "Adsorbents": an array, in flow order. Each entry may have:
     Name (string, unique), ColumnVoidFraction, ParticleDiameter, ParticleDensity (each defaults to
     the root value), AdsorbentLength [m], MixFraction [-],
     ComponentParameters: an object keyed by component name, overriding MassTransferCoefficient,
-      AxialDispersionCoefficient, HeatOfAdsorption, referenceTemperature, nonIsothermal,
-      PhysisorptionSites, ChemisorptionSites for this adsorbent. A PhysisorptionSites override
+      AxialDispersionCoefficient, HeatOfAdsorption, ReferenceTemperature, PhysisorptionSites,
+      ChemisorptionSites for this adsorbent (affinity laws that took the component heat follow an
+      overridden HeatOfAdsorption). A PhysisorptionSites override
       REPLACES the component's sites.
     Components: complete component objects replacing the global ones (same names). Prefer
       ComponentParameters.
@@ -388,23 +502,28 @@ Multistacked or mixed beds. Use these only when the column contains several adso
         interfaces are then sharp.
   (b) Uniform mixture. Every adsorbent has a MixFraction; the fractions sum to 1. Set the root
       ColumnLength. Do not combine this with ColumnSections or AdsorbentLength.
-  SIRK3 cannot be used with more than one adsorbent. ColumnDistances is only accepted with
-  several adsorbents.
+  ColumnDistances is only accepted with several adsorbents.
 
 ==============================================================================================
 10. NUMERICAL SETTINGS (you may choose these; report every choice)
 ==============================================================================================
 
   BreakthroughIntegrator: "CVODE" (adaptive BDF; robust and the recommended default),
-    "RungeKutta3" (explicit; default), or "SIRK3" (semi-implicit; single adsorbent only).
-  TimeStep [s] (RungeKutta3 and SIRK3 only):
+    "ROS34PW2" (adaptive, linearly implicit Rosenbrock-W method with the analytical sorption
+    Jacobian; often much faster than CVODE, all column features), or "RungeKutta3" (explicit;
+    default).
+  TimeStep [s] (RungeKutta3 only):
     - The integration step. It must satisfy roughly TimeStep <= 0.5 dz / v and
       TimeStep <= dz^2 / (2 D_ax), where dz = ColumnLength / NumberOfGridPoints.
-    - CVODE chooses its own internal steps; an input with CVODE and TimeStep is rejected.
+    - CVODE and ROS34PW2 choose their own internal steps; an input with either and TimeStep
+      is rejected.
   NumberOfGridPoints: 100 is a good default; use at least 50.
   ConvectionScheme: "WENO3" (default; third-order face values, little numerical dispersion) or
-    "Upwind" (first order; adds a numerical dispersion of about v dz / 2). Leave it out; SIRK3
-    supports only "Upwind" and uses it automatically.
+    "Upwind" (first order; adds a numerical dispersion of about v dz / 2). Leave it out.
+  InletCondition: "Danckwerts" (default; the total inflow equals the feed flux) or "Dirichlet"
+    (the inlet face holds the feed state, so axial dispersion adds to the feed flux; it overfeeds
+    when ColumnEntranceVelocity * ColumnLength / AxialDispersionCoefficient is below about 100).
+    Leave it out.
   SimulationTime [s]:
     - "auto" runs until every outlet mole fraction is within 1% of the feed (with reactions:
       until the column states change by less than 1e-4 of their value per second), then 10%
@@ -413,14 +532,18 @@ Multistacked or mixed beds. Use these only when the column contains several adso
       reaches the feed.
   WriteInterval [s]: one column profile and one progress line every WriteInterval (default 5);
     keep it well below the breakthrough time, aiming for a few hundred output rows.
-  NumberOfInitTimeSteps: RungeKutta3/SIRK3 ramp-up steps (default 0). Leave it out.
+  NumberOfInitTimeSteps: RungeKutta3 ramp-up steps (default 0). Leave it out.
   NumberOfTimeSteps, WriteEvery, and PrintEvery (RUPTURA 2) no longer exist; the reader rejects
     them and prints the equivalent times.
   CVODE tuning keys: add them only on request.
-    CVODERelativeTolerance (1e-4); CVODEAbsoluteToleranceConcentration [mol/m3] (1e-5);
-    CVODEAbsoluteToleranceLoading [mol/kg] (1e-6); CVODEAbsoluteToleranceTemperature [K] (1e-3);
-    CVODEMaximumTimeStep [s] (-1 = dz/v automatic, 0 = unlimited); CVODEMaximumOrder (5, BDF order 1-5);
-    CVODELinearSolver "Dense" (default) or "SPGMR"; CVODEKrylovDimension (30, SPGMR only).
+    CVODERelativeTolerance (1e-5); CVODEAbsoluteToleranceConcentration [mol/m3] (1e-6);
+    CVODEAbsoluteToleranceLoading [mol/kg] (1e-7); CVODEAbsoluteToleranceTemperature [K] (1e-4);
+    CVODEMaximumTimeStep [s] (-1 = 4 dz/v automatic, 0 = unlimited); CVODEMaximumOrder (5, BDF order 1-5; 1 if a steep front stalls);
+    CVODELinearSolver "SPGMR" (default) or "Dense"; CVODEKrylovDimension (30, SPGMR only).
+  ROS34PW2 tuning keys: add them only on request.
+    ROS34PW2RelativeTolerance (1e-6); ROS34PW2AbsoluteToleranceConcentration [mol/m3] (1e-7);
+    ROS34PW2AbsoluteToleranceLoading [mol/kg] (1e-8); ROS34PW2AbsoluteToleranceTemperature [K]
+    (1e-5); ROS34PW2MaximumTimeStep [s] (0 = unlimited).
     For dilute feeds (ppm level), lower CVODEAbsoluteToleranceConcentration well below the feed
     concentration, and report it.
 
@@ -436,8 +559,8 @@ Energy balance. Set "energyBalance": true (default false = isothermal). Keys:
     liquid: heatCapacityLiquid, liquidThermalConductivity, heatTransferLiquidSolid,
             heatTransferLiquidWall
   Also give Geometry InternalDiameter and OuterDiameter, and a HeatOfAdsorption for every
-  adsorbing component. Ask for missing thermal data; do not fill in generic values. Consider
-  "nonIsothermal": true on the components so the isotherms follow the temperature.
+  adsorbing component. Ask for missing thermal data; do not fill in generic values. For the
+  isotherms to follow the temperature, write their affinities as VantHoff laws (section 7).
 
 MPD (MixturePredictionMethod "MPD", gas only). Root "MPDSettings":
   {"FileName": "<path relative to simulation.json>", "ReferenceTemperature": [K],
@@ -451,9 +574,11 @@ MPD (MixturePredictionMethod "MPD", gas only). Root "MPDSettings":
   - MPD components need no PhysisorptionSites.
 
 Reactions. Root "Reactions" array; each reaction:
-  Phase: "Physisorbed" | "Chemisorbed" | "PoreConcentration"
+  Phase: "Physisorbed" | "Chemisorbed" | "PoreConcentration" | "BulkConcentration"
+         (BulkConcentration acts on the bulk-fluid concentrations, per fluid volume, with the catalyst
+         amount folded into k+; it requires energyBalance false)
   Style: "GeneralPowerLaw" | "LangmuirHinshelwood" | "LangmuirHinshelwoodHougenWatson"
-         (LH and LHHW require Phase "PoreConcentration")
+         (LH and LHHW require Phase "PoreConcentration" or "BulkConcentration")
   Reactants, Products: non-empty arrays of component names (preferred) or zero-based indices;
                        no component may appear twice.
   Stoichiometry: optional positive numbers, either one array (reactants then products) or
@@ -463,12 +588,17 @@ Reactions. Root "Reactions" array; each reaction:
         chemisorption site on every participant in every adsorbent.
   RateLimitTime: optional [s] (default 1e-4). This is the shortest time over which a reactant
                  may be depleted or a product site filled.
-  Kinetics (required, all four keys): "forwardRateCoefficient" k0 (>= 0; units follow the
-    orders), "forwardActivationEnergy" E [J/mol], "equilibriumConstant" K0 (> 0),
-    "gibbsFreeEnergy" dG [J/mol].
-    Ruptura uses k+ = k0 exp(-E/(R T)), K = K0 exp(-dG/(R T)), k- = k+ / K. For LH/LHHW, the
-    same K also sets the surface coverages. To describe an effectively irreversible reaction,
-    make K very large and report that.
+  Kinetics (required): "ForwardRateCoefficient" k+ (>= 0; units follow the orders; a number or
+    an Arrhenius law), "EquilibriumConstant" K (> 0; a number or a VantHoff law), optional
+    "HeatOfReaction" Q_r [J/mol] (= -dH_r, positive when exothermic) and "ReferenceTemperature"
+    [K] for the laws. Ruptura uses k- = k+ / K. A VantHoff K without "Energy" takes
+    HeatOfReaction; without HeatOfReaction the heat is the Energy of K (0 if K is constant). To describe
+    an effectively irreversible reaction, make K very large and report that.
+    LH and LHHW also need "AdsorptionConstants": {"<component name>": K_j, ...} in Kinetics, one
+    K_j [m3/mol] per adsorbing component (a number or a VantHoff law with "Energy"; every reactant
+    needs K_j > 0; components left out do not adsorb). They set the coverages
+    theta_j = K_j c_j / (1 + sum_i K_i c_i). LH is irreversible, r = k+ prod theta_r^order; LHHW is
+    r = k+ prod theta_r^order - k- prod theta_p^order.
 
 Restart. "ReadColumnFile": "<column-state JSON>" initializes the column from a saved Ruptura
   state, which must match the grid, components, sites and adsorbents. Use it only on request.
@@ -505,16 +635,18 @@ That is why every material value must be written explicitly.
   [ ] Gas column run: exactly one carrier, MolecularWeight on every component, feed fractions
       >= 0 summing to 1. Liquid: no carrier, LiquidDensity set, concentrations >= 0.
   [ ] Every non-carrier component has an isotherm for every adsorbent (unless MPD), each with
-      the exact parameter count. No Unilan. nonIsothermal only on [T] types. GAB settings
-      exact.
-  [ ] The mixture method is compatible: SPI for GAB and pH-Langmuir; Langmuir for EI and SEI;
+      the exact parameter count. No Unilan. Temperature laws only at the positions of section 7,
+      each with its coefficient key; an affinity VantHoff law without Energy needs a
+      HeatOfAdsorption.
+  [ ] The mixture method is compatible: SPI for GAB, pH-Langmuir, and the humidity-dependent
+      isotherms (with a Water component or RelativeHumidity); Langmuir for EI and SEI;
       a single model per site for SCI; no chemisorption with EI; MPD and MixturePrediction are
       gas only.
   [ ] The BoundaryCondition inputs are present; the fixed-gradient pressure stays positive.
   [ ] The Geometry is complete and feasible (outer > inner; channel area < monolith area).
   [ ] Multistack: names match, the order matches, one interface between each pair of
-      neighbours, grid counts all or none, no ColumnLength, no SIRK3.
-  [ ] Numerical settings are stable (RK3/SIRK3 time step; no TimeStep with CVODE), the output
+      neighbours, grid counts all or none, no ColumnLength.
+  [ ] Numerical settings are stable (RK3 time step; no TimeStep with CVODE or ROS34PW2), the output
       interval resolves the breakthrough, and every swing phase has a Duration in s.
   [ ] Optional blocks (energy, chemisorption, reactions, MPD, pH, CVODE tuning, restart) are
       present only when requested and are complete.
@@ -547,7 +679,9 @@ Gas breakthrough, packed bed:
     {"Name": "He", "CarrierGas": true, "GasPhaseMolFraction": 0.8, "MolecularWeight": 0.0040026},
     {"Name": "CO2", "GasPhaseMolFraction": 0.15, "MolecularWeight": 0.04401,
      "MassTransferCoefficient": 0.1, "AxialDispersionCoefficient": 1.0e-05,
-     "PhysisorptionSites": [{"Type": "Langmuir", "Parameters": [5.0, 1.0e-04]}]},
+     "HeatOfAdsorption": 25000.0, "ReferenceTemperature": 298.15,
+     "PhysisorptionSites": [{"Type": "Langmuir",
+                             "Parameters": [5.0, {"Value": 1.0e-04, "Law": "VantHoff"}]}]},
     {"Name": "N2", "GasPhaseMolFraction": 0.05, "MolecularWeight": 0.028014,
      "MassTransferCoefficient": 0.5, "AxialDispersionCoefficient": 1.0e-05,
      "PhysisorptionSites": [{"Type": "Langmuir", "Parameters": [3.0, 1.0e-06]}]}
@@ -645,8 +779,8 @@ Fragments (merge them into a full file):
     {"Type": "Langmuir", "Parameters": [0.55, 1.8e-05], "MaximumLoading": 0.55,
      "HeatOfAdsorption": 52000.0, "RateEquation": "General",
      "RateEquationParameters": {
-       "AdsorptionRateCoefficient": 2.5e-05, "AdsorptionActivationEnergy": 0.0,
-       "DesorptionRateCoefficient": 1.0e-06, "DesorptionActivationEnergy": 0.0,
+       "AdsorptionRateCoefficient": {"Value": 2.5e-05, "Law": "Arrhenius", "ActivationEnergy": 30000.0},
+       "DesorptionRateCoefficient": 1.0e-06,
        "PoreConcentrationOrder": 1, "CapacityOrder": 1, "DesorptionOrder": 1,
        "FilmMassTransferCoefficient": 0.0015, "PoreDiffusivity": 8.0e-11,
        "UsePoreSurfaceTransport": true}}
@@ -657,8 +791,8 @@ Fragments (merge them into a full file):
     {"Phase": "Physisorbed", "Style": "GeneralPowerLaw", "Site": 0,
      "Reactants": ["CO", "O2"], "Products": ["CO2"],
      "Stoichiometry": {"Reactants": [1.0, 0.5], "Products": [1.0]},
-     "Kinetics": {"forwardRateCoefficient": 1.0e+05, "forwardActivationEnergy": 55000.0,
-                  "equilibriumConstant": 1.0, "gibbsFreeEnergy": -250000.0}}
+     "Kinetics": {"ForwardRateCoefficient": {"Value": 1.0e+05, "Law": "Arrhenius", "ActivationEnergy": 55000.0},
+                  "EquilibriumConstant": {"Value": 1.0, "Law": "VantHoff"}, "HeatOfReaction": 250000.0}}
   ]
 
   Energy balance (root, gas):
