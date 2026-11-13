@@ -30,7 +30,7 @@ class LabServer(ThreadingHTTPServer):
         self.workspace.mkdir(parents=True, exist_ok=True)
         self.store = StateStore(self.workspace)
         settings_path = self.workspace / ".ruptura-lab" / "settings.json"
-        saved = json.loads(settings_path.read_text(encoding="utf-8")) if settings_path.exists() else {}
+        saved = json.loads(settings_path.read_text()) if settings_path.exists() else {}
         self.manager = RunManager(self.workspace, cli or saved.get("cli"))
         self.session = secrets.token_urlsafe(32)
         try:
@@ -107,6 +107,9 @@ class LabHandler(BaseHTTPRequestHandler):
                            "presetInfo": PRESET_INFO, "presetNotes": {key: example_notes({"input": value, "presetId": key}) for key, value in presets().items()},
                            "about": ABOUT, "runs": self.server.manager.list(), "capabilities": self.server.manager.capabilities(),
                            "workspace": str(self.server.workspace), "python": sys.executable, "missingDependencies": missing})
+            elif path == "/api/cycle-templates":
+                from .cycle_templates import templates
+                self.send(templates())
             elif path == "/api/runs":
                 self.send(self.server.manager.list())
             elif path == "/api/state":
@@ -129,7 +132,7 @@ class LabHandler(BaseHTTPRequestHandler):
                 if len(parts) == 4:
                     root = Path(record["directory"])
                     files = [{"name": item.name, "bytes": item.stat().st_size} for item in root.iterdir() if item.is_file() and item.name != "manifest.json"]
-                    config = json.loads((root / "simulation.json").read_text(encoding="utf-8"))
+                    config = json.loads((root / "simulation.json").read_text())
                     self.send({"record": record, "input": config, "files": files})
                 elif parts[4] == "log":
                     self.send(self.server.manager.log(identifier, query.get("offset", [None])[0]))
@@ -147,7 +150,7 @@ class LabHandler(BaseHTTPRequestHandler):
                     self.send(get_plotlyjs(), content_type="application/javascript; charset=utf-8", cache=True)
                 except ImportError:
                     self.send("window.rupturaPlotlyMissing = true;", content_type="application/javascript")
-            elif path in ("/", "/app.js", "/style.css", "/ruptura-logo.png"):
+            elif path in ("/", "/app.js", "/cycle_editor.js", "/style.css", "/ruptura-logo.png"):
                 file = ASSETS / ("index.html" if path == "/" else path[1:])
                 self.send(file.read_bytes(), content_type=mimetypes.guess_type(file)[0] or "text/plain")
             elif path == "/favicon.ico":
@@ -180,7 +183,7 @@ class LabHandler(BaseHTTPRequestHandler):
             elif path == "/api/import":
                 if data.get("path"):
                     file = Path(data["path"]).expanduser().resolve()
-                    document = json.loads(file.read_text(encoding="utf-8"))
+                    document = json.loads(file.read_text())
                     directory = file.parent
                 else:
                     document = data.get("document")
@@ -193,6 +196,10 @@ class LabHandler(BaseHTTPRequestHandler):
             elif path == "/api/validate":
                 config = self.server.manager.validate(data.get("input"), data.get("directory"))
                 self.send({"valid": True, "input": config})
+            elif path == "/api/export-cluster":
+                from .cluster import cluster_bundle
+                config=self.server.manager.validate(data.get("input"),data.get("directory"))
+                self.send(cluster_bundle(config),content_type="application/zip",filename="ruptura-cluster.zip")
             elif path == "/api/settings":
                 cli = find_cli(data.get("cli"))
                 previous = self.server.manager.cli

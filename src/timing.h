@@ -93,16 +93,11 @@ struct Timing
 
   /**
    * \brief Runs a callable while accumulating its elapsed time.
-   *
-   * The time is only measured in builds with the RUPTURA_TIMING_BREAKDOWN CMake option: the clock calls in every
-   * RK3 stage cost about 3% of the run time.
    */
   template <class Callable>
-  decltype(auto) measure([[maybe_unused]] double& value, Callable&& callable)
+  decltype(auto) measure(double& value, Callable&& callable)
   {
-#if RUPTURA_TIMING_BREAKDOWN
     auto timer = scoped(value);
-#endif
     using Result = std::invoke_result_t<Callable&>;
     if constexpr (std::is_void_v<Result>)
     {
@@ -121,10 +116,8 @@ struct Timing
   void print(std::FILE* output = stdout) const
   {
     std::print(output, "Total time:                    {:.6f} s\n", total);
-#if RUPTURA_TIMING_BREAKDOWN
     std::print(output, "  updateVelocityAndPressure:   {:.6f} s\n", updateVelocityAndPressure);
     std::print(output, "  computeEquilibriumLoadings:  {:.6f} s\n", computeEquilibriumLoadings);
     std::print(output, "  computeDerivatives:          {:.6f} s\n", computeDerivatives);
-#endif
   }
 };

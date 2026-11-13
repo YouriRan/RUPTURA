@@ -1,0 +1,95 @@
+{
+  "date": "2026-11-12",
+  "revision": 6,
+  "scope": "Example organization, WENO3 configuration and HAL execution",
+  "examples": {
+    "total": 296,
+    "groups": {
+      "tutorials": 43,
+      "mfi_breakthrough": 27,
+      "mfi_cycles": 162,
+      "chemisorption": 32,
+      "unified": 32
+    },
+    "simulation_types": {
+      "Breakthrough": 92,
+      "SwingAdsorption": 204
+    },
+    "spatial_discretization": {
+      "FVM": 263,
+      "Legacy": 1,
+      "FDM": 32
+    },
+    "convection_schemes": {
+      "WENO3": 296
+    },
+    "removed_duplicate_inputs": 4,
+    "inherited_material_inputs_unchanged": 51
+  },
+  "input_validation": {
+    "passed": 296,
+    "failed": 0
+  },
+  "python_tests": {
+    "total": 410,
+    "passed": 410,
+    "failed": 0,
+    "new_hal_and_generator_checks": 10,
+    "affected_hal_tests_rerun_after_worker_spool_fix": 10
+  },
+  "native_tests": {
+    "total": 147,
+    "passed": 119,
+    "failed": 28,
+    "shared_process_groups_passed": 17,
+    "same_missing_fixture_failures_as_previous_revision": true,
+    "missing_fixture_failures": [
+      "ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix",
+      "GeometryInput.LoadsChemisorptionCo2N2MonolithExample",
+      "ChemisorptionInput.LoadsUpdatedSurfacePoreExample",
+      "ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading",
+      "ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass",
+      "ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption",
+      "LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier",
+      "LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers",
+      "GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome",
+      "LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm",
+      "LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn",
+      "MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir",
+      "MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters",
+      "MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces",
+      "MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn",
+      "MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions",
+      "MultibedCvode.BreakthroughParsesInitializesAndPropagates",
+      "MultibedCvode.PropagatesPoreReactionState",
+      "Column.StateLayoutMatchesColumnConventionAndRebindsCopies",
+      "MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk",
+      "MultibedReactions.ParsesReactionTogetherWithAdsorbents",
+      "MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState",
+      "MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer",
+      "MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs",
+      "MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading",
+      "MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages",
+      "MultibedSwingAdsorption.AdvancesWithCvode",
+      "MultibedOutput.UsesSingleBedComponentColumnSchema"
+    ]
+  },
+  "local_weno3_runs": {
+    "total": 12,
+    "passed": 12,
+    "full_example_runs": 10,
+    "shortened_multicolumn_checks": 2,
+    "plots_disabled": true,
+    "css_campaign": false
+  },
+  "shortened_schedule_overrides": {
+    "NumberOfCycles": 1,
+    "WriteInterval": 0.001,
+    "CyclicSteadyState.Enabled": false,
+    "Solver.MaximumTimeStep": 0.0005,
+    "Solver.FirstTimeStep": 1e-06,
+    "each_phase_duration_s": 0.002
+  },
+  "hal_verification": "Local mocked sbatch/srun, including a copied SLURM worker script; no real HAL jobs submitted",
+  "scientific_scope": "Input checks and selected transients; full 296-case execution, CSS campaigns, mesh refinement and literature validation remain separate"
+}

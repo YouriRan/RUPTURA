@@ -1,0 +1,127 @@
+{
+  "SimulationType": "Fitting",
+  "DisplayName": "MAF-6",
+  "ColumnPressure": 1,
+  "ColumnLoading": 2,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "Name": "nC6",
+      "FileName": "C6.dat",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "2MP",
+      "FileName": "2-MP.dat",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "22DMB",
+      "FileName": "22-DMB.dat",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "23DMB",
+      "FileName": "23-DMB.dat",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "3MP",
+      "FileName": "3-MP.dat",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    }
+  ]
+}

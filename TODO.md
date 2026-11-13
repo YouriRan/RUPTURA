@@ -184,10 +184,10 @@ CVODE second IAST pass (P-ITG-5), then the `R` items.
       pytest cannot collect them. Found 2026-10-27.
 - [ ] **B-BLD-1** Test inputs that exist only locally, so CI checkouts lack them: `examples/Multibed/*`,
       `examples/MPD/BEA-alkanes/*`, `examples/Liquid/*`, `examples/Chemisorption-CO2*/*`,
-      `examples/BEA-alkanes-C7/{psa,tsa}`, `examples/BEA-alkanes-C7/fitting/Results.dat-BEA-Repeat-552K-nC7`.
+      `examples/ruptura1_examples/BEA-alkanes-C7/{psa,tsa}`, `examples/ruptura1_examples/BEA-alkanes-C7/fitting/Results.dat-BEA-Repeat-552K-nC7`.
 - [ ] **B-BLD-2** `tests/test_*.py` are v1 tests (`from ruptura import Components`); `.gitignore` (`test_*`) hides
       them from git, but a local `pytest tests` still collects and fails them.
-- [ ] **B-EX-1** `examples/BEA-alkanes-C7/tsa` and `psa`: no `HeatOfAdsorption`, so the isotherms do not depend on
+- [ ] **B-EX-1** `examples/ruptura1_examples/BEA-alkanes-C7/tsa` and `psa`: no `HeatOfAdsorption`, so the isotherms do not depend on
       temperature and the TSA regeneration desorbs nothing. The outlet peak at the switch is the gas
       inventory reacting to the instantaneous 552 → 673 K step.
 - [ ] **B-EX-2** `benchmark/figures/run.py` was deleted in commit `fd613c7` (2026-10-05). Restore it
@@ -351,7 +351,7 @@ CVODE second IAST pass (P-ITG-5), then the `R` items.
     (1e-9 and 1e-10 tolerances);
   - `ExampleMassBalance.RecomputesBeaColumnStateDerivatives` and
     `ExampleMixturePrediction.RecomputesBeaBreakthroughEquilibriumLoadings` need
-    `examples/BEA-alkanes-C7/breakthrough/column.json`, which is not in the repository;
+    `examples/ruptura1_examples/BEA-alkanes-C7/breakthrough/column.json`, which is not in the repository;
   - `MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir` needs
     `examples/MPD/BEA-alkanes/mpd/particle_distribution.data`, which `.gitignore` (`**/*.data`) keeps out;
   - `ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix` finds duplicate runs in the local
@@ -565,7 +565,7 @@ I-PHY-5 to I-PHY-10 (and the fixed B-PHY-9) were found while building SI Tables 
       steps) and the monolith (50,217), so the cap, not the tolerance, sets its cost in all three benchmark
       cases. Check whether a cap of a few Δz/v still avoids the breakthrough "hook" the cap was introduced for.
 - [ ] **P-ITG-2** CVODE's default dense linear solver builds the Jacobian by finite differences, one right-hand side
-      per state variable (~1700 for 8 components on 100 cells). The `examples/BEA-alkanes-C7/breakthrough`
+      per state variable (~1700 for 8 components on 100 cells). The `examples/ruptura1_examples/BEA-alkanes-C7/breakthrough`
       standard settings then take ~10 h (IAST); with `"CVODELinearSolver": "SPGMR"` they take ~12 min.
       Consider SPGMR or a banded Jacobian as the default.
   - Profile (2026-10-23): `examples/Multibed/C6-alkanes-layered` (912 states, dense default) spends 63% of its 174 s

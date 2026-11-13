@@ -1,0 +1,164 @@
+# Source-derived benchmark; see README.md for differences and reference status.
+schema_version: 1
+simulation:
+  name: 'PSASimulator Ti-MIL-91: isolated adsorption stage'
+  description: Source-derived code comparison; read README.md before interpreting
+    differences.
+  run_mode: fixed_cycles
+  cycles: 1
+  maximum_cycles: 200
+components:
+- name: CO2
+  molar_mass_kg_mol: 0.04402
+  dispersion_m2_s: 0.0003590965
+  gas_heat_capacity_J_mol_K: 30.7
+  adsorbed_heat_capacity_J_mol_K: 30.7
+- name: N2
+  molar_mass_kg_mol: 0.02802
+  dispersion_m2_s: 0.0003590965
+  gas_heat_capacity_J_mol_K: 30.7
+  adsorbed_heat_capacity_J_mol_K: 30.7
+gas:
+  viscosity_Pa_s: 1.72e-05
+  thermal_conductivity_W_m_K: 0.24324324324324323
+feed:
+  pressure_Pa: 112000.0
+  temperature_K: 313.15
+  composition:
+  - 0.15
+  - 0.85
+  velocity_basis: interstitial
+initial:
+  pressure_Pa: 112000.0
+  gas_temperature_K: 313.15
+  solid_temperature_K: 313.15
+  wall_temperature_K: 313.15
+  composition:
+  - 1.0e-10
+  - 0.9999999999
+  loading: equilibrium
+bed:
+  type: fixed_bed
+  length_m: 1.0
+  nodes: 41
+  inner_diameter_m: 1.1283791670955126
+  outer_diameter_m: 1.1633791670955125
+  void_fraction: 0.37
+  adsorbent_density_kg_m3: 1770.0
+  particle_diameter_m: 0.002
+  solid_heat_capacity_J_kg_K: 1070.0
+  gas_solid_heat_transfer_W_m2_K: 0.0
+thermal:
+  mode: adiabatic
+  wall_density_kg_m3: 7800.0
+  wall_heat_capacity_J_kg_K: 502.0
+  wall_conductivity_W_m_K: 0.0
+  gas_wall_heat_transfer_W_m2_K: 0.0
+  ambient_heat_transfer_W_m2_K: 0.0
+  ambient_temperature_K: 313.15
+equilibrium:
+  method: SCI
+  reference_temperature_K: 313.15
+  components:
+    CO2:
+      model: langmuir
+      sites:
+      - capacity_mol_kg: 4.540935
+        k0: 9.931281e-13
+        heat_J_mol: 42000.0
+        affinity_basis: pressure
+      - capacity_mol_kg: 0.0
+        k0: 0.0
+        heat_J_mol: 42000.0
+        affinity_basis: pressure
+    N2:
+      model: langmuir
+      sites:
+      - capacity_mol_kg: 2.181907
+        k0: 1.538952e-10
+        heat_J_mol: 19000.0
+        affinity_basis: pressure
+      - capacity_mol_kg: 0.0
+        k0: 0.0
+        heat_J_mol: -0.0
+        affinity_basis: pressure
+kinetics:
+  physisorption_enabled: true
+  ldf_rate_s_inv:
+  - 0.1631
+  - 0.2044
+  adsorption_heat_J_mol:
+  - 44603.5291
+  - 21603.5291
+sources:
+  feed:
+    pressure_Pa: 112000.0
+    temperature_K: 313.15
+    composition:
+    - 0.15
+    - 0.85
+  light:
+    pressure_Pa: 112000.0
+    temperature_K: 313.15
+    composition:
+    - 0.0
+    - 1.0
+  heavy:
+    pressure_Pa: 10000.0
+    temperature_K: 313.15
+    composition:
+    - 0.15
+    - 0.85
+columns:
+  A: {}
+cycle:
+  phases:
+  - name: ADS
+    duration_s: 526.85
+    columns:
+      A:
+        name: ADS
+        left_port:
+          mode: velocity
+          source: feed
+          velocity_m_s: 0.35
+        right_port:
+          mode: pressure
+          source: light
+        stream_tags:
+          left_in: feed
+          right_out: light_product
+          left_out: heavy_product
+solver:
+  method: BDF
+  rtol: 1.0e-06
+  atol: 1.0e-08
+  maximum_step_s: 1.0
+  reconstruction: UPWIND
+  dispersion_closure: mole_fraction
+css:
+  state_rtol: 1.0e-05
+  state_atol: 1.0e-08
+  consecutive_cycles: 3
+performance:
+  feed_tag: feed
+  light_product_tag: light_product
+  heavy_product_tag: heavy_product
+  light_component: N2
+  heavy_component: CO2
+output:
+  directory: results
+  plots: true
+  reference_pressure_Pa: 112000.0
+  reference_temperature_K: 313.15
+  profile: compact
+  sample_interval_s: 0.25
+  samples_per_phase: 2000
+  checkpoint: true
+  phase_archives: false
+  selected_cycle_archive: false
+  compress_npz: true
+advanced:
+  GAS_SOLID_THERMAL_EQUILIBRIUM: true
+  ADSORPTION_REFERENCE_TEMPERATURE: 313.15
+  R: 8.314

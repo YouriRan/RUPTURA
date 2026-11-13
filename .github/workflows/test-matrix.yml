@@ -138,7 +138,7 @@ jobs:
 
       - name: smoke-test
         run: |
-          mkdir -p "$RUNNER_TEMP/iast" && cp examples/BEA-alkanes-C7/iast/simulation.json "$RUNNER_TEMP/iast"
+          mkdir -p "$RUNNER_TEMP/iast" && cp examples/ruptura1_examples/BEA-alkanes-C7/iast/simulation.json "$RUNNER_TEMP/iast"
           cd "$RUNNER_TEMP/iast"
           ruptura
           test -s component_1_nC7.data

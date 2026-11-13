@@ -17,7 +17,7 @@ source:
       - LICENSE.md
       - src/**
       - ruptura/**
-      - examples/BEA-alkanes-C7/iast/simulation.json
+      - examples/ruptura1_examples/BEA-alkanes-C7/iast/simulation.json
     exclude:
       - ruptura/__pycache__/**
       - ruptura/_ruptura*
@@ -62,11 +62,11 @@ tests:
         - ruptura
         - ruptura._ruptura
   - script:
-      - cd examples/BEA-alkanes-C7/iast
+      - cd examples/ruptura1_examples/BEA-alkanes-C7/iast
       - python -c "import numpy, ruptura; assert numpy.asarray(ruptura.run('simulation.json')).shape == (100, 8, 6)"
     files:
       source:
-        - examples/BEA-alkanes-C7/iast/simulation.json
+        - examples/ruptura1_examples/BEA-alkanes-C7/iast/simulation.json
 
 about:
   homepage: https://github.com/iRASPA/RUPTURA

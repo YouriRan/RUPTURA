@@ -41,8 +41,8 @@ def test_breakthrough_y_units_match_component_writer_columns():
     data[:, COMPONENT_METRICS["C"].col_0based] = [12.0, 24.0]
     data[:, COMPONENT_METRICS["Y"].col_0based] = [0.12, 0.24]
 
-    np.testing.assert_allclose(plotter._y_values(data, "concentration"), [12.0, 24.0])
-    np.testing.assert_allclose(plotter._y_values(data, "molefraction"), [0.12, 0.24])
+    np.testing.assert_allclose(plotter._y_values(data, "concentration", None), [12.0, 24.0])
+    np.testing.assert_allclose(plotter._y_values(data, "molefraction", None), [0.12, 0.24])
 
 
 def test_component_metric_indices_follow_component_data_header():

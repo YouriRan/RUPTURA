@@ -1,0 +1,232 @@
+[
+  {
+    "input": "examples/unified/fdm/gas_mpd_breakthrough/simulation.json",
+    "returncode": 0,
+    "final_metrics": {
+      "ambient_heat_loss_J_cycle": 0.0,
+      "component_balance_residual_mol": [
+        1.3704315460216776e-16,
+        -6.617529603718947e-17,
+        1.1698541441118593e-16
+      ],
+      "cooling_duty_J_cycle": 14.408404012041002,
+      "cycle_duration_s": 60.0,
+      "electric_heater_work_J_cycle": 0.0,
+      "energy_balance_error": 7.058518296018062e-15,
+      "energy_balance_residual_J": 6.934897101018578e-12,
+      "energy_balance_throughput_error": 4.053598468961974e-14,
+      "external_enthalpy_in_J": 82.06831345538751,
+      "external_enthalpy_out_J": 74.60330326275576,
+      "external_in_component_mol": [
+        0.00188923373516085,
+        0.00188923373516085,
+        0.005667701205482559
+      ],
+      "external_out_component_mol": [
+        0.0016193337449388282,
+        0.0019396133014318725,
+        0.005117874907240935
+      ],
+      "feed_component_mol": [
+        0.00188923373516085,
+        0.00188923373516085,
+        0.005667701205482559
+      ],
+      "feed_mol": 0.00944616867580426,
+      "fresh_inlet_component_mol": [
+        0.00188923373516085,
+        0.00188923373516085,
+        0.005667701205482559
+      ],
+      "gross_light_component_recovery": 0.9029895405019308,
+      "gross_light_product_component_mol": [
+        0.0016193337449388282,
+        0.0019396133014318725,
+        0.005117874907240935
+      ],
+      "gross_light_product_mol": 0.008676821953611635,
+      "gross_light_product_purity": 0.589832882892183,
+      "heavy_component_recovery": 0.0,
+      "heavy_product_available": true,
+      "heavy_product_component_mol": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "heavy_product_deficit_mol": 0.0,
+      "heavy_product_mol": 0.0,
+      "heavy_product_purity": null,
+      "light_component_recovery": 0.9029895405019308,
+      "light_product_available": true,
+      "light_product_mol": 0.008676821953611635,
+      "light_product_purity": 0.589832882892183,
+      "mass_balance_error": 3.905957499163572e-14,
+      "mass_balance_throughput_error": 3.905957499163572e-14,
+      "net_light_product_component_mol": [
+        0.0016193337449388282,
+        0.0019396133014318725,
+        0.005117874907240935
+      ],
+      "number_of_columns": 1,
+      "per_column_geometry": {
+        "A": {
+          "adsorbent_mass_kg": 0.0009424777960769381,
+          "area_m2": 7.853981633974484e-05,
+          "length_m": 0.02,
+          "volume_m3": 1.5707963267948969e-06
+        }
+      },
+      "process_feasible": true,
+      "product_buffer_consumption_mol": 0.0,
+      "product_buffer_deficit_mol": 0.0,
+      "productivity_mol_kg_s": 0.09050389884592999,
+      "purge_and_feed_gas_cooling_J_cycle": 0.0,
+      "purge_and_feed_gas_heating_J_cycle": 0.0,
+      "purge_consumption_mol": 0.0,
+      "reaction_component_mol": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "reaction_energy_J": 0.0,
+      "recovery_basis": "all_external_fresh_inlets",
+      "repressurization_consumption_mol": 0.0,
+      "stored_energy_end_J": 975.5428462362024,
+      "stored_energy_start_J": 982.4862400556186,
+      "thermal_heat_input_J_cycle": 0.0,
+      "thermal_net_heat_J_cycle": -14.408404012041002,
+      "total_adsorbent_mass_kg": 0.0009424777960769381,
+      "total_bed_volume_m3": 1.5707963267948969e-06,
+      "utilities_J": {
+        "buffer_cooling_J": 0.0,
+        "buffer_heating_J": 0.0,
+        "compressor_J": 0.0,
+        "cooling_J": 14.408404012041002,
+        "electric_heater_J": 0.0,
+        "gas_cooling_J": 0.0,
+        "gas_heating_J": 0.0,
+        "heat_loss_J": 0.0,
+        "heating_J": 0.0,
+        "isothermal_heat_J": -14.408404012041002,
+        "net_heat_J": -14.408404012041002,
+        "pump_J": 0.0,
+        "vacuum_J": 0.0
+      }
+    }
+  },
+  {
+    "input": "examples/unified/fvm/gas_mpd_breakthrough/simulation.json",
+    "returncode": 0,
+    "final_metrics": {
+      "ambient_heat_loss_J_cycle": 0.0,
+      "component_balance_residual_mol": [
+        2.0458894994801469e-16,
+        -3.0943519637892034e-15,
+        -1.3444106938820255e-16
+      ],
+      "cooling_duty_J_cycle": 14.408415762160995,
+      "cycle_duration_s": 60.0,
+      "electric_heater_work_J_cycle": 0.0,
+      "energy_balance_error": 1.7148728056883227e-13,
+      "energy_balance_residual_J": 1.6848389350343496e-10,
+      "energy_balance_throughput_error": 9.848250322209157e-13,
+      "external_enthalpy_in_J": 82.06831345538782,
+      "external_enthalpy_out_J": 74.60329818943194,
+      "external_in_component_mol": [
+        0.001889233735160856,
+        0.001889233735160856,
+        0.005667701205482472
+      ],
+      "external_out_component_mol": [
+        0.0016193345179382884,
+        0.0019396133014349065,
+        0.005117873337935659
+      ],
+      "feed_component_mol": [
+        0.001889233735160856,
+        0.001889233735160856,
+        0.005667701205482472
+      ],
+      "feed_mol": 0.009446168675804185,
+      "fresh_inlet_component_mol": [
+        0.001889233735160856,
+        0.001889233735160856,
+        0.005667701205482472
+      ],
+      "gross_light_component_recovery": 0.9029892636162692,
+      "gross_light_product_component_mol": [
+        0.0016193345179382884,
+        0.0019396133014349065,
+        0.005117873337935659
+      ],
+      "gross_light_product_mol": 0.008676821157308855,
+      "gross_light_product_purity": 0.5898327561614725,
+      "heavy_component_recovery": 0.0,
+      "heavy_product_available": true,
+      "heavy_product_component_mol": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "heavy_product_deficit_mol": 0.0,
+      "heavy_product_mol": 0.0,
+      "heavy_product_purity": null,
+      "light_component_recovery": 0.9029892636162692,
+      "light_product_available": true,
+      "light_product_mol": 0.008676821157308855,
+      "light_product_purity": 0.5898327561614725,
+      "mass_balance_error": 7.95090928043415e-13,
+      "mass_balance_throughput_error": 8.081680814651711e-13,
+      "net_light_product_component_mol": [
+        0.0016193345179382884,
+        0.0019396133014349065,
+        0.005117873337935659
+      ],
+      "number_of_columns": 1,
+      "per_column_geometry": {
+        "A": {
+          "adsorbent_mass_kg": 0.0009424777960769381,
+          "area_m2": 7.853981633974484e-05,
+          "length_m": 0.02,
+          "volume_m3": 1.5707963267948969e-06
+        }
+      },
+      "process_feasible": true,
+      "product_buffer_consumption_mol": 0.0,
+      "product_buffer_deficit_mol": 0.0,
+      "productivity_mol_kg_s": 0.09050387109451978,
+      "purge_and_feed_gas_cooling_J_cycle": 0.0,
+      "purge_and_feed_gas_heating_J_cycle": 0.0,
+      "purge_consumption_mol": 0.0,
+      "reaction_component_mol": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "reaction_energy_J": 0.0,
+      "recovery_basis": "all_external_fresh_inlets",
+      "repressurization_consumption_mol": 0.0,
+      "stored_energy_end_J": 975.542839559245,
+      "stored_energy_start_J": 982.4862400556186,
+      "thermal_heat_input_J_cycle": 0.0,
+      "thermal_net_heat_J_cycle": -14.408415762160995,
+      "total_adsorbent_mass_kg": 0.0009424777960769381,
+      "total_bed_volume_m3": 1.5707963267948969e-06,
+      "utilities_J": {
+        "buffer_cooling_J": 0.0,
+        "buffer_heating_J": 0.0,
+        "compressor_J": 0.0,
+        "cooling_J": 14.408415762160995,
+        "electric_heater_J": 0.0,
+        "gas_cooling_J": 0.0,
+        "gas_heating_J": 0.0,
+        "heat_loss_J": 0.0,
+        "heating_J": 0.0,
+        "isothermal_heat_J": -14.408415762160995,
+        "net_heat_J": -14.408415762160995,
+        "pump_J": 0.0,
+        "vacuum_J": 0.0
+      }
+    }
+  }
+]

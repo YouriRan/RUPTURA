@@ -24,12 +24,15 @@ enum class WriteResult
 };
 
 SimulationType simulationTypeFromName(std::string_view name);
-// The notebooks hold no paths: they read the results from the folder they are opened in (the run directory) and
-// import the installed ruptura package.
-Notebook defaultMixturePredictionNotebook(std::string_view runId);
-Notebook defaultBreakthroughNotebook(std::string_view runId);
-Notebook defaultFittingNotebook(std::string_view runId);
-Notebook defaultNotebookForSimulation(SimulationType simulationType, std::string_view runId);
+Notebook defaultMixturePredictionNotebook(std::string_view runId, const std::filesystem::path& repoRoot,
+                                          const std::filesystem::path& runDirectory);
+Notebook defaultBreakthroughNotebook(std::string_view runId, const std::filesystem::path& repoRoot,
+                                     const std::filesystem::path& runDirectory);
+Notebook defaultFittingNotebook(std::string_view runId, const std::filesystem::path& repoRoot,
+                                const std::filesystem::path& runDirectory);
+Notebook defaultNotebookForSimulation(SimulationType simulationType, std::string_view runId,
+                                      const std::filesystem::path& repoRoot, const std::filesystem::path& runDirectory);
 WriteResult writeDefaultNotebook(const std::filesystem::path& notebookPath, SimulationType simulationType,
-                                 std::string_view runId);
+                                 std::string_view runId, const std::filesystem::path& repoRoot,
+                                 const std::filesystem::path& runDirectory);
 }  // namespace RupturaNotebooks

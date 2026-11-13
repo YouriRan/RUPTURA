@@ -1,0 +1,378 @@
+{
+  "SimulationType": "SwingAdsorption",
+  "SpatialDiscretization": "FVM",
+  "FluidPhase": "Gas",
+  "DisplayName": "Si_CO2_25_CH4_75_1col_PVSA_5bar_SEI",
+  "Components": [
+    {
+      "Name": "CO2",
+      "MolecularWeight": 0.04401,
+      "GasHeatCapacity": 37.0,
+      "AdsorbedHeatCapacity": 37.0,
+      "AxialDispersionCoefficient": 1e-05,
+      "GasPhaseMolFraction": 0.25,
+      "MassTransferCoefficient": 0.1,
+      "HeatOfAdsorption": 28620.762911261518,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.54325637269886,
+            2.1512871314488832e-10
+          ],
+          "EquilibriumHeat": 28587.5805489653
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.807566820369971,
+            1.042125446237514e-12
+          ],
+          "EquilibriumHeat": 32710.1365393449
+        }
+      ]
+    },
+    {
+      "Name": "CH4",
+      "MolecularWeight": 0.01604,
+      "GasHeatCapacity": 35.7,
+      "AdsorbedHeatCapacity": 35.7,
+      "AxialDispersionCoefficient": 1e-05,
+      "GasPhaseMolFraction": 0.75,
+      "MassTransferCoefficient": 0.1,
+      "HeatOfAdsorption": 20982.132608996613,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.55877453874916,
+            8.491481756155474e-10
+          ],
+          "EquilibriumHeat": 20971.8991936435
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.617013172700419,
+            2.820318617648986e-11
+          ],
+          "EquilibriumHeat": 21871.1369080957
+        }
+      ]
+    }
+  ],
+  "ColumnLength": 2.4,
+  "NumberOfGridPoints": 40,
+  "ParticleDensity": 1000.0,
+  "Temperature": 298.15,
+  "InletPressure": 500000.0,
+  "OutletPressure": 500000.0,
+  "DynamicViscosity": 1.5e-05,
+  "gasThermalConductivity": 0.03,
+  "Geometry": {
+    "Type": "PackedBed",
+    "InternalDiameter": 0.8,
+    "OuterDiameter": 0.8200000000000001,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.0015
+  },
+  "InitialConditions": {
+    "Pressure": 10000.0,
+    "GasTemperature": 298.15,
+    "SolidTemperature": 298.15,
+    "WallTemperature": 298.15,
+    "GasPhaseMolFractions": {
+      "CO2": 0.25,
+      "CH4": 0.75
+    },
+    "Loading": "equilibrium"
+  },
+  "MixturePredictionMethod": "SEI",
+  "energyBalance": true,
+  "heatCapacitySolid": 900.0,
+  "heatTransferGasSolid": 100.0,
+  "NumberOfCycles": 20,
+  "CyclicSteadyState": {
+    "Enabled": true,
+    "MaximumCycles": 200,
+    "StateRelativeTolerance": 0.0001,
+    "StateAbsoluteTolerance": 1e-07,
+    "InventoryRelativeTolerance": 1e-05,
+    "MetricRelativeTolerance": 0.0001,
+    "ConsecutiveCycles": 3,
+    "DiagnosticWindow": 20,
+    "DiagnosticMinimumCycles": 6,
+    "MaximumPeriod": 4,
+    "PlotCycleSelection": "minimum_error",
+    "MassBalanceTolerance": 0.001
+  },
+  "BreakthroughIntegrator": "BDF",
+  "ConvectionScheme": "WENO3",
+  "Solver": {
+    "RelativeTolerance": 1e-06,
+    "AbsoluteTolerance": 1e-08,
+    "MaximumTimeStep": 20.0,
+    "JacobianMode": "structured_fd",
+    "CacheRHS": true,
+    "EventTimeTolerance": 1e-06,
+    "DispersionClosure": "concentration"
+  },
+  "WriteInterval": 5.0,
+  "Output": {
+    "Directory": "results",
+    "Profile": "compact",
+    "Plots": true,
+    "Checkpoint": true,
+    "MainFormatFiles": true,
+    "SamplesPerPhase": 200,
+    "CheckpointInterval": 600.0
+  },
+  "Columns": {
+    "A": {}
+  },
+  "Sources": {
+    "feed": {
+      "Pressure": 500000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.25,
+        "CH4": 0.75
+      }
+    },
+    "light_receiver": {
+      "Pressure": 500000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.25,
+        "CH4": 0.75
+      }
+    },
+    "heavy_receiver": {
+      "Pressure": 10000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.25,
+        "CH4": 0.75
+      }
+    },
+    "light_recycle": {
+      "Pressure": 10000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.0,
+        "CH4": 1.0
+      }
+    }
+  },
+  "SwingAdsorptionPhases": [
+    {
+      "Name": "PRESS",
+      "Columns": {
+        "A": {
+          "Name": "PRESS",
+          "LeftPort": {
+            "Mode": "pressure",
+            "Source": "feed",
+            "Pressure": {
+              "Model": "linear",
+              "InitialValue": "phase_start_pressure",
+              "FinalValue": 500000.0,
+              "RampTime": 60.0
+            }
+          },
+          "RightPort": {
+            "Mode": "closed"
+          },
+          "StreamTags": {
+            "LeftIn": "feed_repressurization",
+            "LeftOut": "pressurization_vent"
+          },
+          "ThermalControl": {
+            "Mode": "htf",
+            "Temperature": 298.15,
+            "MassFlowRate": 0.5,
+            "HeatTransferCoefficient": 500.0,
+            "FlowDirection": "co_current"
+          }
+        }
+      },
+      "Duration": 90.0
+    },
+    {
+      "Name": "ADS",
+      "Columns": {
+        "A": {
+          "Name": "ADS",
+          "LeftPort": {
+            "Mode": "velocity",
+            "Source": "feed",
+            "MolarFlowRate": 4.055373437876738
+          },
+          "RightPort": {
+            "Mode": "pressure",
+            "Source": "light_receiver"
+          },
+          "StreamTags": {
+            "LeftIn": "feed_adsorption",
+            "RightOut": "light_product",
+            "RightIn": "product_backflow",
+            "LeftOut": "feed_end_vent"
+          },
+          "ThermalControl": {
+            "Mode": "htf",
+            "Temperature": 298.15,
+            "MassFlowRate": 0.5,
+            "HeatTransferCoefficient": 500.0,
+            "FlowDirection": "co_current"
+          }
+        }
+      },
+      "Duration": 300.0
+    },
+    {
+      "Name": "EVAC",
+      "Columns": {
+        "A": {
+          "Name": "EVAC",
+          "LeftPort": {
+            "Mode": "pressure",
+            "Source": "heavy_receiver",
+            "Pressure": {
+              "Model": "linear",
+              "InitialValue": "phase_start_pressure",
+              "FinalValue": 10000.0,
+              "RampTime": 60.0
+            }
+          },
+          "RightPort": {
+            "Mode": "closed"
+          },
+          "StreamTags": {
+            "LeftOut": "heavy_product",
+            "LeftIn": "regeneration_backflow"
+          },
+          "ThermalControl": {
+            "Mode": "htf",
+            "Temperature": 298.15,
+            "MassFlowRate": 0.5,
+            "HeatTransferCoefficient": 500.0,
+            "FlowDirection": "co_current"
+          }
+        }
+      },
+      "Duration": 90.0
+    },
+    {
+      "Name": "PURGE",
+      "Columns": {
+        "A": {
+          "Name": "PURGE",
+          "LeftPort": {
+            "Mode": "pressure",
+            "Source": "heavy_receiver"
+          },
+          "RightPort": {
+            "Mode": "velocity",
+            "Source": "light_recycle",
+            "MolarFlowRate": -0.4055373437876738,
+            "CompositionSource": "light_product",
+            "FallbackComposition": {
+              "CO2": 0.0,
+              "CH4": 1.0
+            }
+          },
+          "StreamTags": {
+            "RightIn": "purge",
+            "LeftOut": "heavy_product",
+            "LeftIn": "regeneration_backflow",
+            "RightOut": "purge_end_vent"
+          },
+          "ThermalControl": {
+            "Mode": "htf",
+            "Temperature": 298.15,
+            "MassFlowRate": 0.5,
+            "HeatTransferCoefficient": 500.0,
+            "FlowDirection": "co_current"
+          }
+        }
+      },
+      "Duration": 300.0
+    }
+  ],
+  "Utilities": {
+    "AmbientPressure": 100000.0,
+    "FeedSupplyPressure": 100000.0,
+    "ProductDeliveryPressure": 100000.0,
+    "ProductBufferPressure": 500000.0,
+    "PlantFreshFeedTarget": 1000.0,
+    "StandardTemperature": 273.15,
+    "StandardPressure": 101325.0,
+    "ChargeFeedCompression": true,
+    "ChargeRecycleCompression": false,
+    "CompressorEfficiency": 0.75,
+    "VacuumEfficiency": 0.6,
+    "CompressionModel": "isothermal",
+    "HeatingEfficiency": 0.9,
+    "CoolingCOP": 3.0,
+    "HeatRecoveryFraction": 0.0,
+    "AnnualOperatingHours": 8000.0,
+    "Availability": 0.9
+  },
+  "Notes": [
+    "Self-contained input. Every pressure is absolute Pa; velocities are interstitial at the specified source pressure and temperature.",
+    "Adsorption feed and cold HTF reference are 298.15 K; nonisothermal bed temperatures are solved.",
+    "Original two-site fit order and full workbook precision are retained; no mixture refit. SEI is not SCI or IAST.",
+    "Kinetics, transport, pellet density and hardware are common screening assumptions, not measured material properties.",
+    "The energy equation uses the 298.15 K Henry-limit-weighted constant heat from the supplied site fits; equilibrium retains both individual site heats.",
+    "Light purge uses remembered product composition and is subtracted from net product. Pure-CH4 fallback is startup only; a finite product tank is not modelled.",
+    "Two-column CSS compares a complete schedule with both A/B role exchanges; total adsorbent mass is used for productivity.",
+    "ADS, pressure, purge and PE durations are fixed. ADS has no composition stopping rule.",
+    "HEAT stops on the coldest solid node >=375 K; COOL on the warmest gas/solid/wall node <=300 K. A timeout advances diagnostically and excludes the reporting window from ranking.",
+    "Purge flow is 0.10 of ADS flow; the fixed purge duration is derived to give 0.10 mol purge per mol preceding ADS feed.",
+    "Initial gas composition basis is feed, with equilibrium loading. Startup is excluded only after CSS is established.",
+    "All ADS, repressurization and cooling fresh feed is tagged separately and totalled. Recovery includes all external fresh inlet methane, excluding internal recycle.",
+    "Plant capacity is 1000 Nm3/h cycle-average tagged fresh feed, including all scheduled waiting time. It is not the product target.",
+    "The light receiver retains the original feed-composition backflow assumption; timed ADS removes the premature-stop trigger but does not correct receiver physics.",
+    "This is a screening recipe, not an optimized cycle, calibrated process or completed TEA. Fixed-cycle completion is not CSS."
+  ],
+  "wallDensity": 7850.0,
+  "heatCapacityWall": 500.0,
+  "wallThermalConductivity": 45.0,
+  "heatTransferGasWall": 40.0,
+  "heatTransferWallExternal": 0.0,
+  "AmbientTemperature": 298.15,
+  "Coolant": {
+    "Model": "transient",
+    "Volume": 0.12,
+    "Density": 1000.0,
+    "HeatCapacity": 4180.0,
+    "InitialTemperature": 298.15
+  },
+  "PhysisorptionEnabled": true,
+  "Performance": {
+    "FeedTag": "feed_adsorption",
+    "LightProductTag": "light_product",
+    "HeavyProductTag": "heavy_product",
+    "LightComponent": "CH4",
+    "HeavyComponent": "CO2",
+    "FreshFeedTags": [
+      "feed_adsorption",
+      "feed_repressurization",
+      "feed_cooling"
+    ]
+  },
+  "Provenance": {
+    "OriginalLabels": {
+      "MATERIAL": "Si-MFI",
+      "SCENARIO": "Si_CO2_25_CH4_75_1col_PVSA_5bar_SEI",
+      "SCENARIO_GROUP": "PVSA",
+      "CYCLE_LEVEL": "screening",
+      "P_HIGH": 500000.0,
+      "P_LOW": 10000.0,
+      "PURGE_TAG": "purge",
+      "STUDY_CONTROL_BASIS": "timed ADS/pressure/purge/PE with temperature-controlled HEAT/COOL"
+    },
+    "SourceInput": "examples/studies/co2_ch4_mfi_sei/Si/CO2_25_CH4_75/one_column/PVSA_5bar/simulation.yaml",
+    "SourceSHA256": "ff9ec605cbfdc78894a3510430999e9c3ae3442c67f0781ba708d917493d175b"
+  }
+}

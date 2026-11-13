@@ -77,14 +77,14 @@ def test_distinct_column_parameters_remain_distinct():
 def test_shared_reactions_are_resolved_to_local_participants_and_kinetics():
     archived = modular_workspace("breakthrough", "breakthrough")
     for item in archived["simulations"]:
-        item["input"]["Reactions"] = [{"Reactants": [1], "Products": [0], "Kinetics": {"ForwardRateCoefficient": 0.5}}]
+        item["input"]["Reactions"] = [{"Reactants": [1], "Products": [0], "Kinetics": {"forwardRateCoefficient": 0.5}}]
         register_experiment(archived, item)
-    archived["library"]["reactions"][0]["data"]["Kinetics"]["ForwardRateCoefficient"] = 2
+    archived["library"]["reactions"][0]["data"]["Kinetics"]["forwardRateCoefficient"] = 2
     state = import_document(archived)
     for item in state["simulations"]:
-        assert item["input"]["Reactions"] == [{"Reactants": [1], "Products": [0], "Kinetics": {"ForwardRateCoefficient": 2}}]
-    state["simulations"][0]["input"]["Reactions"][0]["Kinetics"]["ForwardRateCoefficient"] = 7
-    assert state["simulations"][1]["input"]["Reactions"][0]["Kinetics"]["ForwardRateCoefficient"] == 2
+        assert item["input"]["Reactions"] == [{"Reactants": [1], "Products": [0], "Kinetics": {"forwardRateCoefficient": 2}}]
+    state["simulations"][0]["input"]["Reactions"][0]["Kinetics"]["forwardRateCoefficient"] = 7
+    assert state["simulations"][1]["input"]["Reactions"][0]["Kinetics"]["forwardRateCoefficient"] == 2
 
 
 def test_notes_identity_and_history_survive_persisted_upgrade(tmp_path):

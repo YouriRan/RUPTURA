@@ -1,0 +1,135 @@
+{
+  "date": "2026-11-12",
+  "revision": 5,
+  "artifact": "one shared gas/liquid ChemisorptionSites interface and kinetics kernel",
+  "build": {
+    "result": "passed",
+    "C++": "C++23, portable Zig 0.15.1 toolchain, Release",
+    "SUNDIALS": "7.5.0",
+    "native_cpu_optimization": false,
+    "CLI": true,
+    "Python_extension": true,
+    "browser_launcher": true
+  },
+  "python": {
+    "total": 400,
+    "passed": 400,
+    "failed": 0,
+    "new_shared_chemisorption_tests": 134
+  },
+  "native": {
+    "total": 147,
+    "passed": 119,
+    "failed": 28,
+    "shared_process_groups": 17,
+    "shared_process_groups_passed": 17,
+    "same_missing_fixture_failures_as_recovered_revision": true,
+    "missing_fixture_failures": [
+      "ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix",
+      "GeometryInput.LoadsChemisorptionCo2N2MonolithExample",
+      "ChemisorptionInput.LoadsUpdatedSurfacePoreExample",
+      "ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading",
+      "ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass",
+      "ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption",
+      "LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier",
+      "LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers",
+      "GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome",
+      "LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm",
+      "LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn",
+      "MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir",
+      "MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters",
+      "MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces",
+      "MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn",
+      "MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions",
+      "MultibedCvode.BreakthroughParsesInitializesAndPropagates",
+      "MultibedCvode.PropagatesPoreReactionState",
+      "Column.StateLayoutMatchesColumnConventionAndRebindsCopies",
+      "MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk",
+      "MultibedReactions.ParsesReactionTogetherWithAdsorbents",
+      "MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState",
+      "MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer",
+      "MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs",
+      "MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading",
+      "MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages",
+      "MultibedSwingAdsorption.AdvancesWithCvode",
+      "MultibedOutput.UsesSingleBedComponentColumnSchema"
+    ]
+  },
+  "input_validation": {
+    "total": 300,
+    "passed": 300,
+    "integrated": 236,
+    "existing_matched_examples": 32,
+    "new_chemistry_examples": 32
+  },
+  "complete_example_runs": {
+    "total": 32,
+    "passed": 32,
+    "plots_enabled": false,
+    "CSS_claim": false,
+    "maximum_component_balance_error": 4.8296381858234525e-08,
+    "maximum_energy_balance_error": 1.881682080240338e-14
+  },
+  "GUI": {
+    "cycle_component_checks": 10,
+    "chemisorption_component_checks": 8,
+    "full_browser_layout_verified": false
+  },
+  "legacy_energy_migration": {
+    "matched_existing_executable": true,
+    "scenario": "gas PFO with distinct rate/equilibrium/energy reference temperatures, adsorbed heat capacity and closed adiabatic relaxation",
+    "max_bulk_and_loading_difference": 9.134899503493443e-10,
+    "max_temperature_difference_K": 7.580860028610914e-08,
+    "adsorption_energy_reference_K": 320.0,
+    "energy_balance_error": 8.238736013535857e-14
+  },
+  "scope": {
+    "fluids": [
+      "Gas",
+      "Liquid"
+    ],
+    "spatial_methods": [
+      "FDM",
+      "FVM"
+    ],
+    "rate_equations": [
+      "FirstOrder",
+      "PseudoNth",
+      "Avrami",
+      "General",
+      "Elovich",
+      "DualNth"
+    ],
+    "integrators": [
+      "BDF1",
+      "BDF",
+      "CVODE",
+      "SSPRK3",
+      "SemiImplicitSSPRK3"
+    ],
+    "checks": [
+      "adsorption and signed regeneration",
+      "matched gas/liquid loading kinetics",
+      "two branches share one equilibrium capacity",
+      "different branch adsorption heats",
+      "closed adiabatic energy conservation",
+      "stage splitting and restart",
+      "breakthrough versus one-phase cycle",
+      "legacy and canonical configuration equivalence",
+      "capacity partition and cluster export",
+      "distinct kinetic/equilibrium/energy reference temperatures"
+    ]
+  },
+  "behavior_changes": [
+    "PseudoNth preserves the desorption sign for even/noninteger orders",
+    "ChemicalKinetics is converted to canonical ChemisorptionSites",
+    "Chemisorption state layouts changed; start fresh when migrating old chemistry checkpoints",
+    "Optional HistoryDrivingRegularizer smooths Avrami history switching; zero retains the legacy law; moving-front examples explicitly use 1e-7 mol/kg"
+  ],
+  "remaining": [
+    "28 inherited native tests need historical inputs absent from the recovered archive",
+    "Full visual browser regression was not completed",
+    "No new experimental validation, mesh study or completed CSS campaign",
+    "Nonreactive physisorption HSDM restriction remains; reactive HSDM and HSDM monoliths are not added"
+  ]
+}

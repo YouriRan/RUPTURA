@@ -1,0 +1,228 @@
+# RUPTURA cycle v0.4.1 | sized tutorial revision | SI units
+# Edit this file, then ./run. Design assumptions: ../../SIZING.md
+schema_version: 1
+simulation:
+  name: TSA thermal demonstration
+  description: Sized tutorial with illustrative material and equipment parameters; use for learning and
+    sensitivity studies.
+  run_mode: fixed_cycles
+  cycles: 2
+  maximum_cycles: 100
+components:
+- name: CO2
+  molar_mass_kg_mol: 0.04401
+  dispersion_m2_s: 1.0e-06
+  gas_heat_capacity_J_mol_K: 37.0
+  adsorbed_heat_capacity_J_mol_K: 30.0
+- name: CH4
+  molar_mass_kg_mol: 0.01604
+  dispersion_m2_s: 1.0e-06
+  gas_heat_capacity_J_mol_K: 35.0
+  adsorbed_heat_capacity_J_mol_K: 28.0
+gas:
+  viscosity_Pa_s: 1.8e-05
+  thermal_conductivity_W_m_K: 0.025
+# All pressures are absolute Pa. Velocity inputs use the interstitial basis.
+feed:
+  pressure_Pa: 100000.0
+  temperature_K: 298.15
+  composition:
+    CO2: 0.25
+    CH4: 0.75
+  velocity_basis: interstitial
+initial:
+  pressure_Pa: 100000.0
+  gas_temperature_K: 298.15
+  solid_temperature_K: 298.15
+  wall_temperature_K: 298.15
+  composition:
+    CO2: 0.05
+    CH4: 0.95
+  loading: equilibrium
+# Dimensions in metres. L is the contacting length; D is the internal diameter.
+bed:
+  type: fixed_bed
+  length_m: 0.3
+  nodes: 21
+  inner_diameter_m: 0.05
+  outer_diameter_m: 0.054
+  void_fraction: 0.4
+  adsorbent_density_kg_m3: 1000.0
+  particle_diameter_m: 0.002
+  solid_heat_capacity_J_kg_K: 900.0
+  gas_solid_heat_transfer_W_m2_K: 20.0
+thermal:
+  mode: wall_exchange
+  wall_density_kg_m3: 7800.0
+  wall_heat_capacity_J_kg_K: 450.0
+  wall_conductivity_W_m_K: 0.0
+  gas_wall_heat_transfer_W_m2_K: 80.0
+  ambient_heat_transfer_W_m2_K: 10.0
+  ambient_temperature_K: 298.15
+equilibrium:
+  method: SCI
+  reference_temperature_K: 298.15
+  name: Demonstration adsorbent
+  components:
+    CO2:
+      model: langmuir
+      sites:
+      - capacity_mol_kg: 2.0
+        affinity_Pa_inv: 2.0e-05
+        heat_J_mol: 27000.0
+    CH4:
+      model: langmuir
+      sites:
+      - capacity_mol_kg: 1.5
+        affinity_Pa_inv: 6.0e-06
+        heat_J_mol: 20000.0
+kinetics:
+  ldf_rate_s_inv:
+  - 0.15
+  - 0.1
+  adsorption_heat_J_mol:
+  - 27000.0
+  - 20000.0
+  physisorption_enabled: true
+sources:
+  feed:
+    pressure_Pa: 100000.0
+    temperature_K: 298.15
+    composition:
+      CO2: 0.25
+      CH4: 0.75
+  light_receiver:
+    pressure_Pa: 100000.0
+    temperature_K: 298.15
+    composition:
+      CO2: 0.05
+      CH4: 0.95
+  heavy_receiver:
+    pressure_Pa: 100000.0
+    temperature_K: 298.15
+    composition:
+      CO2: 0.25
+      CH4: 0.75
+  external_purge:
+    pressure_Pa: 100000.0
+    temperature_K: 298.15
+    composition:
+      CO2: 0.05
+      CH4: 0.95
+  hot_purge:
+    pressure_Pa: 100000.0
+    temperature_K: 393.15
+    composition:
+      CO2: 0.05
+      CH4: 0.95
+columns:
+  A: {}
+# Tutorial mesh/tolerances require refinement for publication results.
+solver:
+  method: BDF
+  rtol: 1.0e-05
+  atol: 1.0e-08
+  maximum_step_s: 5.0
+  reconstruction: TVD
+  jacobian_mode: structured_fd
+  checkpoint_interval_s: 300.0
+css:
+  state_rtol: 0.0001
+  state_atol: 1.0e-07
+  consecutive_cycles: 3
+output:
+  directory: results
+  plots: true
+  profile: compact
+  sample_interval_s: 0.5
+  samples_per_phase: 300
+  checkpoint: true
+  phase_archives: false
+  selected_cycle_archive: false
+  compress_npz: true
+notes:
+- Tutorial assumptions, not a fitted material or experimental validation.
+- All pressures are absolute. Velocity inputs are interstitial at the inlet gas pressure and temperature.
+- Bed length is packed length; diameter is internal. The assumed wall thickness is 2 mm.
+- Two complete cycles show startup; this is not a claim of cyclic steady state or grid convergence.
+- See examples/SIZING.md for flow, inventory, timing, mesh and equipment assumptions.
+- Hot purge and jacket are both at 393.15 K; COOL uses 298.15 K gas and jacket. Cooling exhaust is reported
+  separately from the hot regeneration product.
+- Heat-transfer coefficients are prescribed tutorial inputs, not fitted correlations; fixed times must
+  be checked against the resulting solid-temperature profile.
+# Ordered phases. Positive velocity is left-to-right; negative right inlet is countercurrent.
+cycle:
+  phases:
+  - name: ADS
+    duration_s: 180.0
+    columns:
+      A:
+        name: ADS
+        left_port:
+          mode: velocity
+          source: feed
+          velocity_m_s: 0.1
+        right_port:
+          mode: pressure
+          source: light_receiver
+        stream_tags:
+          left_in: feed
+          right_out: light_product
+        thermal:
+          mode: jacket
+          temperature_K: 298.15
+          heat_transfer_coefficient_W_m2_K: 120.0
+          utility: cooling
+  - name: HEAT
+    duration_s: 1200.0
+    columns:
+      A:
+        name: HEAT
+        left_port:
+          mode: pressure
+          source: heavy_receiver
+        right_port:
+          mode: velocity
+          source: hot_purge
+          velocity_m_s: -0.03
+        stream_tags:
+          right_in: external_purge
+          left_out: heavy_product
+        thermal:
+          mode: jacket
+          temperature_K: 393.15
+          heat_transfer_coefficient_W_m2_K: 120.0
+          utility: heating
+  - name: COOL
+    duration_s: 1200.0
+    columns:
+      A:
+        name: COOL
+        left_port:
+          mode: pressure
+          source: heavy_receiver
+        right_port:
+          mode: velocity
+          source: external_purge
+          velocity_m_s: -0.03
+        stream_tags:
+          right_in: cooling_purge
+          left_out: cooling_exhaust
+        thermal:
+          mode: jacket
+          temperature_K: 298.15
+          heat_transfer_coefficient_W_m2_K: 120.0
+          utility: cooling
+performance:
+  feed_tag: feed
+  light_product_tag: light_product
+  heavy_product_tag: heavy_product
+  light_component: CH4
+  heavy_component: CO2
+utilities:
+  ambient_pressure_Pa: 100000.0
+  feed_supply_pressure_Pa: 100000.0
+  charge_feed_compression: true
+  charge_recycle_compression: false
+  compressor_efficiency: 0.75
+  vacuum_efficiency: 0.6

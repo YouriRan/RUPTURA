@@ -39,6 +39,10 @@ target_compile_options(ruptura_lab_support PRIVATE
   ${RUPTURA_COMPILE_OPTIONS}
 )
 
+target_compile_definitions(ruptura_lab_support PRIVATE
+  RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+)
+
 target_include_directories(ruptura_lab_support PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(ruptura_lab_support PUBLIC
   rupturalib

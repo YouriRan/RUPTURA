@@ -16,8 +16,7 @@ from urllib.request import Request, urlopen
 import numpy as np
 import pytest
 
-from ruptura.webapp.config import (ISOTHERMS, PAPER_PRESETS, PRESET_INFO, SCHEMA, TEMPERATURE_LAWS, apply_changes,
-                                   import_document, migrate_qt, normalize_input, presets)
+from ruptura.webapp.config import PAPER_PRESETS, PRESET_INFO, SCHEMA, apply_changes, import_document, migrate_qt, normalize_input, presets
 from ruptura.webapp.runs import RunManager, StateStore, atomic_json
 from ruptura.webapp.plots import BlockIndex, figure, json_figure, metadata, report
 
@@ -59,7 +58,7 @@ def small_input(name):
             config.pop("TimeStep", None)
         else:
             config["TimeStep"] = 1e-6
-        if name == "swing":
+        if config.get("SimulationType")=="SwingAdsorption":
             config.pop("SimulationTime")  # the phase durations set the simulated time
             for phase in config["SwingAdsorptionPhases"]:
                 phase["Duration"] = 3e-6
@@ -81,11 +80,11 @@ def test_excluded_features_are_rejected(kind, method):
         normalize_input(config)
 
 
-@pytest.mark.parametrize("path", ["examples/Liquid/pH-dependent/simulation.json", "examples/Liquid/multibed-pH-front/simulation.json",
-    "examples/Chemisorption-CO2/breakthrough/simulation.json", "examples/Multibed/CO2-C3H8-gradient/simulation.json",
-    "examples/Multibed/CO2-N2-polishing/simulation.json", "examples/Reactions/pore-langmuir-hinshelwood/simulation.json"])
-def test_import_preserves_entire_scientific_input(path):
-    config = json.loads((ROOT / path).read_text())
+@pytest.mark.parametrize("name", list(presets()))
+def test_import_preserves_entire_scientific_input(name):
+    # Exercise the complete inputs actually shipped in this archive. The old
+    # six paths were absent from the supplied November source package.
+    config = presets()[name]
     before = copy.deepcopy(config)
     imported = import_document(config)
     assert imported["simulations"][0]["input"] == config
@@ -238,7 +237,7 @@ def qt_state():
                                                      "Isotherm": {"Type": "Langmuir", "Parameters": {"qmax": 0.8, "affinityConstant": 2.5e-5}}}]}],
             "Columns": [{"Id": "column-1", "Mode": "single", "Temperature": 300, "InletPressure": 100000, "Velocity": 0.08,
                          "Length": 0.1, "VoidFraction": 0.4, "ParticleDensity": 1000, "ParticleDiameter": 0.001, "DynamicViscosity": 1.8e-5,
-                         "BoundaryCondition": "InletPressureInletVelocity", "GeometryType": "PackedBed"}],
+                         "BoundaryCondition": "FixedVelocity", "GeometryType": "PackedBed"}],
             "Simulations": [{"Id": "simulation-1", "Type": "Breakthrough", "DisplayName": "Legacy experiment", "SelectedColumnId": "column-1",
                              "Integrator": "RungeKutta3", "AutoTime": False, "SimulationTime": 0.0025,
                              "ComponentFeeds": [{"ComponentId": "component-1", "GasPhaseMolFraction": 0.85}, {"ComponentId": "component-2", "GasPhaseMolFraction": 0.15}],
@@ -261,75 +260,6 @@ def test_qt_state_migrates_legacy_chemisorption_and_saved_snapshots(manager):
     original["CVODELinearSolver"] = "SPGMR"
     old["Simulations"][0].update(OriginalInput=original, OriginalModel=copy.deepcopy(config))
     assert migrate_qt(old)["simulations"][0]["input"] == original
-
-
-def law(value, name):
-    coefficient = TEMPERATURE_LAWS["coefficients"][name][0]
-    return {"Value": value, "Law": name, coefficient: 0.1 if name in ("Exponential", "Linear", "Inverse") else 20000.0,
-            "ReferenceTemperature": 300.0}
-
-
-def test_temperature_law_table_matches_the_cpp_reader(manager):
-    # Every law the web Lab offers at a position is accepted by the input reader, and other laws are not.
-    for kind, specs in TEMPERATURE_LAWS["isotherms"].items():
-        for position, spec in enumerate(specs):
-            config = presets()["liquid" if kind == "pH-Langmuir" else "mixture"]
-            config["MixturePredictionMethod"] = "SPI"
-            site = config["Components"][-1]["PhysisorptionSites"][0]
-            site.update(Type=kind, Parameters=[default for _, _, default in ISOTHERMS[kind]])
-            if kind not in ("GAB", "pH-Langmuir") and ("humidity" in kind.lower() or kind.startswith(("GAB", "Moisture"))):
-                # The humidity-dependent sites take RH and the water loading from a Water component.
-                config["RelativeHumidity"] = 0.5
-                config["Components"].append({"Name": "H2O", "Water": True, "GasPhaseMolFraction": 0.0,
-                                             "PhysisorptionSites": [{"Type": "GAB", "Parameters": [1.0, 1.0, 0.5]}]})
-            for name in spec["laws"] if spec else []:
-                site["Parameters"][position] = law(ISOTHERMS[kind][position][2], name)
-                manager.validate(config)
-            rejected = next(name for name in ("Arrhenius", "VantHoff") if not spec or name not in spec["laws"])
-            site["Parameters"][position] = law(ISOTHERMS[kind][position][2], rejected)
-            with pytest.raises(ValueError, match="temperature"):
-                manager.validate(config)
-
-    chemisorption = presets()["chemisorption"]
-    kinetics = chemisorption["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"]
-    kinetics["MassTransferCoefficient"] = law(0.04, "Arrhenius")
-    manager.validate(chemisorption)
-    reaction = presets()["breakthrough"]
-    reaction["Reactions"] = [{"Phase": "Physisorbed", "Style": "GeneralPowerLaw", "Reactants": [1], "Products": [0],
-                              "Kinetics": {"ForwardRateCoefficient": law(1.0, "Arrhenius"),
-                                           "EquilibriumConstant": {"Value": 2.0, "Law": "VantHoff"}, "HeatOfReaction": 30000.0}}]
-    manager.validate(reaction)
-
-
-def test_qt_state_migrates_temperature_dependence(manager):
-    old = qt_state()
-    co2 = old["Components"][1]
-    co2.update(NonIsothermal=True, HeatOfAdsorption=25000.0, ReferenceTemperature=300.0)
-    old["Reactions"] = [{"Id": "reaction-1", "Phase": "Physisorbed", "Style": "GeneralPowerLaw",
-                         "Reactants": [{"ComponentId": "component-2"}], "Products": [{"ComponentId": "component-1"}],
-                         "ForwardRateCoefficient": 1.0, "ForwardActivationEnergy": 30000.0, "EquilibriumConstant": 2.0,
-                         "GibbsFreeEnergy": -1000.0}]
-    config = migrate_qt(old)["simulations"][0]["input"]
-    manager.validate(config)
-    component = config["Components"][1]
-    assert component["ReferenceTemperature"] == 300.0 and "nonIsothermal" not in component
-    assert component["PhysisorptionSites"][0]["Parameters"][1] == {"Value": 1e-5, "Law": "VantHoff"}
-    assert config["Reactions"][0]["Kinetics"] == {
-        "ForwardRateCoefficient": {"Value": 1.0, "Law": "Arrhenius", "ActivationEnergy": 30000.0},
-        "EquilibriumConstant": {"Value": 2.0, "Law": "VantHoff"}, "HeatOfReaction": 1000.0}
-
-
-def test_qt_state_migrates_lh_adsorption_constants_by_name(manager):
-    old = qt_state()
-    constant = {"Value": 0.1, "Law": "VantHoff", "Energy": 20000.0}
-    old["Reactions"] = [{"Id": "reaction-1", "Phase": "PoreConcentration", "Style": "LangmuirHinshelwood",
-                         "Reactants": [{"ComponentId": "component-2"}], "Products": [{"ComponentId": "component-1"}],
-                         "ForwardRateCoefficient": 1.0, "EquilibriumConstant": 2.0,
-                         "AdsorptionConstants": {"component-2": constant, "component-1": 0.0}}]
-    config = migrate_qt(old)["simulations"][0]["input"]
-    manager.validate(config)
-    # Keyed by component id in the Qt state and by name in simulation.json; a constant of 0 is left out.
-    assert config["Reactions"][0]["Kinetics"]["AdsorptionConstants"] == {config["Components"][1]["Name"]: constant}
 
 
 def test_snapshot_patch_changes_only_edited_fields():

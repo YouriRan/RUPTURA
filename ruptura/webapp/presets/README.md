@@ -6,7 +6,7 @@ does not depend on a paper checkout or local study directories.
 | Preset | Source input | Conditions |
 | --- | --- | --- |
 | T15 | `marx2/ternary/T15/simulation.json` | Marx ternary experiment T15, CO₂/N₂/H₂ 40/30/30, 298 K, 10 bar, energy balance, 4,000 s |
-| BEA alkanes | `examples/BEA-alkanes-C7/breakthrough/simulation.json` | Seven C₇ isomers at 1% each in helium, 552 K, 1.2 bar, IAST, 1,200 s |
+| BEA alkanes | `examples/ruptura1_examples/BEA-alkanes-C7/breakthrough/simulation.json` | Seven C₇ isomers at 1% each in helium, 552 K, 1.2 bar, IAST, 1,200 s |
 | Monolith, 400 ppm | `stampi-bombelli/dl_from_literature/monolith_400ppm_2mmol/simulation.json` | 2 mmol/s, 295.15 K, 144 square channels, 24,000 s |
 
 The sources correspond to the Marx energy-balance validation, BEA benchmark,

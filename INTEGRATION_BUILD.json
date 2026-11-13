@@ -1,0 +1,120 @@
+{
+  "date": "2026-11-12",
+  "revision": 7,
+  "stage": "automatic PNG/PDF plots for all new examples including the legacy comparison",
+  "python_tests": {
+    "total": 410,
+    "passed": 410,
+    "failed": 0,
+    "new_shared_chemisorption_tests": 134,
+    "new_hal_and_generator_tests": 10,
+    "last_full_suite_revision": 6,
+    "current_targeted_total": 14,
+    "current_targeted_passed": 14,
+    "new_automatic_plotting_tests": 3,
+    "new_collector_plot_test": 1
+  },
+  "native_tests": {
+    "total": 147,
+    "passed": 119,
+    "failed": 28,
+    "shared_process_groups": 17,
+    "shared_process_groups_passed": 17,
+    "same_missing_fixture_failures_as_recovered_revision": true,
+    "missing_fixture_failures": [
+      "ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix",
+      "GeometryInput.LoadsChemisorptionCo2N2MonolithExample",
+      "ChemisorptionInput.LoadsUpdatedSurfacePoreExample",
+      "ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading",
+      "ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass",
+      "ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption",
+      "LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier",
+      "LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers",
+      "GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome",
+      "LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm",
+      "LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn",
+      "MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir",
+      "MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters",
+      "MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces",
+      "MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn",
+      "MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions",
+      "MultibedCvode.BreakthroughParsesInitializesAndPropagates",
+      "MultibedCvode.PropagatesPoreReactionState",
+      "Column.StateLayoutMatchesColumnConventionAndRebindsCopies",
+      "MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk",
+      "MultibedReactions.ParsesReactionTogetherWithAdsorbents",
+      "MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState",
+      "MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer",
+      "MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs",
+      "MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading",
+      "MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages",
+      "MultibedSwingAdsorption.AdvancesWithCvode",
+      "MultibedOutput.UsesSingleBedComponentColumnSchema"
+    ],
+    "last_full_suite_revision": 6
+  },
+  "input_validation": {
+    "total": 296,
+    "passed": 296,
+    "integrated": 232,
+    "existing_matched_examples": 32,
+    "new_chemistry_examples": 32,
+    "plots_enabled": 296
+  },
+  "shared_process_test_groups_passed": 17,
+  "browser_component_checks": 18,
+  "full_browser_regression_completed": false,
+  "campaigns_rerun_to_css": false,
+  "details": "verification/automatic_plots/summary.json",
+  "status": "examples/new_examples/README.md",
+  "remaining": [
+    "28 inherited native tests need historical inputs absent from the recovered archive",
+    "Full visual browser regression was not completed",
+    "No new experimental validation, mesh study or completed CSS campaign",
+    "Nonreactive physisorption HSDM restriction remains; reactive HSDM and HSDM monoliths are not added"
+  ],
+  "previous_checkpoint_details": "verification/examples_weno3/summary.json",
+  "examples": {
+    "total": 296,
+    "groups": {
+      "tutorials": 43,
+      "mfi_breakthrough": 27,
+      "mfi_cycles": 162,
+      "chemisorption": 32,
+      "unified": 32
+    },
+    "simulation_types": {
+      "Breakthrough": 92,
+      "SwingAdsorption": 204
+    },
+    "spatial_discretization": {
+      "FVM": 263,
+      "Legacy": 1,
+      "FDM": 32
+    },
+    "convection_schemes": {
+      "WENO3": 296
+    },
+    "removed_duplicate_inputs": 4,
+    "inherited_material_inputs_unchanged": 51
+  },
+  "hal_execution": "Local mocked sbatch/srun, including a copied SLURM worker script; no real HAL jobs submitted",
+  "local_weno3_runs": {
+    "total": 12,
+    "passed": 12,
+    "full_example_runs": 10,
+    "shortened_multicolumn_checks": 2,
+    "plots_disabled": true,
+    "css_campaign": false
+  },
+  "automatic_plotting": {
+    "total": 12,
+    "passed": 12,
+    "previously_disabled_tutorials": 10,
+    "shared_gas_breakthrough": 1,
+    "short_legacy_breakthrough": 1,
+    "png_files": 117,
+    "pdf_files": 117,
+    "all_inputs_enabled": 296
+  }
+}

@@ -31,16 +31,14 @@
       "AxialDispersionCoefficient": 2.5393462251722935e-05,
       "MolecularWeight": 0.0440095,
       "HeatOfAdsorption": 70000.0,
-      "ReferenceTemperature": 298.0,
+      "referenceTemperature": 298.0,
+      "nonIsothermal": true,
       "PhysisorptionSites": [
         {
           "Type": "Toth",
           "Parameters": [
             0.032287500000000004,
-            {
-              "Value": 4.839,
-              "Law": "VantHoff"
-            },
+            4.839,
             0.24893782822293747
           ]
         }
@@ -50,10 +48,7 @@
           "Type": "Toth",
           "Parameters": [
             0.010762500000000001,
-            {
-              "Value": 4.839,
-              "Law": "VantHoff"
-            },
+            4.839,
             0.24893782822293747
           ],
           "RateEquationParameters": {

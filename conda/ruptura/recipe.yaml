@@ -16,7 +16,7 @@ source:
       - CMakePresets.json
       - LICENSE.md
       - src/**
-      - examples/BEA-alkanes-C7/iast/simulation.json
+      - examples/ruptura1_examples/BEA-alkanes-C7/iast/simulation.json
 
 build:
   number: 0
@@ -44,12 +44,12 @@ requirements:
 
 tests:
   - script:
-      - cd examples/BEA-alkanes-C7/iast
+      - cd examples/ruptura1_examples/BEA-alkanes-C7/iast
       - ruptura
       - test -s component_1_nC7.data
     files:
       source:
-        - examples/BEA-alkanes-C7/iast/simulation.json
+        - examples/ruptura1_examples/BEA-alkanes-C7/iast/simulation.json
 
 about:
   homepage: https://github.com/iRASPA/RUPTURA

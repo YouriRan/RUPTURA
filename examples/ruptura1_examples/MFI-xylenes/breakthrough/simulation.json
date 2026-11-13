@@ -1,0 +1,109 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "MFI",
+  "Temperature": 443.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1785.22,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "ColumnLength": 0.3,
+  "BreakthroughIntegrator": "CVODE",
+  "SimulationTime": "auto",
+  "WriteInterval": 5.0,
+  "NumberOfGridPoints": 100,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.96,
+      "CarrierGas": true
+    },
+    {
+      "Name": "o-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            4.0,
+            20.0
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "m-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            4.0,
+            87.5
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.8,
+            2.3e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "p-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            4.0,
+            29.6,
+            1.04
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.2,
+            0.00105,
+            0.75
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "ethylbenzene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            4.0,
+            103.0
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.0,
+            2.99e-07
+          ]
+        }
+      ]
+    }
+  ],
+  "InletPressure": 2500000.0,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4
+  }
+}

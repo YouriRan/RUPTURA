@@ -1,0 +1,12 @@
+[
+  {
+    "campaign": "co2_ch4_cycles",
+    "inputs": 162,
+    "style": "main JSON"
+  },
+  {
+    "campaign": "co2_ch4_breakthrough",
+    "inputs": 27,
+    "style": "main JSON"
+  }
+]

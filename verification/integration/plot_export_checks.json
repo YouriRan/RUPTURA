@@ -1,0 +1,13 @@
+{
+  "cases": [
+    "cycles_gas_fixed_bed",
+    "particle_liquid_sphere"
+  ],
+  "files_per_case": 20,
+  "formats": [
+    "PNG",
+    "PDF"
+  ],
+  "status": "passed",
+  "visual_review": "Reference comparison, particle radial profiles and liquid concentration histories inspected."
+}

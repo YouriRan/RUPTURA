@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -51,12 +52,12 @@ struct Component
   double initialLiquidConcentration{0.0};                    ///< Initial column liquid concentration in mol/m^3.
   double massTransferCoefficient{0.0};                       ///< Mass transfer coefficient in 1/s.
   double axialDispersionCoefficient{0.0};                    ///< Axial dispersion coefficient in m^2/s.
-  double heatOfAdsorption{0.0};  ///< Physisorption heat released in the energy balance, in J/mol.
+  double heatOfAdsorption{0.0};                              ///< Heat of adsorption in J/mol.
   MultiSiteChemisorption chemisorption;                      ///< Chemisorption kinetic sites.
   bool isCarrierGas{false};                                  ///< Flag indicating if this is the carrier gas.
-  /// Flag indicating the water component, which sets the relative humidity of the humidity-dependent isotherms.
-  bool isWater{false};
   double molecularWeight{1.0};                               ///< Molecular weight in kg/mol.
+  bool nonIsothermal{false};                                 ///< Enables temperature scaling when true.
+  std::optional<double> referenceTemperature{std::nullopt};  ///< Reference temperature in K.
 
   /**
    * \brief Prints the component information to the console.
@@ -67,4 +68,14 @@ struct Component
    * \brief Returns a string representation of the Component.
    */
   std::string repr() const;
+
+  /**
+   * \brief Returns the isotherm scaling factor at a gas temperature.
+   */
+  inline double scale(double temperature) const
+  {
+    if (!nonIsothermal) return 1.0;
+
+    return arrhenius(1.0, -heatOfAdsorption, temperature, referenceTemperature);
+  }
 };

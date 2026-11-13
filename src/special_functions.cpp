@@ -84,6 +84,24 @@ double li2(double x)
   return r + s * y * p / q;
 }
 
+// Note convergence restrictions: abs(x) < 1 and c not a negative integer or zero
+double hypergeometric(double a, double b, double c, double x)
+{
+  const double TOLERANCE = 1.0e-3;
+  double term = a * b * x / c;
+  double value = 1.0 + term;
+  int n = 1;
+
+  while (std::abs(term) > TOLERANCE)
+  {
+    a++, b++, c++, n++;
+    term *= a * b * x / c / n;
+    value += term;
+  }
+
+  return value;
+}
+
 int areClose(const double x1, const double x2, const double epsilon)
 {
   int exponent;

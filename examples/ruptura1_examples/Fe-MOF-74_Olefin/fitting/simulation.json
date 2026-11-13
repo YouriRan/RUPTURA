@@ -1,0 +1,105 @@
+{
+  "SimulationType": "Fitting",
+  "DisplayName": "Fe-MOF-74",
+  "ColumnPressure": 1,
+  "ColumnLoading": 2,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "Name": "1-3-butadiene",
+      "FileName": "1-3-butadiene.txt",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "1-butene",
+      "FileName": "1-butene.txt",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "2-cis-butene",
+      "FileName": "2-cis-butene.txt",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "2-trans-butene",
+      "FileName": "2-trans-butene.txt",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    }
+  ]
+}

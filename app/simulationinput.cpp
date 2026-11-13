@@ -19,34 +19,26 @@ QString canonicalKey(const QString& key)
 {
   static const QStringList keys = QString::fromLatin1(
       "SimulationType MixturePredictionMethod MPDSettings IASTMethod BreakthroughIntegrator ConvectionScheme "
-      "InletCondition FlowDirection ProductEndGasPhaseMolFractions ClosedEnd PressureRamp Shape TimeConstant "
-      "AxialDispersionReferenceTemperature "
-      "AxialDispersionReferencePressure "
       "BoundaryCondition "
-      "FluidPhase LiquidDensity pHMode pHValue pKw pHComponent RelativeHumidity WaterSaturationPressureModel "
-      "WaterSaturationPressure PressureScale ReadColumnFile DisplayName "
-      "DebugForceMultibed Temperature ColumnVoidFraction DynamicViscosity ParticleDiameter ParticleDensity "
+      "FluidPhase LiquidDensity pHMode pHValue pKw pHComponent PressureScale ReadColumnFile DisplayName "
+      "DebugForceMultibed Temperature ColumnVoidFraction DynamicViscosity ParticleDiameter ParticleSphericity ParticleDensity "
       "InletPressure OutletPressure PressureStart PressureEnd NumberOfPressurePoints PressureGradient "
       "ColumnEntranceVelocity NumberOfInitTimeSteps TimeStep CVODERelativeTolerance "
       "CVODEAbsoluteToleranceConcentration CVODEAbsoluteToleranceLoading CVODEAbsoluteToleranceTemperature "
       "CVODEMaximumTimeStep CVODEMaximumOrder CVODELinearSolver CVODEKrylovDimension WriteInterval ColumnLength "
-      "ColumnDistances NumberOfGridPoints ColumnPressure ColumnLoading ColumnError FittingWeighting SimulationTime "
-      "Duration Geometry "
+      "ColumnDistances NumberOfGridPoints ColumnPressure ColumnLoading ColumnError SimulationTime Duration Geometry "
       "InfluxTemperature wallDensity gasThermalConductivity wallThermalConductivity heatTransferGasWall "
       "heatTransferGasSolid heatTransferWallExternal heatCapacityGas liquidThermalConductivity "
       "heatTransferLiquidSolid heatTransferLiquidWall heatCapacityLiquid heatCapacitySolid heatCapacityWall "
       "energyBalance SwingAdsorptionPhases ColumnSections Adsorbents Components Reactions Name FileName "
-      "CarrierGas Water GasPhaseMolFraction LiquidPhaseConcentration InitialLiquidPhaseConcentration "
-      "MassTransferCoefficient AxialDispersionCoefficient MolecularWeight HeatOfAdsorption ReferenceTemperature "
-      "Value Law Energy ActivationEnergy Chi Slope Alpha "
-      "ChemisorptionSites PhysisorptionSites Type Parameters RateEquation RateEquationParameters "
+      "CarrierGas GasPhaseMolFraction LiquidPhaseConcentration InitialLiquidPhaseConcentration "
+      "MassTransferCoefficient AxialDispersionCoefficient MolecularWeight HeatOfAdsorption referenceTemperature "
+      "nonIsothermal ChemisorptionSites PhysisorptionSites Type Parameters RateEquation RateEquationParameters "
       "MaximumLoading ChannelShape InternalChannelDimension InternalDiameter OuterDiameter NumberOfChannels "
-      "WashcoatThickness WashcoatVolumePerChannelVolume ForchheimerCoefficient AxialDispersivity TaylorArisDispersion "
-      "AdsorbentLength MixFraction ComponentParameters "
+      "WashcoatThickness WashcoatVolumePerChannelVolume ForchheimerCoefficient AdsorbentLength MixFraction ComponentParameters "
       "Adsorbent Length InterfaceLength Phase Style Reactants Products Stoichiometry Kinetics Site "
-      "ForwardOrders BackwardOrders RateLimitTime ForwardRateCoefficient EquilibriumConstant HeatOfReaction "
-      "AdsorptionConstants")
-                                      .split(' ');
+      "ForwardOrders BackwardOrders RateLimitTime forwardRateCoefficient forwardActivationEnergy "
+      "equilibriumConstant gibbsFreeEnergy").split(' ');
   for (const QString& candidate : keys)
   {
     if (candidate.compare(key, Qt::CaseInsensitive) == 0) return candidate;
@@ -61,26 +53,19 @@ QJsonValue normalizeEnum(const QString& key, const QJsonValue& value)
       {"SimulationType", {"Breakthrough", "SwingAdsorption", "MixturePrediction", "Fitting", "Test"}},
       {"MixturePredictionMethod", {"IAST", "SIAST", "EI", "SEI", "SCI", "SPI", "MPD"}},
       {"IASTMethod", {"FastIAST", "NestedLoopBisection"}},
-      {"BreakthroughIntegrator", {"RungeKutta3", "CVODE", "ROS34PW2"}},
+      {"BreakthroughIntegrator", {"RungeKutta3", "CVODE", "SIRK3"}},
       {"ConvectionScheme", {"WENO3", "Upwind"}},
-      {"InletCondition", {"Danckwerts", "Dirichlet"}},
-      {"FlowDirection", {"Forward", "Reverse"}},
       {"CVODELinearSolver", {"Dense", "SPGMR"}},
       {"FluidPhase", {"Gas", "Liquid"}}, {"pHMode", {"Fixed", "HPlus", "OHMinus"}},
-      {"WaterSaturationPressureModel", {"Antoine", "Wagner", "Constant"}},
       {"PressureScale", {"Log", "Linear"}},
-      {"FittingWeighting", {"Absolute", "Relative"}},
-      {"BoundaryCondition", {"InletPressureInletVelocity", "InletPressureOutletPressure", "InletVelocityOutletPressure",
-                              "FixedVelocity", "FixedPressureInletVelocity"}},
+      {"BoundaryCondition", {"InletPressureOutletPressure", "InletVelocityOutletPressure",
+                              "FixedVelocity", "FixedPressureGradient"}},
       {"Type", {"PackedBed", "Monolith", "Langmuir", "pH-Langmuir", "Anti-Langmuir", "BET", "Henry", "Freundlich",
                 "Sips", "Langmuir-Freundlich", "Redlich-Peterson", "Toth", "Unilan", "OBrien&Myers", "Quadratic",
-                "Temkin", "Bingel&Walton", "GAB", "Humidity-enhanced-Langmuir", "Moisture-swing-Langmuir",
-                "GAB-coadsorption-Langmuir", "GAB-coadsorption-Sips", "GAB-coadsorption-Toth", "GAB-modified-Toth",
-                "Exponential-humidity-Toth"}},
+                "Temkin", "Bingel&Walton", "GAB"}},
       {"ChannelShape", {"triangular", "square", "hexagonal", "circular"}},
       {"RateEquation", {"FirstOrder", "PseudoNth", "Avrami", "General", "Elovich", "None"}},
-      {"Law", {"Constant", "VantHoff", "Arrhenius", "Exponential", "Linear", "Inverse"}},
-      {"Phase", {"Physisorbed", "Chemisorbed", "PoreConcentration", "BulkConcentration"}},
+      {"Phase", {"Physisorbed", "Chemisorbed", "PoreConcentration"}},
       {"Style", {"GeneralPowerLaw", "LangmuirHinshelwood", "LangmuirHinshelwoodHougenWatson"}}};
   for (const auto& candidate : options.value(key))
     if (candidate.compare(value.toString(), Qt::CaseInsensitive) == 0) return candidate;
@@ -104,8 +89,7 @@ QJsonValue normalize(const QJsonValue& value, bool names = false)
     if (result.contains(key)) throw std::runtime_error("Duplicate input key: " + key.toStdString());
     // RateEquationParameters has an intentionally case-sensitive CLI schema.
     result.insert(key, key == "RateEquationParameters" ? it.value()
-                       : normalizeEnum(key, normalize(it.value(), key == "ComponentParameters" || key == "Components" ||
-                                                                      key == "AdsorptionConstants")));
+                       : normalizeEnum(key, normalize(it.value(), key == "ComponentParameters" || key == "Components")));
   }
   return result;
 }
@@ -228,23 +212,6 @@ QJsonObject LabInput::renameComponentReferences(const QJsonObject& input, const 
       }
       reaction.insert(key, participants);
     }
-    // LH/LHHW adsorption constants are keyed by component name, matched like the participants.
-    auto kinetics = reaction.value("Kinetics").toObject();
-    const auto constants = kinetics.value("AdsorptionConstants").toObject();
-    QJsonObject renamedConstants;
-    for (auto it = constants.begin(); it != constants.end(); ++it)
-    {
-      QString name = names.value(it.key(), it.key());
-      if (!names.contains(it.key()))
-        for (auto rename = names.begin(); rename != names.end(); ++rename)
-          if (rename.key().compare(it.key(), Qt::CaseInsensitive) == 0) { name = rename.value(); break; }
-      renamedConstants.insert(name, it.value());
-    }
-    if (kinetics.contains("AdsorptionConstants"))
-    {
-      kinetics.insert("AdsorptionConstants", renamedConstants);
-      reaction.insert("Kinetics", kinetics);
-    }
     reactions[i] = reaction;
   }
   if (result.contains("Reactions")) result.insert("Reactions", reactions);
@@ -267,7 +234,7 @@ bool LabInput::supported(const QJsonObject& input, QString* error)
 #if !BUILD_SUNDIALS
   if (input.value("BreakthroughIntegrator").toString().compare("CVODE", Qt::CaseInsensitive) == 0)
   {
-    if (error) *error = "CVODE is unavailable in this build. Select RungeKutta3 or ROS34PW2, or rebuild with BUILD_SUNDIALS=ON.";
+    if (error) *error = "CVODE is unavailable in this build. Select RungeKutta3 or SIRK3, or rebuild with BUILD_SUNDIALS=ON.";
     return false;
   }
 #endif

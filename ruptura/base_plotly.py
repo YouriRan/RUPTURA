@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Optional, Union
 
+import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 
@@ -54,6 +55,7 @@ class BasePlotly:
             sep=r"\s+",
             comment="#",
             header=None,
+            engine="python",
         )
         if df.shape[1] < min_columns:
             raise ValueError(f"{fileName} must contain at least {min_columns} columns")
@@ -64,6 +66,12 @@ class BasePlotly:
         if with_lines:
             return "lines+markers" if self.showMarkers else "lines"
         return "markers" if self.showMarkers else "lines"
+
+    def _trace_kwargs(self, with_lines: bool = True) -> dict:
+        kwargs = {"mode": self._trace_mode(with_lines=with_lines)}
+        if self.showMarkers:
+            kwargs["marker"] = {"size": 7}
+        return kwargs
 
     def _publication_layout(
         self,
@@ -180,3 +188,9 @@ class BasePlotly:
             scale=scale,
         )
         return path
+
+    @staticmethod
+    def _safe_minmax(values: np.ndarray) -> Optional[tuple[float, float]]:
+        if not np.isfinite(values).any():
+            return None
+        return float(np.nanmin(values)), float(np.nanmax(values))

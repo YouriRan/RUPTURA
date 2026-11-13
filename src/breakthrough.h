@@ -7,7 +7,7 @@
 #include "cvode.h"
 #include "inputreader.h"
 #include "rk3.h"
-#include "ros34pw2.h"
+#include "rk3_si.h"
 #include "timing.h"
 
 /**
@@ -15,9 +15,9 @@
  */
 enum class BreakthroughIntegrationScheme
 {
-  SSP_RK = 0,    ///< Strong Stability Preserving Runge-Kutta method.
-  CVODE = 1,     ///< CVODE integration.
-  ROS34PW2 = 2,  ///< Adaptive four-stage Rosenbrock-W method with the analytical sorption Jacobian.
+  SSP_RK = 0,  ///< Strong Stability Preserving Runge-Kutta method.
+  CVODE = 1,   ///< CVODE integration.
+  SIRK3 = 2,   ///< Semi-implicit third-order Runge-Kutta method.
 };
 
 /**
@@ -57,7 +57,7 @@ struct Breakthrough
 
   Column column;                                    ///< Column model advanced by the simulation.
   RungeKutta3 rk3;                                  ///< Explicit RK3 integrator instance.
-  ROS34PW2 ros34pw2;                         ///< ROS34PW2 integrator instance.
+  SemiImplicitRungeKutta3 sirk3;                    ///< Semi-implicit RK3 integrator instance.
   CVODE cvode;                                      ///< CVODE integrator instance.
   BreakthroughIntegrationScheme integrationScheme;  ///< Selected integration scheme.
   Timing timings;                                   ///< Accumulated timing diagnostics.

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <limits>
 #include <optional>
 #include <span>
 #include <tuple>
@@ -171,50 +170,6 @@ struct MixturePrediction
   void predictPureComponentLoadings(double externalPressure, std::span<double> pureComponentLoadings,
                                     double gasTemperature);
 
-  /**
-   * \brief Computes the derivatives of the mixture loadings with respect to the partial driving forces.
-   *
-   * Call it after predictMixture with the same arguments: IAST and SIAST differentiate the converged equations at
-   * the hypothetical pressures stored in cachedPressure, the other methods their explicit expressions. The driving
-   * force of component j is p_j = idealGasMolFractions[j] * externalPressure (a partial pressure, or for
-   * concentration input a concentration with externalPressure 1). Slopes that diverge as p -> 0 are evaluated at
-   * p_j >= 1e-10 externalPressure, and without any adsorbing component the pure-isotherm limit is returned. The pH
-   * dependence of pH-Langmuir is not differentiated. The dependence of the humidity-dependent sites on the water
-   * partial pressure, through RH and the water loading, is a finite difference (none with a fixed RelativeHumidity).
-   * MPD is not supported.
-   *
-   * \param idealGasMolFractions The gas phase mole fractions (or concentrations) passed to predictMixture.
-   * \param externalPressure The total pressure (or 1) passed to predictMixture.
-   * \param cachedPressure The hypothetical pressures returned by predictMixture.
-   * \param gasTemperature Temperature of the gas in K.
-   * \param pH The local pH.
-   * \param sensitivities Output: sensitivities[i + j * numberOfComponents] = dq_i/dp_j.
-   */
-  void predictMixtureSensitivities(std::span<const double> idealGasMolFractions, double externalPressure,
-                                   std::span<const double> cachedPressure, double gasTemperature, double pH,
-                                   std::span<double> sensitivities);
-
-  /**
-   * \brief Evaluates the temperature-dependent isotherm parameters of every component copy at a temperature in K.
-   *
-   * predictMixture and predictPureComponentLoadings call it with their temperature. It returns at once when no
-   * isotherm depends on temperature or when the parameters are already evaluated at that temperature.
-   */
-  void setTemperature(double temperature);
-
-  /**
-   * \brief Returns the relative humidity and water loading that the humidity-dependent sites see.
-   *
-   * The relative humidity is the fixed relativeHumidity if set, else p_H2O / p_sat(T). The water loading is the
-   * loading of the water component's isotherm at RH p_sat(T), zero without a water component. Call setTemperature
-   * first, so that the water isotherm is evaluated at the temperature.
-   *
-   * \param waterPartialPressure Partial pressure of water in Pa.
-   * \param gasTemperature Temperature in K at which p_sat is evaluated.
-   * \return The relative humidity [-] and the water loading in mol/kg.
-   */
-  std::pair<double, double> humidityState(double waterPartialPressure, double gasTemperature) const;
-
   std::string displayName;                  ///< The display name for the simulation.
   std::vector<Component> components;        ///< The vector of components in the mixture.
   std::vector<Component> sortedComponents;  ///< Components sorted according to specific criteria.
@@ -229,20 +184,12 @@ struct MixturePrediction
       segregatedSortedComponents;  ///< Segregated and sorted components for SIAST/SEI methods.
   std::vector<size_t> segregatedNumberOfSortedComponents;  ///< Active component count for each segregated site.
   std::vector<double> equilibriumSiteLoadings;  ///< Site-major component loadings from the latest prediction.
-  bool temperatureDependent{false};  ///< Some isotherm depends on temperature, so setTemperature has work to do.
-  bool humidityDependent{false};     ///< Some isotherm depends on the relative humidity (humidityState).
-  /// Index of the water component (Component::isWater), or numberOfComponents if there is none.
-  size_t waterComponent{0};
-  /// Fixed relative humidity of the humidity-dependent sites; without it, RH follows the water partial pressure.
-  std::optional<double> relativeHumidity{};
-  WaterSaturationPressure waterSaturationPressure{};  ///< p_sat(T) that turns p_H2O into the relative humidity.
-  /// Temperature in K at which the isotherm parameters of all component copies were last evaluated.
-  double evaluatedTemperature{std::numeric_limits<double>::quiet_NaN()};
 
   std::vector<double> firstExplicitIsothermAlpha;    ///< Intermediate calculation vector for explicit isotherms.
   std::vector<double> secondExplicitIsothermAlpha;   ///< Intermediate calculation vector for explicit isotherms.
   std::vector<double> explicitIsothermAlphaProduct;  ///< Product of alpha values for explicit isotherms.
   std::vector<double> adsorbedMoleFractionsScratch;  ///< Intermediate calculation vector.
+  std::vector<double> componentScaleScratch;         ///< Isotherm temperature scaling per component.
   std::vector<double> previousLoadingsScratch;       ///< Component loadings before the current segregated site.
 
   std::vector<double> hypotheticalPressure;   ///< Hypothetical pressures in IAST calculations in Pa.
@@ -250,7 +197,6 @@ struct MixturePrediction
   std::vector<double> residualVector;         ///< Intermediate calculation vector in IAST.
   std::vector<double> correctionVector;       ///< Correction vector in IAST.
   std::vector<double> jacobianMatrix;         ///< Jacobian matrix in IAST calculations.
-  std::vector<double> sensitivityScratch;     ///< Intermediate vectors of predictMixtureSensitivities.
 
   std::optional<MacrostateParticleDistribution> macrostateParticleDistribution;  ///< MPD reweighting engine.
   std::vector<size_t> mpdComponentIds;  ///< Original component IDs in MPD dimension order.
@@ -471,15 +417,13 @@ struct MixturePrediction
    * \brief Computes mixture prediction using segregated pure isotherms.
    *
    * Each component site is evaluated independently at that component's partial pressure, and aligned site
-   * contributions are summed into the component loadings. The humidity-dependent sites see the relative humidity
-   * and water loading of humidityState.
+   * contributions are summed into the component loadings.
    */
   std::pair<size_t, size_t> computeSegregatedPureIsotherm(std::span<const double> idealGasMolFractions,
                                                           const double& externalPressure,
                                                           std::span<double> adsorbedMolFractions,
                                                           std::span<double> numberOfMolecules, double& gasTemperature,
-                                                          double pH = 7.0, double humidity = 0.0,
-                                                          double waterLoading = 0.0);
+                                                          double pH = 7.0);
 
   /**
    * \brief Prints error status for debugging purposes.

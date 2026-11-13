@@ -245,3 +245,7 @@ CLAUDE.md
 # Local Ruptura Lab state and simulation outputs
 .ruptura-lab/
 simulations/
+
+# Cluster submission manifests, logs and isolated simulation outputs
+hal_runs/
+hal_jobs/

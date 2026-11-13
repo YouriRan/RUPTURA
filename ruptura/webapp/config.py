@@ -9,7 +9,7 @@ import uuid
 from .field_help import FIELD_HELP
 
 TYPES = ["Breakthrough", "SwingAdsorption", "MixturePrediction"]
-METHODS = ["IAST", "SIAST", "EI", "SEI", "SCI", "SPI"]
+METHODS = ["IAST", "SIAST", "EI", "SEI", "SCI", "SPI", "MPD"]
 PRESET_INFO = {
     "breakthrough": {"title": "Gas breakthrough", "description": "Gas feed through a packed adsorption column."},
     "liquid": {"title": "Liquid & pH", "description": "Liquid transport with pH-dependent adsorption."},
@@ -47,62 +47,19 @@ ISOTHERMS = {
     "Quadratic": [("saturationLoading", "Capacity [mol/kg]", 1.0), ("linearAffinity", "Linear affinity", 1e-5), ("quadraticAffinity", "Quadratic affinity", 1e-10)],
     "Temkin": [("saturationLoading", "Capacity [mol/kg]", 1.0), ("affinityConstant", "Affinity", 1e-5), ("interactionParameter", "Interaction", 0.1)],
     "Bingel&Walton": [("qmax", "Capacity [mol/kg]", 1.0), ("a", "a [1/Pa]", 1e-5), ("b", "b [1/Pa]", 1e-5)],
-    "GAB": [("qmax", "Monolayer capacity [mol/kg]", 1.0), ("c0", "C", 1.0), ("k0", "K", 0.5)],
-    # Humidity-dependent sites: RH from the Water component (or RelativeHumidity), q_w from the Water isotherm.
-    "Humidity-enhanced-Langmuir": [("saturationLoading", "Capacity [mol/kg]", 1.0), ("affinityConstant", "Dry affinity [1/Pa]", 1e-5),
-                                   ("humidityEnhancement", "Humidity enhancement α", 1.0), ("waterAffinity", "Water affinity k_w", 1.0)],
-    "Moisture-swing-Langmuir": [("saturationLoading", "Capacity [mol/kg]", 1.0), ("affinityConstant", "Affinity at RH = 1 [1/Pa]", 1e-5),
-                                ("humidityExponent", "Humidity exponent n_w", 1.0)],
-    "GAB-coadsorption-Langmuir": [("saturationLoading", "Dry capacity [mol/kg]", 1.0), ("affinityConstant", "Dry affinity [1/Pa]", 1e-5),
-                                  ("waterEnhancement", "Water enhancement α [kg/mol]", 0.0), ("waterBlocking", "Water blocking ω [kg/mol]", 0.0)],
-    "GAB-coadsorption-Sips": [("saturationLoading", "Dry capacity [mol/kg]", 1.0), ("affinityConstant", "Dry affinity [1/Pa]", 1e-5),
-                              ("heterogeneityExponent", "Exponent", 1.0), ("waterEnhancement", "Water enhancement α [kg/mol]", 0.0),
-                              ("waterBlocking", "Water blocking ω [kg/mol]", 0.0)],
-    "GAB-coadsorption-Toth": [("saturationLoading", "Dry capacity [mol/kg]", 1.0), ("affinityConstant", "Dry affinity [1/Pa]", 1e-5),
-                              ("heterogeneityParameter", "Heterogeneity", 1.0), ("waterEnhancement", "Water enhancement α [kg/mol]", 0.0),
-                              ("waterBlocking", "Water blocking ω [kg/mol]", 0.0)],
-    "GAB-modified-Toth": [("saturationLoading", "Dry capacity [mol/kg]", 1.0), ("affinityConstant", "Dry affinity [1/Pa]", 1e-5),
-                          ("heterogeneityParameter", "Heterogeneity", 1.0), ("waterCapacityCoefficient", "Capacity coefficient γ [kg/mol]", 0.0),
-                          ("waterAffinityCoefficient", "Affinity coefficient β [kg/mol]", 0.0)],
-    "Exponential-humidity-Toth": [("saturationLoading", "Dry capacity [mol/kg]", 1.0), ("affinityConstant", "Affinity", 1e-5),
-                                  ("heterogeneityParameter", "Heterogeneity", 1.0), ("humidityCapacityCoefficient", "Humidity coefficient a", 0.0)],
+    "GAB": [("qmax", "Monolayer capacity [mol/kg]", 1.0), ("c0", "C₀", 1.0), ("k0", "K₀", 0.5), ("dHC", "ΔH_C [J/mol]", 0.0), ("dHK", "ΔH_K [J/mol]", 0.0)],
 }
 KINETICS = {
     "FirstOrder": [("MassTransferCoefficient", "Rate coefficient [1/s]", 0.04)],
     "PseudoNth": [("RateCoefficient", "Rate coefficient", 0.04), ("Order", "Order", 1.0)],
     "Avrami": [("RateCoefficient", "Rate coefficient", 0.04), ("Order", "Order", 1.0)],
-    "General": [("AdsorptionRateCoefficient", "Adsorption rate", 2.5e-5), ("DesorptionRateCoefficient", "Desorption rate", 1e-6),
+    "DualNth": [("ReferenceTemperature", "Rate reference temperature [K]", 298.15)],
+    "General": [("AdsorptionRateCoefficient", "Adsorption rate", 2.5e-5), ("AdsorptionActivationEnergy", "Adsorption activation energy [J/mol]", 0.0),
+                ("DesorptionRateCoefficient", "Desorption rate", 1e-6), ("DesorptionActivationEnergy", "Desorption activation energy [J/mol]", 0.0),
                 ("PoreConcentrationOrder", "Pore concentration order", 1), ("CapacityOrder", "Capacity order", 1), ("DesorptionOrder", "Desorption order", 1),
                 ("FilmMassTransferCoefficient", "Film transfer [m/s]", 0.0015), ("PoreDiffusivity", "Pore diffusivity [m²/s]", 8e-11), ("UsePoreSurfaceTransport", "Pore surface transport", True)],
     "Elovich": [("Alpha", "Alpha", 0.02), ("Beta", "Beta", 3.0), ("FilmMassTransferCoefficient", "Film transfer [m/s]", 0.001),
                 ("PoreDiffusivity", "Pore diffusivity [m²/s]", 5e-11), ("UsePoreSurfaceTransport", "Pore surface transport", True)],
-}
-
-# The laws each temperature-scalable parameter accepts besides a number, as in Isotherm::temperatureParameters
-# (src/isotherm.cpp) and the input reader; "heat" marks a VantHoff law that may omit Energy to take the heat of
-# adsorption (or reaction). Isotherm entries follow the Parameters positions; None is a number only.
-_CAPACITY = {"laws": ["Exponential", "Linear"], "heat": False}
-_AFFINITY = {"laws": ["VantHoff"], "heat": True}
-_ENERGY = {"laws": ["VantHoff"], "heat": False}
-_EXPONENT = {"laws": ["Linear", "Inverse"], "heat": False}
-_RATE = {"laws": ["Arrhenius"], "heat": False}
-TEMPERATURE_LAWS = {
-    "isotherms": {"Henry": [_AFFINITY], "Freundlich": [_AFFINITY, _EXPONENT], "Langmuir": [_CAPACITY, _AFFINITY],
-                  "pH-Langmuir": [_CAPACITY, _AFFINITY, None], "Sips": [_CAPACITY, _AFFINITY, _EXPONENT],
-                  "Langmuir-Freundlich": [_CAPACITY, _AFFINITY, _EXPONENT], "Toth": [_CAPACITY, _AFFINITY, _EXPONENT],
-                  "Redlich-Peterson": [_ENERGY, _ENERGY, _EXPONENT], "GAB": [_CAPACITY, _ENERGY, _ENERGY],
-                  "Humidity-enhanced-Langmuir": [_CAPACITY, _AFFINITY, None, None], "Moisture-swing-Langmuir": [_CAPACITY, _AFFINITY, None],
-                  "GAB-coadsorption-Langmuir": [_CAPACITY, _AFFINITY, None, None],
-                  "GAB-coadsorption-Sips": [_CAPACITY, _AFFINITY, _EXPONENT, None, None],
-                  "GAB-coadsorption-Toth": [_CAPACITY, _AFFINITY, _EXPONENT, None, None],
-                  "GAB-modified-Toth": [_CAPACITY, _AFFINITY, _EXPONENT, None, None],
-                  "Exponential-humidity-Toth": [_CAPACITY, _AFFINITY, _EXPONENT, None]},
-    "kinetics": {"MassTransferCoefficient": _RATE, "RateCoefficient": _RATE, "AdsorptionRateCoefficient": _RATE,
-                 "DesorptionRateCoefficient": _RATE, "Alpha": _RATE},
-    "reactions": {"ForwardRateCoefficient": _RATE, "EquilibriumConstant": _AFFINITY, "AdsorptionConstants": _ENERGY},
-    # The coefficient key of each law and its label.
-    "coefficients": {"VantHoff": ["Energy", "Energy Q [J/mol]"], "Arrhenius": ["ActivationEnergy", "Activation energy E [J/mol]"],
-                     "Exponential": ["Chi", "χ [-]"], "Linear": ["Slope", "Slope [unit/K]"], "Inverse": ["Alpha", "α [unit]"]},
 }
 
 
@@ -113,39 +70,26 @@ def field(key, label, default=None, options=None, kind="number"):
 
 SCHEMA = {
     "help": FIELD_HELP,
-    "types": TYPES, "methods": METHODS, "isotherms": ISOTHERMS, "kinetics": KINETICS, "temperatureLaws": TEMPERATURE_LAWS,
+    "types": TYPES, "methods": METHODS, "isotherms": ISOTHERMS, "kinetics": KINETICS,
     "operating": [field("Temperature", "Temperature [K]", 433), field("FluidPhase", "Fluid phase", "Gas", ["Gas", "Liquid"]),
                   field("MixturePredictionMethod", "Mixture method", "IAST", METHODS), field("IASTMethod", "IAST solver", "FastIAST", ["FastIAST", "NestedLoopBisection"])],
-    "integration": [field("BreakthroughIntegrator", "Integrator", "RungeKutta3", ["RungeKutta3", "CVODE", "ROS34PW2"]),
+    "integration": [field("BreakthroughIntegrator", "Integrator", "RungeKutta3", ["RungeKutta3", "CVODE", "SIRK3"]),
                     field("ConvectionScheme", "Convection scheme", "WENO3", ["WENO3", "Upwind"]),
-                    field("InletCondition", "Inlet condition", "Danckwerts", ["Danckwerts", "Dirichlet"]),
-                    field("FlowDirection", "Flow direction (feed end)", "Forward", ["Forward", "Reverse"]),
                     field("SimulationTime", "Simulation time [s] (or auto)", "auto", kind="text"),
                     field("WriteInterval", "Output interval [s]", 5.0), field("NumberOfGridPoints", "Grid intervals", 100),
                     field("TimeStep", "Time step [s]", 0.0005), field("NumberOfInitTimeSteps", "Initialization steps", 0)],
-    "cvode": [field("CVODERelativeTolerance", "Relative tolerance", 1e-5), field("CVODEAbsoluteToleranceConcentration", "Concentration tolerance [mol/m³]", 1e-6),
-              field("CVODEAbsoluteToleranceLoading", "Loading tolerance [mol/kg]", 1e-7), field("CVODEAbsoluteToleranceTemperature", "Temperature tolerance [K]", 1e-4),
+    "cvode": [field("CVODERelativeTolerance", "Relative tolerance", 1e-4), field("CVODEAbsoluteToleranceConcentration", "Concentration tolerance [mol/m³]", 1e-5),
+              field("CVODEAbsoluteToleranceLoading", "Loading tolerance [mol/kg]", 1e-6), field("CVODEAbsoluteToleranceTemperature", "Temperature tolerance [K]", 1e-3),
               field("CVODEMaximumTimeStep", "Maximum internal step [s] (−1 auto, 0 unlimited)", -1),
               field("CVODEMaximumOrder", "Maximum BDF order", 5),
-              field("CVODELinearSolver", "Linear solver", "SPGMR", ["Dense", "SPGMR"]), field("CVODEKrylovDimension", "Krylov dimension", 30)],
-    "ros34pw2": [field("ROS34PW2RelativeTolerance", "Relative tolerance", 1e-6),
-                 field("ROS34PW2AbsoluteToleranceConcentration", "Concentration tolerance [mol/m³]", 1e-7),
-                 field("ROS34PW2AbsoluteToleranceLoading", "Loading tolerance [mol/kg]", 1e-8),
-                 field("ROS34PW2AbsoluteToleranceTemperature", "Temperature tolerance [K]", 1e-5),
-                 field("ROS34PW2MaximumTimeStep", "Maximum step [s] (0 unlimited)", 0)],
+              field("CVODELinearSolver", "Linear solver", "Dense", ["Dense", "SPGMR"]), field("CVODEKrylovDimension", "Krylov dimension", 30)],
     "pressure": [field("PressureStart", "Start pressure [Pa]", 1), field("PressureEnd", "End pressure [Pa]", 1e6),
                  field("NumberOfPressurePoints", "Pressure points", 100), field("PressureScale", "Pressure scale", "Log", ["Log", "Linear"])],
     "column": [field("ColumnLength", "Column length [m]", 0.3), field("ColumnVoidFraction", "Void fraction", 0.4), field("ParticleDensity", "Particle density [kg/m³]", 1000),
-               field("ParticleDiameter", "Particle diameter [m]", 0.001), field("DynamicViscosity", "Dynamic viscosity [Pa s]", 1e-5),
-               field("BoundaryCondition", "Boundary condition", "InletPressureInletVelocity", ["InletPressureInletVelocity", "InletPressureOutletPressure", "InletVelocityOutletPressure", "FixedVelocity", "FixedPressureInletVelocity"]),
+               field("ParticleDiameter", "Particle diameter [m]", 0.001), field("ParticleSphericity", "Particle sphericity", 1.0), field("DynamicViscosity", "Dynamic viscosity [Pa s]", 1e-5),
+               field("BoundaryCondition", "Boundary condition", "FixedVelocity", ["InletPressureOutletPressure", "InletVelocityOutletPressure", "FixedVelocity", "FixedPressureGradient"]),
                field("InletPressure", "Inlet pressure [Pa]"), field("OutletPressure", "Outlet pressure [Pa]"),
-               field("ColumnEntranceVelocity", "Inlet velocity [m/s]"), field("PressureGradient", "Pressure gradient [Pa/m]", 0),
-               field("AxialDispersionReferenceTemperature", "Dispersion reference temperature [K]"),
-               field("AxialDispersionReferencePressure", "Dispersion reference pressure [Pa]")],
-    # Blank RelativeHumidity: RH follows the partial pressure of the Water component.
-    "humidity": [field("RelativeHumidity", "Fixed relative humidity [-] (blank: from the Water component)"),
-                 field("WaterSaturationPressureModel", "Water saturation pressure", "Antoine", ["Antoine", "Wagner", "Constant"]),
-                 field("WaterSaturationPressure", "Constant saturation pressure [Pa]")],
+               field("ColumnEntranceVelocity", "Inlet velocity [m/s]"), field("PressureGradient", "Pressure gradient [Pa/m]", 0)],
     "liquid": [field("LiquidDensity", "Liquid density [kg/m³]", 1000), field("pHMode", "pH mode", "Fixed", ["Fixed", "HPlus", "OHMinus"]),
                field("pHValue", "Fixed pH", 7), field("pKw", "pKw", 14), field("pHComponent", "Acid/base component index", 0)],
     "thermal": [field("energyBalance", "Enable energy balance", False, kind="boolean"), field("InfluxTemperature", "Feed temperature [K] (blank inherits)"),
@@ -158,22 +102,26 @@ SCHEMA = {
     "component": [field("GasPhaseMolFraction", "Feed mole fraction", 0), field("LiquidPhaseConcentration", "Inlet concentration [mol/m³]", 0),
                   field("InitialLiquidPhaseConcentration", "Initial concentration [mol/m³]", 0), field("MassTransferCoefficient", "Mass transfer [1/s]"),
                   field("AxialDispersionCoefficient", "Axial dispersion [m²/s]"), field("MolecularWeight", "Molecular weight [kg/mol]"),
-                  field("HeatOfAdsorption", "Heat of adsorption [J/mol]"), field("ReferenceTemperature", "Reference temperature [K]")],
+                  field("HeatOfAdsorption", "Heat of adsorption [J/mol]"), field("referenceTemperature", "Reference temperature [K]"),
+                  field("nonIsothermal", "Non-isothermal isotherm", False, kind="boolean")],
     "geometry": [field("Type", "Geometry", "PackedBed", ["PackedBed", "Monolith"]), field("ColumnVoidFraction", "Geometry void fraction"),
-                 field("ParticleDiameter", "Geometry particle diameter [m]"), field("InternalDiameter", "Internal diameter [m]"), field("OuterDiameter", "Outer diameter [m]"),
+                 field("ParticleDiameter", "Geometry particle diameter [m]"), field("ParticleSphericity", "Geometry particle sphericity"), field("InternalDiameter", "Internal diameter [m]"), field("OuterDiameter", "Outer diameter [m]"),
                  field("ChannelShape", "Channel shape", "circular", ["circular", "square", "triangular", "hexagonal"]),
                  field("InternalChannelDimension", "Channel dimension [m]", 0.001), field("NumberOfChannels", "Number of channels", 10),
-                 field("WashcoatThickness", "Washcoat thickness [m]", 0.0001), field("WashcoatVolumePerChannelVolume", "Washcoat / channel volume"), field("ForchheimerCoefficient", "Forchheimer coefficient [1/m]", 0),
-                 field("AxialDispersivity", "Axial dispersivity [m]", 0), field("TaylorArisDispersion", "Taylor–Aris dispersion (monolith)", False, kind="boolean")],
+                 field("WashcoatThickness", "Washcoat thickness [m]", 0.0001), field("WashcoatVolumePerChannelVolume", "Washcoat / channel volume"), field("ForchheimerCoefficient", "Forchheimer coefficient [1/m]", 0)],
 }
 
-_KEYS = "ClosedEnd PressureRamp Shape TimeConstant SimulationType DisplayName Components Adsorbents ColumnSections Geometry PhysisorptionSites ChemisorptionSites Name Type Parameters RateEquation RateEquationParameters MaximumLoading HeatOfAdsorption Reactions Phase Style Site Reactants Products Stoichiometry Kinetics ForwardOrders BackwardOrders RateLimitTime CarrierGas Water FileName ReadColumnFile ColumnDistances DebugForceMultibed MPDSettings SwingAdsorptionPhases ProductEndGasPhaseMolFractions Adsorbent AdsorbentLength Length InterfaceLength ComponentParameters MixFraction ColumnPressure ColumnLoading ColumnError FittingWeighting ForwardRateCoefficient EquilibriumConstant HeatOfReaction AdsorptionConstants Value Law Energy ActivationEnergy Chi Slope Alpha".split()
+SCHEMA["thermal"].extend([
+    field("ThermalModel", "Thermal model", None, ["Isothermal", "Adiabatic", "NonAdiabatic"]),
+    field("FluidSolidThermalEquilibrium", "Common fluid/solid temperature", False, kind="boolean"),
+])
+
+_KEYS = "SimulationType DisplayName Components Adsorbents ColumnSections Geometry PhysisorptionSites ChemisorptionSites Name Type Parameters RateEquation RateEquationParameters MaximumLoading HeatOfAdsorption Reactions Phase Style Site Reactants Products Stoichiometry Kinetics ForwardOrders BackwardOrders RateLimitTime CarrierGas FileName ReadColumnFile ColumnDistances DebugForceMultibed ChemicalKinetics EquilibriumSource EquilibriumFraction EquilibriumHeat PhysisorptionFraction MPDSettings ReferenceTemperature ReferenceFugacity ReferenceFrameworkMass FrameworkMass ComponentBounds Component NMin NMax DeltaN SwingAdsorptionPhases Adsorbent AdsorbentLength Length InterfaceLength ComponentParameters MixFraction ColumnPressure ColumnLoading ColumnError forwardRateCoefficient forwardActivationEnergy equilibriumConstant gibbsFreeEnergy".split()
 _KEYS += [item["key"] for group in SCHEMA.values() if isinstance(group, list) for item in group if isinstance(item, dict)]
 KEYS = {key.lower(): key for key in _KEYS}
 ENUMS = {item["key"]: item["options"] for group in SCHEMA.values() if isinstance(group, list) for item in group if isinstance(item, dict) and item["options"]}
 ENUMS.update(SimulationType=TYPES + ["Fitting", "Test"], Type=list(ISOTHERMS) + ["PackedBed", "Monolith"],
-             RateEquation=list(KINETICS), Law=["Constant", "VantHoff", "Arrhenius", "Exponential", "Linear", "Inverse"],
-             Phase=["Physisorbed", "Chemisorbed", "PoreConcentration", "BulkConcentration"],
+             RateEquation=list(KINETICS), Phase=["Physisorbed", "Chemisorbed", "PoreConcentration"],
              Style=["GeneralPowerLaw", "LangmuirHinshelwood", "LangmuirHinshelwoodHougenWatson"])
 
 
@@ -189,7 +137,7 @@ def canonicalize(value, names=False):
         key = old_key if names else KEYS.get(old_key.lower(), old_key)
         if key in result:
             raise ValueError(f"Duplicate input key: {key}")
-        item = copy.deepcopy(item) if key == "RateEquationParameters" else canonicalize(item, key in ("Components", "ComponentParameters", "AdsorptionConstants"))
+        item = copy.deepcopy(item) if key == "RateEquationParameters" else canonicalize(item, key in ("Components", "ComponentParameters"))
         if isinstance(item, str):
             item = next((option for option in ENUMS.get(key, []) if option.lower() == item.lower()), item)
         result[key] = item
@@ -199,10 +147,15 @@ def canonicalize(value, names=False):
 def normalize_input(document, directory=None):
     if not isinstance(document, dict):
         raise ValueError("A simulation must be a JSON object.")
-    result = canonicalize(document)
+    from ruptura.process import canonical_chemisorption
+    result = canonical_chemisorption(canonicalize(document))
     kind = result.get("SimulationType", "Breakthrough")
-    if kind not in TYPES or str(result.get("MixturePredictionMethod", "IAST")).upper() == "MPD" or "MPDSettings" in result:
-        raise ValueError("Ruptura Lab supports breakthrough, swing adsorption, and analytical mixture prediction. MPD and fitting are excluded.")
+    uses_mpd = str(result.get("MixturePredictionMethod", "IAST")).upper() == "MPD" or "MPDSettings" in result
+    shared_column = str(result.get("SpatialDiscretization", "")).upper() in ("FDM", "FVM")
+    if kind not in TYPES or (uses_mpd and not (shared_column and kind in ("Breakthrough", "SwingAdsorption"))):
+        raise ValueError("Ruptura Lab supports breakthrough, swing adsorption, and analytical mixture prediction. MPD requires a shared FDM/FVM gas column; standalone MPD and fitting are excluded.")
+    if uses_mpd and str(result.get("FluidPhase", "Gas")).lower() != "gas":
+        raise ValueError("MPD mixture prediction is available only for gas simulations.")
     if isinstance(result.get("Components"), dict):
         result["Components"] = list(result["Components"].values())
     if not isinstance(result.get("Components"), list) or not result["Components"]:
@@ -246,7 +199,7 @@ def apply_changes(original, before, after):
 
 def presets():
     gas = {"SimulationType": "Breakthrough", "DisplayName": "CO₂ / N₂ breakthrough", "Temperature": 300.0,
-           "MixturePredictionMethod": "IAST", "BoundaryCondition": "InletPressureInletVelocity", "InletPressure": 100000.0,
+           "MixturePredictionMethod": "IAST", "BoundaryCondition": "FixedVelocity", "InletPressure": 100000.0,
            "ColumnEntranceVelocity": 0.08, "ColumnLength": 0.1, "ColumnVoidFraction": 0.4, "ParticleDensity": 1000.0,
            "ParticleDiameter": 0.001, "DynamicViscosity": 1.8e-5, "BreakthroughIntegrator": "RungeKutta3",
            "SimulationTime": 2.0, "TimeStep": 0.002, "WriteInterval": 0.02, "NumberOfGridPoints": 30,
@@ -280,10 +233,12 @@ def presets():
     multibed["ColumnSections"] = [{"Adsorbent": "Front bed", "Length": 0.05}, {"InterfaceLength": 0.0}, {"Adsorbent": "Polishing bed", "Length": 0.05}]
     result = {"breakthrough": gas, "liquid": liquid, "mixture": mixture, "swing": swing, "chemisorption": chem, "multibed": multibed}
     for key in PAPER_PRESETS:
-        result[key] = json.loads((Path(__file__).with_name("presets") / f"{key}.json").read_text(encoding="utf-8"))
+        result[key] = json.loads((Path(__file__).with_name("presets") / f"{key}.json").read_text())
     for key in EXAMPLE_ORDER:
         value = result[key]
         value["DisplayName"] = f"Example {PRESET_INFO[key]['number']}: {value['DisplayName']}"
+    for key in ("fvm-gas-breakthrough", "fvm-liquid-breakthrough", "fvm-gas-cycle", "fvm-liquid-cycle"):
+        result[key] = json.loads((Path(__file__).with_name("presets") / f"{key}.json").read_text())
     return result
 
 
@@ -295,7 +250,7 @@ def migrate_example_catalog(state):
     simulations = state["simulations"]
     for path in Path(__file__).with_name("presets").joinpath("legacy").glob("*.json"):
         key = path.stem
-        original = json.loads(path.read_text(encoding="utf-8"))
+        original = json.loads(path.read_text())
         for item in list(simulations):
             if item["id"] != f"default-{key}":
                 continue
@@ -326,37 +281,24 @@ def migrate_example_catalog(state):
     return True
 
 
-def _phy(site, non_isothermal=False):
+def _phy(site):
     kind = site.get("Type", "Langmuir")
-    named = site.get("Parameters", {})
-    parameters = [named.get(key, default) for key, _, default in ISOTHERMS[kind]] if isinstance(named, dict) else named
-    if kind == "GAB" and isinstance(named, dict):
-        # A workspace saved before temperature laws keeps the GAB energies as dHC and dHK.
-        for index, key in ((1, "dHC"), (2, "dHK")):
-            if named.get(key) and not isinstance(parameters[index], dict):
-                parameters[index] = {"Value": parameters[index], "Law": "VantHoff", "Energy": named[key]}
-    if non_isothermal and parameters and parameters[0]:
-        # nonIsothermal scaled the affinity with the heat of adsorption, which its VantHoff law now inherits.
-        for index, spec in enumerate(TEMPERATURE_LAWS["isotherms"].get(kind, [])):
-            if spec and spec["heat"] and index < len(parameters) and isinstance(parameters[index], (int, float)) and parameters[index]:
-                parameters[index] = {"Value": parameters[index], "Law": "VantHoff"}
+    parameters = site.get("Parameters", {})
+    if isinstance(parameters, dict):
+        parameters = [parameters.get(key, default) for key, _, default in ISOTHERMS[kind]]
     return {**site.get("Settings", {}), "Type": kind, "Parameters": parameters}
 
 
-def _chem(site, non_isothermal=False):
+def _chem(site):
     if isinstance(site.get("Parameters"), list):
         return {key: copy.deepcopy(value) for key, value in site.items() if key != "Id"}
     kind = site.get("Type", "FirstOrder")
     parameters = site.get("Parameters", {})
-    result = _phy(site.get("Isotherm", parameters.get("Isotherm", {"Type": "Langmuir"})), non_isothermal)
+    result = _phy(site.get("Isotherm", parameters.get("Isotherm", {"Type": "Langmuir"})))
     kinetics = {}
     for key, _, default in KINETICS[kind]:
         old = "rateCoefficient" if kind == "FirstOrder" and key == "MassTransferCoefficient" else key[0].lower() + key[1:]
         kinetics[key] = parameters.get(old, default)
-        # The General activation energies were parameters of their own; they are now Arrhenius laws.
-        energy = parameters.get(old.replace("RateCoefficient", "ActivationEnergy")) if old.endswith("orptionRateCoefficient") else None
-        if energy and not isinstance(kinetics[key], dict):
-            kinetics[key] = {"Value": kinetics[key], "Law": "Arrhenius", "ActivationEnergy": energy}
     result.update(RateEquation=kind, RateEquationParameters=kinetics, MaximumLoading=parameters.get("maximumLoading", 0.8),
                   HeatOfAdsorption=parameters.get("heatOfChemisorption", 0.0))
     return result
@@ -386,13 +328,15 @@ def migrate_qt(state):
                 if component.get(key) is not None:
                     item[key] = component[key]
             if component.get("ReferenceTemperature") is not None:
-                item["ReferenceTemperature"] = component["ReferenceTemperature"]
+                item["referenceTemperature"] = component["ReferenceTemperature"]
+            if component.get("NonIsothermal"):
+                item["nonIsothermal"] = True
             if component.get("CarrierGas"):
                 item["CarrierGas"] = True
             else:
                 for key, convert in (("PhysisorptionSites", _phy), ("ChemisorptionSites", _chem)):
                     if component.get(key):
-                        item[key] = [convert(site, bool(component.get("NonIsothermal"))) for site in component[key]]
+                        item[key] = [convert(site) for site in component[key]]
             output_components.append(item)
         result = {"SimulationType": kind, "DisplayName": simulation.get("DisplayName", "Imported simulation"), "Temperature": column.get("Temperature", 300),
                   "MixturePredictionMethod": simulation.get("MixturePredictionMethod", "SIAST"), "Components": output_components}
@@ -409,7 +353,7 @@ def migrate_qt(state):
                           NumberOfGridPoints=simulation.get("GridPoints", 100))
             if kind != "SwingAdsorption":  # the phase durations set the simulated time of a swing run
                 result["SimulationTime"] = "auto" if simulation.get("AutoTime", True) else simulation.get("SimulationTime", 3600.0)
-            if integrator not in ("CVODE", "ROS34PW2"):  # the adaptive integrators choose their own steps
+            if integrator != "CVODE":  # CVODE chooses its own internal steps
                 result.update(TimeStep=simulation.get("TimeStep", 0.0005), NumberOfInitTimeSteps=simulation.get("InitSteps", 0))
             if column.get("OutletPressure") is not None:
                 result["OutletPressure"] = column["OutletPressure"]
@@ -465,24 +409,7 @@ def migrate_qt(state):
                         item["Stoichiometry"][side] = [part.get("Stoichiometry", 1.0) for part in participants]
                         if any(part.get("Order") is not None for part in participants):
                             item[order_key] = [part.get("Order") if part.get("Order") is not None else part.get("Stoichiometry", 1) for part in participants]
-                    kinetics = {key: reaction.get(key, 1) for key in ("ForwardRateCoefficient", "EquilibriumConstant")}
-                    # A workspace saved before temperature laws keeps the activation energy and the Gibbs energy dG apart:
-                    # they are an Arrhenius law of k+, and a VantHoff K that takes HeatOfReaction = -dG.
-                    if reaction.get("ForwardActivationEnergy") and not isinstance(kinetics["ForwardRateCoefficient"], dict):
-                        kinetics["ForwardRateCoefficient"] = {"Value": kinetics["ForwardRateCoefficient"], "Law": "Arrhenius",
-                                                              "ActivationEnergy": reaction["ForwardActivationEnergy"]}
-                    if reaction.get("HeatOfReaction") is not None:
-                        kinetics["HeatOfReaction"] = reaction["HeatOfReaction"]
-                    elif reaction.get("GibbsFreeEnergy"):
-                        kinetics["HeatOfReaction"] = -reaction["GibbsFreeEnergy"]
-                        if not isinstance(kinetics["EquilibriumConstant"], dict):
-                            kinetics["EquilibriumConstant"] = {"Value": kinetics["EquilibriumConstant"], "Law": "VantHoff"}
-                    if item["Style"] != "GeneralPowerLaw":
-                        # LH/LHHW adsorption constants, by component id in the Qt state and by name in simulation.json.
-                        kinetics["AdsorptionConstants"] = {components[identifier]["Name"]: value
-                                                           for identifier, value in reaction.get("AdsorptionConstants", {}).items()
-                                                           if identifier in identifiers and (isinstance(value, dict) or value != 0)}
-                    item["Kinetics"] = kinetics
+                    item["Kinetics"] = {key[0].lower() + key[1:]: reaction.get(key, default) for key, default in (("ForwardRateCoefficient", 1), ("ForwardActivationEnergy", 0), ("EquilibriumConstant", 1), ("GibbsFreeEnergy", 0))}
                     output_reactions.append(item)
                 result["Reactions"] = output_reactions
         result.update(column.get("Settings", {}))
@@ -504,11 +431,6 @@ def migrate_qt(state):
                 for side in ("Reactants", "Products"):
                     reaction[side] = [next((new for old, new in renamed.items() if old.lower() == item.lower()), item)
                                       if isinstance(item, str) else item for item in reaction[side]]
-                constants = reaction.get("Kinetics", {}).get("AdsorptionConstants")
-                if constants is not None:
-                    reaction["Kinetics"]["AdsorptionConstants"] = {
-                        next((new for old, new in renamed.items() if old.lower() == name.lower()), name): value
-                        for name, value in constants.items()}
         experiments.append({"id": simulation.get("Id", uuid.uuid4().hex), "input": normalize_input(result), "lastRunId": simulation.get("LastRun", {}).get("id")})
     if not experiments:
         raise ValueError("The saved workspace has no simulations.")
@@ -559,3 +481,18 @@ def import_document(document, directory=None):
             raise ValueError("Simulation notes must be text.")
     state["Version"] = 3
     return state
+
+# Shared-model controls preserve the established field names and full JSON.
+SCHEMA["integration"].insert(0, field("SpatialDiscretization", "Axial discretization", "Legacy", ["Legacy", "FDM", "FVM"]))
+for _item in SCHEMA["integration"]:
+    if _item["key"] == "BreakthroughIntegrator":
+        _item["options"] = ["RungeKutta3", "CVODE", "SIRK3", "BDF", "BDF1", "SSPRK3", "SemiImplicitSSPRK3"]
+    if _item["key"] == "ConvectionScheme":
+        _item["options"] = ["WENO3", "Upwind", "TVD", "WENO5"]
+SCHEMA["component"].extend([
+    field("GasHeatCapacity", "Gas heat capacity [J/mol/K]"),
+    field("AdsorbedHeatCapacity", "Adsorbed heat capacity [J/mol/K]"),
+])
+
+for _key, _title in [("fvm-gas-breakthrough","FVM gas breakthrough"),("fvm-liquid-breakthrough","FVM liquid breakthrough"),("fvm-gas-cycle","FVM gas cycle"),("fvm-liquid-cycle","FVM liquid cycle")]:
+    PRESET_INFO[_key] = {"title":_title,"description":"Shared column model with a complete editable JSON example."}

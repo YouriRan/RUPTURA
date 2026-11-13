@@ -36,7 +36,7 @@ constexpr std::array settings{
 InputReader makeReader(const Setting& setting)
 {
   const auto path = std::filesystem::path{RUPTURA_SOURCE_DIR} /
-                    "examples/MOR-CO2-C3H8/breakthrough/simulation.json";
+                    "examples/ruptura1_examples/MOR-CO2-C3H8/breakthrough/simulation.json";
   InputReader reader(path.string());
   reader.energyBalance = setting.energyBalance;
   reader.numberOfGridPoints = setting.gridPoints;

@@ -34,6 +34,8 @@ struct InputReader
    * \param fileName The name of the input file to parse.
    */
   InputReader(const std::string fileName);
+  // Shared-model adapters use the same parser without creating temporary files.
+  InputReader(const std::string fileName, const std::string& jsonText);
 
   /**
    * \brief Enumerates the types of simulations supported.
@@ -62,13 +64,6 @@ struct InputReader
     /// Phase feed mole fractions per component (normalized); empty means the Components feed.
     std::vector<double> gasPhaseMolFractions{};
     std::optional<double> columnEntranceVelocity;  ///< Phase inlet (interstitial) velocity in m/s.
-    std::optional<size_t> flowDirection;           ///< Phase flow direction (0 Forward, 1 Reverse); default the column's.
-    /// Mole fractions of the gas that flows back in at z = L in a forward phase (normalized); empty: the gas of the
-    /// last cell.
-    std::vector<double> productEndGasPhaseMolFractions{};
-    bool closedEnd{false};  ///< The end opposite the one where flowDirection feeds is closed.
-    size_t pressureRampShape{0};  ///< Inlet pressure from the previous phase: 0 = a step, 1 = exponential, 2 = linear.
-    double pressureRampTimeConstant{0.0};  ///< Time constant (exponential) or duration (linear) of the ramp in s.
   };
 
   std::vector<Component> components;  ///< The list of components involved in the simulation.
@@ -83,11 +78,9 @@ struct InputReader
   size_t mixturePredictionMethod{0};                            ///< The method used for mixture prediction.
   size_t IASTMethod{0};                                         ///< The method used for IAST calculations.
   std::optional<MPDSettings> mpdSettings;                        ///< Settings used by MPD mixture prediction.
-  size_t breakthroughIntegrator{0};  ///< Breakthrough integrator: 0 = RungeKutta3, 1 = CVODE, 2 = ROS34PW2.
-  size_t convectionScheme{1};  ///< Convective face values: 0 = Upwind, 1 = WENO3.
-  size_t boundaryCondition{0};                                  ///< The breakthrough boundary condition.
-  size_t inletCondition{1};  ///< Species and fluid-temperature inlet: 0 = Dirichlet (feed state), 1 = Danckwerts (feed flux).
-  size_t flowDirection{0};   ///< End at which the feed enters: 0 = Forward (z = 0), 1 = Reverse (z = L).
+  size_t breakthroughIntegrator{0};                             ///< The integrator used for breakthrough calculations.
+  size_t convectionScheme{1};  ///< Convective face values: 0 = Upwind, 1 = WENO3 (default; Upwind for SIRK3).
+  size_t boundaryCondition{3};                                  ///< The breakthrough boundary condition.
   size_t fluidPhase{0};                                         ///< 0 = gas, 1 = incompressible liquid.
   size_t pHMode{0};                                             ///< 0 = fixed, 1 = H+, 2 = OH-.
   size_t pHComponent{0};                                        ///< Zero-based acid/base component identifier.
@@ -96,20 +89,11 @@ struct InputReader
   double temperature{433.0};            ///< The simulation temperature in K.
   double columnVoidFraction{0.4};       ///< The void fraction of the packed column.
   double dynamicViscosity{1e-5};        ///< Dynamic viscosity of the gas phase in Pa s.
-  /// Reference state of the AxialDispersionCoefficient values, which then scale as (T/T_ref)^1.75 (P_ref/P);
-  /// 0 means no scaling.
-  double axialDispersionReferenceTemperature{0.0};
-  double axialDispersionReferencePressure{0.0};  ///< See axialDispersionReferenceTemperature; in Pa.
   double liquidDensity{1000.0};         ///< Constant liquid density in kg/m^3.
   double pHValue{7.0};                  ///< Fixed pH when pHMode is fixed.
   double pKw{14.0};                     ///< Water ion-product exponent for OH--derived pH.
-  /// Fixed relative humidity [-] of the humidity-dependent isotherms; without it, RH = p_H2O / p_sat(T) from the
-  /// component marked Water.
-  std::optional<double> relativeHumidity{};
-  /// Saturation pressure of water for the relative humidity and GAB (WaterSaturationPressureModel and
-  /// WaterSaturationPressure).
-  WaterSaturationPressure waterSaturationPressure{};
   double particleDiameter{1e-3};        ///< Diameter of the packed particles in m.
+  double particleSphericity{1.0};      ///< Ergun diameter is sphericity times particle diameter.
   double particleDensity{1000.0};       ///< Particle density in kg/m^3.
   double inletPressure{-1.0};           ///< Inlet pressure, P_in, in Pa.
   double outletPressure{-1.0};          ///< Outlet pressure, P_out, in Pa.
@@ -150,27 +134,18 @@ struct InputReader
   double simulationTime{0.0};       ///< Simulated time in s; set from the phase durations for SwingAdsorption.
   bool autoSimulationTime{true};    ///< Run until the breakthrough or reaction steady-state criterion is met.
   double writeInterval{5.0};        ///< Interval between outputs (and progress lines) in s.
-  size_t numberOfInitTimeSteps{0};  ///< RK3 steps over which the step ramps up from 1e-4 TimeStep.
-  double timeStep{0.0005};          ///< RK3 time step in s; not used by the adaptive CVODE and ROS34PW2.
+  size_t numberOfInitTimeSteps{0};  ///< RungeKutta3/SIRK3 steps over which the step ramps up from 1e-4 TimeStep.
+  double timeStep{0.0005};          ///< RungeKutta3/SIRK3 time step in s; not used by CVODE.
 
   // CVODE integrator controls (only used when BreakthroughIntegrator is CVODE).
-  double cvodeRelativeTolerance{1.0e-5};  ///< CVODE relative tolerance, applied to every state component.
-  double cvodeAbsoluteToleranceConcentration{1.0e-6};   ///< CVODE absolute tolerance for concentrations in mol/m^3.
-  double cvodeAbsoluteToleranceLoading{1.0e-7};        ///< CVODE absolute tolerance for loadings in mol/kg.
-  double cvodeAbsoluteToleranceTemperature{1.0e-4};     ///< CVODE absolute tolerance for temperatures in K.
-  double cvodeMaximumTimeStep{-1.0};  ///< CVODE maximum internal step in s: <0 = 4 dz/v, 0 = unlimited, >0 = explicit.
-  size_t cvodeMaximumOrder{5};        ///< CVODE maximum BDF order (1-5); 1 for very steep fronts that stall at higher orders.
-  size_t cvodeLinearSolver{1};      ///< CVODE linear solver: 0 = Dense, 1 = SPGMR (matrix-free), 2 = KLU (sparse).
+  double cvodeRelativeTolerance{1.0e-4};  ///< CVODE relative tolerance, applied to every state component.
+  double cvodeAbsoluteToleranceConcentration{1.0e-5};   ///< CVODE absolute tolerance for concentrations in mol/m^3.
+  double cvodeAbsoluteToleranceLoading{1.0e-6};        ///< CVODE absolute tolerance for loadings in mol/kg.
+  double cvodeAbsoluteToleranceTemperature{1.0e-3};     ///< CVODE absolute tolerance for temperatures in K.
+  double cvodeMaximumTimeStep{-1.0};  ///< CVODE maximum internal step in s: <0 = auto (dz/v), 0 = unlimited, >0 = explicit.
+  size_t cvodeMaximumOrder{5};        ///< CVODE maximum BDF order (1-5).
+  size_t cvodeLinearSolver{0};      ///< CVODE linear solver: 0 = Dense (direct), 1 = SPGMR (matrix-free Krylov).
   size_t cvodeKrylovDimension{30};  ///< Krylov subspace dimension used by the SPGMR linear solver.
-  size_t cvodePreconditioner{0};    ///< SPGMR preconditioner: 0 = None, 1 = SorptionJacobian (banded I - gamma J).
-
-  // ROS34PW2 integrator controls (only used when BreakthroughIntegrator is ROS34PW2). The tolerances are ten times
-  // smaller than those of CVODE, whose step cap of 4 dz/v adds accuracy that ROS34PW2, without a cap, does not get.
-  double ros34pw2RelativeTolerance{1.0e-6};               ///< ROS34PW2 relative tolerance, for every state component.
-  double ros34pw2AbsoluteToleranceConcentration{1.0e-7};  ///< ROS34PW2 absolute tolerance for concentrations in mol/m^3.
-  double ros34pw2AbsoluteToleranceLoading{1.0e-8};        ///< ROS34PW2 absolute tolerance for loadings in mol/kg.
-  double ros34pw2AbsoluteToleranceTemperature{1.0e-5};    ///< ROS34PW2 absolute tolerance for temperatures in K.
-  double ros34pw2MaximumTimeStep{0.0};                    ///< ROS34PW2 largest step in s; 0 = unlimited.
   size_t numberOfGridPoints{100};    ///< The number of grid points in the column.
 
   double pressureStart{-1.0};          ///< The starting pressure for isotherm calculations in Pa.
@@ -178,10 +153,9 @@ struct InputReader
   size_t numberOfPressurePoints{100};  ///< The number of pressure points to calculate.
   size_t pressureScale{0};             ///< The pressure scale: 0 = log, 1 = linear.
 
-  size_t columnPressure{1};  ///< One-based number of the data-file column for pressure.
-  size_t columnLoading{2};   ///< One-based number of the data-file column for loading.
-  size_t columnError{3};     ///< One-based number of the data-file column for the error.
-  size_t fittingWeighting{0};  ///< The fitting residual: 0 = absolute, 1 = relative.
+  size_t columnPressure{0};  ///< The index of the column for pressure data.
+  size_t columnLoading{1};   ///< The index of the column for loading data.
+  size_t columnError{2};     ///< The index of the column for error data.
 
   std::vector<SwingAdsorptionPhase> swingAdsorptionPhases;  ///< Ordered swing adsorption phases.
 

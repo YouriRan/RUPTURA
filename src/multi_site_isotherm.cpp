@@ -65,8 +65,13 @@ std::vector<double> MultiSiteIsotherm::getParameters() const
 
 // returns the inverse-pressure (1/P) that corresponds to the given reduced_grand_potential reducedGrandPotential
 // advantage: for isotherms with zero equilibrium constant the result would be infinite, but the inverse is zero
-double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, double& cachedP0) const
+double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, double& cachedP0, double scale) const
 {
+  const double tiny = 1.0e-15;
+
+  double left_bracket;
+  double right_bracket;
+
   const auto firstActiveSite =
       std::find_if(sites.begin(), sites.end(), [](const Isotherm& site) { return site.enabled(); });
   if (firstActiveSite == sites.end()) return 0.0;
@@ -77,11 +82,94 @@ double MultiSiteIsotherm::inversePressureForPsi(double reduced_grand_potential, 
       std::find_if(std::next(firstActiveSite), sites.end(), [](const Isotherm& site) { return site.enabled(); });
   if (secondActiveSite == sites.end())
   {
-    return firstActiveSite->inversePressureForPsi(reduced_grand_potential, cachedP0);
+    return firstActiveSite->inversePressureForPsi(reduced_grand_potential, cachedP0, scale);
   }
 
-  return inversePressureByBisection([this](double pressure) { return psiForPressure(pressure); },
-                                    reduced_grand_potential, cachedP0);
+  // from here on, work with pressure, and return 1.0 / pressure at the end of the routine
+  double p_start;
+  if (cachedP0 <= 0.0)
+  {
+    p_start = 5.0;
+  }
+  else
+  {
+    // use the last value of Pi0
+    p_start = cachedP0;
+  }
+
+  // use bisection algorithm
+  double s = psiForPressure(p_start, scale);
+
+  size_t nr_steps = 0;
+  left_bracket = p_start;
+  right_bracket = p_start;
+
+  if (s < reduced_grand_potential)
+  {
+    // find the bracket on the right
+    do
+    {
+      right_bracket *= 2.0;
+      s = psiForPressure(right_bracket, scale);
+
+      ++nr_steps;
+      if (nr_steps > 100000)
+      {
+        std::print("reduced_grand_potential: {}\n", reduced_grand_potential);
+        std::print("reducedGrandPotential: {}\n", s);
+        std::print("p_start: {}\n", p_start);
+        std::print("Left bracket: {}\n", left_bracket);
+        std::print("Right bracket: {}\n", right_bracket);
+        throw std::runtime_error("Error (Inverse bisection): initial bracketing (for sum < 1) does NOT converge\n");
+      }
+    } while (s < reduced_grand_potential);
+  }
+  else
+  {
+    // find the bracket on the left
+    do
+    {
+      left_bracket *= 0.5;
+      s = psiForPressure(left_bracket, scale);
+
+      ++nr_steps;
+      if (nr_steps > 100000)
+      {
+        std::print("reduced_grand_potential: {}\n", reduced_grand_potential);
+        std::print("reducedGrandPotential: {}\n", s);
+        std::print("p_start: {}\n", p_start);
+        std::print("Left bracket: {}\n", left_bracket);
+        std::print("Right bracket: {}\n", right_bracket);
+        throw std::runtime_error("Error (Inverse bisection): initial bracketing (for sum > 1) does NOT converge\n");
+      }
+    } while (s > reduced_grand_potential);
+  }
+
+  do
+  {
+    double middle = 0.5 * (left_bracket + right_bracket);
+    s = psiForPressure(middle, scale);
+
+    if (s > reduced_grand_potential)
+      right_bracket = middle;
+    else
+      left_bracket = middle;
+
+    ++nr_steps;
+    if (nr_steps > 100000)
+    {
+      std::print("Left bracket: {}\n", left_bracket);
+      std::print("Right bracket: {}\n", right_bracket);
+      throw std::runtime_error("Error (Inverse bisection): initial bracketing (for sum < 1) does NOT converge\n");
+    }
+  } while (std::abs(left_bracket - right_bracket) / std::abs(left_bracket + right_bracket) > tiny);
+
+  double middle = 0.5 * (left_bracket + right_bracket);
+
+  //  Store the last value of Pi0
+  cachedP0 = middle;
+
+  return 1.0 / middle;
 }
 
 double MultiSiteIsotherm::fitness() const

@@ -78,6 +78,9 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 target_link_libraries(${PROJECT_NAME} PRIVATE
   rupturalib
 )
+if(BUILD_PROCESS)
+  target_link_libraries(${PROJECT_NAME} PRIVATE ruptura_process)
+endif()
 
 if(RUPTURA_BUILDING_WHEEL)
   install(TARGETS ${PROJECT_NAME}

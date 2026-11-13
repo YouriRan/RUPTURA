@@ -1,0 +1,122 @@
+{
+  "SimulationType": "SwingAdsorption",
+  "SpatialDiscretization": "FVM",
+  "FluidPhase": "Liquid",
+  "DisplayName": "Liquid fixed bed",
+  "Components": [
+    {
+      "Name": "A",
+      "MolecularWeight": 0.044,
+      "GasHeatCapacity": 37.0,
+      "GasPhaseMolFraction": 0.1,
+      "LiquidPhaseConcentration": 0.5,
+      "InitialLiquidPhaseConcentration": 0.0,
+      "MassTransferCoefficient": 0.2,
+      "AxialDispersionCoefficient": 1e-06,
+      "HeatOfAdsorption": 20000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.0,
+            0.4
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "B",
+      "MolecularWeight": 0.028,
+      "GasHeatCapacity": 29.0,
+      "GasPhaseMolFraction": 0.9,
+      "CarrierGas": true,
+      "AxialDispersionCoefficient": 1e-06
+    }
+  ],
+  "MixturePredictionMethod": "SCI",
+  "Geometry": {
+    "Type": "PackedBed",
+    "InternalDiameter": 0.01,
+    "OuterDiameter": 0.012,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  },
+  "ColumnLength": 0.1,
+  "ParticleDensity": 1000.0,
+  "NumberOfGridPoints": 20,
+  "ColumnEntranceVelocity": 0.01,
+  "Temperature": 298.15,
+  "InletPressure": 100000.0,
+  "OutletPressure": 100000.0,
+  "BoundaryCondition": "InletVelocityOutletPressure",
+  "BreakthroughIntegrator": "CVODE",
+  "CVODELinearSolver": "Dense",
+  "ConvectionScheme": "WENO3",
+  "WriteInterval": 0.1,
+  "Solver": {
+    "MaximumTimeStep": 0.5,
+    "RelativeTolerance": 1e-06
+  },
+  "Performance": {
+    "LightComponent": "A",
+    "HeavyComponent": "B"
+  },
+  "Output": {
+    "Directory": "results",
+    "Profile": "compact",
+    "Plots": true,
+    "MainFormatFiles": true
+  },
+  "NumberOfCycles": 1,
+  "Buffers": {
+    "tank": {
+      "Volume": 1e-05,
+      "MaximumVolume": 5e-05,
+      "InitialPressure": 100000.0,
+      "InitialTemperature": 298.15,
+      "InitialConcentration": {
+        "A": 0.2,
+        "B": 0.0
+      }
+    }
+  },
+  "Columns": {
+    "A": {}
+  },
+  "SwingAdsorptionPhases": [
+    {
+      "Name": "Tank-fed adsorption",
+      "Duration": 2.0,
+      "Columns": {
+        "A": {
+          "LeftPort": {
+            "Mode": "Closed"
+          },
+          "RightPort": {
+            "Mode": "Pressure",
+            "Source": "outlet"
+          },
+          "StreamTags": {
+            "RightOut": "light_product"
+          }
+        }
+      },
+      "Connections": [
+        {
+          "Name": "fill",
+          "From": "source:feed",
+          "To": "buffer:tank",
+          "VolumetricFlowRate": 2e-07,
+          "Tag": "feed"
+        },
+        {
+          "Name": "supply",
+          "From": "buffer:tank",
+          "To": "A.left",
+          "VolumetricFlowRate": 1e-07,
+          "Tag": "tank_transfer"
+        }
+      ]
+    }
+  ]
+}

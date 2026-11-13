@@ -116,9 +116,12 @@ Geometry makeGeometry(const PackedBedTubeSpec& specification)
     throw std::runtime_error("Error: Geometry ColumnVoidFraction must be between 0 and 1");
   }
   requirePositive(specification.particleDiameter, "ParticleDiameter");
+  if (!std::isfinite(specification.particleSphericity) || specification.particleSphericity <= 0.0 ||
+      specification.particleSphericity > 1.0)
+    throw std::runtime_error("Error: ParticleSphericity must lie in (0, 1]");
+  const double ergunDiameter = specification.particleSphericity * specification.particleDiameter;
   requireNonNegative(specification.internalDiameter, "InternalDiameter");
   requireNonNegative(specification.outerDiameter, "OuterDiameter");
-  requireNonNegative(specification.axialDispersivity, "AxialDispersivity");
   if (specification.internalDiameter > 0.0 && specification.outerDiameter > 0.0 &&
       specification.outerDiameter <= specification.internalDiameter)
   {
@@ -165,10 +168,9 @@ Geometry makeGeometry(const PackedBedTubeSpec& specification)
   // Packed-bed pressure-drop coefficients.
   geometry.pressureDrop.viscousCoefficient =
       150.0 * solidToFluidVolumeRatio * solidToFluidVolumeRatio /
-      (specification.particleDiameter * specification.particleDiameter);
+      (ergunDiameter * ergunDiameter);
   geometry.pressureDrop.inertialCoefficient =
-      1.75 * solidToFluidVolumeRatio / specification.particleDiameter;
-  geometry.dispersion.dispersivity = specification.axialDispersivity;
+      1.75 * solidToFluidVolumeRatio / ergunDiameter;
   return geometry;
 }
 
@@ -182,7 +184,6 @@ Geometry makeGeometry(const MonolithSpec& specification)
   }
   requireNonNegative(specification.washcoatThickness, "WashcoatThickness");
   requireNonNegative(specification.forchheimerCoefficient, "ForchheimerCoefficient");
-  requireNonNegative(specification.axialDispersivity, "AxialDispersivity");
   if (specification.washcoatVolumePerChannelVolume.has_value())
   {
     requireNonNegative(*specification.washcoatVolumePerChannelVolume, "WashcoatVolumePerChannelVolume");
@@ -239,9 +240,5 @@ Geometry makeGeometry(const MonolithSpec& specification)
   geometry.pressureDrop.viscousCoefficient =
       32.0 / std::max(channel.hydraulicDiameter * channel.hydraulicDiameter, tinyLength);
   geometry.pressureDrop.inertialCoefficient = specification.forchheimerCoefficient;
-  // Taylor-Aris: laminar flow in a circular tube, D_m + v^2 d^2 / (192 D_m), taken with the hydraulic diameter.
-  geometry.dispersion.dispersivity = specification.axialDispersivity;
-  geometry.dispersion.taylorArisCoefficient =
-      specification.taylorArisDispersion ? channel.hydraulicDiameter * channel.hydraulicDiameter / 192.0 : 0.0;
   return geometry;
 }

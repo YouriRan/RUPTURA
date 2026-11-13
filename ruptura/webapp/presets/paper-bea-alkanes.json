@@ -9,7 +9,7 @@
   "ColumnLength": 0.1,
   "SimulationTime": 1200.0,
   "BreakthroughIntegrator": "CVODE",
-  "BoundaryCondition": "FixedPressureInletVelocity",
+  "BoundaryCondition": "FixedPressureGradient",
   "WriteInterval": 2.0,
   "DynamicViscosity": 3e-05,
   "ParticleDiameter": 0.001,

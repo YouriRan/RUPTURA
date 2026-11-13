@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="icon" type="image/png" href="/ruptura-logo.png">
   <script src="/vendor/plotly.js" defer></script>
+  <script src="/cycle_editor.js" defer></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -29,7 +30,7 @@
         <div id="notice" class="notice" hidden></div>
         <div id="metrics" class="metrics"></div>
         <nav class="tabs" aria-label="Simulation sections">
-          <button data-tab="setup" class="active">Setup</button><button data-tab="components">Components <span id="component-count"></span></button><button data-tab="column">Column</button><button data-tab="reactions">Reactions</button><button data-tab="results">Results <span id="results-count"></span></button><button data-tab="log">Run log</button><button data-tab="notes">Notes</button><button data-tab="json" class="json-tab">{ } Input JSON</button>
+          <button data-tab="setup" class="active">Setup</button><button data-tab="components">Components <span id="component-count"></span></button><button data-tab="column">Column</button><button data-tab="cycle" hidden>Cycle designer</button><button data-tab="reactions">Reactions</button><button data-tab="results">Results <span id="results-count"></span></button><button data-tab="log">Run log</button><button data-tab="notes">Notes</button><button data-tab="json" class="json-tab">{ } Input JSON</button>
         </nav>
         <section id="content" class="content" aria-live="polite"><div class="empty"><div class="spinner"></div><h2>Opening your workspace</h2></div></section>
         </div>

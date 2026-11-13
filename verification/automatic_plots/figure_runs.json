@@ -1,0 +1,110 @@
+[
+  {
+    "case": "integrated/equipment/liquid_buffer",
+    "source": "examples/new_examples/integrated/equipment/liquid_buffer/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 10.292,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/flow_controls/gas_constant_velocity",
+    "source": "examples/new_examples/integrated/flow_controls/gas_constant_velocity/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 8.08,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/flow_controls/initial_carriergas",
+    "source": "examples/new_examples/integrated/flow_controls/initial_carriergas/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 8.887,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/flow_controls/initial_evacuated",
+    "source": "examples/new_examples/integrated/flow_controls/initial_evacuated/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 8.671,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/flow_controls/initial_feedpressurized",
+    "source": "examples/new_examples/integrated/flow_controls/initial_feedpressurized/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 12.547,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/flow_controls/initial_gaspressurized",
+    "source": "examples/new_examples/integrated/flow_controls/initial_gaspressurized/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 11.475,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/flow_controls/liquid_common_temperature_coolant",
+    "source": "examples/new_examples/integrated/flow_controls/liquid_common_temperature_coolant/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 8.458,
+    "png": 11,
+    "pdf": 11
+  },
+  {
+    "case": "integrated/flow_controls/liquid_constant_velocity",
+    "source": "examples/new_examples/integrated/flow_controls/liquid_constant_velocity/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 10.449,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/flow_controls/liquid_cycle_velocity_gradient_wash",
+    "source": "examples/new_examples/integrated/flow_controls/liquid_cycle_velocity_gradient_wash/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 7.402,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/flow_controls/liquid_gradient_cylindrical_hsdm",
+    "source": "examples/new_examples/integrated/flow_controls/liquid_gradient_cylindrical_hsdm/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 6.754,
+    "png": 10,
+    "pdf": 10
+  },
+  {
+    "case": "integrated/validation/marx_T15_original",
+    "source": "examples/new_examples/integrated/validation/marx_T15_original/simulation.json",
+    "shortened_legacy_run": true,
+    "exit_code": 0,
+    "seconds": 2.827,
+    "png": 6,
+    "pdf": 6
+  },
+  {
+    "case": "unified/fvm/gas_breakthrough",
+    "source": "examples/new_examples/unified/fvm/gas_breakthrough/simulation.json",
+    "shortened_legacy_run": false,
+    "exit_code": 0,
+    "seconds": 8.362,
+    "png": 10,
+    "pdf": 10
+  }
+]

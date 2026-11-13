@@ -1,0 +1,31 @@
+{
+  "SimulationType": "Fitting",
+  "DisplayName": "MFI",
+  "ColumnPressure": 3,
+  "ColumnLoading": 8,
+  "PressureScale": "log",
+  "Components": [
+    {
+      "Name": "p-xylene",
+      "FileName": "Results.dat-MFI-default-P1-Repeat-433K-p-xylene",
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.0,
+            0.0,
+            0.0
+          ]
+        }
+      ]
+    }
+  ]
+}

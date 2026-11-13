@@ -1,0 +1,86 @@
+[
+  {
+    "case": "unified/fdm/gas_breakthrough",
+    "source": "examples/new_examples/unified/fdm/gas_breakthrough/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 4.894
+  },
+  {
+    "case": "unified/fvm/gas_breakthrough",
+    "source": "examples/new_examples/unified/fvm/gas_breakthrough/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 4.491
+  },
+  {
+    "case": "unified/fdm/liquid_hsdm_sphere_film",
+    "source": "examples/new_examples/unified/fdm/liquid_hsdm_sphere_film/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 3.043
+  },
+  {
+    "case": "unified/fvm/liquid_hsdm_cylinderradial_no_film",
+    "source": "examples/new_examples/unified/fvm/liquid_hsdm_cylinderradial_no_film/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 2.327
+  },
+  {
+    "case": "shared_chemisorption/fdm/gas/avrami/cycle",
+    "source": "examples/new_examples/shared_chemisorption/fdm/gas/avrami/cycle/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 6.969
+  },
+  {
+    "case": "shared_chemisorption/fvm/liquid/dualnth/cycle",
+    "source": "examples/new_examples/shared_chemisorption/fvm/liquid/dualnth/cycle/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 6.33
+  },
+  {
+    "case": "unified/fdm/gas_mpd_breakthrough",
+    "source": "examples/new_examples/unified/fdm/gas_mpd_breakthrough/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 3.133
+  },
+  {
+    "case": "integrated/thermal/liquid_transient_coolant",
+    "source": "examples/new_examples/integrated/thermal/liquid_transient_coolant/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 22.861
+  },
+  {
+    "case": "integrated/breakthrough/gas_monolith",
+    "source": "examples/new_examples/integrated/breakthrough/gas_monolith/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 19.217
+  },
+  {
+    "case": "integrated/equipment/liquid_buffer",
+    "source": "examples/new_examples/integrated/equipment/liquid_buffer/simulation.json",
+    "shortened_schedule": false,
+    "exit_code": 0,
+    "seconds": 0.811
+  },
+  {
+    "case": "short_checks/two-psa-pe",
+    "source": "examples/new_examples/unified/fvm/two-psa-pe/simulation.json",
+    "shortened_schedule": true,
+    "exit_code": 0,
+    "seconds": 1.326
+  },
+  {
+    "case": "short_checks/four-psa",
+    "source": "examples/new_examples/unified/fdm/four-psa/simulation.json",
+    "shortened_schedule": true,
+    "exit_code": 0,
+    "seconds": 4.533
+  }
+]

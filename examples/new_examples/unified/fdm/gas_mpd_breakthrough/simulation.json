@@ -1,0 +1,88 @@
+{
+  "SimulationType": "Breakthrough",
+  "FluidPhase": "Gas",
+  "MixturePredictionMethod": "MPD",
+  "Temperature": 300.0,
+  "ColumnLength": 0.02,
+  "NumberOfGridPoints": 10,
+  "ParticleDensity": 1000.0,
+  "InletPressure": 250000.0,
+  "OutletPressure": 250000.0,
+  "ColumnEntranceVelocity": 0.05,
+  "BoundaryCondition": "FixedVelocity",
+  "Geometry": {
+    "Type": "PackedBed",
+    "InternalDiameter": 0.01,
+    "OuterDiameter": 0.012,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  },
+  "Components": [
+    {
+      "Name": "A",
+      "GasPhaseMolFraction": 0.2,
+      "MolecularWeight": 0.044,
+      "GasHeatCapacity": 37.0,
+      "MassTransferCoefficient": 0.2,
+      "AxialDispersionCoefficient": 1e-06,
+      "HeatOfAdsorption": 20000.0
+    },
+    {
+      "Name": "He",
+      "GasPhaseMolFraction": 0.2,
+      "MolecularWeight": 0.004,
+      "GasHeatCapacity": 20.8,
+      "CarrierGas": true
+    },
+    {
+      "Name": "B",
+      "GasPhaseMolFraction": 0.6,
+      "MolecularWeight": 0.028,
+      "GasHeatCapacity": 29.0,
+      "MassTransferCoefficient": 0.1,
+      "AxialDispersionCoefficient": 1e-06,
+      "HeatOfAdsorption": 18000.0
+    }
+  ],
+  "MPDSettings": {
+    "FileName": "distribution.data",
+    "ReferenceTemperature": 300.0,
+    "ReferenceFugacity": 100000.0,
+    "ReferenceFrameworkMass": 1.6605390671738466e-24,
+    "ComponentBounds": [
+      {
+        "Component": "A",
+        "NMin": 0,
+        "NMax": 1,
+        "DeltaN": 1
+      },
+      {
+        "Component": "B",
+        "NMin": 0,
+        "NMax": 1,
+        "DeltaN": 1
+      }
+    ]
+  },
+  "InitialConditions": {
+    "Type": "CarrierGas",
+    "Loading": "zero"
+  },
+  "BreakthroughIntegrator": "CVODE",
+  "ConvectionScheme": "WENO3",
+  "SimulationTime": 60.0,
+  "WriteInterval": 0.5,
+  "Solver": {
+    "MaximumTimeStep": 0.1,
+    "FirstTimeStep": 1e-05,
+    "RelativeTolerance": 1e-07,
+    "AbsoluteTolerance": 1e-10
+  },
+  "Output": {
+    "Directory": "results",
+    "Plots": true,
+    "Checkpoint": true,
+    "MainFormatFiles": true
+  },
+  "SpatialDiscretization": "FDM"
+}

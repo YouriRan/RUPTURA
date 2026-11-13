@@ -1,0 +1,122 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "MIL-47",
+  "Temperature": 443.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1000.36,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "ColumnLength": 0.3,
+  "BreakthroughIntegrator": "CVODE",
+  "SimulationTime": "auto",
+  "WriteInterval": 5.0,
+  "NumberOfGridPoints": 100,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.96,
+      "CarrierGas": true
+    },
+    {
+      "Name": "o-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.8,
+            0.00503,
+            1.08
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.8,
+            0.000378,
+            0.8
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "m-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.6,
+            0.00248,
+            1.1
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.8,
+            3.86e-05,
+            0.9
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "p-xylene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.8,
+            0.00322,
+            1.07
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.8,
+            3.23e-05,
+            0.9
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "ethylbenzene",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            0.9,
+            0.000394,
+            0.62
+          ]
+        },
+        {
+          "Type": "Langmuir-Freundlich",
+          "Parameters": [
+            2.2,
+            0.00473,
+            1.05
+          ]
+        }
+      ]
+    }
+  ],
+  "InletPressure": 2500000.0,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4
+  }
+}

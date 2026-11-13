@@ -1,0 +1,2463 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Linux-cxx"
+	tests="143"
+	failures="29"
+	disabled="0"
+	skipped="0"
+	hostname="e46a8ef05752"
+	time="11"
+	timestamp="2026-11-08T15:44:47"
+	>
+	<testcase name="process_test_kinetics_tea" classname="process_test_kinetics_tea" time="0.00687573" status="run">
+		<properties/>
+		<system-out>80 chemistry and 16 TEA reference cases passed
+</system-out>
+	</testcase>
+	<testcase name="process_test_literature_boundaries" classname="process_test_literature_boundaries" time="0.00217665" status="run">
+		<properties/>
+		<system-out>Literature boundaries passed: Darcy, spatial/time jacket, wall endpoints and energy closure
+</system-out>
+	</testcase>
+	<testcase name="process_test_upstream_material_laws" classname="process_test_upstream_material_laws" time="0.0141484" status="run">
+		<properties/>
+		<system-out>816 upstream material-law points passed; maximum relative error 2.59563e-15; pore LDF, pure-carrier limit and closed-cell conservation passed.
+</system-out>
+	</testcase>
+	<testcase name="process_test_main_fvm" classname="process_test_main_fvm" time="0.0265644" status="run">
+		<properties/>
+		<system-out>Main-format FVM gas/liquid, fixed bed/monolith, HSDM and liquid network checks passed
+</system-out>
+	</testcase>
+	<testcase name="process_test_flow_controls" classname="process_test_flow_controls" time="0.0495679" status="run">
+		<properties/>
+		<system-out>Flow controls: gas/liquid velocity, layered continuity, pressure gradients, sphericity, LTE energy and IC presets passed
+</system-out>
+	</testcase>
+	<testcase name="process_test_equilibrium" classname="process_test_equilibrium" time="2.05308" status="run">
+		<properties/>
+		<system-out>130 equilibrium comparisons passed, max relative 1.93874e-11
+</system-out>
+	</testcase>
+	<testcase name="process_test_column" classname="process_test_column" time="0.068662" status="run">
+		<properties/>
+		<system-out>38 column reference cases passed
+32 molar-flow pressure/temperature/side/basis checks passed
+</system-out>
+	</testcase>
+	<testcase name="process_test_integrator" classname="process_test_integrator" time="0.00617844" status="run">
+		<properties/>
+		<system-out>All native BDF tests passed: decay/native+LAPACK, stiff manufactured, Robertson, passive ledger, sparse FD, event/restart, controlled failure
+</system-out>
+	</testcase>
+	<testcase name="process_test_diagnostics" classname="process_test_diagnostics" time="0.0011642" status="run">
+		<properties/>
+		<system-out>Convergence diagnostic tests passed
+</system-out>
+	</testcase>
+	<testcase name="process_test_jacket" classname="process_test_jacket" time="0.00695562" status="run">
+		<properties/>
+		<system-out>HTF tests passed: flow directions, stagnant storage, conservation, spatial h, validation, analytic limits and transient integration
+</system-out>
+	</testcase>
+	<testcase name="process_test_integrator_cvode" classname="process_test_integrator_cvode" time="0.00498917" status="run">
+		<properties/>
+		<system-out>[ERROR][rank 0][/workspace/scratch/592dfee8bc42/dependencies/sundials-7.5.0/src/cvode/cvode_ls.c:1362][cvLsLinSys] The Jacobian routine failed in an unrecoverable manner.
+[ERROR][rank 0][/workspace/scratch/592dfee8bc42/dependencies/sundials-7.5.0/src/cvode/cvode.c:3747][cvHandleFailure] At t = 0, the setup routine failed in an unrecoverable manner.
+[ERROR][rank 0][/workspace/scratch/592dfee8bc42/dependencies/sundials-7.5.0/src/cvode/cvode.c:3755][cvHandleFailure] At t = 0.00914949155774976, the right-hand side routine failed in an unrecoverable manner.
+[ERROR][rank 0][/workspace/scratch/592dfee8bc42/dependencies/sundials-7.5.0/src/cvode/cvode.c:1139][CVode] At t = 0, the right-hand side routine failed in an unrecoverable manner.
+[ERROR][rank 0][/workspace/scratch/592dfee8bc42/dependencies/sundials-7.5.0/src/cvode/cvode.c:1146][CVode] The right-hand side routine failed at the first call.
+Testing SUNDIALS 7.5.0
+All CVODE integrator tests passed
+</system-out>
+	</testcase>
+	<testcase name="process_test_npz" classname="process_test_npz" time="0.00242926" status="run">
+		<properties/>
+		<system-out>Native NPZ tests passed
+</system-out>
+	</testcase>
+	<testcase name="process_test_runner" classname="process_test_runner" time="11.2296" status="run">
+		<properties/>
+		<system-out>Cycle 1: CSS state error 95.21537202889031; streak 0/1
+Cycle 1: CSS state error 132.50222802792698; streak 0/1
+Cycle 2: CSS state error 131.16463959464906; streak 0/1
+Cycle 3: CSS state error 129.84313935872973; streak 0/1
+Cycle 4: CSS state error 128.5284808118269; streak 0/1
+Cycle 1: CSS state error 132.50222802792698; streak 0/1
+Cycle 2: CSS state error 131.16463959464906; streak 0/1
+Cycle 3: CSS state error 129.84313935872973; streak 0/1
+Cycle 4: CSS state error 128.5284808118269; streak 0/1
+Cycle 1: CSS state error 80.02839567432228; streak 0/1
+Cycle 1: CSS state error 80.02839567425593; streak 0/1
+Cycle 1: CSS state error 80.02839567432228; streak 0/1
+Cycle 1: CSS state error 80.02839567430017; streak 0/1
+Cycle 1: CSS state error 80.02839567432228; streak 0/1
+Cycle 1: CSS state error 54.06408262255262; streak 0/1
+Cycle 1: CSS state error 3.116809055429893e-05; streak 0/1
+Cycle 1: CSS state error 50.06837520897191; streak 0/1
+Cycle 1: CSS state error 70.04371805552394; streak 0/1
+Cycle 1: CSS state error...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="WENO3Reconstruction.IsExactForLinearProfilesOnUniformAndNonUniformGrids" classname="WENO3Reconstruction.IsExactForLinearProfilesOnUniformAndNonUniformGrids" time="0.00144149" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = WENO3Reconstruction.IsExactForLinearProfilesOnUniformAndNonUniformGrids
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from WENO3Reconstruction
+[ RUN      ] WENO3Reconstruction.IsExactForLinearProfilesOnUniformAndNonUniformGrids
+[       OK ] WENO3Reconstruction.IsExactForLinearProfilesOnUniformAndNonUniformGrids (0 ms)
+[----------] 1 test from WENO3Reconstruction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="WENO3Reconstruction.IsThirdOrderForASmoothProfile" classname="WENO3Reconstruction.IsThirdOrderForASmoothProfile" time="0.00176791" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = WENO3Reconstruction.IsThirdOrderForASmoothProfile
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from WENO3Reconstruction
+[ RUN      ] WENO3Reconstruction.IsThirdOrderForASmoothProfile
+[       OK ] WENO3Reconstruction.IsThirdOrderForASmoothProfile (0 ms)
+[----------] 1 test from WENO3Reconstruction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="WENO3Reconstruction.KeepsAStepWithinItsBounds" classname="WENO3Reconstruction.KeepsAStepWithinItsBounds" time="0.00151057" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = WENO3Reconstruction.KeepsAStepWithinItsBounds
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from WENO3Reconstruction
+[ RUN      ] WENO3Reconstruction.KeepsAStepWithinItsBounds
+[       OK ] WENO3Reconstruction.KeepsAStepWithinItsBounds (0 ms)
+[----------] 1 test from WENO3Reconstruction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MassBalanceWENO3.GasSpeciesFluxesSumToTheUpwindTotalFlux" classname="MassBalanceWENO3.GasSpeciesFluxesSumToTheUpwindTotalFlux" time="0.00148419" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MassBalanceWENO3.GasSpeciesFluxesSumToTheUpwindTotalFlux
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MassBalanceWENO3
+[ RUN      ] MassBalanceWENO3.GasSpeciesFluxesSumToTheUpwindTotalFlux
+[       OK ] MassBalanceWENO3.GasSpeciesFluxesSumToTheUpwindTotalFlux (0 ms)
+[----------] 1 test from MassBalanceWENO3 (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MassBalanceWENO3.IsExactForLinearProfilesInGasAndLiquid" classname="MassBalanceWENO3.IsExactForLinearProfilesInGasAndLiquid" time="0.00194598" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MassBalanceWENO3.IsExactForLinearProfilesInGasAndLiquid
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MassBalanceWENO3
+[ RUN      ] MassBalanceWENO3.IsExactForLinearProfilesInGasAndLiquid
+[       OK ] MassBalanceWENO3.IsExactForLinearProfilesInGasAndLiquid (0 ms)
+[----------] 1 test from MassBalanceWENO3 (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ConvectionSchemeInput.DefaultsToWENO3AndUpwindForSIRK3" classname="ConvectionSchemeInput.DefaultsToWENO3AndUpwindForSIRK3" time="0.00315604" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ConvectionSchemeInput.DefaultsToWENO3AndUpwindForSIRK3
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ConvectionSchemeInput
+[ RUN      ] ConvectionSchemeInput.DefaultsToWENO3AndUpwindForSIRK3
+[       OK ] ConvectionSchemeInput.DefaultsToWENO3AndUpwindForSIRK3 (1 ms)
+[----------] 1 test from ConvectionSchemeInput (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (1 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ExampleInputReader.LoadsBeaAlkanesMixturePrediction" classname="ExampleInputReader.LoadsBeaAlkanesMixturePrediction" time="0.00163328" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleInputReader.LoadsBeaAlkanesMixturePrediction
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleInputReader
+[ RUN      ] ExampleInputReader.LoadsBeaAlkanesMixturePrediction
+[       OK ] ExampleInputReader.LoadsBeaAlkanesMixturePrediction (0 ms)
+[----------] 1 test from ExampleInputReader (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix" classname="ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix" time="0.00171816" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleInputReader
+[ RUN      ] ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix
+unknown file: Failure
+C++ exception with description "filesystem error: in directory_iterator::directory_iterator(...): No such file or directory ["/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/MPD/BEA-alkanes/breakthrough"]" thrown in the test body.
+
+[  FAILED  ] ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix (0 ms)
+[----------] 1 test from ExampleInputReader (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="ExampleInputReader.LoadsCoBdpAlkanesBreakthrough" classname="ExampleInputReader.LoadsCoBdpAlkanesBreakthrough" time="0.00190641" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleInputReader.LoadsCoBdpAlkanesBreakthrough
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleInputReader
+[ RUN      ] ExampleInputReader.LoadsCoBdpAlkanesBreakthrough
+[       OK ] ExampleInputReader.LoadsCoBdpAlkanesBreakthrough (0 ms)
+[----------] 1 test from ExampleInputReader (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ExampleInputReader.ParsesSemiImplicitRungeKuttaIntegrator" classname="ExampleInputReader.ParsesSemiImplicitRungeKuttaIntegrator" time="0.00366265" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleInputReader.ParsesSemiImplicitRungeKuttaIntegrator
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleInputReader
+[ RUN      ] ExampleInputReader.ParsesSemiImplicitRungeKuttaIntegrator
+[       OK ] ExampleInputReader.ParsesSemiImplicitRungeKuttaIntegrator (0 ms)
+[----------] 1 test from ExampleInputReader (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ExampleInputReader.Sirk3RejectsReactionsAndSurfacePoreTransport" classname="ExampleInputReader.Sirk3RejectsReactionsAndSurfacePoreTransport" time="0.00263848" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleInputReader.Sirk3RejectsReactionsAndSurfacePoreTransport
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleInputReader
+[ RUN      ] ExampleInputReader.Sirk3RejectsReactionsAndSurfacePoreTransport
+[       OK ] ExampleInputReader.Sirk3RejectsReactionsAndSurfacePoreTransport (0 ms)
+[----------] 1 test from ExampleInputReader (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ExampleInputReader.ParsesAndValidatesCvodeMaximumOrder" classname="ExampleInputReader.ParsesAndValidatesCvodeMaximumOrder" time="0.00290046" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleInputReader.ParsesAndValidatesCvodeMaximumOrder
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleInputReader
+[ RUN      ] ExampleInputReader.ParsesAndValidatesCvodeMaximumOrder
+[       OK ] ExampleInputReader.ParsesAndValidatesCvodeMaximumOrder (0 ms)
+[----------] 1 test from ExampleInputReader (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="SwingAdsorptionInput.ParsesStructuredPhasesAndBuildsSubStages" classname="SwingAdsorptionInput.ParsesStructuredPhasesAndBuildsSubStages" time="0.00275995" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = SwingAdsorptionInput.ParsesStructuredPhasesAndBuildsSubStages
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from SwingAdsorptionInput
+[ RUN      ] SwingAdsorptionInput.ParsesStructuredPhasesAndBuildsSubStages
+[       OK ] SwingAdsorptionInput.ParsesStructuredPhasesAndBuildsSubStages (0 ms)
+[----------] 1 test from SwingAdsorptionInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="SwingAdsorptionInput.LoadsPsaAndTsaExamples" classname="SwingAdsorptionInput.LoadsPsaAndTsaExamples" time="0.00185085" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = SwingAdsorptionInput.LoadsPsaAndTsaExamples
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from SwingAdsorptionInput
+[ RUN      ] SwingAdsorptionInput.LoadsPsaAndTsaExamples
+[       OK ] SwingAdsorptionInput.LoadsPsaAndTsaExamples (0 ms)
+[----------] 1 test from SwingAdsorptionInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="SwingAdsorptionInput.RepeatsCyclesWithPhaseFeedCompositionAndVelocity" classname="SwingAdsorptionInput.RepeatsCyclesWithPhaseFeedCompositionAndVelocity" time="0.002415" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = SwingAdsorptionInput.RepeatsCyclesWithPhaseFeedCompositionAndVelocity
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from SwingAdsorptionInput
+[ RUN      ] SwingAdsorptionInput.RepeatsCyclesWithPhaseFeedCompositionAndVelocity
+Normalizing: SwingAdsorptionPhases 'Regeneration (cycle 1)' gas-phase molfractions did not sum exactly to unity!
+
+Normalizing: SwingAdsorptionPhases 'Regeneration (cycle 2)' gas-phase molfractions did not sum exactly to unity!
+
+Normalizing: SwingAdsorptionPhases 'Regeneration (cycle 3)' gas-phase molfractions did not sum exactly to unity!
+
+[       OK ] SwingAdsorptionInput.RepeatsCyclesWithPhaseFeedCompositionAndVelocity (0 ms)
+[----------] 1 test from SwingAdsorptionInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms to...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="GeometryInput.LoadsExplicitPackedBedGeometry" classname="GeometryInput.LoadsExplicitPackedBedGeometry" time="0.00164454" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = GeometryInput.LoadsExplicitPackedBedGeometry
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GeometryInput
+[ RUN      ] GeometryInput.LoadsExplicitPackedBedGeometry
+[       OK ] GeometryInput.LoadsExplicitPackedBedGeometry (0 ms)
+[----------] 1 test from GeometryInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="GeometryInput.RequiresGeometryForBreakthrough" classname="GeometryInput.RequiresGeometryForBreakthrough" time="0.00210504" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = GeometryInput.RequiresGeometryForBreakthrough
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GeometryInput
+[ RUN      ] GeometryInput.RequiresGeometryForBreakthrough
+[       OK ] GeometryInput.RequiresGeometryForBreakthrough (0 ms)
+[----------] 1 test from GeometryInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="GeometryInput.ParsesMonolithSubJsonAndPrecomputesChannelTerms" classname="GeometryInput.ParsesMonolithSubJsonAndPrecomputesChannelTerms" time="0.00206174" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = GeometryInput.ParsesMonolithSubJsonAndPrecomputesChannelTerms
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GeometryInput
+[ RUN      ] GeometryInput.ParsesMonolithSubJsonAndPrecomputesChannelTerms
+[       OK ] GeometryInput.ParsesMonolithSubJsonAndPrecomputesChannelTerms (0 ms)
+[----------] 1 test from GeometryInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="GeometryInput.LoadsChemisorptionCo2N2MonolithExample" classname="GeometryInput.LoadsChemisorptionCo2N2MonolithExample" time="0.00189976" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = GeometryInput.LoadsChemisorptionCo2N2MonolithExample
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GeometryInput
+[ RUN      ] GeometryInput.LoadsChemisorptionCo2N2MonolithExample
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Chemisorption-CO2-N2/monolith/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] GeometryInput.LoadsChemisorptionCo2N2MonolithExample (0 ms)
+[----------] 1 test from GeometryInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] GeometryInput.LoadsChemisorptionCo2N2MonolithExample
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="PressureDropLaw.SolvesSignedDarcyForchheimerVelocity" classname="PressureDropLaw.SolvesSignedDarcyForchheimerVelocity" time="0.0015859" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = PressureDropLaw.SolvesSignedDarcyForchheimerVelocity
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from PressureDropLaw
+[ RUN      ] PressureDropLaw.SolvesSignedDarcyForchheimerVelocity
+[       OK ] PressureDropLaw.SolvesSignedDarcyForchheimerVelocity (0 ms)
+[----------] 1 test from PressureDropLaw (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="PressureDropLaw.MonolithDarcyVelocityUsesHydraulicPermeability" classname="PressureDropLaw.MonolithDarcyVelocityUsesHydraulicPermeability" time="0.00158294" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = PressureDropLaw.MonolithDarcyVelocityUsesHydraulicPermeability
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from PressureDropLaw
+[ RUN      ] PressureDropLaw.MonolithDarcyVelocityUsesHydraulicPermeability
+[       OK ] PressureDropLaw.MonolithDarcyVelocityUsesHydraulicPermeability (0 ms)
+[----------] 1 test from PressureDropLaw (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ExampleMassBalance.RecomputesBeaColumnStateDerivatives" classname="ExampleMassBalance.RecomputesBeaColumnStateDerivatives" time="0.00477164" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleMassBalance.RecomputesBeaColumnStateDerivatives
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleMassBalance
+[ RUN      ] ExampleMassBalance.RecomputesBeaColumnStateDerivatives
+[       OK ] ExampleMassBalance.RecomputesBeaColumnStateDerivatives (2 ms)
+[----------] 1 test from ExampleMassBalance (2 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (2 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ExampleMixturePrediction.RecomputesBeaBreakthroughEquilibriumLoadings" classname="ExampleMixturePrediction.RecomputesBeaBreakthroughEquilibriumLoadings" time="0.00508678" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleMixturePrediction.RecomputesBeaBreakthroughEquilibriumLoadings
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleMixturePrediction
+[ RUN      ] ExampleMixturePrediction.RecomputesBeaBreakthroughEquilibriumLoadings
+[       OK ] ExampleMixturePrediction.RecomputesBeaBreakthroughEquilibriumLoadings (2 ms)
+[----------] 1 test from ExampleMixturePrediction (2 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (3 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionGeneral.DefaultsToBulkConcentrationWithoutPoreSurfaceTransport" classname="ChemisorptionGeneral.DefaultsToBulkConcentrationWithoutPoreSurfaceTransport" time="0.00248104" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionGeneral.DefaultsToBulkConcentrationWithoutPoreSurfaceTransport
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionGeneral
+[ RUN      ] ChemisorptionGeneral.DefaultsToBulkConcentrationWithoutPoreSurfaceTransport
+[       OK ] ChemisorptionGeneral.DefaultsToBulkConcentrationWithoutPoreSurfaceTransport (0 ms)
+[----------] 1 test from ChemisorptionGeneral (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionGeneral.InitializesSurfacePoreStateAndFilmSinkWhenEnabled" classname="ChemisorptionGeneral.InitializesSurfacePoreStateAndFilmSinkWhenEnabled" time="0.00188238" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionGeneral.InitializesSurfacePoreStateAndFilmSinkWhenEnabled
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionGeneral
+[ RUN      ] ChemisorptionGeneral.InitializesSurfacePoreStateAndFilmSinkWhenEnabled
+[       OK ] ChemisorptionGeneral.InitializesSurfacePoreStateAndFilmSinkWhenEnabled (0 ms)
+[----------] 1 test from ChemisorptionGeneral (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="Arrhenius.SupportsAbsoluteAndReferenceTemperatureForms" classname="Arrhenius.SupportsAbsoluteAndReferenceTemperatureForms" time="0.002135" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = Arrhenius.SupportsAbsoluteAndReferenceTemperatureForms
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from Arrhenius
+[ RUN      ] Arrhenius.SupportsAbsoluteAndReferenceTemperatureForms
+[       OK ] Arrhenius.SupportsAbsoluteAndReferenceTemperatureForms (0 ms)
+[----------] 1 test from Arrhenius (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionRate.GeneralAndElovichUseUnifiedRate" classname="ChemisorptionRate.GeneralAndElovichUseUnifiedRate" time="0.00161875" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionRate.GeneralAndElovichUseUnifiedRate
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionRate
+[ RUN      ] ChemisorptionRate.GeneralAndElovichUseUnifiedRate
+[       OK ] ChemisorptionRate.GeneralAndElovichUseUnifiedRate (0 ms)
+[----------] 1 test from ChemisorptionRate (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionRate.AvramiMatchesDerivativeOfIntegratedModel" classname="ChemisorptionRate.AvramiMatchesDerivativeOfIntegratedModel" time="0.00150666" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionRate.AvramiMatchesDerivativeOfIntegratedModel
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionRate
+[ RUN      ] ChemisorptionRate.AvramiMatchesDerivativeOfIntegratedModel
+/workspace/scratch/592dfee8bc42/work/RUPTURA-main/tests/example_inputreader_tests.cpp:928: Failure
+The difference between avrami.rate(equilibriumLoading, loading, 0.0, 298.15, elapsedTime) and expected is 0.013938097070185524, which exceeds 1.0e-14, where
+avrami.rate(equilibriumLoading, loading, 0.0, 298.15, elapsedTime) evaluates to 0.030300211022142452,
+expected evaluates to 0.044238308092327976, and
+1.0e-14 evaluates to 1e-14.
+
+[  FAILED  ] ChemisorptionRate.AvramiMatchesDerivativeOfIntegratedModel (0 ms)
+[----------] 1 test from ChemisorptionRate (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ChemisorptionRate.AvramiMatchesDerivativeOfIntegratedModel
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionRate.FirstOrderUsesCoverageDependentDesorptionAboveEquilibrium" classname="ChemisorptionRate.FirstOrderUsesCoverageDependentDesorptionAboveEquilibrium" time="0.00173942" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionRate.FirstOrderUsesCoverageDependentDesorptionAboveEquilibrium
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionRate
+[ RUN      ] ChemisorptionRate.FirstOrderUsesCoverageDependentDesorptionAboveEquilibrium
+[       OK ] ChemisorptionRate.FirstOrderUsesCoverageDependentDesorptionAboveEquilibrium (0 ms)
+[----------] 1 test from ChemisorptionRate (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ReactionsInput.ParsesGeneralPowerLawReaction" classname="ReactionsInput.ParsesGeneralPowerLawReaction" time="0.00197844" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ReactionsInput.ParsesGeneralPowerLawReaction
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ReactionsInput
+[ RUN      ] ReactionsInput.ParsesGeneralPowerLawReaction
+[       OK ] ReactionsInput.ParsesGeneralPowerLawReaction (0 ms)
+[----------] 1 test from ReactionsInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ReactionsInput.ParsesParticipantNamesAsComponentIndices" classname="ReactionsInput.ParsesParticipantNamesAsComponentIndices" time="0.00201383" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ReactionsInput.ParsesParticipantNamesAsComponentIndices
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ReactionsInput
+[ RUN      ] ReactionsInput.ParsesParticipantNamesAsComponentIndices
+[       OK ] ReactionsInput.ParsesParticipantNamesAsComponentIndices (0 ms)
+[----------] 1 test from ReactionsInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ReactionsInput.RejectsLHOutsidePoreConcentration" classname="ReactionsInput.RejectsLHOutsidePoreConcentration" time="0.00190005" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ReactionsInput.RejectsLHOutsidePoreConcentration
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ReactionsInput
+[ RUN      ] ReactionsInput.RejectsLHOutsidePoreConcentration
+[       OK ] ReactionsInput.RejectsLHOutsidePoreConcentration (0 ms)
+[----------] 1 test from ReactionsInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ReactionsAdsorbed.AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax" classname="ReactionsAdsorbed.AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax" time="0.00203501" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ReactionsAdsorbed.AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ReactionsAdsorbed
+[ RUN      ] ReactionsAdsorbed.AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax
+[       OK ] ReactionsAdsorbed.AddsAdsorbedSourcesWithoutBulkTransferAndLimitsQmax (0 ms)
+[----------] 1 test from ReactionsAdsorbed (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ReactionsPore.LangmuirHinshelwoodRequiresAndUsesPoreConcentration" classname="ReactionsPore.LangmuirHinshelwoodRequiresAndUsesPoreConcentration" time="0.00175875" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ReactionsPore.LangmuirHinshelwoodRequiresAndUsesPoreConcentration
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ReactionsPore
+[ RUN      ] ReactionsPore.LangmuirHinshelwoodRequiresAndUsesPoreConcentration
+[       OK ] ReactionsPore.LangmuirHinshelwoodRequiresAndUsesPoreConcentration (0 ms)
+[----------] 1 test from ReactionsPore (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ReactionsAutoStop.RequiresSlowlyChangingPhaseStates" classname="ReactionsAutoStop.RequiresSlowlyChangingPhaseStates" time="0.00186805" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ReactionsAutoStop.RequiresSlowlyChangingPhaseStates
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ReactionsAutoStop
+[ RUN      ] ReactionsAutoStop.RequiresSlowlyChangingPhaseStates
+[       OK ] ReactionsAutoStop.RequiresSlowlyChangingPhaseStates (0 ms)
+[----------] 1 test from ReactionsAutoStop (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ReactionsAutoStop.BreakthroughSchedulesAutoStopForStableReactionState" classname="ReactionsAutoStop.BreakthroughSchedulesAutoStopForStableReactionState" time="0.00205511" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ReactionsAutoStop.BreakthroughSchedulesAutoStopForStableReactionState
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ReactionsAutoStop
+[ RUN      ] ReactionsAutoStop.BreakthroughSchedulesAutoStopForStableReactionState
+
+Reaction convergence criteria reached, running 10% longer
+
+
+[       OK ] ReactionsAutoStop.BreakthroughSchedulesAutoStopForStableReactionState (0 ms)
+[----------] 1 test from ReactionsAutoStop (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionInput.RejectsFractionalGeneralOrders" classname="ChemisorptionInput.RejectsFractionalGeneralOrders" time="0.00178106" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionInput.RejectsFractionalGeneralOrders
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionInput
+[ RUN      ] ChemisorptionInput.RejectsFractionalGeneralOrders
+[       OK ] ChemisorptionInput.RejectsFractionalGeneralOrders (0 ms)
+[----------] 1 test from ChemisorptionInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionInput.AcceptsFractionalAvramiOrder" classname="ChemisorptionInput.AcceptsFractionalAvramiOrder" time="0.00184707" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionInput.AcceptsFractionalAvramiOrder
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionInput
+[ RUN      ] ChemisorptionInput.AcceptsFractionalAvramiOrder
+[       OK ] ChemisorptionInput.AcceptsFractionalAvramiOrder (0 ms)
+[----------] 1 test from ChemisorptionInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionInput.RequiresExactlyTheParametersForTheSelectedModel" classname="ChemisorptionInput.RequiresExactlyTheParametersForTheSelectedModel" time="0.00428652" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionInput.RequiresExactlyTheParametersForTheSelectedModel
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionInput
+[ RUN      ] ChemisorptionInput.RequiresExactlyTheParametersForTheSelectedModel
+[       OK ] ChemisorptionInput.RequiresExactlyTheParametersForTheSelectedModel (1 ms)
+[----------] 1 test from ChemisorptionInput (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (1 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionInput.LoadsUpdatedSurfacePoreExample" classname="ChemisorptionInput.LoadsUpdatedSurfacePoreExample" time="0.00153344" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionInput.LoadsUpdatedSurfacePoreExample
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionInput
+[ RUN      ] ChemisorptionInput.LoadsUpdatedSurfacePoreExample
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Chemisorption-CO2/breakthrough/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] ChemisorptionInput.LoadsUpdatedSurfacePoreExample (0 ms)
+[----------] 1 test from ChemisorptionInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ChemisorptionInput.LoadsUpdatedSurfacePoreExample
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading" classname="ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading" time="0.00183121" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionInput
+[ RUN      ] ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading
+unknown file: Failure
+C++ exception with description "[json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON" thrown in the test body.
+
+[  FAILED  ] ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading (0 ms)
+[----------] 1 test from ChemisorptionInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass" classname="ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass" time="0.00170209" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionTransport
+[ RUN      ] ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Chemisorption-CO2/breakthrough/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass (0 ms)
+[----------] 1 test from ChemisorptionTransport (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="Geometry.ErgunSphericityScalesBothResistanceTerms" classname="Geometry.ErgunSphericityScalesBothResistanceTerms" time="0.00176833" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = Geometry.ErgunSphericityScalesBothResistanceTerms
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from Geometry
+[ RUN      ] Geometry.ErgunSphericityScalesBothResistanceTerms
+[       OK ] Geometry.ErgunSphericityScalesBothResistanceTerms (0 ms)
+[----------] 1 test from Geometry (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="EnergyBalance.GasWallExchangeConservesEnergyInPackedBed" classname="EnergyBalance.GasWallExchangeConservesEnergyInPackedBed" time="0.00149751" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = EnergyBalance.GasWallExchangeConservesEnergyInPackedBed
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from EnergyBalance
+[ RUN      ] EnergyBalance.GasWallExchangeConservesEnergyInPackedBed
+[       OK ] EnergyBalance.GasWallExchangeConservesEnergyInPackedBed (0 ms)
+[----------] 1 test from EnergyBalance (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption" classname="ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption" time="0.00170547" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionEquilibrium
+[ RUN      ] ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption
+unknown file: Failure
+C++ exception with description "[json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON" thrown in the test body.
+
+[  FAILED  ] ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption (0 ms)
+[----------] 1 test from ChemisorptionEquilibrium (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="ChemisorptionElovich.ParsesAndSubtractsMassFromBulk" classname="ChemisorptionElovich.ParsesAndSubtractsMassFromBulk" time="0.00221659" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ChemisorptionElovich.ParsesAndSubtractsMassFromBulk
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ChemisorptionElovich
+[ RUN      ] ChemisorptionElovich.ParsesAndSubtractsMassFromBulk
+[       OK ] ChemisorptionElovich.ParsesAndSubtractsMassFromBulk (0 ms)
+[----------] 1 test from ChemisorptionElovich (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultiSiteChemisorption.ParsesIndependentSitesAndSumsTheirBulkSink" classname="MultiSiteChemisorption.ParsesIndependentSitesAndSumsTheirBulkSink" time="0.00199987" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultiSiteChemisorption.ParsesIndependentSitesAndSumsTheirBulkSink
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultiSiteChemisorption
+[ RUN      ] MultiSiteChemisorption.ParsesIndependentSitesAndSumsTheirBulkSink
+[       OK ] MultiSiteChemisorption.ParsesIndependentSitesAndSumsTheirBulkSink (0 ms)
+[----------] 1 test from MultiSiteChemisorption (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultiSiteChemisorption.KeepsDirectAndPoreTransportSiteBalancesIndependent" classname="MultiSiteChemisorption.KeepsDirectAndPoreTransportSiteBalancesIndependent" time="0.00226292" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultiSiteChemisorption.KeepsDirectAndPoreTransportSiteBalancesIndependent
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultiSiteChemisorption
+[ RUN      ] MultiSiteChemisorption.KeepsDirectAndPoreTransportSiteBalancesIndependent
+[       OK ] MultiSiteChemisorption.KeepsDirectAndPoreTransportSiteBalancesIndependent (0 ms)
+[----------] 1 test from MultiSiteChemisorption (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultiSiteChemisorption.PropagatesMixedSitesWithCvode" classname="MultiSiteChemisorption.PropagatesMixedSitesWithCvode" time="0.00472713" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultiSiteChemisorption.PropagatesMixedSitesWithCvode
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultiSiteChemisorption
+[ RUN      ] MultiSiteChemisorption.PropagatesMixedSitesWithCvode
+CVODE: dense solver, rtol 1.000e-04, atol 1.000e-05 [mol/m^3] / 1.000e-06 [mol/kg] / 1.000e-03 [K], max step 5.000e-01 s
+[       OK ] MultiSiteChemisorption.PropagatesMixedSitesWithCvode (0 ms)
+[----------] 1 test from MultiSiteChemisorption (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="ExampleFitting.ScoresKnownBeaLangmuirFitWithoutRunningOptimizer" classname="ExampleFitting.ScoresKnownBeaLangmuirFitWithoutRunningOptimizer" time="0.00215995" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = ExampleFitting.ScoresKnownBeaLangmuirFitWithoutRunningOptimizer
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from ExampleFitting
+[ RUN      ] ExampleFitting.ScoresKnownBeaLangmuirFitWithoutRunningOptimizer
+Reading: /workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/BEA-alkanes-C7/fitting/Results.dat-BEA-Repeat-552K-nC7
+Found 12 data points
+10 0.0005580267
+30 0.0017720326
+100 0.0059224507
+300 0.0181554785
+1000 0.0604476146
+3000 0.1714706478
+10000 0.4401044637
+30000 0.7423346266
+1e+05 0.9654517359
+3e+05 1.0857191363
+1e+06 1.1777405492
+3e+06 1.235003511
+
+Lowest pressure: 10
+Highest pressure: 3e+06
+Log lowest pressure: 2.302585092994046
+Log highest pressure: 14.914122846632385
+Number of isotherm parameters: 3
+    number of isotherm sites:  1
+    Toth isotherm
+        q_sat: 0.0000e+00
+        b:    ...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="BulkReaction.WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink" classname="BulkReaction.WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink" time="0.00202707" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = BulkReaction.WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from BulkReaction
+[ RUN      ] BulkReaction.WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink
+[       OK ] BulkReaction.WaterGasShiftActsOnBulkConcentrationsThroughTheSpeciesSink (0 ms)
+[----------] 1 test from BulkReaction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="BulkReaction.RejectsEnergyBalanceAndSirk3" classname="BulkReaction.RejectsEnergyBalanceAndSirk3" time="0.00404885" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = BulkReaction.RejectsEnergyBalanceAndSirk3
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from BulkReaction
+[ RUN      ] BulkReaction.RejectsEnergyBalanceAndSirk3
+[       OK ] BulkReaction.RejectsEnergyBalanceAndSirk3 (2 ms)
+[----------] 1 test from BulkReaction (2 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (2 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="TimeInput.RejectsStepBasedKeysWithTheConvertedTimes" classname="TimeInput.RejectsStepBasedKeysWithTheConvertedTimes" time="0.00227908" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TimeInput.RejectsStepBasedKeysWithTheConvertedTimes
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TimeInput
+[ RUN      ] TimeInput.RejectsStepBasedKeysWithTheConvertedTimes
+[       OK ] TimeInput.RejectsStepBasedKeysWithTheConvertedTimes (0 ms)
+[----------] 1 test from TimeInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="TimeInput.CvodeRejectsTimeStepAndRampSteps" classname="TimeInput.CvodeRejectsTimeStepAndRampSteps" time="0.00204192" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TimeInput.CvodeRejectsTimeStepAndRampSteps
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TimeInput
+[ RUN      ] TimeInput.CvodeRejectsTimeStepAndRampSteps
+[       OK ] TimeInput.CvodeRejectsTimeStepAndRampSteps (0 ms)
+[----------] 1 test from TimeInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="TimeInput.SwingAdsorptionTakesItsTimeFromThePhases" classname="TimeInput.SwingAdsorptionTakesItsTimeFromThePhases" time="0.00239808" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TimeInput.SwingAdsorptionTakesItsTimeFromThePhases
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TimeInput
+[ RUN      ] TimeInput.SwingAdsorptionTakesItsTimeFromThePhases
+[       OK ] TimeInput.SwingAdsorptionTakesItsTimeFromThePhases (0 ms)
+[----------] 1 test from TimeInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="TimeInput.WarnsWhenAnIntervalIsNotAWholeNumberOfSteps" classname="TimeInput.WarnsWhenAnIntervalIsNotAWholeNumberOfSteps" time="0.0020329" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TimeInput.WarnsWhenAnIntervalIsNotAWholeNumberOfSteps
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TimeInput
+[ RUN      ] TimeInput.WarnsWhenAnIntervalIsNotAWholeNumberOfSteps
+[       OK ] TimeInput.WarnsWhenAnIntervalIsNotAWholeNumberOfSteps (0 ms)
+[----------] 1 test from TimeInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="TimeInput.RungeKuttaShortensOnlyTheLastStepOfAnInterval" classname="TimeInput.RungeKuttaShortensOnlyTheLastStepOfAnInterval" time="0.00226119" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TimeInput.RungeKuttaShortensOnlyTheLastStepOfAnInterval
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TimeInput
+[ RUN      ] TimeInput.RungeKuttaShortensOnlyTheLastStepOfAnInterval
+[       OK ] TimeInput.RungeKuttaShortensOnlyTheLastStepOfAnInterval (0 ms)
+[----------] 1 test from TimeInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="TimeInput.BreakthroughOutputsAtWholeWriteIntervalsAndAtTheEnd" classname="TimeInput.BreakthroughOutputsAtWholeWriteIntervalsAndAtTheEnd" time="0.00281225" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TimeInput.BreakthroughOutputsAtWholeWriteIntervalsAndAtTheEnd
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TimeInput
+[ RUN      ] TimeInput.BreakthroughOutputsAtWholeWriteIntervalsAndAtTheEnd
+[       OK ] TimeInput.BreakthroughOutputsAtWholeWriteIntervalsAndAtTheEnd (0 ms)
+[----------] 1 test from TimeInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="TimeInput.SwingWritesAnOutputAtAPhaseStartUnderThatPhasesConditions" classname="TimeInput.SwingWritesAnOutputAtAPhaseStartUnderThatPhasesConditions" time="0.00306372" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = TimeInput.SwingWritesAnOutputAtAPhaseStartUnderThatPhasesConditions
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from TimeInput
+[ RUN      ] TimeInput.SwingWritesAnOutputAtAPhaseStartUnderThatPhasesConditions
+
+Swing phase 1: Adsorption (T=523.15 K, inlet pressure=8e+05 Pa, inlet velocity=0.1 m/s, duration=2e-04 s)
+Output 0, time: 0.00000 [s]
+    Average number of mixture-prediction steps: 0.00000
+
+Swing phase 2: Regeneration (T=600 K, inlet pressure=8e+05 Pa, inlet velocity=0.1 m/s, duration=2e-04 s)
+Output 1, time: 0.00020 [s]
+    Average number of mixture-prediction steps: 0.00000
+Output 2, time: 0.00040 [s]
+    Average number of mixture-prediction steps: 0.00000
+Final time: 0.00040 [s]
+
+Total time:                    0.000075 s
+  updateVelocityAndPressure:   0.000032 s
+  computeEquilibriumLoadings:  ...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier" classname="LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier" time="0.00200827" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from LiquidPhaseInput
+[ RUN      ] LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier
+unknown file: Failure
+C++ exception with description "[json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON" thrown in the test body.
+
+[  FAILED  ] LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier (0 ms)
+[----------] 1 test from LiquidPhaseInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers" classname="LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers" time="0.00194752" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from LiquidPhaseInput
+[ RUN      ] LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers
+unknown file: Failure
+C++ exception with description "[json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON" thrown in the test body.
+
+[  FAILED  ] LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers (0 ms)
+[----------] 1 test from LiquidPhaseInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSPI" classname="GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSPI" time="0.00163103" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSPI
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GasMixturePredictionRegression
+[ RUN      ] GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSPI
+[       OK ] GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSPI (0 ms)
+[----------] 1 test from GasMixturePredictionRegression (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSCI" classname="GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSCI" time="0.00176107" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSCI
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GasMixturePredictionRegression
+[ RUN      ] GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSCI
+[       OK ] GasMixturePredictionRegression.MoleFractionsRemainTheDrivingForceForSCI (0 ms)
+[----------] 1 test from GasMixturePredictionRegression (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="GasBreakthroughRegression.DefaultFixedVelocityAgreesWithRK3" classname="GasBreakthroughRegression.DefaultFixedVelocityAgreesWithRK3" time="0.0529754" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = GasBreakthroughRegression.DefaultFixedVelocityAgreesWithRK3
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GasBreakthroughRegression
+[ RUN      ] GasBreakthroughRegression.DefaultFixedVelocityAgreesWithRK3
+CVODE: dense solver, rtol 1.000e-09, atol 1.000e-11 [mol/m^3] / 1.000e-11 [mol/kg] / 1.000e-09 [K], max step 2.500e-01 s
+[       OK ] GasBreakthroughRegression.DefaultFixedVelocityAgreesWithRK3 (50 ms)
+[----------] 1 test from GasBreakthroughRegression (50 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (50 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome" classname="GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome" time="0.00167439" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GasBreakthroughRegression
+[ RUN      ] GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome (0 ms)
+[----------] 1 test from GasBreakthroughRegression (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm" classname="LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm" time="0.001531" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from LiquidPhase
+[ RUN      ] LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Liquid/pH-dependent/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm (0 ms)
+[----------] 1 test from LiquidPhase (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn" classname="LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn" time="0.00161722" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from LiquidPhase
+[ RUN      ] LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Liquid/multibed-pH-front/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn (0 ms)
+[----------] 1 test from LiquidPhase (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="Isotherm.GABImplementsElfvingEquationsFiveThroughSeven" classname="Isotherm.GABImplementsElfvingEquationsFiveThroughSeven" time="0.00180685" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = Isotherm.GABImplementsElfvingEquationsFiveThroughSeven
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from Isotherm
+[ RUN      ] Isotherm.GABImplementsElfvingEquationsFiveThroughSeven
+[       OK ] Isotherm.GABImplementsElfvingEquationsFiveThroughSeven (0 ms)
+[----------] 1 test from Isotherm (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="Isotherm.UnilanLoadingAndSpreadingPressureFollowTheUnilanForm" classname="Isotherm.UnilanLoadingAndSpreadingPressureFollowTheUnilanForm" time="0.0109535" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = Isotherm.UnilanLoadingAndSpreadingPressureFollowTheUnilanForm
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from Isotherm
+[ RUN      ] Isotherm.UnilanLoadingAndSpreadingPressureFollowTheUnilanForm
+[       OK ] Isotherm.UnilanLoadingAndSpreadingPressureFollowTheUnilanForm (8 ms)
+[----------] 1 test from Isotherm (8 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (8 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="Isotherm.FreundlichPhysicalityChecksOnlyItsTwoParameters" classname="Isotherm.FreundlichPhysicalityChecksOnlyItsTwoParameters" time="0.00160432" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = Isotherm.FreundlichPhysicalityChecksOnlyItsTwoParameters
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from Isotherm
+[ RUN      ] Isotherm.FreundlichPhysicalityChecksOnlyItsTwoParameters
+[       OK ] Isotherm.FreundlichPhysicalityChecksOnlyItsTwoParameters (0 ms)
+[----------] 1 test from Isotherm (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.SPIAndSCIPassTemperatureScaleToToth" classname="MixturePrediction.SPIAndSCIPassTemperatureScaleToToth" time="0.00176505" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.SPIAndSCIPassTemperatureScaleToToth
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.SPIAndSCIPassTemperatureScaleToToth
+[       OK ] MixturePrediction.SPIAndSCIPassTemperatureScaleToToth (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.SPIPassesTemperatureScaleToGAB" classname="MixturePrediction.SPIPassesTemperatureScaleToGAB" time="0.00176391" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.SPIPassesTemperatureScaleToGAB
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.SPIPassesTemperatureScaleToGAB
+[       OK ] MixturePrediction.SPIPassesTemperatureScaleToGAB (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.BuildsEquilibriumPredictionFromChemisorptionSites" classname="MixturePrediction.BuildsEquilibriumPredictionFromChemisorptionSites" time="0.00170664" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.BuildsEquilibriumPredictionFromChemisorptionSites
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.BuildsEquilibriumPredictionFromChemisorptionSites
+[       OK ] MixturePrediction.BuildsEquilibriumPredictionFromChemisorptionSites (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.LoadsAndUsesMPDSettings" classname="MixturePrediction.LoadsAndUsesMPDSettings" time="0.00187351" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.LoadsAndUsesMPDSettings
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.LoadsAndUsesMPDSettings
+[       OK ] MixturePrediction.LoadsAndUsesMPDSettings (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir" classname="MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir" time="0.00167506" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/MPD/BEA-alkanes/mpd/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.EvaluatesMPDPureComponentsThroughOneHotMixtures" classname="MixturePrediction.EvaluatesMPDPureComponentsThroughOneHotMixtures" time="0.00206095" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.EvaluatesMPDPureComponentsThroughOneHotMixtures
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.EvaluatesMPDPureComponentsThroughOneHotMixtures
+[       OK ] MixturePrediction.EvaluatesMPDPureComponentsThroughOneHotMixtures (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.SIASTKeepsSiteOrderingWithZeroLoadingSites" classname="MixturePrediction.SIASTKeepsSiteOrderingWithZeroLoadingSites" time="0.00184086" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.SIASTKeepsSiteOrderingWithZeroLoadingSites
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.SIASTKeepsSiteOrderingWithZeroLoadingSites
+[       OK ] MixturePrediction.SIASTKeepsSiteOrderingWithZeroLoadingSites (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.SCICompetesWithinEachAlignedSite" classname="MixturePrediction.SCICompetesWithinEachAlignedSite" time="0.00164434" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.SCICompetesWithinEachAlignedSite
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.SCICompetesWithinEachAlignedSite
+[       OK ] MixturePrediction.SCICompetesWithinEachAlignedSite (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.SPISumsIndependentPureSiteLoadings" classname="MixturePrediction.SPISumsIndependentPureSiteLoadings" time="0.00169228" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.SPISumsIndependentPureSiteLoadings
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.SPISumsIndependentPureSiteLoadings
+[       OK ] MixturePrediction.SPISumsIndependentPureSiteLoadings (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.SCISafelyHandlesNegativeFractionalPowerDrivingForce" classname="MixturePrediction.SCISafelyHandlesNegativeFractionalPowerDrivingForce" time="0.00195394" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.SCISafelyHandlesNegativeFractionalPowerDrivingForce
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.SCISafelyHandlesNegativeFractionalPowerDrivingForce
+[       OK ] MixturePrediction.SCISafelyHandlesNegativeFractionalPowerDrivingForce (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.SCISupportedModelsReduceToPureSiteLoadingWithoutCompetitors" classname="MixturePrediction.SCISupportedModelsReduceToPureSiteLoadingWithoutCompetitors" time="0.00148652" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.SCISupportedModelsReduceToPureSiteLoadingWithoutCompetitors
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.SCISupportedModelsReduceToPureSiteLoadingWithoutCompetitors
+[       OK ] MixturePrediction.SCISupportedModelsReduceToPureSiteLoadingWithoutCompetitors (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.AdsorbingCarrierParticipatesInEveryAnalyticalMethod" classname="MixturePrediction.AdsorbingCarrierParticipatesInEveryAnalyticalMethod" time="0.0017099" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.AdsorbingCarrierParticipatesInEveryAnalyticalMethod
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.AdsorbingCarrierParticipatesInEveryAnalyticalMethod
+[       OK ] MixturePrediction.AdsorbingCarrierParticipatesInEveryAnalyticalMethod (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MixturePrediction.CarrierWithOnlyChemisorptionHasChemicalEquilibrium" classname="MixturePrediction.CarrierWithOnlyChemisorptionHasChemicalEquilibrium" time="0.00146405" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MixturePrediction.CarrierWithOnlyChemisorptionHasChemicalEquilibrium
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MixturePrediction
+[ RUN      ] MixturePrediction.CarrierWithOnlyChemisorptionHasChemicalEquilibrium
+[       OK ] MixturePrediction.CarrierWithOnlyChemisorptionHasChemicalEquilibrium (0 ms)
+[----------] 1 test from MixturePrediction (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MacrostateParticleDistribution.ReweightsCOrderedTwoComponentDistribution" classname="MacrostateParticleDistribution.ReweightsCOrderedTwoComponentDistribution" time="0.00176034" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MacrostateParticleDistribution.ReweightsCOrderedTwoComponentDistribution
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MacrostateParticleDistribution
+[ RUN      ] MacrostateParticleDistribution.ReweightsCOrderedTwoComponentDistribution
+[       OK ] MacrostateParticleDistribution.ReweightsCOrderedTwoComponentDistribution (0 ms)
+[----------] 1 test from MacrostateParticleDistribution (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MacrostateParticleDistribution.AppliesFirstOrderTemperatureReweightingWhenEnergyColumnExists" classname="MacrostateParticleDistribution.AppliesFirstOrderTemperatureReweightingWhenEnergyColumnExists" time="0.00196912" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MacrostateParticleDistribution.AppliesFirstOrderTemperatureReweightingWhenEnergyColumnExists
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MacrostateParticleDistribution
+[ RUN      ] MacrostateParticleDistribution.AppliesFirstOrderTemperatureReweightingWhenEnergyColumnExists
+[       OK ] MacrostateParticleDistribution.AppliesFirstOrderTemperatureReweightingWhenEnergyColumnExists (0 ms)
+[----------] 1 test from MacrostateParticleDistribution (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MacrostateParticleDistribution.UsesInclusiveBoundsAndParticleNumberDeltas" classname="MacrostateParticleDistribution.UsesInclusiveBoundsAndParticleNumberDeltas" time="0.00196815" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MacrostateParticleDistribution.UsesInclusiveBoundsAndParticleNumberDeltas
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MacrostateParticleDistribution
+[ RUN      ] MacrostateParticleDistribution.UsesInclusiveBoundsAndParticleNumberDeltas
+[       OK ] MacrostateParticleDistribution.UsesInclusiveBoundsAndParticleNumberDeltas (0 ms)
+[----------] 1 test from MacrostateParticleDistribution (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MacrostateParticleDistribution.RejectsWrongEntryCount" classname="MacrostateParticleDistribution.RejectsWrongEntryCount" time="0.00214685" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MacrostateParticleDistribution.RejectsWrongEntryCount
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MacrostateParticleDistribution
+[ RUN      ] MacrostateParticleDistribution.RejectsWrongEntryCount
+[       OK ] MacrostateParticleDistribution.RejectsWrongEntryCount (0 ms)
+[----------] 1 test from MacrostateParticleDistribution (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MPDInput.WarnsWhenReferenceTemperatureHasNoTargetTemperature" classname="MPDInput.WarnsWhenReferenceTemperatureHasNoTargetTemperature" time="0.00193721" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MPDInput.WarnsWhenReferenceTemperatureHasNoTargetTemperature
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MPDInput
+[ RUN      ] MPDInput.WarnsWhenReferenceTemperatureHasNoTargetTemperature
+[       OK ] MPDInput.WarnsWhenReferenceTemperatureHasNoTargetTemperature (0 ms)
+[----------] 1 test from MPDInput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultiSiteIsotherm.RetainsButIgnoresZeroLoadingSites" classname="MultiSiteIsotherm.RetainsButIgnoresZeroLoadingSites" time="0.00162359" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultiSiteIsotherm.RetainsButIgnoresZeroLoadingSites
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultiSiteIsotherm
+[ RUN      ] MultiSiteIsotherm.RetainsButIgnoresZeroLoadingSites
+[       OK ] MultiSiteIsotherm.RetainsButIgnoresZeroLoadingSites (0 ms)
+[----------] 1 test from MultiSiteIsotherm (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.AddsInterfaceLengthsAndBuildsSeparateUniformGrids" classname="MultibedInterfaces.AddsInterfaceLengthsAndBuildsSeparateUniformGrids" time="0.00194124" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.AddsInterfaceLengthsAndBuildsSeparateUniformGrids
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.AddsInterfaceLengthsAndBuildsSeparateUniformGrids
+[       OK ] MultibedInterfaces.AddsInterfaceLengthsAndBuildsSeparateUniformGrids (0 ms)
+[----------] 1 test from MultibedInterfaces (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.FractionsAreLinearAndInterfacesAddAdsorbentInventory" classname="MultibedInterfaces.FractionsAreLinearAndInterfacesAddAdsorbentInventory" time="0.00181072" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.FractionsAreLinearAndInterfacesAddAdsorbentInventory
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.FractionsAreLinearAndInterfacesAddAdsorbentInventory
+[       OK ] MultibedInterfaces.FractionsAreLinearAndInterfacesAddAdsorbentInventory (0 ms)
+[----------] 1 test from MultibedInterfaces (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.SharpInterfacesHaveNoNodesAndBoundaryBelongsUpstream" classname="MultibedInterfaces.SharpInterfacesHaveNoNodesAndBoundaryBelongsUpstream" time="0.00182911" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.SharpInterfacesHaveNoNodesAndBoundaryBelongsUpstream
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.SharpInterfacesHaveNoNodesAndBoundaryBelongsUpstream
+[       OK ] MultibedInterfaces.SharpInterfacesHaveNoNodesAndBoundaryBelongsUpstream (0 ms)
+[----------] 1 test from MultibedInterfaces (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.EvaluatesFractionsOnGlobalAndExplicitGrids" classname="MultibedInterfaces.EvaluatesFractionsOnGlobalAndExplicitGrids" time="0.00292794" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.EvaluatesFractionsOnGlobalAndExplicitGrids
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.EvaluatesFractionsOnGlobalAndExplicitGrids
+[       OK ] MultibedInterfaces.EvaluatesFractionsOnGlobalAndExplicitGrids (0 ms)
+[----------] 1 test from MultibedInterfaces (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (1 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.SharpBoundaryRemainsUpstreamWithSectionRounding" classname="MultibedInterfaces.SharpBoundaryRemainsUpstreamWithSectionRounding" time="0.00180151" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.SharpBoundaryRemainsUpstreamWithSectionRounding
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.SharpBoundaryRemainsUpstreamWithSectionRounding
+[       OK ] MultibedInterfaces.SharpBoundaryRemainsUpstreamWithSectionRounding (0 ms)
+[----------] 1 test from MultibedInterfaces (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.OneIntervalInterfacesKeepOnlyTheirEndpoints" classname="MultibedInterfaces.OneIntervalInterfacesKeepOnlyTheirEndpoints" time="0.00212335" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.OneIntervalInterfacesKeepOnlyTheirEndpoints
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.OneIntervalInterfacesKeepOnlyTheirEndpoints
+[       OK ] MultibedInterfaces.OneIntervalInterfacesKeepOnlyTheirEndpoints (0 ms)
+[----------] 1 test from MultibedInterfaces (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.SingleAdsorbentHasNoInterfaces" classname="MultibedInterfaces.SingleAdsorbentHasNoInterfaces" time="0.00200646" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.SingleAdsorbentHasNoInterfaces
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.SingleAdsorbentHasNoInterfaces
+[       OK ] MultibedInterfaces.SingleAdsorbentHasNoInterfaces (0 ms)
+[----------] 1 test from MultibedInterfaces (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.LongInterfacesRemainSeparateFromPureSections" classname="MultibedInterfaces.LongInterfacesRemainSeparateFromPureSections" time="0.00200237" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.LongInterfacesRemainSeparateFromPureSections
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.LongInterfacesRemainSeparateFromPureSections
+[       OK ] MultibedInterfaces.LongInterfacesRemainSeparateFromPureSections (0 ms)
+[----------] 1 test from MultibedInterfaces (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.RejectsIncompleteOrInvalidSectionGridCounts" classname="MultibedInterfaces.RejectsIncompleteOrInvalidSectionGridCounts" time="0.00996106" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.RejectsIncompleteOrInvalidSectionGridCounts
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.RejectsIncompleteOrInvalidSectionGridCounts
+[       OK ] MultibedInterfaces.RejectsIncompleteOrInvalidSectionGridCounts (7 ms)
+[----------] 1 test from MultibedInterfaces (8 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (8 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedInterfaces.RejectsNegativeLengthsAndMisplacedInterfaces" classname="MultibedInterfaces.RejectsNegativeLengthsAndMisplacedInterfaces" time="0.00268527" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedInterfaces.RejectsNegativeLengthsAndMisplacedInterfaces
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedInterfaces
+[ RUN      ] MultibedInterfaces.RejectsNegativeLengthsAndMisplacedInterfaces
+[       OK ] MultibedInterfaces.RejectsNegativeLengthsAndMisplacedInterfaces (0 ms)
+[----------] 1 test from MultibedInterfaces (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters" classname="MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters" time="0.00156529" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedExamples
+[ RUN      ] MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/C6-alkanes-layered/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters (0 ms)
+[----------] 1 test from MultibedExamples (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces" classname="MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces" time="0.00215423" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedExamples
+[ RUN      ] MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/C6-alkanes-layered/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces (0 ms)
+[----------] 1 test from MultibedExamples (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="SingleAdsorbent.RunsAsAOneAdsorbentColumnAndIgnoresDebugForceMultibed" classname="SingleAdsorbent.RunsAsAOneAdsorbentColumnAndIgnoresDebugForceMultibed" time="0.0024851" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = SingleAdsorbent.RunsAsAOneAdsorbentColumnAndIgnoresDebugForceMultibed
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from SingleAdsorbent
+[ RUN      ] SingleAdsorbent.RunsAsAOneAdsorbentColumnAndIgnoresDebugForceMultibed
+CVODE: dense solver, rtol 1.000e-04, atol 1.000e-05 [mol/m^3] / 1.000e-06 [mol/kg] / 1.000e-03 [K], max step 3.000e-02 s
+[       OK ] SingleAdsorbent.RunsAsAOneAdsorbentColumnAndIgnoresDebugForceMultibed (0 ms)
+[----------] 1 test from SingleAdsorbent (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn" classname="MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn" time="0.00175669" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedUniformMix
+[ RUN      ] MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-AB-mixture/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn (0 ms)
+[----------] 1 test from MultibedUniformMix (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions" classname="MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions" time="0.00152824" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedUniformMix
+[ RUN      ] MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions
+/workspace/scratch/592dfee8bc42/work/RUPTURA-main/tests/multibed_tests.cpp:453: Failure
+Value of: source
+  Actual: false
+Expected: true
+
+[  FAILED  ] MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions (0 ms)
+[----------] 1 test from MultibedUniformMix (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedCvode.BreakthroughParsesInitializesAndPropagates" classname="MultibedCvode.BreakthroughParsesInitializesAndPropagates" time="0.00175069" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedCvode.BreakthroughParsesInitializesAndPropagates
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedCvode
+[ RUN      ] MultibedCvode.BreakthroughParsesInitializesAndPropagates
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedCvode.BreakthroughParsesInitializesAndPropagates (0 ms)
+[----------] 1 test from MultibedCvode (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedCvode.BreakthroughParsesInitializesAndPropagates
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedCvode.PropagatesPoreReactionState" classname="MultibedCvode.PropagatesPoreReactionState" time="0.00192099" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedCvode.PropagatesPoreReactionState
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedCvode
+[ RUN      ] MultibedCvode.PropagatesPoreReactionState
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedCvode.PropagatesPoreReactionState (0 ms)
+[----------] 1 test from MultibedCvode (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedCvode.PropagatesPoreReactionState
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="Column.StateLayoutMatchesColumnConventionAndRebindsCopies" classname="Column.StateLayoutMatchesColumnConventionAndRebindsCopies" time="0.00200757" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = Column.StateLayoutMatchesColumnConventionAndRebindsCopies
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from Column
+[ RUN      ] Column.StateLayoutMatchesColumnConventionAndRebindsCopies
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] Column.StateLayoutMatchesColumnConventionAndRebindsCopies (0 ms)
+[----------] 1 test from Column (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] Column.StateLayoutMatchesColumnConventionAndRebindsCopies
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk" classname="MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk" time="0.00176232" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedReactions
+[ RUN      ] MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk (0 ms)
+[----------] 1 test from MultibedReactions (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedReactions.ParsesReactionTogetherWithAdsorbents" classname="MultibedReactions.ParsesReactionTogetherWithAdsorbents" time="0.00150753" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedReactions.ParsesReactionTogetherWithAdsorbents
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedReactions
+[ RUN      ] MultibedReactions.ParsesReactionTogetherWithAdsorbents
+/workspace/scratch/592dfee8bc42/work/RUPTURA-main/tests/multibed_tests.cpp:587: Failure
+Value of: source
+  Actual: false
+Expected: true
+
+[  FAILED  ] MultibedReactions.ParsesReactionTogetherWithAdsorbents (0 ms)
+[----------] 1 test from MultibedReactions (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedReactions.ParsesReactionTogetherWithAdsorbents
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState" classname="MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState" time="0.00187352" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedReactions
+[ RUN      ] MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState (0 ms)
+[----------] 1 test from MultibedReactions (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer" classname="MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer" time="0.00193854" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedReactions
+[ RUN      ] MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer (0 ms)
+[----------] 1 test from MultibedReactions (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs" classname="MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs" time="0.00185743" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedReactions
+[ RUN      ] MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs (0 ms)
+[----------] 1 test from MultibedReactions (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading" classname="MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading" time="0.00199521" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedCompute
+[ RUN      ] MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/C6-alkanes-layered/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading (0 ms)
+[----------] 1 test from MultibedCompute (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages" classname="MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages" time="0.0019057" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSwingAdsorption
+[ RUN      ] MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages (0 ms)
+[----------] 1 test from MultibedSwingAdsorption (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedSwingAdsorption.AdvancesWithCvode" classname="MultibedSwingAdsorption.AdvancesWithCvode" time="0.0018506" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSwingAdsorption.AdvancesWithCvode
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSwingAdsorption
+[ RUN      ] MultibedSwingAdsorption.AdvancesWithCvode
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedSwingAdsorption.AdvancesWithCvode (0 ms)
+[----------] 1 test from MultibedSwingAdsorption (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedSwingAdsorption.AdvancesWithCvode
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="MultibedOutput.UsesSingleBedComponentColumnSchema" classname="MultibedOutput.UsesSingleBedComponentColumnSchema" time="0.00170261" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedOutput.UsesSingleBedComponentColumnSchema
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedOutput
+[ RUN      ] MultibedOutput.UsesSingleBedComponentColumnSchema
+unknown file: Failure
+C++ exception with description "Required input file '/workspace/scratch/592dfee8bc42/work/RUPTURA-main/examples/Multibed/C6-alkanes-layered/simulation.json' does not exist" thrown in the test body.
+
+[  FAILED  ] MultibedOutput.UsesSingleBedComponentColumnSchema (0 ms)
+[----------] 1 test from MultibedOutput (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] MultibedOutput.UsesSingleBedComponentColumnSchema
+
+ 1 FAILED TEST
+</system-out>
+	</testcase>
+	<testcase name="NotebookTemplates.SelectsMixturePredictionTemplate" classname="NotebookTemplates.SelectsMixturePredictionTemplate" time="0.00163323" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = NotebookTemplates.SelectsMixturePredictionTemplate
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from NotebookTemplates
+[ RUN      ] NotebookTemplates.SelectsMixturePredictionTemplate
+[       OK ] NotebookTemplates.SelectsMixturePredictionTemplate (0 ms)
+[----------] 1 test from NotebookTemplates (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="NotebookTemplates.SelectsBreakthroughTemplate" classname="NotebookTemplates.SelectsBreakthroughTemplate" time="0.00188345" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = NotebookTemplates.SelectsBreakthroughTemplate
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from NotebookTemplates
+[ RUN      ] NotebookTemplates.SelectsBreakthroughTemplate
+[       OK ] NotebookTemplates.SelectsBreakthroughTemplate (0 ms)
+[----------] 1 test from NotebookTemplates (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="NotebookTemplates.SelectsFittingTemplate" classname="NotebookTemplates.SelectsFittingTemplate" time="0.00153456" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = NotebookTemplates.SelectsFittingTemplate
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from NotebookTemplates
+[ RUN      ] NotebookTemplates.SelectsFittingTemplate
+[       OK ] NotebookTemplates.SelectsFittingTemplate (0 ms)
+[----------] 1 test from NotebookTemplates (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="NotebookTemplates.MapsSwingAdsorptionToBreakthroughTemplate" classname="NotebookTemplates.MapsSwingAdsorptionToBreakthroughTemplate" time="0.00152284" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = NotebookTemplates.MapsSwingAdsorptionToBreakthroughTemplate
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from NotebookTemplates
+[ RUN      ] NotebookTemplates.MapsSwingAdsorptionToBreakthroughTemplate
+[       OK ] NotebookTemplates.MapsSwingAdsorptionToBreakthroughTemplate (0 ms)
+[----------] 1 test from NotebookTemplates (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="NotebookTemplates.WritesSelectedNotebookToRunDirectory" classname="NotebookTemplates.WritesSelectedNotebookToRunDirectory" time="0.00205078" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = NotebookTemplates.WritesSelectedNotebookToRunDirectory
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from NotebookTemplates
+[ RUN      ] NotebookTemplates.WritesSelectedNotebookToRunDirectory
+[       OK ] NotebookTemplates.WritesSelectedNotebookToRunDirectory (0 ms)
+[----------] 1 test from NotebookTemplates (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="NotebookTemplates.NeverOverwritesAnExistingNotebook" classname="NotebookTemplates.NeverOverwritesAnExistingNotebook" time="0.00202674" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = NotebookTemplates.NeverOverwritesAnExistingNotebook
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from NotebookTemplates
+[ RUN      ] NotebookTemplates.NeverOverwritesAnExistingNotebook
+[       OK ] NotebookTemplates.NeverOverwritesAnExistingNotebook (0 ms)
+[----------] 1 test from NotebookTemplates (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/0" classname="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/0" time="0.00184184" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/0
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence
+[ RUN      ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/0
+[       OK ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/0 (0 ms)
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/1" classname="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/1" time="0.00191971" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/1
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence
+[ RUN      ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/1
+[       OK ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/1 (0 ms)
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/2" classname="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/2" time="0.00195541" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/2
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence
+[ RUN      ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/2
+[       OK ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/2 (0 ms)
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/3" classname="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/3" time="0.00207619" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/3
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence
+[ RUN      ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/3
+[       OK ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/3 (0 ms)
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/4" classname="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/4" time="0.0021002" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/4
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence
+[ RUN      ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/4
+[       OK ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/4 (0 ms)
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/5" classname="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/5" time="0.00210998" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/5
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence
+[ RUN      ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/5
+[       OK ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/5 (0 ms)
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/6" classname="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/6" time="0.00195141" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/6
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence
+[ RUN      ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/6
+[       OK ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/6 (0 ms)
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/7" classname="MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/7" time="0.00172371" status="run">
+		<properties/>
+		<system-out>Running main() from /workspace/scratch/592dfee8bc42/unified-build/_deps/googletest-src/googletest/src/gtest_main.cc
+Note: Google Test filter = MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/7
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence
+[ RUN      ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/7
+[       OK ] MultibedSettings/SingleAdsorbentEquivalence.TwoIdenticalAdsorbentsMatchOne/7 (0 ms)
+[----------] 1 test from MultibedSettings/SingleAdsorbentEquivalence (0 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (0 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+</testsuite>

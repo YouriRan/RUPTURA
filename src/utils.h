@@ -27,6 +27,39 @@ inline void clampNonnegative(std::span<double> values)
 }
 
 /**
+ * \brief Evaluates an Arrhenius law, optionally relative to a reference temperature.
+ *
+ * Returns k0 exp[-Ea/R (1/T - 1/Tref)]. Without Tref, the reference-temperature
+ * term is zero and this reduces to the conventional k0 exp[-Ea/(RT)] form.
+ */
+inline double arrhenius(double preExponentialFactor, double activationEnergy, double temperature,
+                        std::optional<double> referenceTemperature = std::nullopt)
+{
+  const double inverseTemperature = 1.0 / (R * std::max(temperature, 1.0e-10));
+  const double inverseReferenceTemperature =
+      referenceTemperature.has_value() ? 1.0 / (R * std::max(referenceTemperature.value(), 1.0e-10)) : 0.0;
+  return preExponentialFactor *
+         std::exp(-activationEnergy * (inverseTemperature - inverseReferenceTemperature));
+}
+
+/**
+ * \brief Returns the maximum absolute element-wise difference between two vectors.
+ */
+inline double maxVectorDifference(const std::vector<double>& v, const std::vector<double>& w)
+{
+  if (v.empty() || w.empty()) return 0.0;
+  if (v.size() != w.size()) throw std::runtime_error("Error: unequal vector size\n");
+
+  double max = std::abs(v[0] - w[0]);
+  for (size_t i = 1; i < v.size(); ++i)
+  {
+    double temp = std::abs(v[i] - w[i]);
+    if (temp > max) max = temp;
+  }
+  return max;
+}
+
+/**
  * \brief Builds uniformly spaced node positions from 0 to columnLength.
  */
 inline std::vector<double> makeUniformColumnDistances(size_t numberOfGridPoints, double columnLength)

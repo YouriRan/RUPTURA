@@ -34,9 +34,6 @@ web = [
   "matplotlib",
   "imageio-ffmpeg",
 ]
-selfdriving = [
-  "scipy",
-]
 lab = [
   "ipywidgets",
   "jupyterlab",

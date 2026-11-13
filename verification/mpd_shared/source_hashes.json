@@ -1,0 +1,186 @@
+{
+  "baseline_zip_sha256": "b7c5de0a0f33835c695812b980694847ce36c97a6a3305c02b9612007492d99c",
+  "files": [
+    {
+      "file": "IMPLEMENTATION_PLAN.md",
+      "change": "modified",
+      "sha256": "56567c1a4c4cf88171a25ee63d04a1e2c5d39f9ae5faf94c0e674608ca098668"
+    },
+    {
+      "file": "INTEGRATION_BUILD.json",
+      "change": "modified",
+      "sha256": "1970c5626833a0b1dab0d8a14a602c708b51665a1205be807340c1bec54f635c"
+    },
+    {
+      "file": "README.md",
+      "change": "modified",
+      "sha256": "03cbd8b30c1f20fe555749922cd4a36286cea83e0a40032644d2ca937cb690e4"
+    },
+    {
+      "file": "RELEASE_NOTES.md",
+      "change": "modified",
+      "sha256": "2e522aa78442d90fb49da97789907d3a03a0df6c5ee3c91ef3c2f95e42728bd3"
+    },
+    {
+      "file": "docs/FLOW_THERMAL_UPDATE.md",
+      "change": "modified",
+      "sha256": "a0dc11e9ce15eed5637b4520e65cb58d5a76e5c589045b94427be1b135d84cc0"
+    },
+    {
+      "file": "docs/GENERATIVE_AI_SIMULATION_PROMPT.md",
+      "change": "modified",
+      "sha256": "57553657a3c45aae2e068f9ac2efb98858229d05d96bfdeec225206824cb3ea0"
+    },
+    {
+      "file": "docs/INTEGRATION_STATUS.md",
+      "change": "modified",
+      "sha256": "c10c987f47df8f08fe4e4f50f22af3f7d52ece2447d958ea1e0608c4550801d9"
+    },
+    {
+      "file": "docs/MPD_SHARED_MODEL.md",
+      "change": "added",
+      "sha256": "02b38acbaaf34f508d39ba47b797fb316e95c87be76ddab790e9bcac43fadb38"
+    },
+    {
+      "file": "docs/SHARED_FVM_MANUAL.md",
+      "change": "modified",
+      "sha256": "3baa94c312a2033a8a9e67e3edd287ebb4d36af468cd93045c212a009f2ca8b1"
+    },
+    {
+      "file": "docs/UNIFIED_COLUMN_STATUS.md",
+      "change": "modified",
+      "sha256": "99ee707de19238d538f2e902010bbc3e62c2413c463bbb9cbec8d2d7ce5d5738"
+    },
+    {
+      "file": "examples/unified/README.md",
+      "change": "modified",
+      "sha256": "d4b7d748e1e4078225bab5de2a64699bd437e94a997a5b8cbfee3da5b5cae75f"
+    },
+    {
+      "file": "examples/unified/fdm/gas_mpd_breakthrough/distribution.data",
+      "change": "added",
+      "sha256": "56422c3fe82b1aa8313150a95cb430278b2b3b00ddfef48557aca8cac4242d79"
+    },
+    {
+      "file": "examples/unified/fdm/gas_mpd_breakthrough/simulation.json",
+      "change": "added",
+      "sha256": "57e7fb55f2f352efec26a9458ea5244bff77112af17569d92eed349c52f23168"
+    },
+    {
+      "file": "examples/unified/fvm/gas_mpd_breakthrough/distribution.data",
+      "change": "added",
+      "sha256": "56422c3fe82b1aa8313150a95cb430278b2b3b00ddfef48557aca8cac4242d79"
+    },
+    {
+      "file": "examples/unified/fvm/gas_mpd_breakthrough/simulation.json",
+      "change": "added",
+      "sha256": "703ecda973ce87e933529a7d946d0ba70428899f1f6652e81819fffcb781c184"
+    },
+    {
+      "file": "examples/unified/manifest.txt",
+      "change": "modified",
+      "sha256": "61601484dca0bb3b0c2323bf800a3c9387b01f5830656f402b80720831d8778f"
+    },
+    {
+      "file": "include/cycle/main_models.hpp",
+      "change": "modified",
+      "sha256": "770062f7866f400843bfcdc473862302f6919bd84c09f31a750df04a5b8863e1"
+    },
+    {
+      "file": "ruptura/webapp/cluster.py",
+      "change": "modified",
+      "sha256": "d44eae0ed9ad0b02f5e213af339207586e0258869ee5481bcf598b3f5070e53f"
+    },
+    {
+      "file": "ruptura/webapp/config.py",
+      "change": "modified",
+      "sha256": "dd4f908e88d06d7b0ef3441415d8893d6bc86ed4b9873e8b56deaefcb44b9c56"
+    },
+    {
+      "file": "ruptura/webapp/static/app.js",
+      "change": "modified",
+      "sha256": "b469162d8b5e7f1785e7759eaa085ca4ee768a75522bcee1c0a5a88cccc18f6f"
+    },
+    {
+      "file": "src/process/CMakeLists.txt",
+      "change": "modified",
+      "sha256": "897df05d25017c3b70bbd3dd454b2117c79487cd89a33a49cc6e854a34c6cefa"
+    },
+    {
+      "file": "src/process/equilibrium.cpp",
+      "change": "modified",
+      "sha256": "380fa2f08b37f6c2a6e7db08911614b649451ffe014da9aa17dae242ce374fce"
+    },
+    {
+      "file": "src/process/main_input.cpp",
+      "change": "modified",
+      "sha256": "3990c6d85281ae4a07f36d037fad6823d2cad6e1a62cd9998eb3019c012bf654"
+    },
+    {
+      "file": "src/process/main_models.cpp",
+      "change": "modified",
+      "sha256": "758c9ee27d5ed631b8afcc5728739bb3df2f6a5a83d54515f9eeea492a0a493b"
+    },
+    {
+      "file": "tests/mpd_shared_test.py",
+      "change": "added",
+      "sha256": "63e152e9b69a6969c0229bab130b4c48f50e6d7f9746af48639f62eec298b07e"
+    },
+    {
+      "file": "tests/process/test_mpd.cpp",
+      "change": "added",
+      "sha256": "16e931b2fe3d24706a0d80881cc332f26a26e7e23ad9e739acea2cfa22d05c87"
+    },
+    {
+      "file": "tools/generate_unified_examples.py",
+      "change": "modified",
+      "sha256": "297917d9e9e7e4c9e3e40e99d675fd83729e913513bdcdee543c3a4a20d7e4e0"
+    },
+    {
+      "file": "verification/mpd_shared/example_runs.json",
+      "change": "added",
+      "sha256": "a657e86df173e36a78adc4f871e609bb0afd18920d469e0d1db2aa2bfcc6829e"
+    },
+    {
+      "file": "verification/mpd_shared/gui_dom.log",
+      "change": "added",
+      "sha256": "53411e268c2d5c58e3011ef75bf87e0d0d999ca55a0bf3f5cfa342c797b5134f"
+    },
+    {
+      "file": "verification/mpd_shared/gui_dom_results.json",
+      "change": "added",
+      "sha256": "53411e268c2d5c58e3011ef75bf87e0d0d999ca55a0bf3f5cfa342c797b5134f"
+    },
+    {
+      "file": "verification/mpd_shared/input_validation.json",
+      "change": "added",
+      "sha256": "bf6e1ea69d1c77e9806ef7a03f6fca3f61ae1316ed30a0987aa597061c24a0eb"
+    },
+    {
+      "file": "verification/mpd_shared/native_tests.log",
+      "change": "added",
+      "sha256": "6054162cd524e498daebbd2bb66d28aab9abac880c406d82c1a94845b9dee5b3"
+    },
+    {
+      "file": "verification/mpd_shared/native_tests.xml",
+      "change": "added",
+      "sha256": "597b38cd194014c07f3852f6e1f41d6068d04e12539e5ae071004d7199608e67"
+    },
+    {
+      "file": "verification/mpd_shared/python_tests.log",
+      "change": "added",
+      "sha256": "342d00ddb37dfc719b3d224404439f600fc87b9ae5f5dd7b59081a2be3bd4597"
+    },
+    {
+      "file": "verification/mpd_shared/python_tests.xml",
+      "change": "added",
+      "sha256": "10b11dd92ec5c7aebbfde02c890651299feb8566651df1dc347d3500d5c2b1c7"
+    },
+    {
+      "file": "verification/mpd_shared/summary.json",
+      "change": "added",
+      "sha256": "591b791c0a1eb9a54217be299f7e251d0418ef7c4e767b1d650ed11938acd33d"
+    }
+  ],
+  "self_excluded": "verification/mpd_shared/source_hashes.json"
+}

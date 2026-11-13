@@ -1,0 +1,1202 @@
+[
+  {
+    "input": "examples/integrated/breakthrough/gas_fixed_bed/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/breakthrough/gas_monolith/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/breakthrough/liquid_fixed_bed/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/breakthrough/liquid_monolith/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_10_CH4_90/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_10_CH4_90/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_10_CH4_90/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_25_CH4_75/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_25_CH4_75/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_25_CH4_75/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_50_CH4_50/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_50_CH4_50/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_50_CH4_50/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_10_CH4_90/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_10_CH4_90/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_10_CH4_90/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_25_CH4_75/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_25_CH4_75/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_25_CH4_75/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_50_CH4_50/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_50_CH4_50/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_50_CH4_50/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_10_CH4_90/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_10_CH4_90/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_10_CH4_90/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_25_CH4_75/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_25_CH4_75/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_25_CH4_75/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_50_CH4_50/P_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_50_CH4_50/P_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_50_CH4_50/P_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PTSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PTSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PVSA_10bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PVSA_5bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/TSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/TVSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/VSA_1bar/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/chemistry/avrami/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/chemistry/dual_nth/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/chemistry/pfo/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/chemistry/pso/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/cycles/gas_fixed_bed/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/cycles/gas_monolith/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/cycles/liquid_fixed_bed/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/cycles/liquid_monolith/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/equipment/buffer_psa/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/equipment/liquid_buffer/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/equipment/valve_psa/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/gas_constant_velocity/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/initial_carriergas/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/initial_evacuated/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/initial_feedpressurized/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/initial_gaspressurized/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/liquid_common_temperature_coolant/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/liquid_constant_velocity/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/liquid_cycle_velocity_gradient_wash/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/flow_controls/liquid_gradient_cylindrical_hsdm/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/moisture/msa/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/moisture/mvsa/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/particle/gas_hsdm_cylinderradial/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/particle/gas_hsdm_sphere/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/particle/liquid_hsdm_cylinderradial/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/particle/liquid_hsdm_sphere/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/runtime/automatic_saturation/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/thermal/gas_transient_coolant/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/thermal/liquid_transient_coolant/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_candidates/dcb_haghpanah2013/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_candidates/vsa_haghpanah2013/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_equations/cyclic_vsa_3cycles/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_equations/dcb_adiabatic/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_equations/dcb_local_pressure/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/01_breakthrough/adsorption/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/01_breakthrough/desorption/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/02_single_vsa/run01/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/03_two_vsa/run06/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/03_two_vsa/run07/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/04_refinement/bt_nodes61/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/04_refinement/bt_tight/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/marx_T15_fvm/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/integrated/validation/marx_T15_original/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/four-psa/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/gas_breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/gas_cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/gas_hsdm_cylinderradial_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/gas_hsdm_cylinderradial_no_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/gas_hsdm_sphere_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/gas_hsdm_sphere_no_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/gas_mpd_breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/liquid_breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/liquid_cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/liquid_hsdm_cylinderradial_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/liquid_hsdm_cylinderradial_no_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/liquid_hsdm_sphere_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/liquid_hsdm_sphere_no_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/single-psa/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fdm/two-psa-pe/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/four-psa/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/gas_breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/gas_cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/gas_hsdm_cylinderradial_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/gas_hsdm_cylinderradial_no_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/gas_hsdm_sphere_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/gas_hsdm_sphere_no_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/gas_mpd_breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/liquid_breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/liquid_cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/liquid_hsdm_cylinderradial_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/liquid_hsdm_cylinderradial_no_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/liquid_hsdm_sphere_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/liquid_hsdm_sphere_no_film/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/single-psa/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/unified/fvm/two-psa-pe/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/avrami/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/avrami/cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/dualnth/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/dualnth/cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/elovich/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/firstorder/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/general/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/pseudonth/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/avrami/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/avrami/cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/dualnth/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/dualnth/cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/elovich/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/firstorder/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/general/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/pseudonth/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/avrami/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/avrami/cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/dualnth/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/dualnth/cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/elovich/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/firstorder/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/general/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/pseudonth/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/avrami/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/avrami/cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/dualnth/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/dualnth/cycle/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/elovich/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/firstorder/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/general/breakthrough/simulation.json",
+    "exit_code": 0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/pseudonth/breakthrough/simulation.json",
+    "exit_code": 0
+  }
+]

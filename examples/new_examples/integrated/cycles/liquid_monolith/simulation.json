@@ -1,0 +1,149 @@
+{
+  "SimulationType": "SwingAdsorption",
+  "SpatialDiscretization": "FVM",
+  "FluidPhase": "Liquid",
+  "DisplayName": "Liquid monolith",
+  "Components": [
+    {
+      "Name": "A",
+      "MolecularWeight": 0.044,
+      "GasHeatCapacity": 37.0,
+      "GasPhaseMolFraction": 0.1,
+      "LiquidPhaseConcentration": 0.5,
+      "InitialLiquidPhaseConcentration": 0.0,
+      "MassTransferCoefficient": 0.2,
+      "AxialDispersionCoefficient": 1e-06,
+      "HeatOfAdsorption": 20000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.0,
+            0.4
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "B",
+      "MolecularWeight": 0.028,
+      "GasHeatCapacity": 29.0,
+      "GasPhaseMolFraction": 0.9,
+      "CarrierGas": true,
+      "AxialDispersionCoefficient": 1e-06
+    }
+  ],
+  "MixturePredictionMethod": "SCI",
+  "Geometry": {
+    "Type": "Monolith",
+    "InternalDiameter": 0.01,
+    "OuterDiameter": 0.012,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001,
+    "ChannelDiameter": 0.0005,
+    "NumberOfChannels": 100,
+    "ChannelShape": "circular",
+    "WashcoatThickness": 5e-05
+  },
+  "ColumnLength": 0.1,
+  "ParticleDensity": 1000.0,
+  "NumberOfGridPoints": 20,
+  "ColumnEntranceVelocity": 0.01,
+  "Temperature": 298.15,
+  "InletPressure": 100000.0,
+  "OutletPressure": 100000.0,
+  "BoundaryCondition": "InletVelocityOutletPressure",
+  "BreakthroughIntegrator": "CVODE",
+  "CVODELinearSolver": "Dense",
+  "ConvectionScheme": "WENO3",
+  "WriteInterval": 0.5,
+  "Solver": {
+    "MaximumTimeStep": 0.5,
+    "RelativeTolerance": 1e-06
+  },
+  "Performance": {
+    "LightComponent": "A",
+    "HeavyComponent": "B"
+  },
+  "Output": {
+    "Directory": "results",
+    "Profile": "compact",
+    "Plots": true,
+    "MainFormatFiles": true
+  },
+  "NumberOfCycles": 3,
+  "Sources": {
+    "feed": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "A": 0.1,
+        "B": 0.9
+      },
+      "LiquidPhaseConcentrations": {
+        "A": 0.5,
+        "B": 0.0
+      }
+    },
+    "regenerant": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "A": 0.0,
+        "B": 1.0
+      },
+      "LiquidPhaseConcentrations": {
+        "A": 0.0,
+        "B": 0.0
+      }
+    },
+    "product": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "A": 0.1,
+        "B": 0.9
+      },
+      "LiquidPhaseConcentrations": {
+        "A": 0.5,
+        "B": 0.0
+      }
+    }
+  },
+  "SwingAdsorptionPhases": [
+    {
+      "Name": "Adsorption",
+      "Duration": 10.0,
+      "LeftPort": {
+        "Mode": "Velocity",
+        "Source": "feed",
+        "Velocity": 0.01
+      },
+      "RightPort": {
+        "Mode": "Pressure",
+        "Source": "product"
+      },
+      "StreamTags": {
+        "LeftIn": "feed",
+        "RightOut": "light_product"
+      }
+    },
+    {
+      "Name": "Regeneration",
+      "Duration": 20.0,
+      "LeftPort": {
+        "Mode": "Pressure",
+        "Source": "product"
+      },
+      "RightPort": {
+        "Mode": "Velocity",
+        "Source": "regenerant",
+        "Velocity": -0.005
+      },
+      "StreamTags": {
+        "RightIn": "regenerant",
+        "LeftOut": "heavy_product"
+      }
+    }
+  ]
+}

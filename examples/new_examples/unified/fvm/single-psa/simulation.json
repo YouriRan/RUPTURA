@@ -1,0 +1,316 @@
+{
+  "SimulationType": "SwingAdsorption",
+  "SpatialDiscretization": "FVM",
+  "FluidPhase": "Gas",
+  "DisplayName": "1-column PSA",
+  "Components": [
+    {
+      "Name": "CO2",
+      "MolecularWeight": 0.04401,
+      "GasHeatCapacity": 37.0,
+      "AdsorbedHeatCapacity": 30.0,
+      "AxialDispersionCoefficient": 1e-06,
+      "GasPhaseMolFraction": 0.25,
+      "MassTransferCoefficient": 0.15,
+      "HeatOfAdsorption": 27000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.0,
+            3.7224994891844565e-10
+          ],
+          "EquilibriumHeat": 27000.0
+        }
+      ]
+    },
+    {
+      "Name": "CH4",
+      "MolecularWeight": 0.01604,
+      "GasHeatCapacity": 35.0,
+      "AdsorbedHeatCapacity": 28.0,
+      "AxialDispersionCoefficient": 1e-06,
+      "GasPhaseMolFraction": 0.75,
+      "MassTransferCoefficient": 0.1,
+      "HeatOfAdsorption": 20000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.5,
+            1.8806277660014397e-09
+          ],
+          "EquilibriumHeat": 20000.0
+        }
+      ]
+    }
+  ],
+  "ColumnLength": 0.3,
+  "NumberOfGridPoints": 12,
+  "ParticleDensity": 1000.0,
+  "Temperature": 298.15,
+  "InletPressure": 500000.0,
+  "OutletPressure": 500000.0,
+  "DynamicViscosity": 1.8e-05,
+  "gasThermalConductivity": 0.025,
+  "Geometry": {
+    "Type": "PackedBed",
+    "InternalDiameter": 0.1,
+    "OuterDiameter": 0.104,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.002
+  },
+  "InitialConditions": {
+    "Pressure": 100000.0,
+    "GasTemperature": 298.15,
+    "SolidTemperature": 298.15,
+    "WallTemperature": 298.15,
+    "GasPhaseMolFractions": {
+      "CO2": 0.05,
+      "CH4": 0.95
+    },
+    "Loading": "equilibrium"
+  },
+  "MixturePredictionMethod": "SCI",
+  "energyBalance": false,
+  "heatCapacitySolid": 900.0,
+  "heatTransferGasSolid": 20.0,
+  "NumberOfCycles": 2,
+  "CyclicSteadyState": {
+    "Enabled": true,
+    "MaximumCycles": 100,
+    "StateRelativeTolerance": 0.0001,
+    "StateAbsoluteTolerance": 1e-07,
+    "InventoryRelativeTolerance": 1e-05,
+    "MetricRelativeTolerance": 0.0001,
+    "ConsecutiveCycles": 3
+  },
+  "BreakthroughIntegrator": "BDF",
+  "ConvectionScheme": "WENO3",
+  "Solver": {
+    "RelativeTolerance": 1e-05,
+    "AbsoluteTolerance": 1e-08,
+    "MaximumTimeStep": 2.0,
+    "JacobianMode": "structured_fd",
+    "CacheRHS": true,
+    "EventTimeTolerance": 1e-06,
+    "DispersionClosure": "concentration"
+  },
+  "WriteInterval": 0.5,
+  "Output": {
+    "Directory": "results",
+    "Profile": "compact",
+    "Plots": true,
+    "Checkpoint": true,
+    "MainFormatFiles": true,
+    "SamplesPerPhase": 100,
+    "CheckpointInterval": 300.0
+  },
+  "Columns": {
+    "A": {}
+  },
+  "Sources": {
+    "feed": {
+      "Pressure": 520000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.25,
+        "CH4": 0.75
+      }
+    },
+    "light_receiver": {
+      "Pressure": 480000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.05,
+        "CH4": 0.95
+      }
+    },
+    "heavy_receiver": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.25,
+        "CH4": 0.75
+      }
+    },
+    "external_purge": {
+      "Pressure": 120000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.05,
+        "CH4": 0.95
+      }
+    }
+  },
+  "SwingAdsorptionPhases": [
+    {
+      "Name": "PRESS",
+      "Duration": 30,
+      "Columns": {
+        "A": {
+          "Name": "PRESS",
+          "LeftPort": {
+            "Mode": "closed"
+          },
+          "RightPort": {
+            "Mode": "closed"
+          }
+        }
+      },
+      "Connections": [
+        {
+          "Name": "V-FA",
+          "From": "source:feed",
+          "To": "A.left",
+          "FlowModel": "linear",
+          "Conductance": 1e-08,
+          "MaximumMolarFlow": 0.05,
+          "CheckValve": true,
+          "Opening": 1.0,
+          "Tag": "repressurization_gas"
+        }
+      ]
+    },
+    {
+      "Name": "ADS",
+      "Duration": 60,
+      "Columns": {
+        "A": {
+          "Name": "ADS",
+          "LeftPort": {
+            "Mode": "closed"
+          },
+          "RightPort": {
+            "Mode": "closed"
+          }
+        }
+      },
+      "Connections": [
+        {
+          "Name": "V-FA",
+          "From": "source:feed",
+          "To": "A.left",
+          "FlowModel": "linear",
+          "Conductance": 1e-08,
+          "MaximumMolarFlow": 0.05,
+          "CheckValve": true,
+          "Opening": 1.0,
+          "Tag": "feed"
+        },
+        {
+          "Name": "V-LA",
+          "From": "A.right",
+          "To": "source:light_receiver",
+          "FlowModel": "linear",
+          "Conductance": 1e-08,
+          "MaximumMolarFlow": 0.05,
+          "CheckValve": true,
+          "Opening": 1.0,
+          "Tag": "light_product"
+        }
+      ]
+    },
+    {
+      "Name": "BD",
+      "Duration": 30,
+      "Columns": {
+        "A": {
+          "Name": "BD",
+          "LeftPort": {
+            "Mode": "closed"
+          },
+          "RightPort": {
+            "Mode": "closed"
+          }
+        }
+      },
+      "Connections": [
+        {
+          "Name": "V-HA",
+          "From": "A.left",
+          "To": "source:heavy_receiver",
+          "FlowModel": "linear",
+          "Conductance": 1e-08,
+          "MaximumMolarFlow": 0.05,
+          "CheckValve": true,
+          "Opening": 1.0,
+          "Tag": "heavy_product"
+        }
+      ]
+    },
+    {
+      "Name": "PURGE",
+      "Duration": 60,
+      "Columns": {
+        "A": {
+          "Name": "PURGE",
+          "LeftPort": {
+            "Mode": "closed"
+          },
+          "RightPort": {
+            "Mode": "closed"
+          }
+        }
+      },
+      "Connections": [
+        {
+          "Name": "V-HA",
+          "From": "A.left",
+          "To": "source:heavy_receiver",
+          "FlowModel": "linear",
+          "Conductance": 1e-08,
+          "MaximumMolarFlow": 0.05,
+          "CheckValve": true,
+          "Opening": 1.0,
+          "Tag": "heavy_product"
+        },
+        {
+          "Name": "V-PA",
+          "From": "source:external_purge",
+          "To": "A.right",
+          "FlowModel": "linear",
+          "Conductance": 1e-08,
+          "MaximumMolarFlow": 0.05,
+          "CheckValve": true,
+          "Opening": 1.0,
+          "Tag": "purge"
+        }
+      ]
+    }
+  ],
+  "Utilities": {
+    "AmbientPressure": 100000.0,
+    "FeedSupplyPressure": 100000.0,
+    "ChargeFeedCompression": true,
+    "ChargeRecycleCompression": false,
+    "CompressorEfficiency": 0.75,
+    "VacuumEfficiency": 0.6
+  },
+  "Notes": [
+    "Editable demonstration recipe. Timings and valve conductances are assumptions, not optimized designs or literature validation.",
+    "CSS must be demonstrated by the calculated state, inventory and metric tests."
+  ],
+  "wallDensity": 7800.0,
+  "heatCapacityWall": 450.0,
+  "wallThermalConductivity": 0.0,
+  "heatTransferGasWall": 10.0,
+  "heatTransferWallExternal": 10.0,
+  "AmbientTemperature": 298.15,
+  "PhysisorptionEnabled": true,
+  "Performance": {
+    "FeedTag": "feed",
+    "LightProductTag": "light_product",
+    "HeavyProductTag": "heavy_product",
+    "LightComponent": "CH4",
+    "HeavyComponent": "CO2",
+    "FreshFeedTags": [
+      "feed",
+      "repressurization_gas"
+    ]
+  },
+  "Provenance": {
+    "SourceInput": "examples/equipment/valve_psa/simulation.yaml",
+    "SourceSHA256": "8c3627e0f9f88a3438053663d9ad22f9391a77f82558fb3b086a1886ba380c5f"
+  }
+}

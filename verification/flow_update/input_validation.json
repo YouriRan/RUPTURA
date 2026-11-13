@@ -1,0 +1,1182 @@
+[
+  {
+    "input": "examples/integrated/breakthrough/gas_fixed_bed/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0047489019998465665
+  },
+  {
+    "input": "examples/integrated/breakthrough/gas_monolith/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0036192380011925707
+  },
+  {
+    "input": "examples/integrated/breakthrough/liquid_fixed_bed/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00338856899907114
+  },
+  {
+    "input": "examples/integrated/breakthrough/liquid_monolith/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0034716219997790176
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_10_CH4_90/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004361732000688789
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_10_CH4_90/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004281804000129341
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_10_CH4_90/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004686300000685151
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_25_CH4_75/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004579532000207109
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_25_CH4_75/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.005103073001009761
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_25_CH4_75/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0042824749998544576
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_50_CH4_50/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004414189001181512
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_50_CH4_50/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0043313770001986995
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Al_T3/CO2_50_CH4_50/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004298939000364044
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_10_CH4_90/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004128097998545854
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_10_CH4_90/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004943478999848594
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_10_CH4_90/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0043100460006826324
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_25_CH4_75/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00413383600061934
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_25_CH4_75/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004166534999967553
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_25_CH4_75/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0041558289995009545
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_50_CH4_50/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0045904880007583415
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_50_CH4_50/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004116259999136673
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Ge_T3/CO2_50_CH4_50/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004631800000424846
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_10_CH4_90/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004391685999507899
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_10_CH4_90/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0042826860008062795
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_10_CH4_90/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004177591001280234
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_25_CH4_75/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004124131999560632
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_25_CH4_75/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0040952990002551815
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_25_CH4_75/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01001655699838011
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_50_CH4_50/P_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009936289001416299
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_50_CH4_50/P_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.011078420000558253
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_breakthrough/Si/CO2_50_CH4_50/P_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0077354189998004586
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01738958299938531
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.017312858999503078
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.021188086000620387
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.015672845000153757
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008531155001037405
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010815822999575175
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008195545999114984
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010342648000005283
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008010593999642879
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013867091000065557
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0138094119993184
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.021327510999981314
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.019926412000131677
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01411264300077164
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013629731000037282
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.019414227999732248
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.02256773600129236
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_10_CH4_90/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0164715899991279
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007608833000631421
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007823758998711128
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008527133999450598
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009286126000006334
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008218920000217622
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008234274000642472
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007669381999221514
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010047764000773896
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008597547999670496
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01419054299913114
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013915936999183032
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.020809268000448355
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.022649512000498362
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.015171326998824952
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.017061555001419038
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014133036998828175
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.02118316799897002
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_25_CH4_75/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014566064999598893
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008068959999945946
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007509546998335281
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01059775300018373
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008732402000532602
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00818934200106014
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007516015999499359
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00737557799948263
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010339742999349255
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00750014699951862
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01310587499938265
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.012730258000374306
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.017695192000246607
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01754127099957259
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013407229000222287
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.012824362000174006
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014074586000788258
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.018226475000119535
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Al_T3/CO2_50_CH4_50/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.012800566000805702
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008357515000170679
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007904817999587976
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010377839000284439
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013617509001051076
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008680531000209157
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010516563999772188
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008547845000066445
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010250761999486713
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009079948000362492
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.015781384998263093
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014372751998962485
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0228981529999146
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.034202045999336406
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014520458000333747
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.022428993001085473
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01760128399837413
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.026038346000859747
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_10_CH4_90/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01592586900005699
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008652898999571335
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007972227000209386
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008836879998852964
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013978380000480684
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009500197000306798
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008669202999953995
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.011487773999760975
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010493359000975033
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010011150001446367
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01718586199967831
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014250030999392038
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.020561471999826608
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.021429300999443512
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01574058400001377
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.015852079000978847
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014989217999755056
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.020324793998952373
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_25_CH4_75/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.015092540001205634
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009092366999539081
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00784654299968679
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009749713999553933
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009315966999565717
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007764882999254041
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00789858900134277
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007569144001536188
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008424534000369022
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008494595998854493
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.012696783000137657
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013251850999949966
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.019660075999127002
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01767527300034999
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013079917000140995
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013687041999219218
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014622568000049796
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.017243197999050608
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Ge_T3/CO2_50_CH4_50/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013158862000636873
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008866735000992776
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008415831000093021
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009576159000062034
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.010123173999090795
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008644957999422331
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008436791998974513
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008844461999615305
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009768873000211897
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008097672998701455
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014114659999904688
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014456568998866715
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01976642200133938
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.020436749000509735
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01458132700099668
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013887311000871705
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01748422599848709
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.02211889099999098
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_10_CH4_90/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01526715799991507
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00828293499944266
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007380209999610088
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009175627999866265
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.011028507999071735
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008133584999086452
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007938266000564909
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007723750999502954
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.009939613999449648
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008478853000269737
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014438538000831613
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014066539999475935
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.020026646001497284
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01963718199840514
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014853908000077354
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.015093512998646474
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014970320000429638
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.022518569001476862
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_25_CH4_75/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014130592999208602
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008544600001187064
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00796485700084304
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00856644099985715
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00831116199879034
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007240009999804897
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008350219000931247
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007932988999527879
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.008651257001474733
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/one_column/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007431370999256615
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01537586700032989
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01278909000029671
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PTSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01816449299985834
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PTSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01988907299892162
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PVSA_10bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.013228976000391413
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/PVSA_5bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.012558991000332753
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/TSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014603240000724327
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/TVSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.017646411000896478
+  },
+  {
+    "input": "examples/integrated/campaigns/co2_ch4_cycles/Si/CO2_50_CH4_50/two_columns/VSA_1bar/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01416041800075618
+  },
+  {
+    "input": "examples/integrated/chemistry/avrami/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007487795000997721
+  },
+  {
+    "input": "examples/integrated/chemistry/dual_nth/simulation.json",
+    "returncode": 0,
+    "seconds": 0.006856554000478354
+  },
+  {
+    "input": "examples/integrated/chemistry/pfo/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007214933000796009
+  },
+  {
+    "input": "examples/integrated/chemistry/pso/simulation.json",
+    "returncode": 0,
+    "seconds": 0.006548421999468701
+  },
+  {
+    "input": "examples/integrated/cycles/gas_fixed_bed/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004569065999021404
+  },
+  {
+    "input": "examples/integrated/cycles/gas_monolith/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004587694000292686
+  },
+  {
+    "input": "examples/integrated/cycles/liquid_fixed_bed/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004288304000510834
+  },
+  {
+    "input": "examples/integrated/cycles/liquid_monolith/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004572871999698691
+  },
+  {
+    "input": "examples/integrated/equipment/buffer_psa/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0066661050004768185
+  },
+  {
+    "input": "examples/integrated/equipment/liquid_buffer/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004198255999654066
+  },
+  {
+    "input": "examples/integrated/equipment/valve_psa/simulation.json",
+    "returncode": 0,
+    "seconds": 0.005811220999021316
+  },
+  {
+    "input": "examples/integrated/flow_controls/gas_constant_velocity/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0033350600006087916
+  },
+  {
+    "input": "examples/integrated/flow_controls/initial_carriergas/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0030449030000454513
+  },
+  {
+    "input": "examples/integrated/flow_controls/initial_evacuated/simulation.json",
+    "returncode": 0,
+    "seconds": 0.002886860000216984
+  },
+  {
+    "input": "examples/integrated/flow_controls/initial_feedpressurized/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0028527199992822716
+  },
+  {
+    "input": "examples/integrated/flow_controls/initial_gaspressurized/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0030531749998772284
+  },
+  {
+    "input": "examples/integrated/flow_controls/liquid_common_temperature_coolant/simulation.json",
+    "returncode": 0,
+    "seconds": 0.003610785999626387
+  },
+  {
+    "input": "examples/integrated/flow_controls/liquid_constant_velocity/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0034335450000071432
+  },
+  {
+    "input": "examples/integrated/flow_controls/liquid_cycle_velocity_gradient_wash/simulation.json",
+    "returncode": 0,
+    "seconds": 0.005467508999572601
+  },
+  {
+    "input": "examples/integrated/flow_controls/liquid_gradient_cylindrical_hsdm/simulation.json",
+    "returncode": 0,
+    "seconds": 0.003528785999151296
+  },
+  {
+    "input": "examples/integrated/moisture/msa/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00693128500097373
+  },
+  {
+    "input": "examples/integrated/moisture/mvsa/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007426012998621445
+  },
+  {
+    "input": "examples/integrated/particle/gas_hsdm_cylinderradial/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0033084219994634623
+  },
+  {
+    "input": "examples/integrated/particle/gas_hsdm_sphere/simulation.json",
+    "returncode": 0,
+    "seconds": 0.003272176998507348
+  },
+  {
+    "input": "examples/integrated/particle/liquid_hsdm_cylinderradial/simulation.json",
+    "returncode": 0,
+    "seconds": 0.003940361000786652
+  },
+  {
+    "input": "examples/integrated/particle/liquid_hsdm_sphere/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00352541000029305
+  },
+  {
+    "input": "examples/integrated/runtime/automatic_saturation/simulation.json",
+    "returncode": 0,
+    "seconds": 0.003558869999324088
+  },
+  {
+    "input": "examples/integrated/thermal/gas_transient_coolant/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0032100660009746207
+  },
+  {
+    "input": "examples/integrated/thermal/liquid_transient_coolant/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00326024999958463
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_candidates/dcb_haghpanah2013/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004615194999132655
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_candidates/vsa_haghpanah2013/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0072815399998944486
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_equations/cyclic_vsa_3cycles/simulation.json",
+    "returncode": 0,
+    "seconds": 0.012596775999554666
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_equations/dcb_adiabatic/simulation.json",
+    "returncode": 0,
+    "seconds": 0.006134991999715567
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2013_equations/dcb_local_pressure/simulation.json",
+    "returncode": 0,
+    "seconds": 0.005930522000198835
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/01_breakthrough/adsorption/simulation.json",
+    "returncode": 0,
+    "seconds": 0.005266994001431158
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/01_breakthrough/desorption/simulation.json",
+    "returncode": 0,
+    "seconds": 0.005066409001301508
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/02_single_vsa/run01/simulation.json",
+    "returncode": 0,
+    "seconds": 0.007956083998578833
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/03_two_vsa/run06/simulation.json",
+    "returncode": 0,
+    "seconds": 0.01502789599908283
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/03_two_vsa/run07/simulation.json",
+    "returncode": 0,
+    "seconds": 0.014628618000642746
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/04_refinement/bt_nodes61/simulation.json",
+    "returncode": 0,
+    "seconds": 0.00599048999902152
+  },
+  {
+    "input": "examples/integrated/validation/haghpanah_2014/04_refinement/bt_tight/simulation.json",
+    "returncode": 0,
+    "seconds": 0.005376455999794416
+  },
+  {
+    "input": "examples/integrated/validation/marx_T15_fvm/simulation.json",
+    "returncode": 0,
+    "seconds": 0.004126581001401064
+  },
+  {
+    "input": "examples/integrated/validation/marx_T15_original/simulation.json",
+    "returncode": 0,
+    "seconds": 0.0018859070005419198
+  }
+]

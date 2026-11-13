@@ -1,0 +1,158 @@
+{
+  "Components": [
+    {
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.19466024781253777,
+            8.90730767575818e-07
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.0998368974010369,
+            6.558568046086507e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "C6m2",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.20333025657186465,
+            5.407541927686471e-07
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.200616033670939,
+            4.040867921822655e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "C6m3",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.21049914525765284,
+            4.1934685053476786e-07
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.232185015758871,
+            2.690604060820916e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "C5m2m2",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.4555588059370366,
+            6.992873912801456e-06
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.3057490546621724e-17,
+            3475.0055404586337
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "C5m2m3",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.525853767228805,
+            1.4199231640880231e-05
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.013719168190420218,
+            1.4199229518538243e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "C5m2m4",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.5195320600604403,
+            2.1414970355544447e-05
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.08544911322951582,
+            5.996211360399441e-08
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "C5m3m3",
+      "GasPhaseMolFraction": 0.01,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.549499242872714,
+            4.397836962390155e-06
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            4.8559965985494027e-17,
+            45745.37766775687
+          ]
+        }
+      ]
+    }
+  ]
+}

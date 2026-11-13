@@ -1,0 +1,12 @@
+{
+  "build_type": "Release",
+  "main_language": "C++23",
+  "standalone_process_language": "C++20",
+  "main_compiler": "Clang/libc++ from Zig 0.17.1",
+  "process_test_compiler": "GCC 13",
+  "sundials": "7.5.0",
+  "native_cpu_flags": false,
+  "binary_artifacts_in_source_package": false,
+  "HPC_execution": "Submission scripts checked; no HAL jobs submitted in this session.",
+  "compiler_cpu_selection": "Verification build used the executor CPU; no binaries are distributed. The installer Zig wrapper explicitly forces -mcpu=baseline."
+}

@@ -1,0 +1,46 @@
+{
+  "haghpanah_2013_local_pressure": {
+    "duration_s": 5000.0,
+    "maximum_outlet_temperature_K": 359.85190951901427,
+    "final_CO2_mole_fraction": 0.14991134801160338,
+    "first_front_half_plateau_s": 519.1566515387511,
+    "cooling_front_midpoint_s": 3709.6357058031003
+  },
+  "haghpanah_2014_adsorption": {
+    "duration_s": 7000.0,
+    "maximum_outlet_temperature_K": 358.81687036836576,
+    "final_CO2_mole_fraction": 0.14999990069280722,
+    "first_front_half_plateau_s": 599.9123259352398,
+    "cooling_front_midpoint_s": 4288.158503042277,
+    "digitized_marker_RMSE_mole_fraction": 0.022082914874349154,
+    "marker_origin": "Approximate manual digitization in supplied donor, 50 s / 0.002 stated resolution; no acceptance threshold or refit"
+  },
+  "haghpanah_2013_reservoir": {
+    "duration_s": 5000.0,
+    "maximum_outlet_temperature_K": 359.84739372575643,
+    "first_front_half_plateau_s": 529.3472551967174,
+    "cooling_front_midpoint_s": 3786.4965980518296
+  },
+  "particle_conservation": {
+    "particle_gas_sphere": {
+      "maximum_mean_shell_loading_difference_mol_kg": 1.2499376533803286e-13,
+      "shells": 12,
+      "completed": true
+    },
+    "particle_gas_cylinderradial": {
+      "maximum_mean_shell_loading_difference_mol_kg": 2.7755575615628914e-17,
+      "shells": 12,
+      "completed": true
+    },
+    "particle_liquid_sphere": {
+      "maximum_mean_shell_loading_difference_mol_kg": 1.0340578220080499e-17,
+      "shells": 12,
+      "completed": true
+    },
+    "particle_liquid_cylinderradial": {
+      "maximum_mean_shell_loading_difference_mol_kg": 5.204170427930421e-18,
+      "shells": 12,
+      "completed": true
+    }
+  }
+}

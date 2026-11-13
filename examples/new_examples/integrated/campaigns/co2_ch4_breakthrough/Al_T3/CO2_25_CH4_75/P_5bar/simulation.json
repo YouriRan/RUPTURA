@@ -1,0 +1,175 @@
+{
+  "SimulationType": "Breakthrough",
+  "SpatialDiscretization": "FVM",
+  "FluidPhase": "Gas",
+  "DisplayName": "Al_T3_CO2_25_CH4_75_5bar_SEI_HTF_constant_molar_feed",
+  "Components": [
+    {
+      "Name": "CO2",
+      "MolecularWeight": 0.04401,
+      "GasHeatCapacity": 37.0,
+      "AdsorbedHeatCapacity": 37.0,
+      "GasPhaseMolFraction": 0.25,
+      "CarrierGas": false,
+      "AxialDispersionCoefficient": 1e-05,
+      "MassTransferCoefficient": 0.1,
+      "HeatOfAdsorption": 40234.829102904274,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.06576164459106,
+            3.0229677156877094e-11
+          ],
+          "EquilibriumHeat": 40256.1378435352
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.680257654701019,
+            1.5872074782932847e-12
+          ],
+          "EquilibriumHeat": 35057.5045363843
+        }
+      ]
+    },
+    {
+      "Name": "CH4",
+      "MolecularWeight": 0.01604,
+      "GasHeatCapacity": 35.7,
+      "AdsorbedHeatCapacity": 35.7,
+      "GasPhaseMolFraction": 0.75,
+      "CarrierGas": false,
+      "AxialDispersionCoefficient": 1e-05,
+      "MassTransferCoefficient": 0.1,
+      "HeatOfAdsorption": 23978.328446894993,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.34738520425068,
+            3.46059788309586e-10
+          ],
+          "EquilibriumHeat": 24046.4569942563
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.44042402435578,
+            3.478353569663584e-11
+          ],
+          "EquilibriumHeat": 18877.8256965553
+        }
+      ]
+    },
+    {
+      "Name": "He",
+      "MolecularWeight": 0.004002602,
+      "GasHeatCapacity": 20.7861565453831,
+      "AdsorbedHeatCapacity": 0.0,
+      "GasPhaseMolFraction": 0.0,
+      "CarrierGas": true,
+      "AxialDispersionCoefficient": 1e-05,
+      "MassTransferCoefficient": 0.0,
+      "HeatOfAdsorption": 0.0,
+      "PhysisorptionSites": []
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "InternalDiameter": 0.8,
+    "OuterDiameter": 0.82,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.0015
+  },
+  "ColumnLength": 2.4,
+  "NumberOfGridPoints": 40,
+  "ParticleDensity": 1000.0,
+  "Temperature": 298.15,
+  "InletPressure": 500000.0,
+  "OutletPressure": 500000.0,
+  "InletMolarFlowRate": 4.055373437876738,
+  "BoundaryCondition": "InletVelocityOutletPressure",
+  "InitialConditions": {
+    "Pressure": 500000.0,
+    "Temperature": 298.15,
+    "GasPhaseMolFractions": {
+      "CO2": 0.0,
+      "CH4": 0.0,
+      "He": 1.0
+    },
+    "Loading": "zero"
+  },
+  "Sources": {
+    "outlet": {
+      "Pressure": 500000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.0,
+        "CH4": 0.0,
+        "He": 1.0
+      }
+    }
+  },
+  "MixturePredictionMethod": "SEI",
+  "DynamicViscosity": 1.5e-05,
+  "gasThermalConductivity": 0.03,
+  "energyBalance": true,
+  "heatCapacitySolid": 900.0,
+  "heatTransferGasSolid": 100.0,
+  "wallDensity": 7850.0,
+  "heatCapacityWall": 500.0,
+  "wallThermalConductivity": 45.0,
+  "heatTransferGasWall": 40.0,
+  "heatTransferWallExternal": 0.0,
+  "AmbientTemperature": 298.15,
+  "Coolant": {
+    "Model": "transient",
+    "Volume": 0.12,
+    "Density": 1000.0,
+    "HeatCapacity": 4180.0,
+    "InitialTemperature": 298.15,
+    "InletTemperature": 298.15,
+    "MassFlowRate": 0.5,
+    "HeatTransferCoefficient": 500.0,
+    "FlowDirection": "co_current"
+  },
+  "BreakthroughIntegrator": "CVODE",
+  "ConvectionScheme": "WENO3",
+  "SimulationTime": "auto",
+  "AutomaticStopping": {
+    "Components": [
+      "CO2",
+      "CH4"
+    ],
+    "Threshold": 0.999,
+    "MaximumTime": 12000.0,
+    "MinimumTime": 60.0,
+    "ExtraFraction": 0.2,
+    "LoadingRelativeTolerance": 0.001
+  },
+  "Solver": {
+    "RelativeTolerance": 1e-06,
+    "AbsoluteTolerance": 1e-08,
+    "MaximumTimeStep": 10.0,
+    "FirstTimeStep": 0.0001,
+    "JacobianMode": "structured_fd",
+    "CacheRHS": true
+  },
+  "WriteInterval": 2.0,
+  "Output": {
+    "Directory": "results",
+    "Plots": true,
+    "Checkpoint": false,
+    "Profile": "compact",
+    "MainFormatFiles": true
+  },
+  "Notes": [
+    "Converted from the supplied breakthrough C++ package. Shared conservative energy equations replace the donor-specific energy formulation; compare thermal predictions before scientific reuse.",
+    "Automatic stopping additionally checks loading equilibrium; this is an intentional correction to outlet-only stopping. Fixed molar feed and pure-helium outlet backflow are preserved."
+  ],
+  "Provenance": {
+    "SourceInput": "examples/co2_ch4_mfi_sei_breakthrough/Al_T3/CO2_25_CH4_75/P_5bar/input.yaml",
+    "SourceSHA256": "f9b0a777936b7f09d617b6fbea44969e5caf191e629cda9938ede5101c3ffd41"
+  }
+}

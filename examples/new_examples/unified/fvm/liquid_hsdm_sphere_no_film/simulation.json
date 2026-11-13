@@ -1,0 +1,86 @@
+{
+  "SimulationType": "Breakthrough",
+  "SpatialDiscretization": "FVM",
+  "FluidPhase": "Liquid",
+  "DisplayName": "Liquid fixed bed",
+  "Components": [
+    {
+      "Name": "A",
+      "MolecularWeight": 0.044,
+      "GasHeatCapacity": 37.0,
+      "GasPhaseMolFraction": 0.1,
+      "LiquidPhaseConcentration": 0.5,
+      "InitialLiquidPhaseConcentration": 0.0,
+      "MassTransferCoefficient": 0.2,
+      "AxialDispersionCoefficient": 1e-06,
+      "HeatOfAdsorption": 20000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            2.0,
+            0.4
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "B",
+      "MolecularWeight": 0.028,
+      "GasHeatCapacity": 29.0,
+      "GasPhaseMolFraction": 0.9,
+      "CarrierGas": true,
+      "AxialDispersionCoefficient": 1e-06
+    }
+  ],
+  "MixturePredictionMethod": "SCI",
+  "Geometry": {
+    "Type": "PackedBed",
+    "InternalDiameter": 0.01,
+    "OuterDiameter": 0.012,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  },
+  "ColumnLength": 0.1,
+  "ParticleDensity": 1000.0,
+  "NumberOfGridPoints": 20,
+  "ColumnEntranceVelocity": 0.01,
+  "Temperature": 298.15,
+  "InletPressure": 100000.0,
+  "OutletPressure": 100000.0,
+  "BoundaryCondition": "InletVelocityOutletPressure",
+  "BreakthroughIntegrator": "CVODE",
+  "CVODELinearSolver": "SPGMR",
+  "ConvectionScheme": "WENO3",
+  "SimulationTime": 40.0,
+  "WriteInterval": 0.5,
+  "Solver": {
+    "MaximumTimeStep": 0.5,
+    "RelativeTolerance": 1e-06
+  },
+  "Performance": {
+    "LightComponent": "A",
+    "HeavyComponent": "B"
+  },
+  "Output": {
+    "Directory": "results",
+    "Profile": "compact",
+    "Plots": true,
+    "MainFormatFiles": true
+  },
+  "ParticleTransport": {
+    "Model": "HSDM",
+    "Geometry": "Sphere",
+    "Radius": 0.0005,
+    "RadialCells": 12,
+    "SurfaceDiffusivity": {
+      "A": 1e-10,
+      "B": 0.0
+    },
+    "FilmResistance": false,
+    "FilmCoefficient": {
+      "A": 1e-05,
+      "B": 0.0
+    }
+  }
+}

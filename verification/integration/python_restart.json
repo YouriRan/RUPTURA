@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "restart_cycles": 2,
+  "restart_max_absolute_state_difference": 0.0,
+  "liquid_pressure_shape": [
+    16,
+    21
+  ]
+}

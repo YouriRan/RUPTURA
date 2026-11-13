@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-12",
+  "revision": 7,
+  "scope": "Automatic PNG/PDF figures for all 296 new examples",
+  "configuration": {
+    "total": 296,
+    "plots_enabled": 296,
+    "WENO3": 296,
+    "modified_inputs": [
+      "examples/new_examples/integrated/equipment/liquid_buffer/simulation.json",
+      "examples/new_examples/integrated/flow_controls/gas_constant_velocity/simulation.json",
+      "examples/new_examples/integrated/flow_controls/initial_carriergas/simulation.json",
+      "examples/new_examples/integrated/flow_controls/initial_evacuated/simulation.json",
+      "examples/new_examples/integrated/flow_controls/initial_feedpressurized/simulation.json",
+      "examples/new_examples/integrated/flow_controls/initial_gaspressurized/simulation.json",
+      "examples/new_examples/integrated/flow_controls/liquid_common_temperature_coolant/simulation.json",
+      "examples/new_examples/integrated/flow_controls/liquid_constant_velocity/simulation.json",
+      "examples/new_examples/integrated/flow_controls/liquid_cycle_velocity_gradient_wash/simulation.json",
+      "examples/new_examples/integrated/flow_controls/liquid_gradient_cylindrical_hsdm/simulation.json",
+      "examples/new_examples/integrated/validation/marx_T15_original/simulation.json"
+    ],
+    "only_output_settings_changed": true,
+    "legacy_physical_formulation_retained": true
+  },
+  "input_validation": {
+    "total": 296,
+    "passed": 296,
+    "failed": 0
+  },
+  "targeted_python_tests": {
+    "total": 14,
+    "passed": 14,
+    "failed": 0,
+    "covers": [
+      "automatic legacy figures",
+      "legacy --no-plots and --plot-only",
+      "unchanged raw outputs after replot",
+      "visible plotting failure",
+      "HAL submission/staging/collection",
+      "copied SLURM worker",
+      "all example and generator plot flags",
+      "replot file accounting after opt-out"
+    ]
+  },
+  "last_full_python_suite": {
+    "revision": 6,
+    "total": 410,
+    "passed": 410,
+    "failed": 0
+  },
+  "figure_runs": {
+    "total": 12,
+    "passed": 12,
+    "previously_disabled_tutorials": 10,
+    "shared_gas_breakthrough": 1,
+    "short_legacy_breakthrough": 1,
+    "png_files": 117,
+    "pdf_files": 117
+  },
+  "legacy_test_overrides": {
+    "NumberOfGridPoints": 6,
+    "SimulationTime": 0.02,
+    "WriteInterval": 0.01
+  },
+  "visual_spot_checks": [
+    "legacy_final_profiles.png",
+    "liquid_buffer/A_end_compositions.png"
+  ],
+  "scientific_scope": "Figures verified for selected examples; the legacy run is a short plotting check, not full Marx validation or a CSS campaign. No HAL jobs were submitted."
+}

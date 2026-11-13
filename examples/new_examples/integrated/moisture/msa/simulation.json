@@ -1,0 +1,305 @@
+{
+  "SimulationType": "SwingAdsorption",
+  "SpatialDiscretization": "FVM",
+  "FluidPhase": "Gas",
+  "DisplayName": "MSA with transported water and SPI equilibrium",
+  "Components": [
+    {
+      "Name": "CO2",
+      "MolecularWeight": 0.04401,
+      "GasHeatCapacity": 37.0,
+      "AdsorbedHeatCapacity": 37.0,
+      "AxialDispersionCoefficient": 1e-06,
+      "GasPhaseMolFraction": 0.1,
+      "MassTransferCoefficient": 0.05,
+      "HeatOfAdsorption": 25000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "moisture_swing_langmuir",
+          "Parameters": [
+            1.0,
+            4.1705131203920614e-11
+          ],
+          "EquilibriumHeat": 25000.0,
+          "ExtraParameters": {
+            "n": 2.0
+          }
+        }
+      ]
+    },
+    {
+      "Name": "N2",
+      "MolecularWeight": 0.028014,
+      "GasHeatCapacity": 29.1,
+      "AdsorbedHeatCapacity": 29.1,
+      "AxialDispersionCoefficient": 1e-06,
+      "GasPhaseMolFraction": 0.896830175513686,
+      "MassTransferCoefficient": 0.05,
+      "HeatOfAdsorption": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.0,
+            1e-06
+          ],
+          "EquilibriumHeat": 0.0
+        }
+      ]
+    },
+    {
+      "Name": "H2O",
+      "MolecularWeight": 0.01801528,
+      "GasHeatCapacity": 33.6,
+      "AdsorbedHeatCapacity": 33.6,
+      "AxialDispersionCoefficient": 1e-06,
+      "GasPhaseMolFraction": 0.003169824486313973,
+      "MassTransferCoefficient": 0.1,
+      "HeatOfAdsorption": 40000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "gab_water",
+          "Parameters": [
+            0.1,
+            9.824335539598793e-14
+          ],
+          "EquilibriumHeat": 40000.0,
+          "ExtraParameters": {
+            "qm_w": 0.01,
+            "Cw": 5.0,
+            "Kw": 0.8
+          }
+        }
+      ]
+    }
+  ],
+  "ColumnLength": 0.3,
+  "NumberOfGridPoints": 20,
+  "ParticleDensity": 1000.0,
+  "Temperature": 298.15,
+  "InletPressure": 100000.0,
+  "OutletPressure": 100000.0,
+  "DynamicViscosity": 1.8e-05,
+  "gasThermalConductivity": 0.025,
+  "Geometry": {
+    "Type": "PackedBed",
+    "InternalDiameter": 0.05,
+    "OuterDiameter": 0.054,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.002
+  },
+  "InitialConditions": {
+    "Pressure": 100000.0,
+    "GasTemperature": 298.15,
+    "SolidTemperature": 298.15,
+    "WallTemperature": 298.15,
+    "GasPhaseMolFractions": {
+      "CO2": 0.01,
+      "N2": 0.986830175513686,
+      "H2O": 0.003169824486313973
+    },
+    "Loading": "equilibrium"
+  },
+  "MixturePredictionMethod": "SPI",
+  "energyBalance": false,
+  "heatCapacitySolid": 900.0,
+  "heatTransferGasSolid": 20.0,
+  "NumberOfCycles": 2,
+  "CyclicSteadyState": {
+    "Enabled": false,
+    "MaximumCycles": 100,
+    "StateRelativeTolerance": 0.0001,
+    "StateAbsoluteTolerance": 1e-07,
+    "ConsecutiveCycles": 3
+  },
+  "BreakthroughIntegrator": "BDF",
+  "ConvectionScheme": "WENO3",
+  "Solver": {
+    "RelativeTolerance": 1e-05,
+    "AbsoluteTolerance": 1e-08,
+    "MaximumTimeStep": 5.0,
+    "JacobianMode": "structured_fd",
+    "CacheRHS": true,
+    "EventTimeTolerance": 1e-06,
+    "DispersionClosure": "concentration"
+  },
+  "WriteInterval": 0.5,
+  "Output": {
+    "Directory": "results",
+    "Profile": "compact",
+    "Plots": true,
+    "Checkpoint": true,
+    "MainFormatFiles": true,
+    "SamplesPerPhase": 300,
+    "CheckpointInterval": 300.0
+  },
+  "Columns": {
+    "A": {}
+  },
+  "Sources": {
+    "feed": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.1,
+        "N2": 0.896830175513686,
+        "H2O": 0.003169824486313973
+      }
+    },
+    "light_receiver": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.1,
+        "N2": 0.896830175513686,
+        "H2O": 0.003169824486313973
+      }
+    },
+    "heavy_receiver": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.1,
+        "N2": 0.8746414041094882,
+        "H2O": 0.025358595890511784
+      }
+    },
+    "wet_purge": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.1,
+        "N2": 0.8746414041094882,
+        "H2O": 0.025358595890511784
+      }
+    },
+    "dry_purge": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.01,
+        "N2": 0.986830175513686,
+        "H2O": 0.003169824486313973
+      }
+    },
+    "dry_receiver": {
+      "Pressure": 100000.0,
+      "Temperature": 298.15,
+      "GasPhaseMolFractions": {
+        "CO2": 0.01,
+        "N2": 0.986830175513686,
+        "H2O": 0.003169824486313973
+      }
+    }
+  },
+  "SwingAdsorptionPhases": [
+    {
+      "Name": "ADS_DRY",
+      "Duration": 600.0,
+      "Columns": {
+        "A": {
+          "Name": "ADS_DRY",
+          "LeftPort": {
+            "Mode": "velocity",
+            "Source": "feed",
+            "Velocity": 0.05
+          },
+          "RightPort": {
+            "Mode": "pressure",
+            "Source": "light_receiver"
+          },
+          "StreamTags": {
+            "LeftIn": "feed",
+            "RightOut": "light_product"
+          }
+        }
+      }
+    },
+    {
+      "Name": "WET_RELEASE",
+      "Duration": 600.0,
+      "Columns": {
+        "A": {
+          "Name": "WET_RELEASE",
+          "LeftPort": {
+            "Mode": "pressure",
+            "Source": "heavy_receiver"
+          },
+          "RightPort": {
+            "Mode": "velocity",
+            "Source": "wet_purge",
+            "Velocity": -0.05
+          },
+          "StreamTags": {
+            "RightIn": "wet_purge",
+            "LeftOut": "heavy_product"
+          }
+        }
+      }
+    },
+    {
+      "Name": "DRY",
+      "Duration": 900.0,
+      "Columns": {
+        "A": {
+          "Name": "DRY",
+          "LeftPort": {
+            "Mode": "pressure",
+            "Source": "dry_receiver"
+          },
+          "RightPort": {
+            "Mode": "velocity",
+            "Source": "dry_purge",
+            "Velocity": -0.03
+          },
+          "StreamTags": {
+            "RightIn": "drying_purge",
+            "LeftOut": "drying_exhaust"
+          }
+        }
+      }
+    }
+  ],
+  "Utilities": {
+    "AmbientPressure": 100000.0,
+    "FeedSupplyPressure": 100000.0,
+    "ChargeFeedCompression": true,
+    "ChargeRecycleCompression": false,
+    "CompressorEfficiency": 0.75,
+    "VacuumEfficiency": 0.6
+  },
+  "Notes": [
+    "Tutorial assumptions, not a fitted material or experimental validation.",
+    "All pressures are absolute. Velocity inputs are interstitial at the inlet gas pressure and temperature.",
+    "Bed length is packed length; diameter is internal. The assumed wall thickness is 2 mm.",
+    "Two complete cycles show startup; this is not a claim of cyclic steady state or grid convergence.",
+    "See examples/SIZING.md for flow, inventory, timing, mesh and equipment assumptions.",
+    "Isothermal feature tutorial, not a DAC or material-validation case. Feed contains 10 mol% CO2 to show a front within tutorial-scale simulated time; N2 is nonadsorbing.",
+    "CO2 moisture-swing Langmuir and H2O GAB parameters are illustrative. SPI is required for these RH-dependent empirical isotherms.",
+    "At 298.15 K the code gives water saturation pressure 3169.824486 Pa. Source H2O fractions are RH*psat/P: 10% RH during adsorption/drying and 80% during wet release.",
+    "Wet purge contains 10 mol% CO2, so its CO2 is external input and must be included in a capture balance. Drying purge contains 1 mol% CO2; its exhaust is recorded separately.",
+    "Every source and the initial bed contain positive water. Do not use exact zero RH with the logarithmic moisture-swing model in v0.4.1.",
+    "MSA changes humidity at 1 bar; MVSA additionally regenerates at 0.2 bar. Wet-source water fraction is recalculated at that pressure."
+  ],
+  "wallDensity": 7800.0,
+  "heatCapacityWall": 450.0,
+  "wallThermalConductivity": 0.0,
+  "heatTransferGasWall": 10.0,
+  "heatTransferWallExternal": 10.0,
+  "AmbientTemperature": 298.15,
+  "PhysisorptionEnabled": true,
+  "Performance": {
+    "FeedTag": "feed",
+    "LightProductTag": "light_product",
+    "HeavyProductTag": "heavy_product",
+    "LightComponent": "N2",
+    "HeavyComponent": "CO2"
+  },
+  "WaterComponent": "H2O",
+  "RelativeHumidityMode": "from_PH2O",
+  "WaterSaturationModel": "iapws",
+  "Provenance": {
+    "SourceInput": "examples/moisture/msa/simulation.yaml",
+    "SourceSHA256": "a2f060d0f69476250de225371af0062b4a74285c7f6c3f6aacc6c617cd41e243"
+  }
+}

@@ -55,15 +55,6 @@ struct Fitting
   };
 
   /**
-   * \brief Enum representing the residual minimized by the fit.
-   */
-  enum class FittingWeighting
-  {
-    Absolute = 0,  ///< Residual q_data - q_fit in mol/kg.
-    Relative = 1   ///< Residual (q_data - q_fit) / q_data; points with q_data <= 0 are skipped.
-  };
-
-  /**
    * \brief Constructs a Fitting object from input parameters.
    * \param inputreader InputReader containing simulation parameters.
    */
@@ -226,9 +217,14 @@ struct Fitting
   double maximumLoading{0.0};                       ///< Maximum loading observed in mol/kg.
   double externalTemperature{298.0};                ///< Temperature for the fitting in K, currently unused.
   PressureScale pressureScale{PressureScale::Log};  ///< Pressure scale type.
-  FittingWeighting fittingWeighting{FittingWeighting::Absolute};  ///< Residual minimized by the fit.
 
   std::vector<std::pair<double, double>> rawData;  ///< Raw data points (pressure in Pa, loading in mol/kg).
+
+  bool fittingFlag{false};             ///< Flag indicating if fitting is active.
+  bool physicalConstrainsFlag{false};  ///< Flag for physical constraints.
+  bool seedFlag{false};                ///< Flag for seed initialization.
+  bool pressureRangeFlag{false};       ///< Flag for pressure range usage.
+  bool refittingFlag{false};           ///< Flag for refitting.
 
   std::pair<double, double> pressureRange;     ///< Range of pressures in Pa.
   std::pair<double, double> logPressureRange;  ///< Logarithmic pressure range.

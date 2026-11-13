@@ -12,7 +12,7 @@
 void computeChemisorptionTransportDerivatives(
     const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
     size_t numberOfAdsorbents, size_t maxChemisorptionSites, std::span<const double> fractionOfAdsorbent,
-    std::span<const Geometry> geometries, std::span<const double> poreLoadingConversion,
+    std::span<const Geometry> geometries, std::span<const double> particleDensities,
     std::span<const double> concentration, std::span<const double> chemisorptionDot,
     std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
     std::span<const double> poreConcentration, std::span<double> poreConcentrationDot);
@@ -22,8 +22,9 @@ void computeChemisorptionTransportDerivatives(
  */
 void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints,
                             size_t numberOfComponents, size_t numberOfAdsorbents, size_t maxChemisorptionSites,
-                            std::span<const Geometry> geometries, std::span<const double> fractionOfAdsorbent,
-                            std::span<const double> loadingPrefactor, std::span<const double> concentration,
+                            std::span<const Geometry> geometries, std::span<const double> particleDensities,
+                            std::span<const double> fractionOfAdsorbent, std::span<const double> totalVoidFraction,
+                            std::span<const double> concentration,
                             std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot,
                             std::span<const double> surfaceConcentration, std::span<double> bulkSpeciesSink,
                             std::span<const double> reactionPhysisorptionSource = {},

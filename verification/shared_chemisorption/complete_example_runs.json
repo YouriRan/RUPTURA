@@ -1,0 +1,290 @@
+[
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/avrami/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.881,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.553391519479954e-13,
+    "energy_balance_error": 1.8630515645943941e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/avrami/cycle/simulation.json",
+    "exit_code": 0,
+    "seconds": 3.328,
+    "cycles": 2,
+    "duration_s": 6.0,
+    "mass_balance_error": 1.7178064495898918e-13,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/dualnth/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 1.005,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 5.280152820524181e-14,
+    "energy_balance_error": 1.6394853768430667e-14
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/dualnth/cycle/simulation.json",
+    "exit_code": 0,
+    "seconds": 2.25,
+    "cycles": 2,
+    "duration_s": 6.0,
+    "mass_balance_error": 9.925149592440862e-14,
+    "energy_balance_error": 1.8630616788246594e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/elovich/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.51,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 4.935272277800693e-13,
+    "energy_balance_error": 1.8630515645943941e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/firstorder/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.751,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 5.337654164350786e-13,
+    "energy_balance_error": 1.8630515645943941e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/general/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.99,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 3.992059967901853e-12,
+    "energy_balance_error": 2.421967033972712e-15
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/gas/pseudonth/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.759,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 5.337654164350786e-13,
+    "energy_balance_error": 1.8630515645943941e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/avrami/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.87,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.022142209476697e-15,
+    "energy_balance_error": 2.067919565007901e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/avrami/cycle/simulation.json",
+    "exit_code": 0,
+    "seconds": 3.264,
+    "cycles": 2,
+    "duration_s": 6.0,
+    "mass_balance_error": 2.3154711548418173e-14,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/dualnth/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 2.513,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 1.3015103120113142e-09,
+    "energy_balance_error": 1.6543356520063208e-15
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/dualnth/cycle/simulation.json",
+    "exit_code": 0,
+    "seconds": 4.1,
+    "cycles": 2,
+    "duration_s": 6.0,
+    "mass_balance_error": 9.496769185768183e-15,
+    "energy_balance_error": 2.067921355860997e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/elovich/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.724,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 9.634766177563064e-10,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/firstorder/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.625,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.0573246532000672e-09,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/general/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.926,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 4.8296381858234525e-08,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fdm/liquid/pseudonth/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.594,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.0573246532000672e-09,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/avrami/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.774,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 1.209728513395818e-13,
+    "energy_balance_error": 5.589154693783182e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/avrami/cycle/simulation.json",
+    "exit_code": 0,
+    "seconds": 3.477,
+    "cycles": 2,
+    "duration_s": 6.0,
+    "mass_balance_error": 1.3316475150501902e-14,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/dualnth/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.694,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 1.3634825236522723e-14,
+    "energy_balance_error": 1.881682080240338e-14
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/dualnth/cycle/simulation.json",
+    "exit_code": 0,
+    "seconds": 2.16,
+    "cycles": 2,
+    "duration_s": 6.0,
+    "mass_balance_error": 2.310497578428458e-14,
+    "energy_balance_error": 5.589185043147957e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/elovich/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.5,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 1.2431753029129589e-14,
+    "energy_balance_error": 1.8630515645943941e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/firstorder/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.653,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.1317119962302054e-13,
+    "energy_balance_error": 1.4904412516755153e-15
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/general/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.981,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 3.871213472310472e-12,
+    "energy_balance_error": 3.7261031291887883e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/gas/pseudonth/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.613,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.1317119962302054e-13,
+    "energy_balance_error": 1.4904412516755153e-15
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/avrami/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.855,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 8.223378318557084e-15,
+    "energy_balance_error": 2.067919565007901e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/avrami/cycle/simulation.json",
+    "exit_code": 0,
+    "seconds": 3.305,
+    "cycles": 2,
+    "duration_s": 6.0,
+    "mass_balance_error": 1.0738433358631624e-14,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/dualnth/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 2.408,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 1.3232217832987702e-09,
+    "energy_balance_error": 7.858094347030024e-15
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/dualnth/cycle/simulation.json",
+    "exit_code": 0,
+    "seconds": 3.553,
+    "cycles": 2,
+    "duration_s": 6.0,
+    "mass_balance_error": 3.125592140527055e-09,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/elovich/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.693,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 3.217825866222762e-09,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/firstorder/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.575,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.1758070880300597e-09,
+    "energy_balance_error": 0.0
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/general/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.731,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.1079380233714663e-08,
+    "energy_balance_error": 2.067919565007901e-16
+  },
+  {
+    "input": "examples/shared_chemisorption/fvm/liquid/pseudonth/breakthrough/simulation.json",
+    "exit_code": 0,
+    "seconds": 0.623,
+    "cycles": 1,
+    "duration_s": 10.0,
+    "mass_balance_error": 2.1758070880300597e-09,
+    "energy_balance_error": 0.0
+  }
+]

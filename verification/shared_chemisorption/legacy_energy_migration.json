@@ -1,0 +1,8 @@
+{
+  "matched_existing_executable": true,
+  "scenario": "gas PFO with distinct rate/equilibrium/energy reference temperatures, adsorbed heat capacity and closed adiabatic relaxation",
+  "max_bulk_and_loading_difference": 9.134899503493443e-10,
+  "max_temperature_difference_K": 7.580860028610914e-08,
+  "adsorption_energy_reference_K": 320.0,
+  "energy_balance_error": 8.238736013535857e-14
+}

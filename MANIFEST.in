@@ -1,0 +1,6 @@
+include README.md
+include src/*.cpp src/*.h
+recursive-include include *.hpp
+recursive-include third_party *.h *.c *.hpp *.txt
+recursive-include src/process *.cpp CMakeLists.txt
+recursive-include tools *.py *.sh

@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-08",
+  "removed_boundary_case": "simultaneous prescribed inlet pressure and inlet velocity",
+  "original_main_default": "FixedVelocity",
+  "fvm_default": "InletVelocityOutletPressure",
+  "fvm_fixed_velocity": [
+    "Gas",
+    "Liquid"
+  ],
+  "fvm_fixed_pressure_gradient": [
+    "Liquid"
+  ],
+  "legacy_main_fixed_pressure_gradient": [
+    "Gas",
+    "Liquid"
+  ],
+  "ergun_diameter": "ParticleSphericity * ParticleDiameter",
+  "common_energy_model": [
+    "Gas",
+    "Liquid"
+  ],
+  "general_cycle_reactions": false,
+  "hsdm": "nonreactive physisorption, fixed beds only",
+  "mpd": "deferred",
+  "new_example_count": 9,
+  "prior_reference_results": "verification/integration describes the pre-flow-revision build; migrated Marx inputs require new scientific comparisons"
+}

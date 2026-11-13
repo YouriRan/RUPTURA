@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28...4.3)
-project(ruptura LANGUAGES CXX)
+project(ruptura LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,10 +28,6 @@ option(BUILD_CLI "Build the ruptura command-line executable" ON)
 option(BUILD_DOCS "Configure the Doxygen documentation target" ${_ruptura_default_docs})
 option(RUPTURA_NATIVE_ARCH
   "Optimize for the build machine's CPU with -march=native; turn OFF for redistributable binaries"
-  ON
-)
-option(RUPTURA_TIMING_BREAKDOWN
-  "Also time the velocity/pressure, equilibrium-loading, and derivative phases of every RK3/SIRK3 stage (~3% slower)"
   OFF
 )
 
@@ -87,14 +83,13 @@ if(BUILD_SUNDIALS)
     PATH_SUFFIXES lib lib64
   )
 
-  if(NOT KLU_INCLUDE_DIR OR NOT KLU_LIBRARY)
-    message(FATAL_ERROR
-      "Could not find SuiteSparse KLU (klu.h / libklu). "
-      "Install SuiteSparse and/or set KLU_ROOT/KLU_INCLUDE_DIR/KLU_LIBRARY."
-    )
+  if(KLU_INCLUDE_DIR AND KLU_LIBRARY)
+    set(RUPTURA_HAVE_KLU ON)
+    get_filename_component(KLU_LIBRARY_DIR "${KLU_LIBRARY}" DIRECTORY)
+  else()
+    set(RUPTURA_HAVE_KLU OFF)
+    message(STATUS "SuiteSparse KLU is optional; CVODE Dense and SPGMR remain available")
   endif()
-
-  get_filename_component(KLU_LIBRARY_DIR "${KLU_LIBRARY}" DIRECTORY)
 
   if(RUPTURA_USE_SYSTEM_SUNDIALS)
     if(NOT SUNDIALS_ROOT)
@@ -118,6 +113,8 @@ if(BUILD_SUNDIALS)
     FetchContent_Declare(sundials
       GIT_REPOSITORY https://github.com/LLNL/sundials.git
       GIT_TAG v7.5.0
+      GIT_SHALLOW TRUE
+      GIT_SUBMODULES ""
     )
 
     set(BUILD_CVODE ON CACHE BOOL "" FORCE)
@@ -136,7 +133,7 @@ if(BUILD_SUNDIALS)
       set(BUILD_STATIC_LIBS ON CACHE BOOL "" FORCE)
     endif()
 
-    set(ENABLE_KLU ON CACHE BOOL "" FORCE)
+    set(ENABLE_KLU ${RUPTURA_HAVE_KLU} CACHE BOOL "" FORCE)
     set(KLU_INCLUDE_DIR "${KLU_INCLUDE_DIR}" CACHE PATH "" FORCE)
     set(KLU_LIBRARY_DIR "${KLU_LIBRARY_DIR}" CACHE PATH "" FORCE)
 
@@ -227,6 +224,8 @@ if(BUILD_PYTHON)
   endif()
 endif()
 
+option(BUILD_PROCESS "Build shared FDM/FVM breakthrough and cycle models" ON)
+
 set(RUPTURA_SOURCES
   src/breakthrough.cpp
   src/chemisorption.cpp
@@ -245,11 +244,8 @@ set(RUPTURA_SOURCES
   src/reaction.cpp
   src/special_functions.cpp
   src/swing_adsorption.cpp
-  src/temperature_law.cpp
   src/integrators/rk3.cpp
-  src/integrators/ros34pw2.cpp
-  src/integrators/block_banded.cpp
-  src/integrators/jacobian.cpp
+  src/integrators/rk3_si.cpp
   src/integrators/cvode.cpp
   src/integrators/compute.cpp
   src/integrators/sorption.cpp
@@ -268,20 +264,28 @@ set(RUPTURA_COMPILE_OPTIONS
 set(RUPTURA_INCLUDE_DIRS
   src
   src/integrators
-  $<$<BOOL:${BUILD_SUNDIALS}>:${KLU_INCLUDE_DIR}>
+  $<$<BOOL:${RUPTURA_HAVE_KLU}>:${KLU_INCLUDE_DIR}>
 )
 
 set(RUPTURA_LINK_LIBRARIES
   ${LAPACK_LIBRARIES}
   $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::cvode>
   $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::nvecserial>
-  $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::sunlinsolklu>
-  $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::sunmatrixsparse>
+  $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::sunlinsoldense>
+  $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::sunmatrixdense>
+  $<$<BOOL:${BUILD_SUNDIALS}>:SUNDIALS::sunlinsolspgmr>
+  
 )
 
 add_library(rupturalib STATIC
   ${RUPTURA_SOURCES}
 )
+if(BUILD_PROCESS)
+  target_compile_definitions(rupturalib PUBLIC RUPTURA_BUILD_PROCESS=1)
+else()
+  target_compile_definitions(rupturalib PUBLIC RUPTURA_BUILD_PROCESS=0)
+endif()
+
 
 set_target_properties(rupturalib PROPERTIES
   POSITION_INDEPENDENT_CODE ON
@@ -293,7 +297,6 @@ target_compile_options(rupturalib PRIVATE
 
 target_compile_definitions(rupturalib PUBLIC
   BUILD_SUNDIALS=$<BOOL:${BUILD_SUNDIALS}>
-  RUPTURA_TIMING_BREAKDOWN=$<BOOL:${RUPTURA_TIMING_BREAKDOWN}>
 )
 
 target_include_directories(rupturalib PUBLIC
@@ -304,6 +307,11 @@ target_link_libraries(rupturalib PUBLIC
   ${RUPTURA_LINK_LIBRARIES}
 )
 
+if(BUILD_PROCESS)
+  add_subdirectory(src/process)
+  target_link_libraries(ruptura_process PUBLIC rupturalib)
+endif()
+
 if(BUILD_CLI)
   add_executable(${PROJECT_NAME}
     src/main.cpp
@@ -313,9 +321,16 @@ if(BUILD_CLI)
     ${RUPTURA_COMPILE_OPTIONS}
   )
 
+  target_compile_definitions(${PROJECT_NAME} PRIVATE
+    RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}"
+  )
+
   target_link_libraries(${PROJECT_NAME} PRIVATE
     rupturalib
   )
+  if(BUILD_PROCESS)
+    target_link_libraries(${PROJECT_NAME} PRIVATE ruptura_process)
+  endif()
 
   if(BUILD_MAC_PACKAGE)
     install(CODE "execute_process(COMMAND
@@ -350,3 +365,5 @@ endif()
 if(BUILD_DOCS)
   add_subdirectory(docs)
 endif()
+
+install(PROGRAMS tools/plot_cycle_results.py tools/plot_legacy_results.py DESTINATION share/ruptura/tools)

@@ -5,62 +5,105 @@
 #include <cmath>
 #include <format>
 #include <string>
+#include <stdexcept>
 
 #include "utils.h"
 
-double Chemisorption::rate(double equilibriumLoading, double loading, double concentration, double temperature) const
+namespace {
+double signed_power(double force, double order, double regularizer)
 {
-  if (type == Type::None) return 0.0;
+  const double magnitude = std::abs(force);
+  const double value = order < 1.0
+      ? std::pow(regularizer, order) * std::expm1(order * std::log1p(magnitude / regularizer))
+      : std::pow(magnitude, order);
+  return ((force > 0.0) - (force < 0.0)) * value;
+}
+}
 
+Chemisorption::Rates Chemisorption::evaluate(double equilibriumLoading, std::span<const double> loadings,
+    double concentration, double temperature, double elapsedTime, double adsorptionAge, double desorptionAge) const
+{
+  if (loadings.size() != branchCount() || !(temperature > 0.0) || !std::isfinite(temperature))
+    throw std::invalid_argument("Chemisorption kinetic state or temperature is invalid");
+  Rates result;
+  if (type == Type::None) return result;
   const double qeq = maximumLoading > 0.0 ? std::min(equilibriumLoading, maximumLoading) : equilibriumLoading;
-  const double driving = qeq - loading;
-
-  switch (type)
+  const double q = loadings[0];
+  if (type == Type::General)
   {
-    case Type::None:
-      return 0.0;
-    case Type::FirstOrder:
-      if (driving < 0.0 && desorptionMassTransferCoefficient > 0.0)
-      {
-        const double coverage = std::max(0.0, loading) / coverageReferenceLoading;
-        const double exponent = desorptionCoverageEnergy * coverage / (R * std::max(temperature, 1.0e-10));
-        return desorptionMassTransferCoefficient * std::exp(std::min(exponent, 700.0)) * driving;
-      }
-      return rateCoefficient(temperature) * driving;
-    case Type::PseudoNth:
-      // Sign-preserving k |Δq|^n sign(Δq): desorbs for q > q*, and stays finite at Δq = 0 for n < 1.
-      return rateCoefficient(temperature) * std::copysign(std::pow(std::abs(driving), order), driving);
-    case Type::Avrami:
-    {
-      // Autonomous (Avrami-Erofeev) form of q/q* = 1 - exp(-(k t)^n), without a clock (B-PHY-12): the loading sets
-      // the equivalent Avrami time s = k t, s^n = -ln(1 - q/q*) = ln(q*/(q* - q)), and dq/dt = n k s^(n-1) (q* - q).
-      // At q = 0 the law has a zero (n > 1) or an infinite (n < 1) rate; the floor on s starts the uptake and moves
-      // the curve in time by (1/n - 1) s_min / k. Release (q > q*) is linear driving force.
-      const double k = rateCoefficient(temperature);
-      if (driving <= 0.0) return k * driving;
-      constexpr double minimumAvramiTime = 1.0e-3;
-      const double logarithm = qeq > 0.0 ? std::log(qeq / std::min(driving, qeq)) : 0.0;
-      return order * k * std::pow(std::max(logarithm, std::pow(minimumAvramiTime, order)), (order - 1.0) / order) *
-             driving;
-    }
-    case Type::General:
-    {
-      const double c = std::max(0.0, concentration);
-      const double q = std::max(0.0, loading);
-      const double freeCapacity = std::max(0.0, qeq - q);
-      const double ka = adsorptionRateCoefficient(temperature);
-      const double kd = desorptionRateCoefficient(temperature);
-      const double adsorption =
-          ka * std::pow(c, poreConcentrationOrder) * std::pow(freeCapacity, capacityOrder);
-      const double desorption = kd * std::pow(q, desorptionOrder);
-      return adsorption - desorption;
-    }
-    case Type::Elovich:
-      return elovichAlpha(temperature) * std::max(0.0, concentration) *
-             std::exp(-elovichBeta * std::max(0.0, loading));
+    const double c = std::max(0.0, concentration), freeCapacity = std::max(0.0, qeq - std::max(q, 0.0));
+    result.loading[0] = arrhenius(adsorptionRateCoefficient, adsorptionActivationEnergy, temperature) *
+        std::pow(c, poreConcentrationOrder) * std::pow(freeCapacity, capacityOrder) -
+        arrhenius(desorptionRateCoefficient, desorptionActivationEnergy, temperature) *
+        std::pow(std::max(q, 0.0), desorptionOrder);
   }
+  else if (type == Type::Elovich)
+    result.loading[0] = elovichAlpha * std::max(0.0, concentration) * std::exp(-elovichBeta * std::max(0.0, q));
+  else
+  {
+    for (std::size_t b = 0; b < branchCount(); ++b)
+    {
+      const double fraction = branchFraction(b), drive = fraction * qeq - loadings[b];
+      if (fraction == 0.0) { result.loading[b] = 0.0; continue; }
+      const bool adsorption = drive > 0.0, desorption = drive < 0.0;
+      const double factor = (1.0 / referenceTemperature - 1.0 / temperature) / R;
+      double ka = directionalRates ? adsorptionRateCoefficient * std::exp(adsorptionActivationEnergy * factor) : rateCoefficient;
+      double kd = directionalRates ? desorptionRateCoefficient * std::exp(desorptionActivationEnergy * factor) : rateCoefficient;
+      double na = type == Type::PseudoNth || type == Type::Avrami ? order : 1.0;
+      double nd = directionalRates ? desorptionOrderValue : na;
+      if (type == Type::DualNth)
+      {
+        const auto& branch = branches[b];
+        ka = branch.adsorptionRate * std::exp(branch.adsorptionActivationEnergy * factor);
+        kd = branch.desorptionRate * std::exp(branch.desorptionActivationEnergy * factor);
+        na = branch.adsorptionOrder; nd = branch.desorptionOrder;
+      }
+      const double k = adsorption ? ka : kd, n = adsorption ? na : nd;
+      if (type == Type::FirstOrder && desorption && desorptionMassTransferCoefficient > 0.0)
+      {
+        const double exponent = desorptionCoverageEnergy * std::max(0.0, q) / coverageReferenceLoading / (R * temperature);
+        result.loading[b] = desorptionMassTransferCoefficient * std::exp(std::min(exponent, 700.0)) * drive;
+      }
+      else if (type == Type::Avrami && continuousHistory)
+      {
+        const double age = std::max(adsorption ? adsorptionAge : desorptionAge, 0.0);
+        result.loading[b] = n * k * std::pow(age + ageRegularizer, n - 1.0) * drive;
+        const double eraseAds = adsorptionMemoryErasure >= 0.0 ? adsorptionMemoryErasure : kd;
+        const double eraseDes = desorptionMemoryErasure >= 0.0 ? desorptionMemoryErasure : ka;
+        double activity = 1.0;
+        if (historyDrivingRegularizer > 0.0) {
+          const double ratio = std::abs(drive) / std::hypot(drive, historyDrivingRegularizer);
+          activity = ratio * ratio;
+        }
+        result.adsorptionAge = activity * (adsorption ? ka : (desorption ? -eraseAds * adsorptionAge : 0.0));
+        result.desorptionAge = activity * (desorption ? kd : (adsorption ? -eraseDes * desorptionAge : 0.0));
+      }
+      else if (type == Type::Avrami)
+      {
+        result.loading[b] = elapsedTime <= 0.0 ? (n == 1.0 ? k * drive : 0.0)
+            : n * std::pow(k, n) * std::pow(elapsedTime, n - 1.0) * drive;
+        result.adsorptionAge = 1.0;
+      }
+      else
+      {
+        const double ref = fractionalRates ? fraction * referenceLoading : 1.0;
+        result.loading[b] = ref * k * signed_power(drive / ref, n, drivingRegularizer);
+      }
+    }
+  }
+  for (double value : result.loading)
+    if (!std::isfinite(value)) throw std::runtime_error("Chemisorption rate overflow; check parameters and units");
+  if (!std::isfinite(result.adsorptionAge) || !std::isfinite(result.desorptionAge))
+    throw std::runtime_error("Chemisorption history rate overflow");
+  return result;
+}
 
-  return 0.0;
+double Chemisorption::rate(double equilibriumLoading, double loading, double concentration, double temperature,
+                          double elapsedTime) const
+{
+  if (type == Type::DualNth || continuousHistory)
+    throw std::invalid_argument("Stateful chemisorption requires the shared FDM/FVM column");
+  return evaluate(equilibriumLoading, std::span<const double>(&loading, 1), concentration, temperature, elapsedTime).loading[0];
 }
 
 std::string Chemisorption::repr() const
@@ -86,16 +129,19 @@ std::string Chemisorption::repr() const
     case Type::Elovich:
       typeName = "Elovich";
       break;
+    case Type::DualNth:
+      typeName = "DualNth";
+      break;
   }
 
   std::string text = std::format(
       "    chemisorption:\n"
       "        type:                  {}\n"
-      "        rate coefficient:      {:8.4e} [1/s]  {}\n"
+      "        rate coefficient:      {:8.4e} [1/s]\n"
       "        order:                 {} [-]\n"
       "        maximum loading:       {:8.4e} [mol/kg]\n"
       "        heat of chemisorption: {:8.4e} [J/mol]\n",
-      typeName, rateCoefficient.value, rateCoefficient.repr(), order, maximumLoading, heatOfChemisorption);
+      typeName, rateCoefficient, order, maximumLoading, heatOfChemisorption);
   if (type == Type::FirstOrder && desorptionMassTransferCoefficient > 0.0)
   {
     text += std::format(
@@ -107,26 +153,28 @@ std::string Chemisorption::repr() const
   if (type == Type::General)
   {
     text += std::format(
-        "        adsorption k:          {:8.4e}  {}\n"
-        "        desorption k:          {:8.4e}  {}\n"
+        "        adsorption k0:         {:8.4e}\n"
+        "        adsorption Ea:         {:8.4e} [J/mol]\n"
+        "        desorption k0:         {:8.4e}\n"
+        "        desorption Ea:         {:8.4e} [J/mol]\n"
         "        pore conc. order:      {} [-]\n"
         "        capacity order:        {} [-]\n"
         "        desorption order:      {} [-]\n"
         "        film coefficient:      {:8.4e} [m/s]\n"
         "        pore diffusivity:      {:8.4e} [m^2/s]\n",
-        adsorptionRateCoefficient.value, adsorptionRateCoefficient.repr(), desorptionRateCoefficient.value,
-        desorptionRateCoefficient.repr(), poreConcentrationOrder, capacityOrder, desorptionOrder, filmMassTransferCoefficient, poreDiffusivity);
+        adsorptionRateCoefficient, adsorptionActivationEnergy, desorptionRateCoefficient, desorptionActivationEnergy,
+        poreConcentrationOrder, capacityOrder, desorptionOrder, filmMassTransferCoefficient, poreDiffusivity);
     text += std::format("        pore/surface transport: {}\n", usePoreSurfaceTransport ? "enabled" : "disabled");
   }
   else if (type == Type::Elovich)
   {
     text += std::format(
-        "        alpha:                 {:8.4e}  {}\n"
+        "        alpha:                 {:8.4e}\n"
         "        beta:                  {:8.4e} [kg/mol]\n"
         "        film coefficient:      {:8.4e} [m/s]\n"
         "        pore diffusivity:      {:8.4e} [m^2/s]\n"
         "        pore/surface transport: {}\n",
-        elovichAlpha.value, elovichAlpha.repr(), elovichBeta, filmMassTransferCoefficient, poreDiffusivity,
+        elovichAlpha, elovichBeta, filmMassTransferCoefficient, poreDiffusivity,
         usePoreSurfaceTransport ? "enabled" : "disabled");
   }
   if (isotherm.has_value())

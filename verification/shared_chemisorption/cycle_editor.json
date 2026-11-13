@@ -1,0 +1,16 @@
+{
+  "status": "passed",
+  "scope": "DOM component behavior; full browser rendering not covered",
+  "checks": [
+    "mount preserves the canonical simulation",
+    "column overrides and reservoir edits",
+    "valve schedule and pressure-equalization highlight",
+    "valve identity is preserved across phases when renamed",
+    "gas buffer and controller editing",
+    "connection and compressor editing",
+    "column and phase lifecycle",
+    "CSS controls, JSON round-trip and exact cluster request",
+    "liquid buffers use concentration and volume controls",
+    "compound stop conditions are preserved"
+  ]
+}

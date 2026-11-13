@@ -59,7 +59,7 @@ class BlockIndex:
                     self.shape = shape
                 if shape != self.shape or any(len(line.split()) != columns for line in lines):
                     continue
-                entry = (self.total, offset, len(block), float(lines[0].split()[1]))  # time of the frame
+                entry = (self.total, offset, len(block))
                 last = entry
                 if self.total % stride == 0:
                     self.frames.append(entry)
@@ -77,7 +77,7 @@ class BlockIndex:
             frame += len(self.frames)
         if frame < 0 or frame >= len(self.frames):
             raise ValueError("The selected frame is outside the available results.")
-        _, offset, length, _ = self.frames[frame]
+        _, offset, length = self.frames[frame]
         with self.path.open("rb") as handle:
             handle.seek(offset)
             return np.loadtxt(io.BytesIO(handle.read(length)), comments="#", ndmin=2)
@@ -100,6 +100,7 @@ def index(path):
 
 def metrics(config):
     result = {**COLUMN_METRICS, **COMPONENT_METRICS}
+    result.pop("Dcdt", None)
     if config.get("FluidPhase", "Gas") == "Liquid":
         for key in ("V", "Tg", "dTgdt", "rho"):
             spec = result[key]
@@ -114,7 +115,10 @@ def metrics(config):
 
 def metadata(directory):
     directory = Path(directory)
-    config = json.loads((directory / "simulation.json").read_text(encoding="utf-8"))
+    config = json.loads((directory / "simulation.json").read_text())
+    if config.get("SpatialDiscretization") == "FVM" or config.get("Columns"):
+        from .process_plots import metadata as process_metadata
+        return process_metadata(directory, config)
     components = [{"index": i, "name": component["Name"], "carrier": bool(component.get("CarrierGas")),
                    "adsorbing": bool(component.get("PhysisorptionSites") or component.get("ChemisorptionSites"))}
                   for i, component in enumerate(config["Components"])]
@@ -133,7 +137,7 @@ def metadata(directory):
             "metrics": [{"id": key, "label": spec.ylabel, "source": spec.source} for key, spec in metrics(config).items()
                         if spec.source != "column" or spec.col_0based < first.shape[1]],
             "frames": len(data.frames), "totalFrames": data.total, "sampled": len(data.frames) < data.total,
-            "times": [time for *_, time in data.frames], "positions": first[:, 2].tolist(),
+            "times": [float(data.read(i)[0, 1]) for i in range(len(data.frames))], "positions": first[:, 2].tolist(),
             "liquid": config.get("FluidPhase", "Gas") == "Liquid"}
 
 
@@ -150,7 +154,10 @@ def _phase_lines(figure, config, units):
 def figure(directory, options=None):
     directory = Path(directory)
     options = options or {}
-    config = json.loads((directory / "simulation.json").read_text(encoding="utf-8"))
+    config = json.loads((directory / "simulation.json").read_text())
+    if config.get("SpatialDiscretization") == "FVM" or config.get("Columns"):
+        from .process_plots import figure as process_figure
+        return _style(process_figure(directory, config, options),options)
     mode = options.get("plot", "loading" if config.get("SimulationType") == "MixturePrediction" else "breakthrough")
     if mode == "profile":
         axis = options.get("xAxis", "position")
@@ -229,6 +236,9 @@ def figure(directory, options=None):
             raise ValueError("Unknown plot.")
         if mode in ("breakthrough", "temperature", "history"):
             _phase_lines(result, config, units)
+    return _style(result,options)
+
+def _style(result,options):
     light = options.get("theme") == "light"
     ink, muted, panel, inset, grid = ("#182e3b", "#4d6575", "#ffffff", "#f4f7f9", "#dce5eb") if light else ("#e6edf3", "#a8b9c7", "#171f29", "#111a23", "#273743")
     result.update_layout(template="plotly_white" if light else "plotly_dark", autosize=True, width=None, height=None,

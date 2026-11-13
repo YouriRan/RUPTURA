@@ -1,0 +1,186 @@
+{
+  "date": "2026-11-11",
+  "artifact": "shared FDM/FVM column implementation checkpoint",
+  "build": {
+    "result": "passed",
+    "configuration": "Release, portable Zig/Clang C++23, SUNDIALS 7.5.0, static dependency libraries, CLI, Python extension and browser launcher",
+    "native_cpu_optimization": false,
+    "klu_required": false
+  },
+  "native": {
+    "total": 145,
+    "passed": 117,
+    "failed": 28,
+    "shared_process_groups": 15,
+    "shared_process_groups_passed": 15,
+    "failures": [
+      {
+        "test": "ExampleInputReader.LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix",
+        "reason": "C++ exception with description \"filesystem error: in directory_iterator::directory_iterator(...): No such file or directory [\"/workspace/scratch/77520847c106/work/RUPTURA-main/examples/MPD/BEA-alkanes/breakthrough\"]\" thrown in the test body."
+      },
+      {
+        "test": "GeometryInput.LoadsChemisorptionCo2N2MonolithExample",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Chemisorption-CO2-N2/monolith/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "ChemisorptionInput.LoadsUpdatedSurfacePoreExample",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Chemisorption-CO2/breakthrough/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "ChemisorptionInput.ParsesFirstOrderDesorptionBranchAndRequiresReferenceLoading",
+        "reason": "C++ exception with description \"[json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON\" thrown in the test body."
+      },
+      {
+        "test": "ChemisorptionTransport.FilmPoreAndChemisorptionExchangeConservesMass",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Chemisorption-CO2/breakthrough/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "ChemisorptionEquilibrium.ComputesCompetitiveSiteLoadingsSeparatelyFromPhysisorption",
+        "reason": "C++ exception with description \"[json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON\" thrown in the test body."
+      },
+      {
+        "test": "LiquidPhaseInput.TransportedPHUsesZeroBasedComponentIdentifier",
+        "reason": "C++ exception with description \"[json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON\" thrown in the test body."
+      },
+      {
+        "test": "LiquidPhaseInput.TransportedPHRejectsInvalidComponentIdentifiers",
+        "reason": "C++ exception with description \"[json.exception.parse_error.101] parse error at line 1, column 1: attempting to parse an empty input; check that your input string or stream contains the expected JSON\" thrown in the test body."
+      },
+      {
+        "test": "GasBreakthroughRegression.ExistingMultibedRk3PathRetainsItsOutcome",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "LiquidPhase.FixedPHColumnUsesConcentrationsAndExpectedIsotherm",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Liquid/pH-dependent/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "LiquidPhase.TransportedPHAndSuperficialFluxWorkInColumn",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Liquid/multibed-pH-front/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MixturePrediction.BeaMultinomialMPDMatchesCompetitiveMultisiteLangmuir",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/MPD/BEA-alkanes/mpd/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedExamples.ParseAndAdvanceWithAdsorbentSpecificParameters",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/C6-alkanes-layered/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedExamples.LayerFractionsFollowConfiguredSectionsAndInterfaces",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/C6-alkanes-layered/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedUniformMix.AppliesConfiguredFractionsOverTheWholeColumn",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-AB-mixture/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedUniformMix.RejectsIncompleteOrUnnormalizedFractions",
+        "reason": "Required historical input fixture is absent."
+      },
+      {
+        "test": "MultibedCvode.BreakthroughParsesInitializesAndPropagates",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedCvode.PropagatesPoreReactionState",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "Column.StateLayoutMatchesColumnConventionAndRebindsCopies",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedReactions.PhysisorbedSourcesDoNotTransferMassToTheBulk",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedReactions.ParsesReactionTogetherWithAdsorbents",
+        "reason": "Required historical input fixture is absent."
+      },
+      {
+        "test": "MultibedReactions.ChemisorbedSourcesUseTheSharedSiteState",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedReactions.PoreSourcesAreIntegratedWithoutDirectBulkTransfer",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedReactions.BulkReactionRestrictedToAnAdsorbentActsOnlyWhereItIs",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedCompute.BulkSpeciesSinkUsesBedWeightedSolidLoading",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/C6-alkanes-layered/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedSwingAdsorption.AdvancesConcreteColumnAcrossStages",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedSwingAdsorption.AdvancesWithCvode",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/CO2-N2-polishing/simulation.json' does not exist\" thrown in the test body."
+      },
+      {
+        "test": "MultibedOutput.UsesSingleBedComponentColumnSchema",
+        "reason": "C++ exception with description \"Required input file '/workspace/scratch/77520847c106/work/RUPTURA-main/examples/Multibed/C6-alkanes-layered/simulation.json' does not exist\" thrown in the test body."
+      }
+    ],
+    "missing_required_paths": [
+      "examples/Chemisorption-CO2-N2/monolith/simulation.json",
+      "examples/Chemisorption-CO2/breakthrough/simulation.json",
+      "examples/Liquid/multibed-pH-front/simulation.json",
+      "examples/Liquid/pH-dependent/simulation.json",
+      "examples/MPD/BEA-alkanes/breakthrough/",
+      "examples/MPD/BEA-alkanes/mpd/simulation.json",
+      "examples/Multibed/C6-alkanes-layered/simulation.json",
+      "examples/Multibed/CO2-N2-AB-mixture/simulation.json",
+      "examples/Multibed/CO2-N2-polishing/simulation.json"
+    ]
+  },
+  "python": {
+    "total": 226,
+    "passed": 226,
+    "failed": 0,
+    "skipped": 0,
+    "new_shared_column_tests": 88
+  },
+  "input_validation": {
+    "total": 266,
+    "passed": 266,
+    "integrated": 236,
+    "matched_fdm_fvm_examples": 30
+  },
+  "physical_checks": {
+    "shared_rhs_combinations": 32,
+    "film_no_film_hsdm_derivative_combinations": 16,
+    "breakthrough_vs_one_phase_cycle_numerical_selections": 40,
+    "short_simulations_in_new_cli_python_tests": 130,
+    "scope": "short, finite-time and derivative verification; not complete campaigns or literature validation"
+  },
+  "gui": {
+    "status": "passed",
+    "scope": "DOM component behavior; full browser rendering not covered",
+    "checks": [
+      "mount preserves the canonical simulation",
+      "column overrides and reservoir edits",
+      "valve schedule and pressure-equalization highlight",
+      "valve identity is preserved across phases when renamed",
+      "gas buffer and controller editing",
+      "connection and compressor editing",
+      "column and phase lifecycle",
+      "CSS controls, JSON round-trip and exact cluster request",
+      "liquid buffers use concentration and volume controls",
+      "compound stop conditions are preserved"
+    ]
+  },
+  "remaining": [
+    "MPD is on the original compatibility path only; parity with every legacy breakthrough feature is incomplete",
+    "Full browser rendering/accessibility/pointer regression was not completed in this environment",
+    "28 inherited native tests require historical fixtures absent from the supplied archive",
+    "HSDM monoliths and coupled particle reaction transport are not implemented",
+    "Complete MFI CSS campaigns, mesh-convergence studies and Haghpanah literature validation were not rerun"
+  ],
+  "source_checkpoint_sha256": "088d662f44fbfc28b6b2cfd3c8d00f46677ab44462dd34217991915dcba6100b"
+}

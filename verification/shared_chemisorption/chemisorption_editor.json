@@ -1,0 +1,14 @@
+{
+  "status": "passed",
+  "scope": "DOM component checks; full browser layout not covered",
+  "checks": [
+    "DualNth initialization selects the shared column",
+    "Two branch forms edit the canonical JSON",
+    "Branch fractions and independent desorption orders",
+    "Rendering preserves branch state",
+    "Liquid affinity units",
+    "Avrami history and erasure controls",
+    "Explicit history-switching scale",
+    "General kinetics retain their own controls"
+  ]
+}

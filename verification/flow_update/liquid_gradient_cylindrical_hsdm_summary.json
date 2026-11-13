@@ -1,0 +1,979 @@
+{
+  "column_names": [
+    "A"
+  ],
+  "completed": true,
+  "converged": false,
+  "convergence_report": {
+    "cycles_evaluated": 1,
+    "detected_period_cycles": null,
+    "error_direction_changes": 0,
+    "error_statistics": {
+      "css_inventory_error": {
+        "count": 1,
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "css_source_composition_change": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "css_state_error": {
+        "count": 1,
+        "max": 9991.517748359964,
+        "mean": 9991.517748359964,
+        "median": 9991.517748359964,
+        "min": 9991.517748359964,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      }
+    },
+    "history_sufficient": false,
+    "kpi_statistics": {
+      "ambient_heat_loss_J_cycle": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "cooling_duty_J_cycle": {
+        "count": 1,
+        "max": 0.010367112127710671,
+        "mean": 0.010367112127710671,
+        "median": 0.010367112127710671,
+        "min": 0.010367112127710671,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "cycle_duration_s": {
+        "count": 1,
+        "max": 2.0,
+        "mean": 2.0,
+        "median": 2.0,
+        "min": 2.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "electric_heater_work_J_cycle": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "energy_balance_error": {
+        "count": 1,
+        "max": 2.0679195650079012e-16,
+        "mean": 2.0679195650079012e-16,
+        "median": 2.0679195650079012e-16,
+        "min": 2.0679195650079012e-16,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "energy_balance_residual_J": {
+        "count": 1,
+        "max": -1.8189894035458565e-12,
+        "mean": -1.8189894035458565e-12,
+        "median": -1.8189894035458565e-12,
+        "min": -1.8189894035458565e-12,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "energy_balance_throughput_error": {
+        "count": 1,
+        "max": 6.777993159974927e-16,
+        "mean": 6.777993159974927e-16,
+        "median": 6.777993159974927e-16,
+        "min": 6.777993159974927e-16,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "external_enthalpy_in_J": {
+        "count": 1,
+        "max": 1341.8296048642487,
+        "mean": 1341.8296048642487,
+        "median": 1341.8296048642487,
+        "min": 1341.8296048642487,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "external_enthalpy_out_J": {
+        "count": 1,
+        "max": 1341.8296048642487,
+        "mean": 1341.8296048642487,
+        "median": 1341.8296048642487,
+        "min": 1341.8296048642487,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "external_liquid_in_m3": {
+        "count": 1,
+        "max": 1.076679078290808e-06,
+        "mean": 1.076679078290808e-06,
+        "median": 1.076679078290808e-06,
+        "min": 1.076679078290808e-06,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "external_liquid_out_m3": {
+        "count": 1,
+        "max": 1.076679078290808e-06,
+        "mean": 1.076679078290808e-06,
+        "median": 1.076679078290808e-06,
+        "min": 1.076679078290808e-06,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "feed_mol": {
+        "count": 1,
+        "max": 5.383395391454035e-07,
+        "mean": 5.383395391454035e-07,
+        "median": 5.383395391454035e-07,
+        "min": 5.383395391454035e-07,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "fresh_feed_volume_m3": {
+        "count": 1,
+        "max": 1.076679078290808e-06,
+        "mean": 1.076679078290808e-06,
+        "median": 1.076679078290808e-06,
+        "min": 1.076679078290808e-06,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "gross_light_component_recovery": {
+        "count": 1,
+        "max": 3.8509583032535725e-15,
+        "mean": 3.8509583032535725e-15,
+        "median": 3.8509583032535725e-15,
+        "min": 3.8509583032535725e-15,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "gross_light_product_mol": {
+        "count": 1,
+        "max": 2.073123118241693e-21,
+        "mean": 2.073123118241693e-21,
+        "median": 2.073123118241693e-21,
+        "min": 2.073123118241693e-21,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "gross_light_product_purity": {
+        "count": 1,
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "heavy_product_deficit_mol": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "heavy_product_mol": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "light_component_recovery": {
+        "count": 1,
+        "max": 3.8509583032535725e-15,
+        "mean": 3.8509583032535725e-15,
+        "median": 3.8509583032535725e-15,
+        "min": 3.8509583032535725e-15,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "light_product_mol": {
+        "count": 1,
+        "max": 2.073123118241693e-21,
+        "mean": 2.073123118241693e-21,
+        "median": 2.073123118241693e-21,
+        "min": 2.073123118241693e-21,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "light_product_purity": {
+        "count": 1,
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "light_product_volume_m3": {
+        "count": 1,
+        "max": 1.076679078290808e-06,
+        "mean": 1.076679078290808e-06,
+        "median": 1.076679078290808e-06,
+        "min": 1.076679078290808e-06,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "mass_balance_error": {
+        "count": 1,
+        "max": 1.3607338928863591e-09,
+        "mean": 1.3607338928863591e-09,
+        "median": 1.3607338928863591e-09,
+        "min": 1.3607338928863591e-09,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "mass_balance_throughput_error": {
+        "count": 1,
+        "max": 1.3607338928863591e-09,
+        "mean": 1.3607338928863591e-09,
+        "median": 1.3607338928863591e-09,
+        "min": 1.3607338928863591e-09,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "number_of_columns": {
+        "count": 1,
+        "max": 1.0,
+        "mean": 1.0,
+        "median": 1.0,
+        "min": 1.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "product_buffer_consumption_mol": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "product_buffer_deficit_mol": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "productivity_mol_kg_s": {
+        "count": 1,
+        "max": 2.199651946041662e-19,
+        "mean": 2.199651946041662e-19,
+        "median": 2.199651946041662e-19,
+        "min": 2.199651946041662e-19,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "pump_work_J_cycle": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "purge_and_feed_gas_cooling_J_cycle": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "purge_and_feed_gas_heating_J_cycle": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "purge_consumption_mol": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "repressurization_consumption_mol": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "stored_energy_end_J": {
+        "count": 1,
+        "max": 8796.218627118153,
+        "mean": 8796.218627118153,
+        "median": 8796.218627118153,
+        "min": 8796.218627118153,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "stored_energy_start_J": {
+        "count": 1,
+        "max": 8796.228994230278,
+        "mean": 8796.228994230278,
+        "median": 8796.228994230278,
+        "min": 8796.228994230278,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "thermal_heat_input_J_cycle": {
+        "count": 1,
+        "max": 0.0,
+        "mean": 0.0,
+        "median": 0.0,
+        "min": 0.0,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "thermal_net_heat_J_cycle": {
+        "count": 1,
+        "max": -0.010367112127710671,
+        "mean": -0.010367112127710671,
+        "median": -0.010367112127710671,
+        "min": -0.010367112127710671,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "total_adsorbent_mass_kg": {
+        "count": 1,
+        "max": 0.004712388980384689,
+        "mean": 0.004712388980384689,
+        "median": 0.004712388980384689,
+        "min": 0.004712388980384689,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      },
+      "total_bed_volume_m3": {
+        "count": 1,
+        "max": 7.853981633974484e-06,
+        "mean": 7.853981633974484e-06,
+        "median": 7.853981633974484e-06,
+        "min": 7.853981633974484e-06,
+        "missing_cycles": 0,
+        "peak_to_peak": 0.0,
+        "std": 0.0
+      }
+    },
+    "minimum_diagnostic_cycles": 6,
+    "oscillation_detected": false,
+    "period_diagnostics": {
+      "2": {
+        "final_passing_streak": 0,
+        "state_error": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "median": null,
+          "min": null,
+          "std": null
+        }
+      },
+      "3": {
+        "final_passing_streak": 0,
+        "state_error": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "median": null,
+          "min": null,
+          "std": null
+        }
+      },
+      "4": {
+        "final_passing_streak": 0,
+        "state_error": {
+          "count": 0,
+          "max": null,
+          "mean": null,
+          "median": null,
+          "min": null,
+          "std": null
+        }
+      }
+    },
+    "physical_periodicity_verified": false,
+    "plot_cycles": [
+      1
+    ],
+    "primary_ranking_eligible": false,
+    "representative_cycle": 1,
+    "requested_window_cycles": 20,
+    "selection_reason": "minimum-residual cycle in final window (not CSS)",
+    "state_error_definition": "max(abs(end-start)/(state_atol + state_rtol*max(abs(start),abs(end))))",
+    "state_error_pass_threshold": 1.0,
+    "statistics_note": "Final-window descriptive spread, not statistical confidence intervals or numerical error bounds.",
+    "status": "insufficient_history",
+    "strict_css": false,
+    "warning": "Strict CSS was not reached. Selected plots and tail-window metrics are diagnostic; numerical refinement is needed before physical or ranking claims.",
+    "window_complete": false,
+    "window_end_cycle": 1,
+    "window_mass_balance_checks_passed": true,
+    "window_start_cycle": 1
+  },
+  "convergence_status": "insufficient_history",
+  "css": {
+    "css_column_errors": {
+      "A": 9991.517748359964
+    },
+    "css_field_errors": {
+      "A": {
+        "gas_concentration": 9991.517748359964,
+        "gas_temperature": 0.0,
+        "kinetic_history": 9988.336698431034,
+        "loadings": 9951.541085471186,
+        "solid_temperature": 0.0,
+        "wall_temperature": 0.0
+      }
+    },
+    "css_inventory_error": 1.0,
+    "css_metric_change": null,
+    "css_performance_error": null,
+    "css_performance_relative_change": null,
+    "css_source_composition_change": 0.0,
+    "css_state_error": 9991.517748359964
+  },
+  "css_applicable": false,
+  "cycles": 1,
+  "final_metrics": {
+    "ambient_heat_loss_J_cycle": 0.0,
+    "component_balance_residual_mol": [
+      -7.325368567959764e-16,
+      0.0
+    ],
+    "cooling_duty_J_cycle": 0.010367112127710671,
+    "cycle_duration_s": 2.0,
+    "electric_heater_work_J_cycle": 0.0,
+    "energy_balance_error": 2.0679195650079012e-16,
+    "energy_balance_residual_J": -1.8189894035458565e-12,
+    "energy_balance_throughput_error": 6.777993159974927e-16,
+    "external_enthalpy_in_J": 1341.8296048642487,
+    "external_enthalpy_out_J": 1341.8296048642487,
+    "external_in_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "external_liquid_in_m3": 1.076679078290808e-06,
+    "external_liquid_out_m3": 1.076679078290808e-06,
+    "external_out_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "feed_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "feed_mol": 5.383395391454035e-07,
+    "fresh_feed_volume_m3": 1.076679078290808e-06,
+    "fresh_inlet_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "gross_light_component_recovery": 3.8509583032535725e-15,
+    "gross_light_product_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "gross_light_product_mol": 2.073123118241693e-21,
+    "gross_light_product_purity": 1.0,
+    "heavy_component_recovery": null,
+    "heavy_product_available": true,
+    "heavy_product_component_mol": [
+      0.0,
+      0.0
+    ],
+    "heavy_product_deficit_mol": 0.0,
+    "heavy_product_mol": 0.0,
+    "heavy_product_purity": null,
+    "light_component_recovery": 3.8509583032535725e-15,
+    "light_product_available": true,
+    "light_product_concentration_mol_m3": [
+      1.9254791516267847e-15,
+      0.0
+    ],
+    "light_product_mol": 2.073123118241693e-21,
+    "light_product_purity": 1.0,
+    "light_product_volume_m3": 1.076679078290808e-06,
+    "mass_balance_error": 1.3607338928863591e-09,
+    "mass_balance_throughput_error": 1.3607338928863591e-09,
+    "net_light_product_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "number_of_columns": 1,
+    "per_column_geometry": {
+      "A": {
+        "adsorbent_mass_kg": 0.004712388980384689,
+        "area_m2": 7.853981633974484e-05,
+        "length_m": 0.1,
+        "volume_m3": 7.853981633974484e-06
+      }
+    },
+    "process_feasible": true,
+    "product_buffer_consumption_mol": 0.0,
+    "product_buffer_deficit_mol": 0.0,
+    "productivity_mol_kg_s": 2.199651946041662e-19,
+    "pump_work_J_cycle": 0.0,
+    "purge_and_feed_gas_cooling_J_cycle": 0.0,
+    "purge_and_feed_gas_heating_J_cycle": 0.0,
+    "purge_consumption_mol": 0.0,
+    "purity_basis": "tracked solutes; implicit solvent excluded",
+    "recovery_basis": "all_external_fresh_inlets",
+    "repressurization_consumption_mol": 0.0,
+    "stored_energy_end_J": 8796.218627118153,
+    "stored_energy_start_J": 8796.228994230278,
+    "thermal_energy_basis": "sensible and adsorption energy; liquid pressure work and viscous heating excluded",
+    "thermal_heat_input_J_cycle": 0.0,
+    "thermal_net_heat_J_cycle": -0.010367112127710671,
+    "total_adsorbent_mass_kg": 0.004712388980384689,
+    "total_bed_volume_m3": 7.853981633974484e-06,
+    "utilities_J": {
+      "buffer_cooling_J": 0.0,
+      "buffer_heating_J": 0.0,
+      "compressor_J": 0.0,
+      "cooling_J": 0.010367112127710671,
+      "electric_heater_J": 0.0,
+      "gas_cooling_J": 0.0,
+      "gas_heating_J": 0.0,
+      "heat_loss_J": 0.0,
+      "heating_J": 0.0,
+      "isothermal_heat_J": -0.010367112127710671,
+      "net_heat_J": -0.010367112127710671,
+      "pump_J": 0.0,
+      "vacuum_J": 0.0
+    }
+  },
+  "metrics": {
+    "ambient_heat_loss_J_cycle": 0.0,
+    "component_balance_residual_mol": [
+      -7.325368567959764e-16,
+      0.0
+    ],
+    "cooling_duty_J_cycle": 0.010367112127710671,
+    "cycle_duration_s": 2.0,
+    "electric_heater_work_J_cycle": 0.0,
+    "energy_balance_error": 2.0679195650079012e-16,
+    "energy_balance_residual_J": -1.8189894035458565e-12,
+    "energy_balance_throughput_error": 6.777993159974927e-16,
+    "external_enthalpy_in_J": 1341.8296048642487,
+    "external_enthalpy_out_J": 1341.8296048642487,
+    "external_in_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "external_liquid_in_m3": 1.076679078290808e-06,
+    "external_liquid_out_m3": 1.076679078290808e-06,
+    "external_out_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "feed_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "feed_mol": 5.383395391454035e-07,
+    "fresh_feed_volume_m3": 1.076679078290808e-06,
+    "fresh_inlet_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "gross_light_component_recovery": 3.8509583032535725e-15,
+    "gross_light_product_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "gross_light_product_mol": 2.073123118241693e-21,
+    "gross_light_product_purity": 1.0,
+    "heavy_component_recovery": null,
+    "heavy_product_available": true,
+    "heavy_product_component_mol": [
+      0.0,
+      0.0
+    ],
+    "heavy_product_deficit_mol": 0.0,
+    "heavy_product_mol": 0.0,
+    "heavy_product_purity": null,
+    "light_component_recovery": 3.8509583032535725e-15,
+    "light_product_available": true,
+    "light_product_concentration_mol_m3": [
+      1.9254791516267847e-15,
+      0.0
+    ],
+    "light_product_mol": 2.073123118241693e-21,
+    "light_product_purity": 1.0,
+    "light_product_volume_m3": 1.076679078290808e-06,
+    "mass_balance_error": 1.3607338928863591e-09,
+    "mass_balance_throughput_error": 1.3607338928863591e-09,
+    "net_light_product_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "number_of_columns": 1,
+    "per_column_geometry": {
+      "A": {
+        "adsorbent_mass_kg": 0.004712388980384689,
+        "area_m2": 7.853981633974484e-05,
+        "length_m": 0.1,
+        "volume_m3": 7.853981633974484e-06
+      }
+    },
+    "process_feasible": true,
+    "product_buffer_consumption_mol": 0.0,
+    "product_buffer_deficit_mol": 0.0,
+    "productivity_mol_kg_s": 2.199651946041662e-19,
+    "pump_work_J_cycle": 0.0,
+    "purge_and_feed_gas_cooling_J_cycle": 0.0,
+    "purge_and_feed_gas_heating_J_cycle": 0.0,
+    "purge_consumption_mol": 0.0,
+    "purity_basis": "tracked solutes; implicit solvent excluded",
+    "recovery_basis": "all_external_fresh_inlets",
+    "repressurization_consumption_mol": 0.0,
+    "stored_energy_end_J": 8796.218627118153,
+    "stored_energy_start_J": 8796.228994230278,
+    "thermal_energy_basis": "sensible and adsorption energy; liquid pressure work and viscous heating excluded",
+    "thermal_heat_input_J_cycle": 0.0,
+    "thermal_net_heat_J_cycle": -0.010367112127710671,
+    "total_adsorbent_mass_kg": 0.004712388980384689,
+    "total_bed_volume_m3": 7.853981633974484e-06,
+    "utilities_J": {
+      "buffer_cooling_J": 0.0,
+      "buffer_heating_J": 0.0,
+      "compressor_J": 0.0,
+      "cooling_J": 0.010367112127710671,
+      "electric_heater_J": 0.0,
+      "gas_cooling_J": 0.0,
+      "gas_heating_J": 0.0,
+      "heat_loss_J": 0.0,
+      "heating_J": 0.0,
+      "isothermal_heat_J": -0.010367112127710671,
+      "net_heat_J": -0.010367112127710671,
+      "pump_J": 0.0,
+      "vacuum_J": 0.0
+    }
+  },
+  "number_of_columns": 1,
+  "output_dir": "/workspace/scratch/592dfee8bc42/work/RUPTURA-main/verification/flow_update/runs/liquid_gradient_cylindrical_hsdm/results",
+  "plot_cycle": 1,
+  "reporting_metrics": {
+    "ambient_heat_loss_J_cycle": 0.0,
+    "component_balance_residual_mol": [
+      -7.325368567959764e-16,
+      0.0
+    ],
+    "cooling_duty_J_cycle": 0.010367112127710671,
+    "cycle_duration_s": 2.0,
+    "electric_heater_work_J_cycle": 0.0,
+    "energy_balance_error": 2.0679195650079012e-16,
+    "energy_balance_residual_J": -1.8189894035458565e-12,
+    "energy_balance_throughput_error": 6.777993159974927e-16,
+    "external_enthalpy_in_J": 1341.8296048642487,
+    "external_enthalpy_out_J": 1341.8296048642487,
+    "external_in_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "external_liquid_in_m3": 1.076679078290808e-06,
+    "external_liquid_out_m3": 1.076679078290808e-06,
+    "external_out_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "feed_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "feed_mol": 5.383395391454035e-07,
+    "fresh_feed_volume_m3": 1.076679078290808e-06,
+    "fresh_inlet_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "gross_light_component_recovery": 3.8509583032535725e-15,
+    "gross_light_product_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "gross_light_product_mol": 2.073123118241693e-21,
+    "gross_light_product_purity": 1.0,
+    "heavy_component_recovery": null,
+    "heavy_product_available": true,
+    "heavy_product_component_mol": [
+      0.0,
+      0.0
+    ],
+    "heavy_product_deficit_mol": 0.0,
+    "heavy_product_mol": 0.0,
+    "heavy_product_purity": null,
+    "light_component_recovery": 3.8509583032535725e-15,
+    "light_product_available": true,
+    "light_product_concentration_mol_m3": [
+      1.9254791516267847e-15,
+      0.0
+    ],
+    "light_product_mol": 2.073123118241693e-21,
+    "light_product_purity": 1.0,
+    "light_product_volume_m3": 1.076679078290808e-06,
+    "mass_balance_error": 1.3607338928863591e-09,
+    "mass_balance_throughput_error": 1.3607338928863591e-09,
+    "net_light_product_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "number_of_columns": 1,
+    "per_column_geometry": {
+      "A": {
+        "adsorbent_mass_kg": 0.004712388980384689,
+        "area_m2": 7.853981633974484e-05,
+        "length_m": 0.1,
+        "volume_m3": 7.853981633974484e-06
+      }
+    },
+    "process_feasible": true,
+    "product_buffer_consumption_mol": 0.0,
+    "product_buffer_deficit_mol": 0.0,
+    "productivity_mol_kg_s": 2.199651946041662e-19,
+    "pump_work_J_cycle": 0.0,
+    "purge_and_feed_gas_cooling_J_cycle": 0.0,
+    "purge_and_feed_gas_heating_J_cycle": 0.0,
+    "purge_consumption_mol": 0.0,
+    "purity_basis": "tracked solutes; implicit solvent excluded",
+    "recovery_basis": "all_external_fresh_inlets",
+    "repressurization_consumption_mol": 0.0,
+    "stored_energy_end_J": 8796.218627118153,
+    "stored_energy_start_J": 8796.228994230278,
+    "thermal_energy_basis": "sensible and adsorption energy; liquid pressure work and viscous heating excluded",
+    "thermal_heat_input_J_cycle": 0.0,
+    "thermal_net_heat_J_cycle": -0.010367112127710671,
+    "total_adsorbent_mass_kg": 0.004712388980384689,
+    "total_bed_volume_m3": 7.853981633974484e-06,
+    "utilities_J": {
+      "buffer_cooling_J": 0.0,
+      "buffer_heating_J": 0.0,
+      "compressor_J": 0.0,
+      "cooling_J": 0.010367112127710671,
+      "electric_heater_J": 0.0,
+      "gas_cooling_J": 0.0,
+      "gas_heating_J": 0.0,
+      "heat_loss_J": 0.0,
+      "heating_J": 0.0,
+      "isothermal_heat_J": -0.010367112127710671,
+      "net_heat_J": -0.010367112127710671,
+      "pump_J": 0.0,
+      "vacuum_J": 0.0
+    }
+  },
+  "reporting_metrics_basis": "last completed cycle",
+  "run_mode": "fixed_cycles",
+  "solver": "CVODE",
+  "solver_version": "7.5.0",
+  "stream_compositions": {
+    "feed": [
+      1.0,
+      0.0
+    ],
+    "light_product": [
+      1.0,
+      0.0
+    ]
+  },
+  "stream_moles": {
+    "feed": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "light_product": [
+      2.073123118241693e-21,
+      0.0
+    ]
+  },
+  "termination_reason": "breakthrough_stage_completed",
+  "window_aggregate_cycles": 1,
+  "window_aggregate_end_cycle": 1,
+  "window_aggregate_metrics": {
+    "ambient_heat_loss_J_cycle": 0.0,
+    "component_balance_residual_mol": [
+      -7.325368567959764e-16,
+      0.0
+    ],
+    "cooling_duty_J_cycle": 0.010367112127710671,
+    "cycle_duration_s": 2.0,
+    "electric_heater_work_J_cycle": 0.0,
+    "energy_balance_error": 2.0679195650079012e-16,
+    "energy_balance_residual_J": -1.8189894035458565e-12,
+    "energy_balance_throughput_error": 6.777993159974927e-16,
+    "external_enthalpy_in_J": 1341.8296048642487,
+    "external_enthalpy_out_J": 1341.8296048642487,
+    "external_in_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "external_liquid_in_m3": 1.076679078290808e-06,
+    "external_liquid_out_m3": 1.076679078290808e-06,
+    "external_out_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "feed_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "feed_mol": 5.383395391454035e-07,
+    "fresh_feed_volume_m3": 1.076679078290808e-06,
+    "fresh_inlet_component_mol": [
+      5.383395391454035e-07,
+      0.0
+    ],
+    "gross_light_component_recovery": 3.8509583032535725e-15,
+    "gross_light_product_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "gross_light_product_mol": 2.073123118241693e-21,
+    "gross_light_product_purity": 1.0,
+    "heavy_component_recovery": null,
+    "heavy_product_available": true,
+    "heavy_product_component_mol": [
+      0.0,
+      0.0
+    ],
+    "heavy_product_deficit_mol": 0.0,
+    "heavy_product_mol": 0.0,
+    "heavy_product_purity": null,
+    "light_component_recovery": 3.8509583032535725e-15,
+    "light_product_available": true,
+    "light_product_concentration_mol_m3": [
+      1.9254791516267847e-15,
+      0.0
+    ],
+    "light_product_mol": 2.073123118241693e-21,
+    "light_product_purity": 1.0,
+    "light_product_volume_m3": 1.076679078290808e-06,
+    "mass_balance_error": 1.3607338928863591e-09,
+    "mass_balance_throughput_error": 1.3607338928863591e-09,
+    "net_light_product_component_mol": [
+      2.073123118241693e-21,
+      0.0
+    ],
+    "number_of_columns": 1,
+    "per_column_geometry": {
+      "A": {
+        "adsorbent_mass_kg": 0.004712388980384689,
+        "area_m2": 7.853981633974484e-05,
+        "length_m": 0.1,
+        "volume_m3": 7.853981633974484e-06
+      }
+    },
+    "process_feasible": true,
+    "product_buffer_consumption_mol": 0.0,
+    "product_buffer_deficit_mol": 0.0,
+    "productivity_mol_kg_s": 2.199651946041662e-19,
+    "pump_work_J_cycle": 0.0,
+    "purge_and_feed_gas_cooling_J_cycle": 0.0,
+    "purge_and_feed_gas_heating_J_cycle": 0.0,
+    "purge_consumption_mol": 0.0,
+    "purity_basis": "tracked solutes; implicit solvent excluded",
+    "recovery_basis": "all_external_fresh_inlets",
+    "repressurization_consumption_mol": 0.0,
+    "stored_energy_end_J": 8796.218627118153,
+    "stored_energy_start_J": 8796.228994230278,
+    "thermal_energy_basis": "sensible and adsorption energy; liquid pressure work and viscous heating excluded",
+    "thermal_heat_input_J_cycle": 0.0,
+    "thermal_net_heat_J_cycle": -0.010367112127710671,
+    "total_adsorbent_mass_kg": 0.004712388980384689,
+    "total_bed_volume_m3": 7.853981633974484e-06,
+    "utilities_J": {
+      "buffer_cooling_J": 0.0,
+      "buffer_heating_J": 0.0,
+      "compressor_J": 0.0,
+      "cooling_J": 0.010367112127710671,
+      "electric_heater_J": 0.0,
+      "gas_cooling_J": 0.0,
+      "gas_heating_J": 0.0,
+      "heat_loss_J": 0.0,
+      "heating_J": 0.0,
+      "isothermal_heat_J": -0.010367112127710671,
+      "net_heat_J": -0.010367112127710671,
+      "pump_J": 0.0,
+      "vacuum_J": 0.0
+    }
+  },
+  "window_aggregate_start_cycle": 1
+}
