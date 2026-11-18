@@ -67,8 +67,10 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
   OUTPUT_NAME "${RUPTURA_PYTHON_MODULE_NAME}"
 )
 
+# -Wno-old-style-cast: the nanobind and Python headers give hundreds of these, which hide the warnings of our code.
 target_compile_options(${PROJECT_NAME} PRIVATE
   ${RUPTURA_COMPILE_OPTIONS}
+  -Wno-old-style-cast
 )
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE

@@ -418,6 +418,9 @@ RateEquation and its RateEquationParameters:
   DesorptionRateCoefficient, Alpha) are numbers or Arrhenius laws (section 7), k(T) =
   k0 exp[-E/R (1/T - 1/T_ref)].
   FirstOrder  {"MassTransferCoefficient": k [1/s]}. Optional; default: the component's k_LDF.
+              Optional desorption branch (all three together): "DesorptionMassTransferCoefficient" k1 [1/s] > 0,
+              "DesorptionCoverageEnergy" beta [J/mol], "CoverageReferenceLoading" q_ref [mol/kg] > 0; while
+              q > q*: dq/dt = k1 exp(beta q / (q_ref R T)) (q* - q).
   PseudoNth   {"RateCoefficient": k_n [(mol/kg)^(1-n) / s], "Order": n >= 0}
               dq/dt = k_n (q* - q) |q* - q|^(n-1).
   Avrami      {"RateCoefficient": k_A [1/s], "Order": n >= 0}
@@ -513,8 +516,10 @@ Multistacked or mixed beds. Use these only when the column contains several adso
     Jacobian; often much faster than CVODE, all column features), or "RungeKutta3" (explicit;
     default).
   TimeStep [s] (RungeKutta3 only):
-    - The integration step. It must satisfy roughly TimeStep <= 0.5 dz / v and
-      TimeStep <= dz^2 / (2 D_ax), where dz = ColumnLength / NumberOfGridPoints.
+    - The integration step. It must satisfy roughly TimeStep <= 0.5 dz / v,
+      TimeStep <= dz^2 / (2 D_ax), and TimeStep <= 2 / k for the largest MassTransferCoefficient k,
+      where dz = ColumnLength / NumberOfGridPoints.
+    - The step is not checked: a larger TimeStep gives wrong curves without an error.
     - CVODE and ROS34PW2 choose their own internal steps; an input with either and TimeStep
       is rejected.
   NumberOfGridPoints: 100 is a good default; use at least 50.
@@ -539,7 +544,8 @@ Multistacked or mixed beds. Use these only when the column contains several adso
     CVODERelativeTolerance (1e-5); CVODEAbsoluteToleranceConcentration [mol/m3] (1e-6);
     CVODEAbsoluteToleranceLoading [mol/kg] (1e-7); CVODEAbsoluteToleranceTemperature [K] (1e-4);
     CVODEMaximumTimeStep [s] (-1 = 4 dz/v automatic, 0 = unlimited); CVODEMaximumOrder (5, BDF order 1-5; 1 if a steep front stalls);
-    CVODELinearSolver "SPGMR" (default) or "Dense"; CVODEKrylovDimension (30, SPGMR only).
+    CVODELinearSolver "SPGMR" (default), "Dense" or "KLU"; CVODEKrylovDimension (30, SPGMR only);
+    CVODEPreconditioner "None" (default) or "SorptionJacobian" (banded I - gamma J; SPGMR only, not with MPD).
   ROS34PW2 tuning keys: add them only on request.
     ROS34PW2RelativeTolerance (1e-6); ROS34PW2AbsoluteToleranceConcentration [mol/m3] (1e-7);
     ROS34PW2AbsoluteToleranceLoading [mol/kg] (1e-8); ROS34PW2AbsoluteToleranceTemperature [K]
@@ -601,16 +607,19 @@ Reactions. Root "Reactions" array; each reaction:
     r = k+ prod theta_r^order - k- prod theta_p^order.
 
 Restart. "ReadColumnFile": "<column-state JSON>" initializes the column from a saved Ruptura
-  state, which must match the grid, components, sites and adsorbents. Use it only on request.
+  state (column.json, which every output rewrites, or failed_state.json), which must match the grid,
+  components, sites and adsorbents. The run goes on from the time of that state: SimulationTime (or
+  the phase durations) further, with the outputs appended to the files of the run directory.
+  "ResetClock": true starts a new experiment from the state instead, at t = 0 and with new output
+  files. Use them only on request.
 
-Other root keys: "DisplayName" (label; default "Column"). Do not use SimulationType "Test"; it is for
-  development.
+Other root keys: "DisplayName" (label; default "Column").
 
 ==============================================================================================
 12. PARSER DEFAULTS (what silently applies when a key is omitted)
 ==============================================================================================
 
-  Temperature 433 K | InfluxTemperature = Temperature | ColumnVoidFraction 0.4 |
+  Temperature 298 K | InfluxTemperature = Temperature | ColumnVoidFraction 0.4 |
   ParticleDiameter 1e-3 m | ParticleDensity 1000 kg/m3 | DynamicViscosity 1e-5 Pa s |
   LiquidDensity 1000 kg/m3 | ColumnLength 0.3 m | NumberOfGridPoints 100 | TimeStep 5e-4 s |
   SimulationTime "auto" | WriteInterval 5 s | NumberOfPressurePoints 100 |
@@ -619,7 +628,7 @@ Other root keys: "DisplayName" (label; default "Column"). Do not use SimulationT
   liquidThermalConductivity 0.6 | SimulationType Breakthrough | FluidPhase Gas |
   MixturePredictionMethod IAST | BreakthroughIntegrator RungeKutta3 |
   BoundaryCondition InletPressureInletVelocity.
-Several of these defaults are unphysical, such as Temperature 433 K and MolecularWeight 1 kg/mol.
+Several of these defaults are unphysical, such as MolecularWeight 1 kg/mol and heat capacities of 1 J/(kg K).
 That is why every material value must be written explicitly.
 
 ==============================================================================================

@@ -1,0 +1,147 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Multibed C6 alkanes layered",
+  "Temperature": 443.0,
+  "ColumnVoidFraction": 0.4,
+  "DynamicViscosity": 2.4e-05,
+  "ParticleDiameter": 0.001,
+  "ParticleDensity": 1000.0,
+  "InletPressure": 2000000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "BreakthroughIntegrator": "CVODE",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "SimulationTime": "auto",
+  "WriteInterval": 10.0,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.96,
+      "CarrierGas": true
+    },
+    {
+      "Name": "nC6",
+      "GasPhaseMolFraction": 0.02
+    },
+    {
+      "Name": "22DMB",
+      "GasPhaseMolFraction": 0.02
+    }
+  ],
+  "Adsorbents": [
+    {
+      "Name": "BEA-polisher",
+      "ColumnVoidFraction": 0.39,
+      "ParticleDensity": 1508.52,
+      "ParticleDiameter": 0.0009,
+      "ComponentParameters": {
+        "nC6": {
+          "MassTransferCoefficient": 0.04,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                1.45,
+                4.7e-05
+              ]
+            },
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                0.3,
+                8e-07
+              ]
+            }
+          ]
+        },
+        "22DMB": {
+          "MassTransferCoefficient": 0.04,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                1.95,
+                8.5e-06
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Name": "CoBDP-front",
+      "ColumnVoidFraction": 0.4,
+      "ParticleDensity": 703.4,
+      "ParticleDiameter": 0.001,
+      "ComponentParameters": {
+        "nC6": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir-Freundlich",
+              "Parameters": [
+                1.1,
+                0.000214,
+                0.6
+              ]
+            },
+            {
+              "Type": "Langmuir-Freundlich",
+              "Parameters": [
+                4.8,
+                2.39e-05,
+                1.35
+              ]
+            }
+          ]
+        },
+        "22DMB": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir-Freundlich",
+              "Parameters": [
+                1.74,
+                5.65e-06,
+                0.72
+              ]
+            },
+            {
+              "Type": "Langmuir-Freundlich",
+              "Parameters": [
+                4.8,
+                4.3e-05,
+                1.04
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "ColumnSections": [
+    {
+      "Adsorbent": "BEA-polisher",
+      "Length": 0.06,
+      "NumberOfGridPoints": 30
+    },
+    {
+      "InterfaceLength": 0.01,
+      "NumberOfGridPoints": 5
+    },
+    {
+      "Adsorbent": "CoBDP-front",
+      "Length": 0.08,
+      "NumberOfGridPoints": 40
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  }
+}

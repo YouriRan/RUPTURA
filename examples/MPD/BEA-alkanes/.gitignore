@@ -1,0 +1,8 @@
+__pycache__/
+comparison.csv
+comparison.png
+mpd/analysis.ipynb
+mpd/component_*.data
+langmuir/analysis.ipynb
+langmuir/component_*.data
+benchmark_runs/

@@ -1,0 +1,65 @@
+{
+  "SimulationType": "Breakthrough",
+  "MixturePredictionMethod": "MPD",
+  "DisplayName": "CO2/N2 MPD breakthrough",
+  "Temperature": 293.0,
+  "ColumnVoidFraction": 0.4,
+  "ParticleDensity": 1000.0,
+  "InletPressure": 100000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.001,
+  "ColumnLength": 0.1,
+  "BoundaryCondition": "FixedPressureInletVelocity",
+  "BreakthroughIntegrator": "RungeKutta3",
+  "SimulationTime": "auto",
+  "TimeStep": 0.001,
+  "WriteInterval": 10.0,
+  "NumberOfGridPoints": 20,
+  "energyBalance": false,
+  "MPDSettings": {
+    "FileName": "particle_distribution.data",
+    "ReferenceTemperature": 293.0,
+    "ReferenceFugacity": 100000.0,
+    "ReferenceFrameworkMass": 1.3284312537390774e-22,
+    "ComponentBounds": [
+      {
+        "Component": "CO2",
+        "NMin": 0,
+        "NMax": 80,
+        "DeltaN": 1
+      },
+      {
+        "Component": "N2",
+        "NMin": 0,
+        "NMax": 80,
+        "DeltaN": 1
+      }
+    ]
+  },
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.8,
+      "CarrierGas": true,
+      "MolecularWeight": 0.004002602
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.1,
+      "MassTransferCoefficient": 0.01,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.0440095
+    },
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.1,
+      "MassTransferCoefficient": 0.01,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.0280134
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4
+  }
+}

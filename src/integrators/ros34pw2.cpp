@@ -67,12 +67,12 @@ void ROS34PW2::allocate(const Column& column)
   fill(layout.wallTemperature(base), absoluteToleranceTemperature);
 }
 
-bool ROS34PW2::factorize(double timeStep)
+bool ROS34PW2::factorize(double h)
 {
   const SorptionJacobian& jacobian = *sorptionJacobian;
   const size_t n = jacobian.numberOfComponents;
   const size_t nodes = jacobian.numberOfNodes;
-  const double gammaStep = gamma * timeStep;
+  const double gammaStep = gamma * h;
 
   // The loading rows of J~ are -k_i on the diagonal and k_i dq*_i/dc on the concentrations of their node, and a
   // concentration row couples to the loading of its own component and node only. Eliminating the loadings leaves
@@ -175,7 +175,8 @@ void ROS34PW2::solve(std::span<double> x) const
   {
     const auto first = concentration.begin() + static_cast<std::ptrdiff_t>(node * n);
     const double correction = totalIncrement[node] - std::reduce(first, first + static_cast<std::ptrdiff_t>(n));
-    for (size_t comp = 0; comp < n; ++comp) first[comp] += correction * stepMoleFractions[node * n + comp];
+    for (size_t comp = 0; comp < n; ++comp)
+      first[static_cast<std::ptrdiff_t>(comp)] += correction * stepMoleFractions[node * n + comp];
   }
   for (size_t node = 0; node < nodes; ++node)
   {

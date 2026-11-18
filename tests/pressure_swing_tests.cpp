@@ -494,6 +494,8 @@ TEST(SkarstromCycle, MassBalanceClosesOnThePhaseRecordsAndTheOutletFluxes)
        {"GasPhaseMolFractions", {{"H2", 1.0}}},
        {"Duration", 60.0}}};
   const InputReader reader = readInput(data);
+  // The test reads back the output files, which a test running at the same time would overwrite in a shared directory.
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_skarstrom_mass_balance");
   SwingAdsorption swing(reader);
   swing.run();
 

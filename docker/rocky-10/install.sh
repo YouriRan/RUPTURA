@@ -12,7 +12,7 @@ dnf install -y --setopt=install_weak_deps=False \
 dnf clean all
 
 python3 -m venv /opt/venv
-/opt/venv/bin/pip install --no-cache-dir nanobind numpy pandas plotly pytest
+/opt/venv/bin/pip install --no-cache-dir nanobind numpy pandas plotly scipy pytest
 
 version=$(clang -dumpversion)
 curl -sSL "https://github.com/llvm/llvm-project/releases/download/llvmorg-${version}/llvm-project-${version}.src.tar.xz" \

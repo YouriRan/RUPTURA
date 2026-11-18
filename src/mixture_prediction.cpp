@@ -471,7 +471,7 @@ std::pair<size_t, size_t> MixturePrediction::predictMixture(std::span<const doub
                                                   gasTemperature);
           break;
       }
-      for (size_t i = 0; i < numberOfSortedComponents; ++i)
+      for (size_t i = 0; storeSiteLoadings && i < numberOfSortedComponents; ++i)
       {
         const Component& component = sortedComponents[i];
         const size_t comp = component.id;
@@ -962,183 +962,14 @@ std::pair<size_t, size_t> MixturePrediction::computeFastIAST(std::span<const dou
                                                              std::span<double> numberOfMolecules,
                                                              std::span<double> cachedPressure,
                                                              std::span<double> cachedGrandPotential,
-                                                             double& /*gasTemperature*/)
+                                                             double& gasTemperature)
 {
-  const double tiny = 1.0e-13;
-
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
   std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
-
-  size_t numberOfIASTSteps = 0;
-
-  if (cachedGrandPotential[0] > 0.0)
-  {
-    for (size_t i = 0; i < numberOfSortedComponents; ++i)
-    {
-      hypotheticalPressure[i] = cachedPressure[sortedComponents[i].id];
-    }
-  }
-  else
-  {
-    double initial_psi = 0.0;
-    for (size_t i = 0; i < numberOfSortedComponents; ++i)
-    {
-      double temp_psi = idealGasMolFractions[sortedComponents[i].id] *
-                        sortedComponents[i].isotherm.psiForPressure(externalPressure);
-      initial_psi += temp_psi;
-    }
-    cachedGrandPotential[0] = initial_psi;
-
-    double cachevalue = 0.0;
-    for (size_t i = 0; i < numberOfSortedComponents; ++i)
-    {
-      hypotheticalPressure[i] =
-          1.0 / sortedComponents[i].isotherm.inversePressureForPsi(initial_psi, cachevalue);
-    }
-  }
-
-  // reducedGrandPotential holds psi_i at the current hypothetical pressures: the convergence check of each iteration
-  // evaluates it at the updated pressures, and the residual of the next iteration reuses it.
-  for (size_t i = 0; i < numberOfSortedComponents; ++i)
-  {
-    reducedGrandPotential[i] = sortedComponents[i].isotherm.psiForPressure(hypotheticalPressure[i]);
-  }
-
-  double error = 1.0;
-  double sum_xi = 0.0;
-  do
-  {
-    // compute residualVector
-    for (size_t i = 0; i < numberOfSortedComponents - 1; ++i)
-    {
-      residualVector[i] = reducedGrandPotential[i] - reducedGrandPotential[numberOfSortedComponents - 1];
-    }
-
-    residualVector[numberOfSortedComponents - 1] = 0.0;
-    for (size_t i = 0; i < numberOfSortedComponents; i++)
-    {
-      residualVector[numberOfSortedComponents - 1] +=
-          idealGasMolFractions[sortedComponents[i].id] * externalPressure / hypotheticalPressure[i];
-    }
-    residualVector[numberOfSortedComponents - 1] -= 1.0;
-
-    // compute Jacobian matrix jacobianMatrix
-    for (size_t i = 0; i < numberOfSortedComponents - 1; i++)
-    {
-      jacobianMatrix[i + i * numberOfSortedComponents] =
-          sortedComponents[i].isotherm.value(hypotheticalPressure[i]) / hypotheticalPressure[i];
-    }
-    const double lastColumn =
-        -sortedComponents[numberOfSortedComponents - 1].isotherm.value(
-            hypotheticalPressure[numberOfSortedComponents - 1]) /
-        hypotheticalPressure[numberOfSortedComponents - 1];
-    for (size_t i = 0; i < numberOfSortedComponents - 1; i++)
-    {
-      jacobianMatrix[i + (numberOfSortedComponents - 1) * numberOfSortedComponents] = lastColumn;
-    }
-    for (size_t i = 0; i < numberOfSortedComponents; i++)
-    {
-      jacobianMatrix[(numberOfSortedComponents - 1) + i * numberOfSortedComponents] =
-          -idealGasMolFractions[sortedComponents[i].id] * externalPressure /
-          (hypotheticalPressure[i] * hypotheticalPressure[i]);
-    }
-
-    // corrections
-    for (size_t i = 0; i < numberOfSortedComponents - 1; i++)
-    {
-      jacobianMatrix[(numberOfSortedComponents - 1) + (numberOfSortedComponents - 1) * numberOfSortedComponents] -=
-          jacobianMatrix[(numberOfSortedComponents - 1) + i * numberOfSortedComponents] *
-          jacobianMatrix[i + (numberOfSortedComponents - 1) * numberOfSortedComponents] /
-          jacobianMatrix[i + i * numberOfSortedComponents];
-      residualVector[numberOfSortedComponents - 1] -=
-          jacobianMatrix[(numberOfSortedComponents - 1) + i * numberOfSortedComponents] * residualVector[i] /
-          jacobianMatrix[i + i * numberOfSortedComponents];
-    }
-
-    // compute correctionVector
-    correctionVector[numberOfSortedComponents - 1] =
-        residualVector[numberOfSortedComponents - 1] /
-        jacobianMatrix[(numberOfSortedComponents - 1) + (numberOfSortedComponents - 1) * numberOfSortedComponents];
-
-    // trick to loop downward from numberOfSortedComponents - 2 to and including zero (still using size_t as index)
-    for (size_t i = numberOfSortedComponents - 1; i-- != 0;)
-    {
-      correctionVector[i] =
-          (residualVector[i] - correctionVector[numberOfSortedComponents - 1] *
-                                   jacobianMatrix[i + (numberOfSortedComponents - 1) * numberOfSortedComponents]) /
-          jacobianMatrix[i + i * numberOfSortedComponents];
-    }
-
-    // update hypotheticalPressure
-    for (size_t i = 0; i < numberOfSortedComponents; i++)
-    {
-      double newvalue = hypotheticalPressure[i] - correctionVector[i];
-      if (newvalue > 0.0)
-        hypotheticalPressure[i] = newvalue;
-      else
-      {
-        hypotheticalPressure[i] = 0.5 * hypotheticalPressure[i];
-      }
-    }
-
-    // compute error in reducedGrandPotential's
-    for (size_t i = 0; i < numberOfSortedComponents; i++)
-    {
-      reducedGrandPotential[i] =
-          sortedComponents[i].isotherm.psiForPressure(hypotheticalPressure[i]);
-    }
-
-    sum_xi = 0.0;
-    for (size_t i = 0; i < numberOfSortedComponents; ++i)
-    {
-      sum_xi +=
-          idealGasMolFractions[sortedComponents[i].id] * externalPressure / std::max(hypotheticalPressure[i], 1e-15);
-    }
-
-    double avg = std::accumulate(std::begin(reducedGrandPotential), std::end(reducedGrandPotential), 0.0) /
-                 static_cast<double>(reducedGrandPotential.size());
-
-    double accum = 0.0;
-    std::for_each(std::begin(reducedGrandPotential), std::end(reducedGrandPotential),
-                  [&](const double d) { accum += (d - avg) * (d - avg); });
-
-    // relative to psi: an absolute 1e-13 is below the double resolution of psi >~ 500
-    error = std::sqrt(accum / static_cast<double>(reducedGrandPotential.size() - 1)) / std::max(1.0, std::fabs(avg));
-
-    numberOfIASTSteps++;
-  } while (!(((error < tiny) && (std::fabs(sum_xi - 1.0) < 1e-10)) || (numberOfIASTSteps >= 50)));
-
-  for (size_t i = 0; i < numberOfSortedComponents; ++i)
-  {
-    cachedPressure[sortedComponents[i].id] = hypotheticalPressure[i];
-  }
-
-  for (size_t i = 0; i < numberOfSortedComponents; ++i)
-  {
-    adsorbedMolFractions[sortedComponents[i].id] =
-        idealGasMolFractions[sortedComponents[i].id] * externalPressure / std::max(hypotheticalPressure[i], 1e-15);
-  }
-  double sum = 0.0;
-  for (size_t i = 0; i < numberOfComponents; ++i)
-  {
-    sum += adsorbedMolFractions[i];
-  }
-  for (size_t i = 0; i < numberOfComponents; ++i)
-  {
-    adsorbedMolFractions[i] /= sum;
-  }
-
-  double inverse_q_total = 0.0;
-  for (size_t i = 0; i < numberOfSortedComponents; ++i)
-  {
-    inverse_q_total += adsorbedMolFractions[sortedComponents[i].id] /
-                       sortedComponents[i].isotherm.value(hypotheticalPressure[i]);
-  }
-  for (size_t i = 0; i < numberOfComponents; ++i)
-  {
-    numberOfMolecules[i] = adsorbedMolFractions[i] / inverse_q_total;
-  }
-  return std::make_pair(numberOfIASTSteps, 1);
+  // IAST is segregated IAST with one phase, that of all sites.
+  return computeFastSIAST(sortedComponents, numberOfSortedComponents, 0, idealGasMolFractions, externalPressure,
+                          adsorbedMolFractions, numberOfMolecules, cachedPressure, cachedGrandPotential,
+                          gasTemperature);
 }
 
 // idealGasMolFractions  = gas phase molefraction
@@ -1173,8 +1004,9 @@ std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(std::span<const do
     }
     else if (activeComponents > 1)
     {
-      acc += computeFastSIAST(site, idealGasMolFractions, externalPressure, adsorbedMolFractions,
-                              numberOfMolecules, cachedPressure, cachedGrandPotential, gasTemperature);
+      acc += computeFastSIAST(segregatedSortedComponents[site], activeComponents, site, idealGasMolFractions,
+                              externalPressure, adsorbedMolFractions, numberOfMolecules, cachedPressure,
+                              cachedGrandPotential, gasTemperature);
     }
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
@@ -1195,12 +1027,15 @@ std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(std::span<const do
   return acc;
 }
 
-// computes IAST per term
+// computes IAST of one phase: the components of one site (SIAST), or all of them with their multisite isotherms (IAST)
 // idealGasMolFractions  = gas phase molefraction
 // externalPressure   = total pressure
 // adsorbedMolFractions  = adsorbed phase molefraction
-// numberOfMolecules  = number of adsorbed molecules of component i
-std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(size_t site, std::span<const double> idealGasMolFractions,
+// numberOfMolecules  = number of adsorbed molecules of component i, to which the loadings of the phase are added
+// Inlined into its two callers: as one shared function it made IAST, the default method, 4% slower (BEA, RK3).
+[[gnu::always_inline]] inline std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(const std::vector<Component>& siteComponents,
+                                                              size_t activeComponents, size_t site,
+                                                              std::span<const double> idealGasMolFractions,
                                                               const double& externalPressure,
                                                               std::span<double> adsorbedMolFractions,
                                                               std::span<double> numberOfMolecules,
@@ -1209,14 +1044,12 @@ std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(size_t site, std::
                                                               double& /*gasTemperature*/)
 {
   const double tiny = 1.0e-13;
-  const std::vector<Component>& siteComponents = segregatedSortedComponents[site];
-  const size_t activeComponents = segregatedNumberOfSortedComponents[site];
 
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
 
   size_t numberOfIASTSteps = 0;
 
-  if (cachedGrandPotential[site] > tiny)
+  if (cachedGrandPotential[site] > 0.0)
   {
     for (size_t i = 0; i < activeComponents; ++i)
     {
@@ -1354,6 +1187,14 @@ std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(size_t site, std::
     numberOfIASTSteps++;
   } while (!(((error < tiny) && (std::fabs(sum_xi - 1.0) < 1e-10)) || (numberOfIASTSteps >= 50)));
 
+  // The step limit also ends a solve that is nowhere near the solution (an isotherm beyond its pole, NaN): no answer.
+  if (!(error < 1.0e-6 && std::fabs(sum_xi - 1.0) < 1.0e-6))
+  {
+    throw std::runtime_error(std::format("Error (IAST): no convergence after {} steps (relative spread of the reduced "
+                                         "grand potentials {:.3e}, sum of the adsorbed mole fractions {})\n",
+                                         numberOfIASTSteps, error, sum_xi));
+  }
+
   for (size_t i = 0; i < activeComponents; ++i)
   {
     cachedPressure[siteComponents[i].id + site * numberOfComponents] = hypotheticalPressure[i];
@@ -1396,148 +1237,14 @@ std::pair<size_t, size_t> MixturePrediction::computeFastSIAST(size_t site, std::
 std::pair<size_t, size_t> MixturePrediction::computeIASTNestedLoopBisection(
     std::span<const double> idealGasMolFractions, const double& externalPressure,
     std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, std::span<double> cachedPressure,
-    std::span<double> cachedGrandPotential, double& /*gasTemperature*/)
+    std::span<double> cachedGrandPotential, double& gasTemperature)
 {
-  const double tiny = 1.0e-15;
-
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
   std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
-
-  double initial_psi = 0.0;
-  for (size_t i = 0; i < numberOfSortedComponents; ++i)
-  {
-    initial_psi += idealGasMolFractions[sortedComponents[i].id] *
-                   sortedComponents[i].isotherm.psiForPressure(externalPressure);
-  }
-
-  if (initial_psi < tiny)
-  {
-    // nothing is adsorbing
-    for (size_t i = 0; i < numberOfComponents; ++i)
-    {
-      adsorbedMolFractions[i] = 0.0;
-      numberOfMolecules[i] = 0.0;
-    }
-
-    // do not count it for the IAST statistics
-    return std::make_pair(0, 0);
-  }
-
-  double psi_value = 0.0;
-  size_t nr_steps = 0;
-  if (cachedGrandPotential[0] > tiny)
-  {
-    initial_psi = cachedGrandPotential[0];
-  }
-  auto sumAdsorbedFractions = [&](double psi)
-  {
-    double sum = 0.0;
-    for (size_t i = 0; i < numberOfSortedComponents; ++i)
-    {
-      const size_t comp = sortedComponents[i].id;
-      sum += idealGasMolFractions[comp] * externalPressure *
-             sortedComponents[i].isotherm.inversePressureForPsi(psi, cachedPressure[comp]);
-    }
-    return sum;
-  };
-
-  double sumXi = sumAdsorbedFractions(initial_psi);
-
-  // initialize the bisection algorithm
-  double left_bracket = initial_psi;
-  double right_bracket = initial_psi;
-  if (sumXi > 1.0)
-  {
-    do
-    {
-      right_bracket *= 2.0;
-
-      sumXi = sumAdsorbedFractions(right_bracket);
-      ++nr_steps;
-      if (nr_steps > 100000)
-      {
-        std::print("Left bracket: {}\n", left_bracket);
-        std::print("Right bracket: {}\n", right_bracket);
-        throw std::runtime_error("Error (IAST bisection): initial bracketing (for sum > 1) does NOT converge\n");
-      }
-    } while (sumXi > 1.0);
-  }
-  else
-  {
-    // Make an initial estimate for the reduced grandpotential when the
-    // sum of the molefractions is larger than 1
-    do
-    {
-      left_bracket *= 0.5;
-
-      sumXi = sumAdsorbedFractions(left_bracket);
-      ++nr_steps;
-      if (nr_steps > 100000)
-      {
-        std::print("Left bracket: {}\n", left_bracket);
-        std::print("Right bracket: {}\n", right_bracket);
-        throw std::runtime_error("Error (IAST bisection): initial bracketing (for sum < 1) does NOT converge\n");
-      }
-    } while (sumXi < 1.0);
-  }
-
-  // bisection algorithm
-  size_t numberOfIASTSteps = 0;
-  do
-  {
-    psi_value = 0.5 * (left_bracket + right_bracket);
-
-    sumXi = sumAdsorbedFractions(psi_value);
-
-    if (sumXi > 1.0)
-    {
-      left_bracket = psi_value;
-    }
-    else
-    {
-      right_bracket = psi_value;
-    }
-
-    ++numberOfIASTSteps;
-    if (numberOfIASTSteps > 100000)
-    {
-      throw std::runtime_error("Error (IAST bisection): NO convergence\n");
-    }
-  } while (std::abs(left_bracket - right_bracket) / std::abs(left_bracket + right_bracket) > tiny);  // convergence test
-
-  psi_value = 0.5 * (left_bracket + right_bracket);
-
-  sumXi = sumAdsorbedFractions(psi_value);
-
-  // cache the value of reducedGrandPotential for subsequent use
-  cachedGrandPotential[0] = psi_value;
-
-  double inverse_q_total = 0.0;
-  for (size_t i = 0; i < numberOfSortedComponents; ++i)
-  {
-    const size_t comp = sortedComponents[i].id;
-    double ip = sortedComponents[i].isotherm.inversePressureForPsi(
-        psi_value, cachedPressure[comp]);
-    cachedPressure[comp] = 1.0 / ip;
-    adsorbedMolFractions[comp] = idealGasMolFractions[comp] * externalPressure * ip / sumXi;
-
-    if (adsorbedMolFractions[comp] > tiny)
-    {
-      inverse_q_total += adsorbedMolFractions[comp] /
-                         sortedComponents[i].isotherm.value(1.0 / ip);
-    }
-  }
-
-  if (inverse_q_total > 0.0)
-  {
-    for (size_t i = 0; i < numberOfSortedComponents; ++i)
-    {
-      const size_t comp = sortedComponents[i].id;
-      numberOfMolecules[comp] = adsorbedMolFractions[comp] / inverse_q_total;
-    }
-  }
-
-  return std::make_pair(numberOfIASTSteps, 1);
+  // IAST is segregated IAST with one phase, that of all sites.
+  return computeSIASTNestedLoopBisection(sortedComponents, numberOfSortedComponents, 0, idealGasMolFractions,
+                                         externalPressure, adsorbedMolFractions, numberOfMolecules, cachedPressure,
+                                         cachedGrandPotential, gasTemperature);
 }
 
 // idealGasMolFractions  = gas phase molefraction
@@ -1569,9 +1276,9 @@ std::pair<size_t, size_t> MixturePrediction::computeSIASTNestedLoopBisection(
     }
     else if (activeComponents > 1)
     {
-      acc += computeSIASTNestedLoopBisection(site, idealGasMolFractions, externalPressure,
-                                             adsorbedMolFractions, numberOfMolecules, cachedPressure,
-                                             cachedGrandPotential, gasTemperature);
+      acc += computeSIASTNestedLoopBisection(segregatedSortedComponents[site], activeComponents, site,
+                                             idealGasMolFractions, externalPressure, adsorbedMolFractions,
+                                             numberOfMolecules, cachedPressure, cachedGrandPotential, gasTemperature);
     }
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
@@ -1592,19 +1299,18 @@ std::pair<size_t, size_t> MixturePrediction::computeSIASTNestedLoopBisection(
   return acc;
 }
 
-// computes IAST per term
+// computes IAST of one phase: the components of one site (SIAST), or all of them with their multisite isotherms (IAST)
 // idealGasMolFractions  = gas phase molefraction
 // externalPressure   = total pressure
 // adsorbedMolFractions  = adsorbed phase molefraction
-// numberOfMolecules  = number of adsorbed molecules of component i
+// numberOfMolecules  = number of adsorbed molecules of component i, to which the loadings of the phase are added
 std::pair<size_t, size_t> MixturePrediction::computeSIASTNestedLoopBisection(
-    size_t site, std::span<const double> idealGasMolFractions, const double& externalPressure,
+    const std::vector<Component>& siteComponents, size_t activeComponents, size_t site,
+    std::span<const double> idealGasMolFractions, const double& externalPressure,
     std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, std::span<double> cachedPressure,
     std::span<double> cachedGrandPotential, double& gasTemperature)
 {
   const double tiny = 1.0e-15;
-  const std::vector<Component>& siteComponents = segregatedSortedComponents[site];
-  const size_t activeComponents = segregatedNumberOfSortedComponents[site];
 
   double initial_psi = 0.0;
   for (size_t i = 0; i < activeComponents; ++i)
@@ -1763,52 +1469,10 @@ std::pair<size_t, size_t> MixturePrediction::computeExplicitIsotherm(std::span<c
 {
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
   std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
+  // The explicit isotherm of one phase, with the first site of every component.
+  const std::pair<size_t, size_t> result = computeSegratedExplicitIsotherm(
+      sortedComponents, numberOfSortedComponents, idealGasMolFractions, externalPressure, numberOfMolecules);
 
-  adsorbedMoleFractionsScratch[0] = 1.0;
-  for (size_t i = 1; i < numberOfSortedComponents; ++i)
-  {
-    adsorbedMoleFractionsScratch[i] =
-        sortedComponents[i].isotherm.sites[0].parameters[0] / sortedComponents[i - 1].isotherm.sites[0].parameters[0];
-  }
-
-  const size_t last = numberOfSortedComponents - 1;
-  double b = sortedComponents[last].isotherm.sites[0].parameters[1];
-  firstExplicitIsothermAlpha[last] =
-      std::pow((1.0 + b * idealGasMolFractions[sortedComponents[last].id] * externalPressure),
-               adsorbedMoleFractionsScratch[last]);
-  secondExplicitIsothermAlpha[last] = 1.0 + b * idealGasMolFractions[sortedComponents[last].id] * externalPressure;
-  for (size_t i = numberOfSortedComponents - 2; i > 0; i--)
-  {
-    b = sortedComponents[i].isotherm.sites[0].parameters[1];
-    firstExplicitIsothermAlpha[i] = std::pow(
-        (firstExplicitIsothermAlpha[i + 1] + b * idealGasMolFractions[sortedComponents[i].id] * externalPressure),
-        adsorbedMoleFractionsScratch[i]);
-    secondExplicitIsothermAlpha[i] =
-        firstExplicitIsothermAlpha[i + 1] + b * idealGasMolFractions[sortedComponents[i].id] * externalPressure;
-  }
-
-  b = sortedComponents[0].isotherm.sites[0].parameters[1];
-  firstExplicitIsothermAlpha[0] =
-      firstExplicitIsothermAlpha[1] + b * idealGasMolFractions[sortedComponents[0].id] * externalPressure;
-  secondExplicitIsothermAlpha[0] =
-      firstExplicitIsothermAlpha[1] + b * idealGasMolFractions[sortedComponents[0].id] * externalPressure;
-
-  double beta = secondExplicitIsothermAlpha[0];
-
-  explicitIsothermAlphaProduct[0] = 1.0;
-  for (size_t i = 1; i < numberOfSortedComponents; ++i)
-  {
-    explicitIsothermAlphaProduct[i] =
-        (firstExplicitIsothermAlpha[i] / secondExplicitIsothermAlpha[i]) * explicitIsothermAlphaProduct[i - 1];
-  }
-
-  for (size_t i = 0; i < numberOfSortedComponents; ++i)
-  {
-    size_t index = sortedComponents[i].id;
-    b = sortedComponents[i].isotherm.sites[0].parameters[1];
-    numberOfMolecules[index] = sortedComponents[i].isotherm.sites[0].parameters[0] * b * idealGasMolFractions[index] *
-                               externalPressure * explicitIsothermAlphaProduct[i] / beta;
-  }
   double N = 0.0;
   for (size_t i = 0; i < numberOfComponents; ++i)
   {
@@ -1819,12 +1483,12 @@ std::pair<size_t, size_t> MixturePrediction::computeExplicitIsotherm(std::span<c
     adsorbedMolFractions[i] = N > 0.0 ? numberOfMolecules[i] / N : 0.0;
   }
 
-  return std::make_pair(1, 1);
+  return result;
 }
 
 std::pair<size_t, size_t> MixturePrediction::computeSegratedExplicitIsotherm(
     std::span<const double> idealGasMolFractions, const double& externalPressure,
-    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double& gasTemperature)
+    std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, double& /*gasTemperature*/)
 {
   std::fill(adsorbedMolFractions.begin(), adsorbedMolFractions.end(), 0.0);
   std::fill(numberOfMolecules.begin(), numberOfMolecules.end(), 0.0);
@@ -1844,8 +1508,8 @@ std::pair<size_t, size_t> MixturePrediction::computeSegratedExplicitIsotherm(
     }
     else if (activeComponents > 1)
     {
-      acc += computeSegratedExplicitIsotherm(site, idealGasMolFractions, externalPressure,
-                                             adsorbedMolFractions, numberOfMolecules, gasTemperature);
+      acc += computeSegratedExplicitIsotherm(segregatedSortedComponents[site], activeComponents,
+                                             idealGasMolFractions, externalPressure, numberOfMolecules);
     }
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
@@ -1867,11 +1531,9 @@ std::pair<size_t, size_t> MixturePrediction::computeSegratedExplicitIsotherm(
 }
 
 std::pair<size_t, size_t> MixturePrediction::computeSegratedExplicitIsotherm(
-    size_t site, std::span<const double> idealGasMolFractions, const double& externalPressure,
-    std::span<double> /*adsorbedMolFractions*/, std::span<double> numberOfMolecules, double& /*gasTemperature*/)
+    const std::vector<Component>& siteComponents, size_t activeComponents,
+    std::span<const double> idealGasMolFractions, const double& externalPressure, std::span<double> numberOfMolecules)
 {
-  const std::vector<Component>& siteComponents = segregatedSortedComponents[site];
-  const size_t activeComponents = segregatedNumberOfSortedComponents[site];
   adsorbedMoleFractionsScratch[0] = 1.0;
   for (size_t i = 1; i < activeComponents; ++i)
   {
@@ -1963,9 +1625,10 @@ std::pair<size_t, size_t> MixturePrediction::computeSegregatedCompetitiveIsother
   const size_t activeComponents = segregatedNumberOfSortedComponents[site];
   const Isotherm::Type model = siteComponents.front().isotherm.sites.front().type;
 
-  std::vector<double> denominatorTerms(activeComponents, 0.0);
-  std::vector<double> numeratorTerms(activeComponents, 0.0);
-  std::vector<double> exponents(activeComponents, 1.0);
+  // The work arrays of the explicit isotherms, which SCI does not use otherwise.
+  const std::span<double> denominatorTerms(firstExplicitIsothermAlpha.data(), activeComponents);
+  const std::span<double> numeratorTerms(secondExplicitIsothermAlpha.data(), activeComponents);
+  const std::span<double> exponents(explicitIsothermAlphaProduct.data(), activeComponents);
 
   for (size_t i = 0; i < activeComponents; ++i)
   {
@@ -2157,6 +1820,7 @@ void MixturePrediction::run()
   {
     std::string fileName = "component_" + std::to_string(i) + "_" + components[i].name + ".data";
     streams.emplace_back(std::ofstream{fileName});
+    if (!streams.back()) throw std::runtime_error("Error: cannot write the output file '" + fileName + "'");
   }
 
   for (size_t i = 0; i < numberOfComponents; i++)

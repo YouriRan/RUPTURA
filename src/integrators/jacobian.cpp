@@ -403,7 +403,6 @@ void assembleThermalJacobian(const Column& column, BlockBandedMatrix& jacobian)
   jacobian.setZero();
   const size_t outlet = column.numberOfGridPoints;
   const auto& areas = column.geometries.front().contactAreas;
-  const double gasWallPrefactor = areas.fluidWallPerFluidVolume * column.heatTransferGasWall / column.heatCapacityGas;
   const double inverseWallHeatDensity = 1.0 / (column.heatCapacityWall * column.wallDensity);
   const double wallGas = column.heatTransferGasWall * areas.wallInnerPerWallVolume * inverseWallHeatDensity;
   const double wallExternal = column.heatTransferWallExternal * areas.wallOuterPerWallVolume * inverseWallHeatDensity;
@@ -448,7 +447,8 @@ void assembleThermalJacobian(const Column& column, BlockBandedMatrix& jacobian)
     const double inverseGasDensity = 1.0 / std::max(1e-10, column.gasDensity[node]);
     const double gasSolid = column.fluidSolidContactArea[node] * column.heatTransferGasSolid * inverseGasDensity /
                             column.heatCapacityGas;
-    const double gasWall = gasWallPrefactor * inverseGasDensity;
+    const double gasWall =
+        column.fluidWallContactArea[node] * column.heatTransferGasWall / column.heatCapacityGas * inverseGasDensity;
     jacobian(node, node, gasT, gasT) = -gasSolid - gasWall;
     jacobian(node, node, gasT, solidT) = gasSolid;
     jacobian(node, node, gasT, wallT) = gasWall;

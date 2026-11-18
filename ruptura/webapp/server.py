@@ -77,7 +77,7 @@ class LabHandler(BaseHTTPRequestHandler):
             self.send({"error": "Cross-origin requests are not accepted."}, 403)
             return False
         if api and not secrets.compare_digest(self.headers.get("X-Ruptura-Session", ""), self.server.session):
-            self.send({"error": "Refresh the Lab page to reconnect."}, 403)
+            self.send({"error": "Open the Lab address printed by the server; it holds the session key."}, 403)
             return False
         return True
 
@@ -97,7 +97,7 @@ class LabHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urlparse(self.path)
         path = unquote(parsed.path)
-        if not self.guard(api=path.startswith("/api/") and path != "/api/bootstrap"):
+        if not self.guard(api=path.startswith("/api/")):
             return
         try:
             query = parse_qs(parsed.query)
@@ -240,7 +240,8 @@ def main():
         server = LabServer(("127.0.0.1", args.port), args.workspace, args.cli)
     except (ValueError, OSError) as error:
         parser.exit(1, f"Could not start Ruptura Lab: {error}\n")
-    url = f"http://127.0.0.1:{server.server_port}"
+    # The session key travels in the address, so that other local users and processes cannot ask the server for it.
+    url = f"http://127.0.0.1:{server.server_port}/?session={server.session}"
     def stop(_signum, _frame):
         raise KeyboardInterrupt
     signal.signal(signal.SIGTERM, stop)

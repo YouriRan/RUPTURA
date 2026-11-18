@@ -82,15 +82,6 @@ inline double gridSpacing(std::span<const double> distances, size_t grid)
 }
 
 /**
- * \brief Returns the element-wise sum of two pairs.
- */
-template <typename T, typename U>
-std::pair<T, U> operator+(const std::pair<T, U>& l, const std::pair<T, U>& r)
-{
-  return {l.first + r.first, l.second + r.second};
-}
-
-/**
  * \brief Adds the second pair into the first pair element by element.
  */
 template <typename T, typename U>

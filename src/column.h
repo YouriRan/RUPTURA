@@ -330,6 +330,7 @@ struct ColumnData
         poreLoadingConversion(this->numberOfGridPoints + 1),
         solidFluidContactArea(this->numberOfGridPoints + 1),
         fluidSolidContactArea(this->numberOfGridPoints + 1),
+        fluidWallContactArea(this->numberOfGridPoints + 1),
         pressureDropLaw(this->numberOfGridPoints + 1),
         dispersionLaw(this->numberOfGridPoints + 1),
         massTransferCoefficient((this->numberOfGridPoints + 1) * this->numberOfComponents),
@@ -354,7 +355,8 @@ struct ColumnData
         reactionBulkSource((this->numberOfGridPoints + 1) * this->numberOfComponents),
         reactionHeat(this->numberOfGridPoints + 1),
         reactionCoverage(this->numberOfComponents),
-        wenoScratch((this->numberOfGridPoints + 1) * (this->numberOfComponents + 4)),
+        wenoScratch((this->numberOfGridPoints + 1) * (2 * this->numberOfComponents + 5) + this->numberOfComponents),
+        temperatureRateScratch(3 * (this->numberOfGridPoints + 1)),
         state(ColumnStateLayout{this->numberOfGridPoints, this->numberOfComponents, this->maxChemisorptionSites,
                                         this->surfacePoreTransportEnabled}
                   .stateSize(),
@@ -366,6 +368,7 @@ struct ColumnData
   {
     validateColumnDistances(this->columnDistances, this->numberOfGridPoints, this->columnLength);
     chemisorptionMixtures = makeChemisorptionMixtures(this->physisorptionMixtures);
+    for (MixturePrediction& mixture : this->physisorptionMixtures) mixture.storeSiteLoadings = false;
   }
 
   /**
@@ -563,6 +566,7 @@ struct ColumnData
   std::vector<double> poreLoadingConversion;     ///< Solid-volume-weighted particle density in kg/m^3.
   std::vector<double> solidFluidContactArea;     ///< Fluid-solid contact area per solid volume in 1/m.
   std::vector<double> fluidSolidContactArea;     ///< Fluid-solid contact area per fluid volume in 1/m.
+  std::vector<double> fluidWallContactArea;      ///< Fluid-wall contact area per fluid volume in 1/m.
   std::vector<PressureDropLaw> pressureDropLaw;  ///< Fraction-weighted pressure-drop law.
   std::vector<DispersionLaw> dispersionLaw;      ///< Fraction-weighted dispersivity and Taylor-Aris coefficient.
   // Size (numberOfGridPoints + 1) * numberOfComponents. Grid-major index: grid * numberOfComponents + comp.
@@ -595,9 +599,12 @@ struct ColumnData
   std::vector<double> reactionBulkSource;  ///< Bulk-concentration reaction source per fluid volume, mol/(m^3 s).
   std::vector<double> reactionHeat;                     ///< Reaction heat release on a solid-mass basis.
   std::vector<double> reactionCoverage;  ///< Langmuir-Hinshelwood coverages of one node; size numberOfComponents.
-  /// WENO3 node values, face values, face fluxes, total concentrations, and face-fraction sums of
-  /// computeMassDerivatives; size (numberOfGridPoints + 1) * (numberOfComponents + 4).
+  /// Work array of computeMassDerivatives; size (numberOfGridPoints + 1) * (2 numberOfComponents + 5) +
+  /// numberOfComponents.
   std::vector<double> wenoScratch;
+  std::vector<double> temperatureRateScratch;  ///< Work array of the velocity closures with the energy balance.
+  /// Chemisorption sites of each component, the largest count over the adsorbents; set by initialize().
+  std::vector<size_t> chemisorptionSites;
 
   // Canonical ODE storage.
   // Layout: concentration, physisorption, chemisorption, optional surface/pore concentration, gas T, solid T, wall T.
@@ -676,7 +683,7 @@ struct Column : ColumnData, ColumnStateViews
 
   /**
    * \brief Fills the adsorbent blends (loadingPrefactor ... heatOfChemisorption) from fractionOfAdsorbent and the
-   *        per-adsorbent properties; called by initialize() and readJSON(), and needed again after changing either.
+   *        per-adsorbent properties; called by initialize(), and needed again after changing either.
    */
   void computeAdsorbentBlends();
 
@@ -735,12 +742,13 @@ struct Column : ColumnData, ColumnStateViews
   std::string repr() const;
 
   /**
-   * \brief Serializes the column state (concentrations, loadings, temperatures) to JSON.
+   * \brief Serializes the column state (concentrations, loadings, temperatures) and its time in s to JSON.
    */
-  void writeJSON(const std::string& fileName) const;
+  void writeJSON(const std::string& fileName, double time = 0.0) const;
 
   /**
-   * \brief Loads the column state from JSON, and the derived fields and caches that older files also hold.
+   * \brief Loads the column state from JSON and returns its time in s (0 for a file without one). Other keys, which
+   *        older files hold, are not read: the derived fields follow from the state.
    */
-  void readJSON(const std::string& fileName);
+  double readJSON(const std::string& fileName);
 };

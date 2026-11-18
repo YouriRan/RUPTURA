@@ -1,0 +1,2 @@
+# The experiment directories follow from campaign/experiments.csv with generate.py and run.py.
+campaign/round_*/

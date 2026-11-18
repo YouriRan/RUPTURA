@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <print>
@@ -16,13 +17,6 @@ namespace
 std::string componentFileName(const Column& column, size_t component)
 {
   return "component_" + std::to_string(component) + "_" + column.components[component].name + ".data";
-}
-
-double averageMixturePredictionSteps(const Column& column)
-{
-  return column.iastPerformance.second == 0
-             ? 0.0
-             : static_cast<double>(column.iastPerformance.first) / static_cast<double>(column.iastPerformance.second);
 }
 
 /**
@@ -39,7 +33,9 @@ bool breakthroughConverged(const Column& column)
                                  : column.components[comp].inletLiquidConcentration;
     if (feed <= 0.0) continue;
 
-    const size_t outlet = column.numberOfGridPoints * column.numberOfComponents + comp;
+    // Reverse flow leaves at z = 0, whose node 0 holds the gas of the first cell.
+    const size_t outletNode = column.flowDirection == Column::FlowDirection::Reverse ? 1 : column.numberOfGridPoints;
+    const size_t outlet = outletNode * column.numberOfComponents + comp;
     const double outletValue = gasPhase ? column.moleFraction[outlet] : column.concentration[outlet];
     tolerance = std::max(tolerance, std::abs((outletValue / feed) - 1.0));
   }
@@ -56,6 +52,7 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
       simulationTime(inputReader.simulationTime),
       autoSimulationTime(inputReader.autoSimulationTime),
       maxIsothermTerms(inputReader.maxIsothermTerms),
+      appendOutput(inputReader.readColumnFile.has_value() && !inputReader.resetClock),
       column(inputReader),
       rk3(inputReader),
       ros34pw2(inputReader),
@@ -65,7 +62,15 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
   column.initialize();
   if (inputReader.readColumnFile.has_value())
   {
-    column.readJSON(*inputReader.readColumnFile);
+    const double stateTime = column.readJSON(*inputReader.readColumnFile);
+    // Without ResetClock the run goes on from the time of the state, for SimulationTime, with its outputs on the same
+    // time grid.
+    if (!inputReader.resetClock)
+    {
+      time = stateTime;
+      simulationTime += time;
+      numberOfOutputs = static_cast<size_t>(std::floor(time / writeInterval + 1.0e-9));
+    }
     // The file holds the state (Column::writeJSON): derived fields (velocity, pressure, equilibrium), then the rates
     // and the sink they feed back into.
     precompute(column, timings);
@@ -73,60 +78,75 @@ Breakthrough::Breakthrough(const InputReader& inputReader)
     precompute(column, timings);
   }
 
-  if (integrationScheme == BreakthroughIntegrationScheme::CVODE) cvode.initialize(column);
+  if (integrationScheme == BreakthroughIntegrationScheme::CVODE) cvode.initialize(column, time);
+}
 
-  const auto openMode = inputReader.readColumnFile.has_value() ? std::ios_base::app : std::ios_base::trunc;
-  std::vector<std::ofstream> componentStreams(numberOfComponents);
+void Breakthrough::writeOutput()
+{
+  // The files are started here and not in the constructor, which would empty the results of an earlier run.
+  if (!columnStream.is_open())
+  {
+    const bool append = appendOutput && std::filesystem::exists("column.data");
+    const auto openMode = append ? std::ios_base::app : std::ios_base::trunc;
+    componentStreams.clear();
+    for (size_t comp = 0; comp < numberOfComponents; ++comp)
+    {
+      componentStreams.emplace_back(componentFileName(column, comp), openMode);
+    }
+    columnStream.open("column.data", openMode);
+    if (!append) column.writeOutputHeader(componentStreams, columnStream);
+    appendOutput = true;
+  }
+
+  column.writeJSON("column.json", time);
+  column.writeOutput(componentStreams, columnStream, time);
+  // A snapshot that did not reach its file (a component name with '/', a full disk) stops the run.
+  columnStream.flush();
+  if (!columnStream) throw std::runtime_error("Error: cannot write the output file 'column.data'");
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
-    componentStreams[comp] = std::ofstream{componentFileName(column, comp), openMode};
+    componentStreams[comp].flush();
+    if (!componentStreams[comp])
+    {
+      throw std::runtime_error("Error: cannot write the output file '" + componentFileName(column, comp) + "'");
+    }
   }
-  std::ofstream columnStream("column.data", openMode);
-  if (!inputReader.readColumnFile.has_value())
+
+  std::print("Output {}, time: {:6.5f} [s]\n", numberOfOutputs, time);
+  std::print("    Average number of mixture-prediction steps: {:6.5f}\n",
+             column.iastPerformance.second == 0 ? 0.0
+                                                : static_cast<double>(column.iastPerformance.first) /
+                                                      static_cast<double>(column.iastPerformance.second));
+  // The continuity closures keep sum_j c_j at P/RT; a departure means the gas inventory is no longer consistent.
+  if (const double deviation = column.idealGasDeviation(); deviation > 0.0)
   {
-    column.writeOutputHeader(componentStreams, columnStream);
+    std::print("    Max |R T sum(c) / P - 1|: {:.3e}\n", deviation);
+    if (deviation > 1.0e-2 && !warnedIdealGasDeviation)
+    {
+      std::print("    Warning: R T sum(c) departs from the closure pressure by more than 1 %; the closures do "
+                 "not follow changes of the pressure drop\n");
+      warnedIdealGasDeviation = true;
+    }
   }
+  std::fflush(stdout);
+  if (afterOutput) afterOutput();
 }
 
 void Breakthrough::run()
 {
-  std::vector<std::ofstream> componentStreams(numberOfComponents);
-  for (size_t comp = 0; comp < numberOfComponents; ++comp)
-  {
-    componentStreams[comp] = std::ofstream{componentFileName(column, comp), std::ios_base::app};
-  }
-  std::ofstream columnStream("column.data", std::ios_base::app);
-
   try
   {
+    if (!appendOutput) writeOutput();
     bool finished = false;
-    bool warnedIdealGasDeviation = false;
-    while (true)
+    while (!finished)
     {
-      column.writeJSON("column.json");
-      column.writeOutput(componentStreams, columnStream, time);
-      std::print("Output {}, time: {:6.5f} [s]\n", numberOfOutputs, time);
-      std::print("    Average number of mixture-prediction steps: {:6.5f}\n", averageMixturePredictionSteps(column));
-      // The continuity closures keep sum_j c_j at P/RT; a departure means the gas inventory is no longer consistent.
-      if (const double deviation = column.idealGasDeviation(); deviation > 0.0)
-      {
-        std::print("    Max |R T sum(c) / P - 1|: {:.3e}\n", deviation);
-        if (deviation > 1.0e-2 && !warnedIdealGasDeviation)
-        {
-          std::print("    Warning: R T sum(c) departs from the closure pressure by more than 1 %; the closures do "
-                     "not follow changes of the pressure drop\n");
-          warnedIdealGasDeviation = true;
-        }
-      }
-      std::fflush(stdout);
-
-      if (finished) break;
       finished = advanceToNextOutput();
+      writeOutput();
     }
   }
   catch (const std::exception&)
   {
-    column.writeJSON("failed_state.json");
+    column.writeJSON("failed_state.json", time);
     throw;
   }
 

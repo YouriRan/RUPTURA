@@ -235,7 +235,8 @@ void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMix
                           std::span<const double> particleDensities,
                           std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
                           std::span<const double> chemisorption, std::span<double> chemisorptionDot,
-                          std::span<const double> poreConcentration, std::span<const double> solidTemperature)
+                          std::span<const double> poreConcentration, std::span<const double> solidTemperature,
+                          std::span<const size_t> sitesOfComponent)
 {
   std::fill(chemisorptionDot.begin(), chemisorptionDot.end(), 0.0);
   mdspan3d_const spanEquilibrium(equilibriumChemisorption.data(), maxChemisorptionSites, numberOfGridPoints + 1,
@@ -248,7 +249,10 @@ void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMix
   mdspan3d_const spanPoreConcentration(poreConcentration.data(), maxChemisorptionSites, numberOfGridPoints + 1,
                                        numberOfComponents);
   constexpr double poreInventoryLimitTime = 1.0e-4;
-  const std::vector<size_t> sitesOfComponent = chemisorptionSitesPerComponent(physisorptionMixtures, numberOfComponents);
+  const std::vector<size_t> localSites = sitesOfComponent.empty()
+                                             ? chemisorptionSitesPerComponent(physisorptionMixtures, numberOfComponents)
+                                             : std::vector<size_t>{};
+  if (sitesOfComponent.empty()) sitesOfComponent = localSites;
 
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {

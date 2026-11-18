@@ -16,6 +16,15 @@ examples/
 !examples/Reactions/
 !examples/Reactions/**/
 !examples/Reactions/**/simulation.json
+# examples/ holds inputs only: not what ruptura (or convert.py) writes next to them
+examples/**/analysis.ipynb
+examples/**/column.json
+examples/**/failed_state.json
+examples/**/*fitted.json
+examples/**/_legacy*_simulation.json
+examples/**/breakthrough.ipynb
+examples/**/mixture.ipynb
+examples/**/fitting.ipynb
 .vscode
 .idea
 
@@ -221,6 +230,7 @@ dist/
 *.exe
 
 
+bermejo-lopez/
 dantas/
 elfving/
 liu/
@@ -230,6 +240,7 @@ new/
 pusan/
 ruptura-2.0-paper/
 serna-guerrero/
+sharma/
 shrinjay/
 stadler/
 stampi-bombelli/

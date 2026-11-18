@@ -1,0 +1,42 @@
+{
+  "SimulationType": "MixturePrediction",
+  "MixturePredictionMethod": "MPD",
+  "DisplayName": "CO2/N2 macrostate particle distribution",
+  "Temperature": 293.0,
+  "PressureStart": 1.0e3,
+  "PressureEnd": 1.0e8,
+  "NumberOfPressurePoints": 41,
+  "PressureScale": "Log",
+  "MPDSettings": {
+    "FileName": "particle_distribution.data",
+    "ReferenceTemperature": 293.0,
+    "ReferenceFugacity": 100000.0,
+    "ReferenceFrameworkMass": 1.3284312537390774e-22,
+    "ComponentBounds": [
+      {
+        "Component": "CO2",
+        "NMin": 0,
+        "NMax": 80,
+        "DeltaN": 1
+      },
+      {
+        "Component": "N2",
+        "NMin": 0,
+        "NMax": 80,
+        "DeltaN": 1
+      }
+    ]
+  },
+  "Components": [
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.5,
+      "MolecularWeight": 0.0440095
+    },
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.5,
+      "MolecularWeight": 0.0280134
+    }
+  ]
+}

@@ -1,0 +1,142 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Adsorbed water-gas shift (CO + H2O -> CO2 + H2)",
+  "Temperature": 600.0,
+  "InfluxTemperature": 600.0,
+  "ColumnVoidFraction": 0.4,
+  "DynamicViscosity": 2.8e-05,
+  "ParticleDiameter": 0.001,
+  "ParticleDensity": 1100.0,
+  "InletPressure": 200000.0,
+  "ColumnEntranceVelocity": 0.08,
+  "ColumnLength": 0.08,
+  "BreakthroughIntegrator": "RungeKutta3",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "SimulationTime": 1000.0,
+  "WriteInterval": 10.0,
+  "TimeStep": 0.001,
+  "NumberOfGridPoints": 20,
+  "energyBalance": true,
+  "heatCapacityGas": 1100.0,
+  "heatCapacitySolid": 850.0,
+  "heatCapacityWall": 500.0,
+  "wallDensity": 7800.0,
+  "gasThermalConductivity": 0.045,
+  "wallThermalConductivity": 16.0,
+  "heatTransferGasSolid": 120.0,
+  "heatTransferGasWall": 20.0,
+  "heatTransferWallExternal": 5.0,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.8,
+      "CarrierGas": true,
+      "MolecularWeight": 0.0040026
+    },
+    {
+      "Name": "CO",
+      "GasPhaseMolFraction": 0.08,
+      "MassTransferCoefficient": 0.05,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.0280101,
+      "HeatOfAdsorption": 18000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.2,
+            1e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "H2O",
+      "GasPhaseMolFraction": 0.12,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.01801528,
+      "HeatOfAdsorption": 42000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.0,
+            8e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.0,
+      "MassTransferCoefficient": 0.05,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.0440095,
+      "HeatOfAdsorption": 30000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.2,
+            3e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "H2",
+      "GasPhaseMolFraction": 0.0,
+      "MassTransferCoefficient": 0.04,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.00201588,
+      "HeatOfAdsorption": 6000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.4,
+            1e-06
+          ]
+        }
+      ]
+    }
+  ],
+  "Reactions": [
+    {
+      "Phase": "Physisorbed",
+      "Style": "GeneralPowerLaw",
+      "Reactants": [
+        "CO",
+        "H2O"
+      ],
+      "Products": [
+        "CO2",
+        "H2"
+      ],
+      "Stoichiometry": {
+        "Reactants": [
+          1.0,
+          1.0
+        ],
+        "Products": [
+          1.0,
+          1.0
+        ]
+      },
+      "Kinetics": {
+        "ForwardRateCoefficient": 100000.0,
+        "EquilibriumConstant": {
+          "Value": 1.0,
+          "Law": "VantHoff"
+        },
+        "HeatOfReaction": 128000.0
+      }
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  }
+}

@@ -1,0 +1,131 @@
+{
+    "SimulationType": "Breakthrough",
+    "MixturePredictionMethod": "MPD",
+    "DisplayName": "BEA C7 MPD breakthrough benchmark",
+    "Temperature": 552.0,
+    "ParticleDensity": 1508.52,
+    "InletPressure": 120000.0,
+    "PressureGradient": -1000.0,
+    "ColumnEntranceVelocity": 0.19,
+    "ColumnLength": 0.1,
+    "SimulationTime": 22.5005,
+    "BreakthroughIntegrator": "RungeKutta3",
+    "BoundaryCondition": "FixedPressureInletVelocity",
+    "WriteInterval": 5.0,
+    "DynamicViscosity": 3e-05,
+    "TimeStep": 0.0005,
+    "NumberOfGridPoints": 50,
+    "energyBalance": false,
+    "Components": [
+        {
+            "Name": "Helium",
+            "GasPhaseMolFraction": 0.93,
+            "CarrierGas": true,
+            "MolecularWeight": 0.0040026
+        },
+        {
+            "Name": "nC7",
+            "GasPhaseMolFraction": 0.01,
+            "MolecularWeight": 0.100198,
+            "MassTransferCoefficient": 0.06,
+            "AxialDispersionCoefficient": 0.0
+        },
+        {
+            "Name": "C6m2",
+            "GasPhaseMolFraction": 0.01,
+            "MolecularWeight": 0.100198,
+            "MassTransferCoefficient": 0.06,
+            "AxialDispersionCoefficient": 0.0
+        },
+        {
+            "Name": "C6m3",
+            "GasPhaseMolFraction": 0.01,
+            "MolecularWeight": 0.100198,
+            "MassTransferCoefficient": 0.06,
+            "AxialDispersionCoefficient": 0.0
+        },
+        {
+            "Name": "C5m2m2",
+            "GasPhaseMolFraction": 0.01,
+            "MolecularWeight": 0.100198,
+            "MassTransferCoefficient": 0.06,
+            "AxialDispersionCoefficient": 0.0
+        },
+        {
+            "Name": "C5m2m3",
+            "GasPhaseMolFraction": 0.01,
+            "MolecularWeight": 0.100198,
+            "MassTransferCoefficient": 0.06,
+            "AxialDispersionCoefficient": 0.0
+        },
+        {
+            "Name": "C5m2m4",
+            "GasPhaseMolFraction": 0.01,
+            "MolecularWeight": 0.100198,
+            "MassTransferCoefficient": 0.06,
+            "AxialDispersionCoefficient": 0.0
+        },
+        {
+            "Name": "C5m3m3",
+            "GasPhaseMolFraction": 0.01,
+            "MolecularWeight": 0.100198,
+            "MassTransferCoefficient": 0.06,
+            "AxialDispersionCoefficient": 0.0
+        }
+    ],
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.4,
+        "ParticleDiameter": 0.001
+    },
+    "MPDSettings": {
+        "FileName": "../../mpd/particle_distribution.data",
+        "ReferenceTemperature": 552.0,
+        "ReferenceFugacity": 100000.0,
+        "ReferenceFrameworkMass": 4.151347667934616e-24,
+        "ComponentBounds": [
+            {
+                "Component": "nC7",
+                "NMin": 0,
+                "NMax": 4,
+                "DeltaN": 1
+            },
+            {
+                "Component": "C6m2",
+                "NMin": 0,
+                "NMax": 4,
+                "DeltaN": 1
+            },
+            {
+                "Component": "C6m3",
+                "NMin": 0,
+                "NMax": 4,
+                "DeltaN": 1
+            },
+            {
+                "Component": "C5m2m2",
+                "NMin": 0,
+                "NMax": 4,
+                "DeltaN": 1
+            },
+            {
+                "Component": "C5m2m3",
+                "NMin": 0,
+                "NMax": 4,
+                "DeltaN": 1
+            },
+            {
+                "Component": "C5m2m4",
+                "NMin": 0,
+                "NMax": 4,
+                "DeltaN": 1
+            },
+            {
+                "Component": "C5m3m3",
+                "NMin": 0,
+                "NMax": 4,
+                "DeltaN": 1
+            }
+        ]
+    }
+}

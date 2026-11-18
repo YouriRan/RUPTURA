@@ -23,9 +23,12 @@ struct GasTemperatureBalance
   double gasThermalConductivity;
   double heatTransferGasSolid;
   double heatCapacityGas;
-  double gasWallPrefactor;  ///< Gas-wall area per fluid volume times h_gw / c_p,g.
+  std::span<const double> fluidWallContactArea;  ///< Gas-wall area per fluid volume of each node in 1/m.
+  double heatTransferGasWall;
   Column::InletCondition inletCondition;
   Column::FlowEnds ends{};  ///< Flow direction and product-end gas temperature.
+  /// Work array of updateVelocityAndPressure, 3 (numberOfGridPoints + 1) values; allocated per call when smaller.
+  std::span<double> closureScratch{};
 
   /**
    * \brief Returns dT_f/dt of node grid (1 to numberOfGridPoints) with the velocities v_{i-1} (lowerVelocity) and v_i
@@ -91,11 +94,12 @@ void updateVelocityAndPressure(
  * BulkConcentration reactions write their source, per unit fluid volume, into reactionBulkSource; the caller
  * subtracts it from the bulk species sink. Their heat enters reactionHeat (per kg of solid) divided by
  * loadingPrefactor, the solid mass per fluid volume. A reaction restricted to Adsorbents is weighted by their local
- * fraction (fractionOfAdsorbent, grid-major, numberOfAdsorbents per node). coverage is a work array of
+ * fraction (fractionOfAdsorbent, grid-major, numberOfAdsorbents per node), and the capacity that limits an
+ * adsorbed-phase reaction is that of the adsorbents at the node, weighted in the same way. coverage is a work array of
  * numberOfComponents values for the Langmuir-Hinshelwood coverages.
  */
 void computeReactionDerivatives(
-    const std::vector<Component>& components, const std::vector<Reaction>& reactions,
+    const std::vector<MixturePrediction>& physisorptionMixtures, const std::vector<Reaction>& reactions,
     size_t numberOfGridPoints, size_t numberOfComponents, size_t maxChemisorptionSites,
     double externalTemperature, std::span<const double> physisorption,
     std::span<double> physisorptionDot, std::span<const double> chemisorption,
@@ -116,8 +120,9 @@ void computeReactionDerivatives(
  * computeWENO: in the gas phase the mole fractions, with the total molar flux eps v c_tot kept upwind (the flux that
  * the velocity closures conserve), in the liquid phase the concentrations. Node 0 holds the feed concentrations, which
  * follow a pressure ramp in a forward step; with a Danckwerts inlet, the stencils use the inlet-face value at which the
- * convective-dispersive flux into the first cell equals the feed flux. wenoScratch is the work array of WENO3,
- * (numberOfGridPoints + 1) * (numberOfComponents + 4) values; Upwind does not use it.
+ * convective-dispersive flux into the first cell equals the feed flux. wenoScratch is the work array,
+ * (numberOfGridPoints + 1) * (2 numberOfComponents + 5) + numberOfComponents values; it is allocated per call when
+ * smaller.
  *
  * The face values are upwinded by the sign of the velocity of each face (computeWENOReverse for v < 0). Gas that flows
  * in at z = L is the product-end gas of ends, or that of the last cell, with the same Danckwerts or Dirichlet condition
@@ -144,7 +149,7 @@ void computeEnergyDerivatives(
     size_t numberOfGridPoints, size_t numberOfComponents, double externalTemperature,
     std::span<const Geometry> geometries, std::span<const double> particleDensity,
     std::span<const double> solidFluidContactArea, std::span<const double> fluidSolidContactArea,
-    std::span<const double> heatOfAdsorption, std::span<const double> heatOfChemisorption, double wallDensity,
+    std::span<const double> fluidWallContactArea, std::span<const double> heatOfAdsorption, std::span<const double> heatOfChemisorption, double wallDensity,
     double gasThermalConductivity, double wallThermalConductivity, double heatTransferGasSolid,
     double heatTransferGasWall, double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid,
     double heatCapacityWall, std::span<const double> columnDistances, std::span<const double> interstitialGasVelocity,

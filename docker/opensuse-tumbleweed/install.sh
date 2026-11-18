@@ -8,4 +8,4 @@ zypper --non-interactive install --no-recommends \
 zypper clean --all
 
 python3 -m venv /opt/venv
-/opt/venv/bin/pip install --no-cache-dir nanobind numpy pandas plotly pytest
+/opt/venv/bin/pip install --no-cache-dir nanobind numpy pandas plotly scipy pytest

@@ -1030,6 +1030,31 @@ static std::vector<double> readSizedDoubleList(const nlohmann::json& value, cons
   return values;
 }
 
+/**
+ * \brief Index of the component with the given name: the exact name, else the only one that matches without regard to
+ *        case (component names are keys of several input objects, and keys are case-insensitive); components.size()
+ *        if there is none.
+ */
+static size_t findComponent(const std::vector<Component>& components, const std::string& name,
+                            const std::string& context)
+{
+  for (size_t comp = 0; comp < components.size(); ++comp)
+  {
+    if (components[comp].name == name) return comp;
+  }
+  size_t match = components.size();
+  for (size_t comp = 0; comp < components.size(); ++comp)
+  {
+    if (!caseInSensStringCompare(components[comp].name, name)) continue;
+    if (match != components.size())
+    {
+      throw std::runtime_error("Error: ambiguous component name '" + name + "' (" + context + ")");
+    }
+    match = comp;
+  }
+  return match;
+}
+
 static std::vector<size_t> readReactionParticipants(const nlohmann::json& value,
                                                     const std::vector<Component>& components, const std::string& key,
                                                     const std::string& context)
@@ -1047,41 +1072,14 @@ static std::vector<size_t> readReactionParticipants(const nlohmann::json& value,
     if (item.is_string())
     {
       const std::string name = item.get<std::string>();
-      bool foundExact = false;
-      for (size_t comp = 0; comp < components.size(); ++comp)
+      const size_t comp = findComponent(components, name, "Reaction " + key + ", " + context);
+      if (comp == components.size())
       {
-        if (components[comp].name == name)
-        {
-          participants.push_back(comp);
-          foundExact = true;
-          break;
-        }
+        throw std::runtime_error("Error: component name '" + name + "' in Reaction " + key + " was not found (" +
+                                 context + ")");
       }
-      if (foundExact)
-      {
-        continue;
-      }
-
-      size_t match = components.size();
-      for (size_t comp = 0; comp < components.size(); ++comp)
-      {
-        if (!caseInSensStringCompare(components[comp].name, name)) continue;
-        if (match != components.size())
-        {
-          throw std::runtime_error("Error: ambiguous component name '" + name + "' in Reaction " + key + " (" +
-                                   context + ")");
-        }
-        match = comp;
-      }
-
-      if (match != components.size())
-      {
-        participants.push_back(match);
-        continue;
-      }
-
-      throw std::runtime_error("Error: component name '" + name + "' in Reaction " + key + " was not found (" +
-                               context + ")");
+      participants.push_back(comp);
+      continue;
     }
 
     if (item.is_number_unsigned())
@@ -1411,8 +1409,8 @@ InputReader::InputReader(const std::string fileName) : components()
                         "WaterSaturationPressure",
                         "PressureScale",
                         "ReadColumnFile",
+                        "ResetClock",
                         "DisplayName",
-                        "DebugForceMultibed",  // ignored: every column runs on the same solver
                         "Temperature",
                         "ColumnVoidFraction",
                         "DynamicViscosity",
@@ -1486,8 +1484,7 @@ InputReader::InputReader(const std::string fileName) : components()
                            {{"Breakthrough", SimulationType::Breakthrough},
                             {"MixturePrediction", SimulationType::MixturePrediction},
                             {"Fitting", SimulationType::Fitting},
-                            {"SwingAdsorption", SimulationType::SwingAdsorption},
-                            {"Test", SimulationType::Test}});
+                            {"SwingAdsorption", SimulationType::SwingAdsorption}});
 
   readOptionalMappedString(parsed_data, "MixturePredictionMethod", mixturePredictionMethod,
                            {{"IAST", 0}, {"SIAST", 1}, {"EI", 2}, {"SEI", 3}, {"SCI", 4}, {"SPI", 5}, {"MPD", 6}});
@@ -1631,6 +1628,11 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalMappedString(parsed_data, "PressureScale", pressureScale, {{"Log", 0}, {"Linear", 1}});
 
   readOptionalString(parsed_data, "ReadColumnFile", readColumnFile);
+  readOptionalBool(parsed_data, "ResetClock", resetClock);
+  if (resetClock && !readColumnFile.has_value())
+  {
+    throw std::runtime_error("Error: ResetClock starts a ReadColumnFile run at t = 0; it needs ReadColumnFile");
+  }
   readOptionalString(parsed_data, "DisplayName", displayName);
 
   readOptionalNumber<double>(parsed_data, "Temperature", temperature);
@@ -2127,7 +2129,7 @@ InputReader::InputReader(const std::string fileName) : components()
     for (size_t component = 0; component < mpdComponents.size(); ++component)
     {
       const MPDComponentBounds& bounds = mpdSettings->componentBounds[component];
-      if (!bounds.component.empty() && bounds.component != mpdComponents[component]->name)
+      if (!bounds.component.empty() && !caseInSensStringCompare(bounds.component, mpdComponents[component]->name))
       {
         throw std::runtime_error("Error: MPD ComponentBounds entry " + std::to_string(component) + " names '" +
                                  bounds.component + "', but C-order dimension " + std::to_string(component) +
@@ -2142,6 +2144,11 @@ InputReader::InputReader(const std::string fileName) : components()
     double sum = 0.0;
     for (size_t j = 0; j < components.size(); ++j)
     {
+      if (!std::isfinite(components[j].initialGasMoleFraction) || components[j].initialGasMoleFraction < 0.0)
+      {
+        throw std::runtime_error("Error: GasPhaseMolFraction must be finite and non-negative (component '" +
+                                 components[j].name + "')");
+      }
       sum += components[j].initialGasMoleFraction;
     }
     if (!components.empty() && !(sum > 0.0))
@@ -2198,21 +2205,26 @@ InputReader::InputReader(const std::string fileName) : components()
       }
 
       std::vector<double> fractions(components.size(), 0.0);
+      std::set<size_t> named;
       for (const auto& [name, fraction] : *byName)
       {
-        const auto component = std::find_if(components.begin(), components.end(),
-                                            [&](const Component& candidate) { return candidate.name == name; });
-        if (component == components.end())
+        const size_t component = findComponent(components, name, context);
+        if (component == components.size())
         {
           throw std::runtime_error(std::string("Error: ") + key + " names unknown component '" + name + "' (" +
                                    context + ")");
+        }
+        if (!named.insert(component).second)
+        {
+          throw std::runtime_error("Error: component '" + components[component].name + "' appears twice in " + key +
+                                   " (" + context + ")");
         }
         if (!std::isfinite(fraction) || fraction < 0.0)
         {
           throw std::runtime_error(std::string("Error: ") + key + " must be finite and non-negative (" + context +
                                    ")");
         }
-        fractions[static_cast<size_t>(component - components.begin())] = fraction;
+        fractions[component] = fraction;
       }
       const double sum = std::accumulate(fractions.begin(), fractions.end(), 0.0);
       if (!(sum > 0.0))
@@ -2606,12 +2618,6 @@ InputReader::InputReader(const std::string fileName) : components()
       throw std::runtime_error("Error: 'Adsorbents' must be a non-empty array");
     }
 
-    std::unordered_map<std::string, std::size_t> componentIndexByName;
-    for (std::size_t comp = 0; comp < components.size(); ++comp)
-    {
-      componentIndexByName.emplace(components[comp].name, comp);
-    }
-
     std::vector<std::string> adsorbentNames;
     adsorbentNames.reserve(adsorbentsJson.size());
     std::unordered_map<std::string, std::size_t> adsorbentIndexByName;
@@ -2684,16 +2690,22 @@ InputReader::InputReader(const std::string fileName) : components()
           throw std::runtime_error("Error: ComponentParameters must be an object (" + context + ")");
         }
 
+        std::set<size_t> overridden;
         for (auto it = componentParameters.begin(); it != componentParameters.end(); ++it)
         {
-          auto componentIndex = componentIndexByName.find(it.key());
-          if (componentIndex == componentIndexByName.end())
+          const size_t componentIndex = findComponent(components, it.key(), context);
+          if (componentIndex == components.size())
           {
             throw std::runtime_error("Error: unknown component '" + it.key() + "' in ComponentParameters (" + context +
                                      ")");
           }
+          if (!overridden.insert(componentIndex).second)
+          {
+            throw std::runtime_error("Error: component '" + components[componentIndex].name +
+                                     "' appears twice in ComponentParameters (" + context + ")");
+          }
 
-          Component& comp = componentsForAdsorbent[componentIndex->second];
+          Component& comp = componentsForAdsorbent[componentIndex];
           const nlohmann::json& params = it.value();
           const std::string componentContext = context + ", ComponentParameters " + it.key();
           if (!params.is_object())
@@ -2709,7 +2721,7 @@ InputReader::InputReader(const std::string fileName) : components()
           readOptionalNumber<double>(params, "MassTransferCoefficient", comp.massTransferCoefficient);
           readOptionalNumber<double>(params, "AxialDispersionCoefficient", comp.axialDispersionCoefficient);
           // The override starts from the heat and reference temperature given for the component.
-          ComponentTemperatureInput temperatureInput = componentTemperatureInputs[componentIndex->second];
+          ComponentTemperatureInput temperatureInput = componentTemperatureInputs[componentIndex];
           readOptionalNumber<double>(params, "HeatOfAdsorption", temperatureInput.heatOfAdsorption);
           readOptionalNumber<double>(params, "ReferenceTemperature", temperatureInput.referenceTemperature);
           readChemisorption(comp.chemisorption, params, comp.massTransferCoefficient,
@@ -2755,22 +2767,22 @@ InputReader::InputReader(const std::string fileName) : components()
             ambiguousHeats.push_back(context + ", " + adsorbentComponent.name + ": " +
                                      temperatureInput.ambiguousEnergies);
           }
-          auto componentIndex = componentIndexByName.find(adsorbentComponent.name);
-          if (componentIndex == componentIndexByName.end())
+          const size_t componentIndex = findComponent(components, adsorbentComponent.name, context);
+          if (componentIndex == components.size())
           {
             throw std::runtime_error("Error: unknown component '" + adsorbentComponent.name +
                                      "' in Adsorbent Components (" + context + ")");
           }
-          adsorbentComponent.id = componentsForAdsorbent[componentIndex->second].id;
+          adsorbentComponent.id = componentsForAdsorbent[componentIndex].id;
           // Water is a property of the component, set in the top-level Components.
           if (containsKeyCaseInsensitive(adsorbentComponentsJson[componentId], "Water") &&
-              adsorbentComponent.isWater != componentsForAdsorbent[componentIndex->second].isWater)
+              adsorbentComponent.isWater != componentsForAdsorbent[componentIndex].isWater)
           {
             throw std::runtime_error("Error: Water of component '" + adsorbentComponent.name +
                                      "' differs from the top-level Components (" + context + ")");
           }
-          adsorbentComponent.isWater = componentsForAdsorbent[componentIndex->second].isWater;
-          componentsForAdsorbent[componentIndex->second] = adsorbentComponent;
+          adsorbentComponent.isWater = componentsForAdsorbent[componentIndex].isWater;
+          componentsForAdsorbent[componentIndex] = adsorbentComponent;
         }
       }
 
@@ -3065,6 +3077,9 @@ InputReader::InputReader(const std::string fileName) : components()
     adsorbentGeometries.push_back(geometry);
   }
 
+  requireConfigured(numberOfGridPoints != 0,
+                    "Error: number of grid points not set (Use e.g.: 'NumberOfGridPoints 50')");
+  requireConfigured(columnLength > 0.0, "Error: column length not set or invalid (Use e.g.: 'ColumnLength 0.3')");
   if (columnDistances.empty())
   {
     columnDistances = makeUniformColumnDistances(numberOfGridPoints, columnLength);
@@ -3350,6 +3365,14 @@ InputReader::InputReader(const std::string fileName) : components()
   }
   if (mixturePredictionMethod == 6) maxIsothermTerms = std::max(maxIsothermTerms, size_t{1});
 
+  if (simulationType == SimulationType::MixturePrediction)
+  {
+    requireConfigured(std::isfinite(pressureStart) && pressureStart > 0.0 && std::isfinite(pressureEnd) &&
+                          pressureEnd > 0.0,
+                      "Error: MixturePrediction requires PressureStart > 0 and PressureEnd > 0");
+    requireConfigured(numberOfPressurePoints >= 1, "Error: MixturePrediction requires NumberOfPressurePoints >= 1");
+  }
+
   if (simulationType == SimulationType::Breakthrough || simulationType == SimulationType::SwingAdsorption)
   {
     static constexpr size_t inletPressureInletVelocity = 0;
@@ -3416,6 +3439,17 @@ InputReader::InputReader(const std::string fileName) : components()
                   "ParticleDensity", particleDensity, " kg/m^3");
       warnDefault(containsKeyCaseInsensitive(parsed_data, "ColumnLength") || stackedMultibed, "ColumnLength",
                   columnLength, " m");
+      // The gas density, in the pressure drop and the heat capacity of the gas, is sum_j c_j M_j.
+      const nlohmann::json* componentList = findKeyCaseInsensitive(parsed_data, "Components");
+      std::string withoutMolecularWeight;
+      for (size_t comp = 0; fluidPhase == 0 && componentList != nullptr && comp < componentList->size(); ++comp)
+      {
+        if (!containsKeyCaseInsensitive((*componentList)[comp], "MolecularWeight"))
+        {
+          withoutMolecularWeight += (withoutMolecularWeight.empty() ? "" : ", ") + components[comp].name;
+        }
+      }
+      warnDefault(withoutMolecularWeight.empty(), "MolecularWeight of " + withoutMolecularWeight, 1.0, " kg/mol");
       if (energyBalance)
       {
         if (fluidPhase == 0)
@@ -3435,7 +3469,18 @@ InputReader::InputReader(const std::string fileName) : components()
       }
     }
 
-    requireConfigured(temperature >= 0.0, "Error: temperature not set (Use e.g.: 'Temperature 300')");
+    requireConfigured(temperature > 0.0, "Error: Temperature must be positive (Use e.g.: 'Temperature 300')");
+    requireConfigured(numberOfGridPoints >= 2 || convectionScheme == 0,
+                      "Error: ConvectionScheme WENO3 needs NumberOfGridPoints >= 2");
+    for (const std::vector<Component>& componentsForAdsorbent : adsorbentComponents)
+    {
+      for (const Component& component : componentsForAdsorbent)
+      {
+        requireConfigured(component.massTransferCoefficient >= 0.0 && component.axialDispersionCoefficient >= 0.0,
+                          "Error: MassTransferCoefficient and AxialDispersionCoefficient must not be negative "
+                          "(component '" + component.name + "')");
+      }
+    }
     requireConfigured(columnVoidFraction > 0.0,
                       "Error: void-fraction of the column not set or invalid (Use e.g.: 'ColumnVoidFraction 0.4')");
     requireConfigured(particleDensity >= 0.0, "Error: particle density not set (Use e.g.: 'ParticleDensity 1408.2')");
@@ -3486,7 +3531,7 @@ InputReader::InputReader(const std::string fileName) : components()
         if (phase.temperature.has_value())
         {
           requireConfigured(
-              std::isfinite(*phase.temperature) && *phase.temperature >= 0.0,
+              std::isfinite(*phase.temperature) && *phase.temperature > 0.0,
               "Error: SwingAdsorption phase " + std::to_string(phaseIndex + 1) + " has invalid temperature");
         }
         if (phase.inletPressure.has_value())
@@ -3515,14 +3560,15 @@ InputReader::InputReader(const std::string fileName) : components()
         }
       }
     }
-    requireConfigured(numberOfGridPoints != 0,
-                      "Error: number of grid points not set (Use e.g.: 'NumberOfGridPoints 50')");
-    requireConfigured(columnLength > 0.0, "Error: column length not set or invalid (Use e.g.: 'ColumnLength 0.3')");
     // The wall balance divides by the wall heat capacity per volume.
     requireConfigured(!energyBalance || (std::isfinite(wallDensity) && wallDensity > 0.0),
                       "Error: the energy balance requires wallDensity > 0 (Use e.g.: 'wallDensity 7800')");
     requireConfigured(!energyBalance || (std::isfinite(heatCapacityWall) && heatCapacityWall > 0.0),
                       "Error: the energy balance requires heatCapacityWall > 0 (Use e.g.: 'heatCapacityWall 500')");
+    requireConfigured(!energyBalance ||
+                          ((fluidPhase == 1 ? heatCapacityLiquid : heatCapacityGas) > 0.0 && heatCapacitySolid > 0.0),
+                      "Error: the energy balance requires positive heat capacities of the fluid (heatCapacityGas or "
+                      "heatCapacityLiquid) and of the solid (heatCapacitySolid)");
     // The energy balance releases one physisorption heat per component. Without a HeatOfAdsorption it follows
     // from the energy of the affinity laws, which must then agree.
     if (energyBalance && !ambiguousHeats.empty())
@@ -3569,13 +3615,13 @@ InputReader::InputReader(const std::string fileName) : components()
       }
     }
 
-    const bool hasChemisorption = std::any_of(components.begin(), components.end(), [](const Component& component)
+    const bool componentsHaveChemisorption = std::any_of(components.begin(), components.end(), [](const Component& component)
                                               { return component.chemisorption.numberOfSites > 0; });
     requireConfigured(mixturePredictionMethod != 6 || cvodePreconditioner == 0,
                       "Error: CVODEPreconditioner SorptionJacobian does not support MPD mixture prediction");
     // The KLU Jacobian covers the concentrations and physisorbed loadings only.
     const bool kluJacobian = breakthroughIntegrator == 1 && cvodeLinearSolver == 2;
-    requireConfigured(!kluJacobian || (reactions.empty() && !hasChemisorption && !energyBalance),
+    requireConfigured(!kluJacobian || (reactions.empty() && !componentsHaveChemisorption && !energyBalance),
                       "Error: CVODELinearSolver KLU does not support reactions, chemisorption, or the energy balance; "
                       "use SPGMR or Dense");
     requireConfigured(!kluJacobian || mixturePredictionMethod != 6,

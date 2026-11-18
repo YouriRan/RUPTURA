@@ -114,7 +114,7 @@ def field(key, label, default=None, options=None, kind="number"):
 SCHEMA = {
     "help": FIELD_HELP,
     "types": TYPES, "methods": METHODS, "isotherms": ISOTHERMS, "kinetics": KINETICS, "temperatureLaws": TEMPERATURE_LAWS,
-    "operating": [field("Temperature", "Temperature [K]", 433), field("FluidPhase", "Fluid phase", "Gas", ["Gas", "Liquid"]),
+    "operating": [field("Temperature", "Temperature [K]", 298), field("FluidPhase", "Fluid phase", "Gas", ["Gas", "Liquid"]),
                   field("MixturePredictionMethod", "Mixture method", "IAST", METHODS), field("IASTMethod", "IAST solver", "FastIAST", ["FastIAST", "NestedLoopBisection"])],
     "integration": [field("BreakthroughIntegrator", "Integrator", "RungeKutta3", ["RungeKutta3", "CVODE", "ROS34PW2"]),
                     field("ConvectionScheme", "Convection scheme", "WENO3", ["WENO3", "Upwind"]),
@@ -167,11 +167,11 @@ SCHEMA = {
                  field("AxialDispersivity", "Axial dispersivity [m]", 0), field("TaylorArisDispersion", "Taylor–Aris dispersion (monolith)", False, kind="boolean")],
 }
 
-_KEYS = "ClosedEnd PressureRamp Shape TimeConstant SimulationType DisplayName Components Adsorbents ColumnSections Geometry PhysisorptionSites ChemisorptionSites Name Type Parameters RateEquation RateEquationParameters MaximumLoading HeatOfAdsorption Reactions Phase Style Site Reactants Products Stoichiometry Kinetics ForwardOrders BackwardOrders RateLimitTime CarrierGas Water FileName ReadColumnFile ColumnDistances DebugForceMultibed MPDSettings SwingAdsorptionPhases ProductEndGasPhaseMolFractions Adsorbent AdsorbentLength Length InterfaceLength ComponentParameters MixFraction ColumnPressure ColumnLoading ColumnError FittingWeighting ForwardRateCoefficient EquilibriumConstant HeatOfReaction AdsorptionConstants Value Law Energy ActivationEnergy Chi Slope Alpha".split()
+_KEYS = "ClosedEnd PressureRamp Shape TimeConstant SimulationType DisplayName Components Adsorbents ColumnSections Geometry PhysisorptionSites ChemisorptionSites Name Type Parameters RateEquation RateEquationParameters MaximumLoading HeatOfAdsorption Reactions Phase Style Site Reactants Products Stoichiometry Kinetics ForwardOrders BackwardOrders RateLimitTime CarrierGas Water FileName ReadColumnFile ResetClock ColumnDistances MPDSettings SwingAdsorptionPhases ProductEndGasPhaseMolFractions Adsorbent AdsorbentLength Length InterfaceLength ComponentParameters MixFraction ColumnPressure ColumnLoading ColumnError FittingWeighting ForwardRateCoefficient EquilibriumConstant HeatOfReaction AdsorptionConstants Value Law Energy ActivationEnergy Chi Slope Alpha".split()
 _KEYS += [item["key"] for group in SCHEMA.values() if isinstance(group, list) for item in group if isinstance(item, dict)]
 KEYS = {key.lower(): key for key in _KEYS}
 ENUMS = {item["key"]: item["options"] for group in SCHEMA.values() if isinstance(group, list) for item in group if isinstance(item, dict) and item["options"]}
-ENUMS.update(SimulationType=TYPES + ["Fitting", "Test"], Type=list(ISOTHERMS) + ["PackedBed", "Monolith"],
+ENUMS.update(SimulationType=TYPES + ["Fitting"], Type=list(ISOTHERMS) + ["PackedBed", "Monolith"],
              RateEquation=list(KINETICS), Law=["Constant", "VantHoff", "Arrhenius", "Exponential", "Linear", "Inverse"],
              Phase=["Physisorbed", "Chemisorbed", "PoreConcentration", "BulkConcentration"],
              Style=["GeneralPowerLaw", "LangmuirHinshelwood", "LangmuirHinshelwoodHougenWatson"])

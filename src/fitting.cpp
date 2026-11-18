@@ -41,10 +41,8 @@ Fitting::Fitting(const InputReader& inputreader)
           static_cast<size_t>(static_cast<double>(geneticAlgorithmSize) * geneticAlgorithmEliteRate)),
       geneticAlgorithmMotleists(
           static_cast<size_t>(static_cast<double>(geneticAlgorithmSize) * (1.0 - geneticAlgorithmMotleyCrowdRate))),
-      alphaPopulation(static_cast<size_t>(std::pow(2.0, 12.0))),
-      betaPopulation(static_cast<size_t>(std::pow(2.0, 12.0))),
-      parents(alphaPopulation),
-      children(betaPopulation)
+      parents(static_cast<size_t>(std::pow(2.0, 12.0))),
+      children(static_cast<size_t>(std::pow(2.0, 12.0)))
 {
   for (size_t i = 0; i < numberOfComponents; ++i)
   {
@@ -52,28 +50,6 @@ Fitting::Fitting(const InputReader& inputreader)
     filename[i] = inputreader.components[i].filename;
     isotherms[i] = inputreader.components[i].isotherm;
   }
-}
-
-bool startsWith(const std::string& str, const std::string& prefix)
-{
-  return str.size() >= prefix.size() && str.substr(0, prefix.size()) == prefix;
-}
-
-std::string trim(const std::string& s)
-{
-  auto start = s.begin();
-  while (start != s.end() && std::isspace(*start))
-  {
-    start++;
-  }
-
-  auto end = s.end();
-  do
-  {
-    end--;
-  } while (std::distance(start, end) > 0 && std::isspace(*end));
-
-  return std::string(start, end + 1);
 }
 
 namespace
@@ -133,37 +109,38 @@ void Fitting::readData(size_t ID)
   maximumLoading = 0.0;
   rawData.clear();
   size_t numberOfSkippedPoints{0};
+  size_t lineNumber{0};
   while (std::getline(fileInput, line))
   {
-    std::string trimmedLine = trim(line);
-    if (!startsWith(trimmedLine, "#"))
-    {
-      if (!line.empty())
-      {
-        std::istringstream iss(line);
+    ++lineNumber;
+    // blank lines and full-line comments beginning with '#' hold no data
+    const size_t first = line.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos || line[first] == '#') continue;
 
-        std::vector<std::string> results((std::istream_iterator<std::string>(iss)),
-                                         std::istream_iterator<std::string>());
-        if (columnPressure < results.size() && columnLoading < results.size())
-        {
-          double pressure;
-          double loading;
-          std::istringstream s(results[columnPressure]);
-          s >> pressure;
-          std::istringstream t(results[columnLoading]);
-          t >> loading;
-          if (fittingWeighting == FittingWeighting::Relative && !(loading > 0.0))
-          {
-            ++numberOfSkippedPoints;
-            continue;
-          }
-          if (loading > maximumLoading)
-          {
-            maximumLoading = loading;
-          }
-          rawData.push_back(std::make_pair(pressure, loading));
-        }
+    std::istringstream iss(line);
+    std::vector<std::string> results((std::istream_iterator<std::string>(iss)), std::istream_iterator<std::string>());
+    if (columnPressure < results.size() && columnLoading < results.size())
+    {
+      double pressure;
+      double loading;
+      std::istringstream s(results[columnPressure]);
+      std::istringstream t(results[columnLoading]);
+      // a value that is no number, or only starts with one ("1,5"), would be fitted as wrong data
+      if (!(s >> pressure) || !s.eof() || !(t >> loading) || !t.eof())
+      {
+        throw std::runtime_error("Error: '" + filename[ID] + "', line " + std::to_string(lineNumber) +
+                                 ": the pressure and loading columns must hold numbers");
       }
+      if (fittingWeighting == FittingWeighting::Relative && !(loading > 0.0))
+      {
+        ++numberOfSkippedPoints;
+        continue;
+      }
+      if (loading > maximumLoading)
+      {
+        maximumLoading = loading;
+      }
+      rawData.push_back(std::make_pair(pressure, loading));
     }
   }
 
@@ -288,15 +265,11 @@ void Fitting::run()
 
     isotherms[i] = optimizedBestCitizen.phenotype;
     components[i].isotherm = optimizedBestCitizen.phenotype;
-
-    // createPlotScripts(optimizedBestCitizen, i);
   }
 
   const std::string outputFilename = displayName.empty() ? "fitted.json" : displayName + "_fitted.json";
 
   writeComponentsJson(outputFilename);
-
-  // createPlotScript();
 }
 
 // create a new citizen in the Ensemble
@@ -669,14 +642,11 @@ Fitting::DNA Fitting::fit(size_t ID)
   fullFilledConditionStep = 0;
   optimisationStep = 0;
 
-  for (size_t i = 0; i < alphaPopulation.size(); ++i)
+  for (size_t i = 0; i < parents.size(); ++i)
   {
-    alphaPopulation[i] = newCitizen(ID);
-    betaPopulation[i] = newCitizen(ID);
+    parents[i] = newCitizen(ID);
+    children[i] = newCitizen(ID);
   }
-
-  parents = alphaPopulation;
-  children = betaPopulation;
 
   sortByFitness();
 
@@ -695,6 +665,7 @@ Fitting::DNA Fitting::fit(size_t ID)
     tempVarietyValue = biodiversity(children);
 
     writeCitizen(0, ID, optimisationStep, tempVarietyValue, fullFilledConditionStep);
+    if (afterOutput) afterOutput();
 
     if (optimisationStep >= minstep && parents[0].fitness <= minimumFitness &&
         std::abs(parents[0].fitness - tempFitnessValue) <= toleranceEqualFitness)
@@ -827,6 +798,7 @@ const Fitting::DNA Fitting::simplex(DNA citizen, double scale)
 
   for (size_t itr = 1; itr <= MAX_IT; ++itr)
   {
+    if (afterOutput) afterOutput();
     // Step 1: Sort
     // ====================================================================
     std::vector<size_t> sortIndexes = sort_indexes(f);

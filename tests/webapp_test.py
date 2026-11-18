@@ -474,7 +474,10 @@ def test_http_api_session_import_run_and_download(tmp_path):
     try:
         with request("/", session=False) as response:
             assert b"Ruptura Lab" in response.read()
-        with request("/api/bootstrap", session=False) as response:
+        with pytest.raises(HTTPError) as error:
+            request("/api/bootstrap", session=False)
+        assert error.value.code == 403
+        with request("/api/bootstrap") as response:
             boot = json.load(response)
             assert boot["session"] == server.session
             assert boot["about"]["citation"]["doi"] == "10.1080/08927022.2023.2202757"

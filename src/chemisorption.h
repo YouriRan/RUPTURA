@@ -45,10 +45,6 @@ struct Chemisorption
   [[nodiscard]] double rate(double equilibriumLoading, double loading, double concentration = 0.0,
                             double temperature = 298.15) const;
   [[nodiscard]] bool enabled() const noexcept { return type != Type::None; }
-  [[nodiscard]] bool usesEquilibriumLoading() const noexcept
-  {
-    return type == Type::FirstOrder || type == Type::PseudoNth || type == Type::Avrami;
-  }
   [[nodiscard]] bool usesSurfacePoreTransport() const noexcept
   {
     return (type == Type::General || type == Type::Elovich) && usePoreSurfaceTransport;
