@@ -1,0 +1,85 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Chemisorption CO2 surface-pore",
+  "Temperature": 313.0,
+  "ColumnVoidFraction": 0.38,
+  "DynamicViscosity": 1.8e-05,
+  "ParticleDiameter": 0.0012,
+  "ParticleDensity": 950.0,
+  "InletPressure": 120000.0,
+  "ColumnEntranceVelocity": 0.06,
+  "ColumnLength": 0.08,
+  "BreakthroughIntegrator": "CVODE",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "SimulationTime": "auto",
+  "WriteInterval": 2.0,
+  "NumberOfGridPoints": 20,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.92,
+      "CarrierGas": true,
+      "MolecularWeight": 0.004
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.08,
+      "MassTransferCoefficient": 0.03,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.044,
+      "ChemisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.55,
+            1.8e-05
+          ],
+          "RateEquation": "General",
+          "RateEquationParameters": {
+            "AdsorptionRateCoefficient": 2.5e-05,
+            "DesorptionRateCoefficient": 1e-06,
+            "PoreConcentrationOrder": 1,
+            "CapacityOrder": 1,
+            "DesorptionOrder": 1,
+            "FilmMassTransferCoefficient": 0.0015,
+            "PoreDiffusivity": 8e-11,
+            "UsePoreSurfaceTransport": true
+          },
+          "HeatOfAdsorption": 52000.0,
+          "MaximumLoading": 0.55
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.25,
+            1e-05
+          ],
+          "RateEquation": "Elovich",
+          "RateEquationParameters": {
+            "Alpha": 0.02,
+            "Beta": 3.0,
+            "FilmMassTransferCoefficient": 0.001,
+            "PoreDiffusivity": 5e-11,
+            "UsePoreSurfaceTransport": true
+          },
+          "HeatOfAdsorption": 46000.0,
+          "MaximumLoading": 0.25
+        }
+      ],
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.0,
+            1.8e-05
+          ]
+        }
+      ]
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.38,
+    "ParticleDiameter": 0.0012
+  }
+}

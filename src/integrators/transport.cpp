@@ -18,7 +18,8 @@ void computeChemisorptionTransportDerivatives(
     std::span<const Geometry> geometries, std::span<const double> poreLoadingConversion,
     std::span<const double> concentration, std::span<const double> chemisorptionDot,
     std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
-    std::span<const double> poreConcentration, std::span<double> poreConcentrationDot)
+    std::span<const double> poreConcentration, std::span<double> poreConcentrationDot,
+    std::span<const size_t> sitesOfComponent)
 {
   std::fill(surfaceConcentrationDot.begin(), surfaceConcentrationDot.end(), 0.0);
   std::fill(poreConcentrationDot.begin(), poreConcentrationDot.end(), 0.0);
@@ -34,7 +35,10 @@ void computeChemisorptionTransportDerivatives(
   mdspan3d_const spanPore(poreConcentration.data(), maxChemisorptionSites, numberOfGridPoints + 1, numberOfComponents);
   mdspan3d_mut spanPoreDot(poreConcentrationDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
                            numberOfComponents);
-  const std::vector<size_t> sitesOfComponent = chemisorptionSitesPerComponent(physisorptionMixtures, numberOfComponents);
+  const std::vector<size_t> localSites = sitesOfComponent.empty()
+                                             ? chemisorptionSitesPerComponent(physisorptionMixtures, numberOfComponents)
+                                             : std::vector<size_t>{};
+  if (sitesOfComponent.empty()) sitesOfComponent = localSites;
 
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
@@ -83,14 +87,17 @@ void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionM
                             std::span<const double> surfaceConcentration, std::span<double> bulkSpeciesSink,
                             std::span<const double> reactionPhysisorptionSource,
                             std::span<const double> reactionChemisorptionSource,
-                            std::span<const double> reactionBulkSource)
+                            std::span<const double> reactionBulkSource, std::span<const size_t> sitesOfComponent)
 {
   mdspan2d_const spanConcentration(concentration.data(), numberOfGridPoints + 1, numberOfComponents);
   mdspan3d_const spanChemisorptionDot(chemisorptionDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
                                       numberOfComponents);
   mdspan3d_const spanSurface(surfaceConcentration.data(), maxChemisorptionSites, numberOfGridPoints + 1,
                              numberOfComponents);
-  const std::vector<size_t> sitesOfComponent = chemisorptionSitesPerComponent(physisorptionMixtures, numberOfComponents);
+  const std::vector<size_t> localSites = sitesOfComponent.empty()
+                                             ? chemisorptionSitesPerComponent(physisorptionMixtures, numberOfComponents)
+                                             : std::vector<size_t>{};
+  if (sitesOfComponent.empty()) sitesOfComponent = localSites;
 
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {

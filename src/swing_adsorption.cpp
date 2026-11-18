@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdio>
+#include <filesystem>
 #include <format>
 #include <fstream>
 #include <numeric>
@@ -52,20 +53,18 @@ void SwingAdsorption::run()
   const size_t n = column.numberOfComponents;
   const size_t lastNode = column.numberOfGridPoints;
 
-  std::vector<std::ofstream> streams;
-  for (size_t comp = 0; comp < breakthrough.numberOfComponents; ++comp)
+  // phases.data is continued with the other output files (Breakthrough::writeOutput), which the first output starts.
+  const bool appendPhases = breakthrough.appendOutput && std::filesystem::exists("phases.data");
+  std::ofstream phaseStream("phases.data", appendPhases ? std::ios_base::app : std::ios_base::trunc);
+  if (!appendPhases)
   {
-    const std::string fileName = "component_" + std::to_string(comp) + "_" + column.components[comp].name + ".data";
-    streams.emplace_back(std::ofstream{fileName, std::ios_base::app});
+    std::print(phaseStream,
+               "# column 1: Phase start time [s]\n# column 2: Phase end time [s]\n"
+               "# column 3: Pressure at z = 0 at the end of the phase [Pa]\n"
+               "# column 4: Pressure at z = L at the end of the phase [Pa]\n"
+               "# column 5: Max |R T sum(c) / P - 1| at the end of the phase [-]\n");
   }
-  std::ofstream columnStream("column.data", std::ios_base::app);
-  std::ofstream phaseStream("phases.data");
-  std::print(phaseStream,
-             "# column 1: Phase start time [s]\n# column 2: Phase end time [s]\n"
-             "# column 3: Pressure at z = 0 at the end of the phase [Pa]\n"
-             "# column 4: Pressure at z = L at the end of the phase [Pa]\n"
-             "# column 5: Max |R T sum(c) / P - 1| at the end of the phase [-]\n");
-  for (size_t comp = 0; comp < n; ++comp)
+  for (size_t comp = 0; !appendPhases && comp < n; ++comp)
   {
     std::print(phaseStream,
                "# columns {} to {}: {}: gas and adsorbed at the phase start, gas and adsorbed at its end [mol/m^2]\n",
@@ -165,37 +164,13 @@ void SwingAdsorption::run()
   };
 
   const double writeInterval = breakthrough.writeInterval;
-  bool warnedIdealGasDeviation = false;
-  auto writeOutput = [&]
-  {
-    column.writeJSON("column.json");
-    column.writeOutput(streams, columnStream, breakthrough.time);
-    const double averageIastSteps = column.iastPerformance.second == 0
-                                        ? 0.0
-                                        : static_cast<double>(column.iastPerformance.first) /
-                                              static_cast<double>(column.iastPerformance.second);
-    std::print("Output {}, time: {:6.5f} [s]\n", breakthrough.numberOfOutputs, breakthrough.time);
-    std::print("    Average number of mixture-prediction steps: {:6.5f}\n", averageIastSteps);
-    // As in Breakthrough::run: the continuity closures keep sum_j c_j at P/RT.
-    if (const double deviation = column.idealGasDeviation(); deviation > 0.0)
-    {
-      std::print("    Max |R T sum(c) / P - 1|: {:.3e}\n", deviation);
-      if (deviation > 1.0e-2 && !warnedIdealGasDeviation)
-      {
-        std::print("    Warning: R T sum(c) departs from the closure pressure by more than 1 %; the closures do "
-                   "not follow changes of the pressure drop\n");
-        warnedIdealGasDeviation = true;
-      }
-    }
-    std::fflush(stdout);
-  };
-
   try
   {
     // An output that falls on the start of a phase is written once that phase's conditions are applied, as is the
-    // initial state; the state at the end of the last phase is always written.
-    bool outputPending = true;
-    double phaseEndTime = 0.0;
+    // initial state, unless the files hold it already (a continued run); the state at the end of the last phase is
+    // always written.
+    bool outputPending = !breakthrough.appendOutput;
+    double phaseEndTime = breakthrough.time;
     for (size_t stageIndex = 0; stageIndex < subStages.size(); ++stageIndex)
     {
       const SwingAdsorptionSubStage& stage = subStages[stageIndex];
@@ -228,7 +203,7 @@ void SwingAdsorption::run()
                                         .adsorbedAtStart = column.adsorbedInventory()};
       if (outputPending)
       {
-        writeOutput();
+        breakthrough.writeOutput();
         outputPending = false;
       }
 
@@ -243,7 +218,7 @@ void SwingAdsorption::run()
         const bool outputAtPhaseEnd = !outputBeforePhaseEnd && nextOutputTime <= phaseEndTime + tolerance;
         breakthrough.advanceTo(outputBeforePhaseEnd ? nextOutputTime : phaseEndTime, timings);
         if (outputBeforePhaseEnd || outputAtPhaseEnd) ++breakthrough.numberOfOutputs;
-        if (outputBeforePhaseEnd) writeOutput();
+        if (outputBeforePhaseEnd) breakthrough.writeOutput();
         outputPending = outputAtPhaseEnd;
       }
 
@@ -262,13 +237,14 @@ void SwingAdsorption::run()
       }
       std::print(phaseStream, "  # {}\n", stage.name);
       phaseStream.flush();
+      if (!phaseStream) throw std::runtime_error("Error: cannot write the output file 'phases.data'");
       phaseRecords.push_back(std::move(record));
     }
-    writeOutput();
+    breakthrough.writeOutput();
   }
   catch (const std::exception&)
   {
-    column.writeJSON("failed_state.json");
+    column.writeJSON("failed_state.json", breakthrough.time);
     throw;
   }
 

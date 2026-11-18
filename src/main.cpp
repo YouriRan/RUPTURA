@@ -22,27 +22,12 @@ void runSimulation(const InputReader& reader)
   simulation.run();
 }
 
-RupturaNotebooks::SimulationType notebookType(InputReader::SimulationType simulationType)
-{
-  switch (simulationType)
-  {
-    case InputReader::SimulationType::MixturePrediction:
-      return RupturaNotebooks::SimulationType::MixturePrediction;
-    case InputReader::SimulationType::Fitting:
-      return RupturaNotebooks::SimulationType::Fitting;
-    case InputReader::SimulationType::SwingAdsorption:
-    case InputReader::SimulationType::Breakthrough:
-    default:
-      return RupturaNotebooks::SimulationType::Breakthrough;
-  }
-}
-
 void ensureDefaultNotebook(InputReader::SimulationType simulationType)
 {
   const std::filesystem::path runDirectory = std::filesystem::current_path();
   const std::filesystem::path notebookPath = runDirectory / "analysis.ipynb";
   const std::string runId = runDirectory.filename().string();
-  const auto result = RupturaNotebooks::writeDefaultNotebook(notebookPath, notebookType(simulationType), runId);
+  const auto result = RupturaNotebooks::writeDefaultNotebook(notebookPath, simulationType, runId);
   if (result == RupturaNotebooks::WriteResult::Created)
   {
     std::println("Wrote default analysis notebook: {}", notebookPath.string());

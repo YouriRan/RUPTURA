@@ -11,16 +11,6 @@
 #include "reaction.h"
 
 /**
- * \brief Returns true when a string starts with the supplied prefix.
- */
-extern bool startsWith(const std::string& str, const std::string& prefix);
-
-/**
- * \brief Removes leading and trailing whitespace from a string.
- */
-extern std::string trim(const std::string& s);
-
-/**
  * \brief Parses JSON input files and stores simulation parameters.
  *
  * Supports case-insensitive keys for user-facing input fields. The reader also
@@ -43,8 +33,7 @@ struct InputReader
     Breakthrough = 0,       ///< Breakthrough simulation.
     MixturePrediction = 1,  ///< Mixture prediction simulation.
     Fitting = 2,            ///< Fitting simulation.
-    SwingAdsorption = 3,    ///< Swing adsorption simulation.
-    Test = 4                ///< Test simulation.
+    SwingAdsorption = 3     ///< Swing adsorption simulation.
   };
 
   /**
@@ -93,7 +82,7 @@ struct InputReader
   size_t pHComponent{0};                                        ///< Zero-based acid/base component identifier.
   std::string displayName{"Column"};                            ///< The display name for the simulation.
 
-  double temperature{433.0};            ///< The simulation temperature in K.
+  double temperature{298.0};            ///< The simulation temperature in K.
   double columnVoidFraction{0.4};       ///< The void fraction of the packed column.
   double dynamicViscosity{1e-5};        ///< Dynamic viscosity of the gas phase in Pa s.
   /// Reference state of the AxialDispersionCoefficient values, which then scale as (T/T_ref)^1.75 (P_ref/P);
@@ -129,7 +118,7 @@ struct InputReader
   std::vector<Geometry> adsorbentGeometries;        ///< Derived geometry for each adsorbent section.
 
   Geometry geometry{makeGeometry(PackedBedTubeSpec{})};  ///< Parsed geometry with precomputed terms.
-  double influxTemperature{433.0};   ///< Feed/influx gas temperature in K.
+  double influxTemperature{298.0};   ///< Feed/influx gas temperature in K.
   double internalDiameter{0.0};      ///< Column internal diameter in m.
   double outerDiameter{0.0};         ///< Column outer diameter in m.
   double wallDensity{0.0};           ///< Wall density in kg/m^3.
@@ -186,4 +175,6 @@ struct InputReader
   std::vector<SwingAdsorptionPhase> swingAdsorptionPhases;  ///< Ordered swing adsorption phases.
 
   std::optional<std::string> readColumnFile;  ///< Optional JSON file used to initialize column state.
+  /// A ReadColumnFile run starts at t = 0 with new output files, instead of going on from the time of the state.
+  bool resetClock{false};
 };

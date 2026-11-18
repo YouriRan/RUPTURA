@@ -191,9 +191,9 @@ struct CVODE
   void advance(Column& column, double endTime, Timing& timings);
 
   /**
-   * \brief Initializes CVODE state and solver data for the given column.
+   * \brief Initializes CVODE state and solver data for the given column, whose state is that at startTime in s.
    */
-  void initialize(Column& column);
+  void initialize(Column& column, double startTime = 0.0);
 
   /**
    * \brief Resets CVODE integration history after an external state or boundary change.

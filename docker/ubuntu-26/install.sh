@@ -11,4 +11,4 @@ apt-get install -y --no-install-recommends \
 rm -rf /var/lib/apt/lists/*
 
 python3 -m venv /opt/venv
-/opt/venv/bin/pip install --no-cache-dir nanobind numpy pandas plotly pytest
+/opt/venv/bin/pip install --no-cache-dir nanobind numpy pandas plotly scipy pytest

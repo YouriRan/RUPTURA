@@ -189,7 +189,7 @@ double limitedPoreRate(const Reaction& reaction, std::span<const double> activit
 }  // namespace
 
 void computeReactionDerivatives(
-    const std::vector<Component>& components, const std::vector<Reaction>& reactions,
+    const std::vector<MixturePrediction>& physisorptionMixtures, const std::vector<Reaction>& reactions,
     size_t numberOfGridPoints, size_t numberOfComponents, size_t maxChemisorptionSites,
     double externalTemperature, std::span<const double> physisorption,
     std::span<double> physisorptionDot, std::span<const double> chemisorption,
@@ -233,24 +233,24 @@ void computeReactionDerivatives(
 
   std::vector<double> activity(numberOfComponents, 0.0);
   std::vector<double> maximumLoadings(numberOfComponents, unboundedLoading);
+  // Capacity of each adsorbent, adsorbent-major; a node takes those of its adsorbents, weighted by their fraction.
+  std::vector<double> adsorbentMaximumLoadings(numberOfAdsorbents * numberOfComponents, unboundedLoading);
 
   for (const Reaction& reaction : reactions)
   {
     if (!reaction.enabled()) continue;
     // The reader checks the reaction sites; the column holds the pore state whenever a reaction needs it.
 
-    if (reaction.phase == Reaction::Phase::Physisorbed)
+    const bool adsorbedPhase =
+        reaction.phase == Reaction::Phase::Physisorbed || reaction.phase == Reaction::Phase::Chemisorbed;
+    for (size_t ads = 0; adsorbedPhase && ads < numberOfAdsorbents; ++ads)
     {
       for (size_t comp = 0; comp < numberOfComponents; ++comp)
       {
-        maximumLoadings[comp] = physisorptionMaximumLoading(components[comp]);
-      }
-    }
-    else if (reaction.phase == Reaction::Phase::Chemisorbed)
-    {
-      for (size_t comp = 0; comp < numberOfComponents; ++comp)
-      {
-        maximumLoadings[comp] = chemisorptionMaximumLoading(components[comp], reaction.site);
+        const Component& component = physisorptionMixtures[ads].components[comp];
+        adsorbentMaximumLoadings[ads * numberOfComponents + comp] =
+            reaction.phase == Reaction::Phase::Physisorbed ? physisorptionMaximumLoading(component)
+                                                           : chemisorptionMaximumLoading(component, reaction.site);
       }
     }
 
@@ -266,6 +266,16 @@ void computeReactionDerivatives(
           sectionWeight += fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
         }
         if (sectionWeight <= 0.0) continue;
+      }
+
+      for (size_t comp = 0; adsorbedPhase && comp < numberOfComponents; ++comp)
+      {
+        maximumLoadings[comp] = 0.0;
+        for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
+        {
+          maximumLoadings[comp] += fractionOfAdsorbent[grid * numberOfAdsorbents + ads] *
+                                   adsorbentMaximumLoadings[ads * numberOfComponents + comp];
+        }
       }
 
       for (size_t comp = 0; comp < numberOfComponents; ++comp)
@@ -494,9 +504,10 @@ void updateVelocityAndPressure(
   // dT_i/dt = a_i + b_i max(v_i, 0) + r_i min(v_{i-1}, 0) is piecewise linear, and its coefficients do not depend on
   // the march, except at the node next to a Danckwerts inlet, whose face temperature depends on the velocity of its
   // other face: there the root is found by secant steps from the velocity without expansion.
-  std::vector<double> temperatureRateAtRest;   // a_i, filled once the gas densities are updated
-  std::vector<double> temperatureRateSlope;    // b_i
-  std::vector<double> temperatureRateReverse;  // r_i, in a reverse step
+  std::span<double> temperatureRateAtRest;   // a_i, filled once the gas densities are updated
+  std::span<double> temperatureRateSlope;    // b_i
+  std::span<double> temperatureRateReverse;  // r_i, in a reverse step
+  std::vector<double> localClosureScratch;   // their storage when the balance brings none
   const bool nonlinearFirstNode = danckwerts && !reverse;
   const bool nonlinearLastNode = danckwerts && reverse;
   auto faceVelocity = [&](size_t grid, double superficialFlux, double nodeConcentration, double otherConcentration,
@@ -668,9 +679,17 @@ void updateVelocityAndPressure(
 
   if (gasTemperatureBalance != nullptr)
   {
-    temperatureRateAtRest.assign(numberOfGridPoints + 1, 0.0);
-    temperatureRateSlope.assign(numberOfGridPoints + 1, 0.0);
-    temperatureRateReverse.assign(numberOfGridPoints + 1, 0.0);
+    const size_t nodes = numberOfGridPoints + 1;
+    std::span<double> scratch = gasTemperatureBalance->closureScratch;
+    if (scratch.size() < 3 * nodes)
+    {
+      localClosureScratch.resize(3 * nodes);
+      scratch = localClosureScratch;
+    }
+    std::ranges::fill(scratch.first(3 * nodes), 0.0);
+    temperatureRateAtRest = scratch.subspan(0, nodes);
+    temperatureRateSlope = scratch.subspan(nodes, nodes);
+    temperatureRateReverse = scratch.subspan(2 * nodes, nodes);
     for (size_t grid = nonlinearFirstNode ? 2 : 1; grid < numberOfGridPoints + 1; ++grid)
     {
       temperatureRateAtRest[grid] = gasTemperatureBalance->rate(grid, 0.0, 0.0);
@@ -974,10 +993,20 @@ void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents
   // D over the distance that the first dispersion stencil assigns to the inlet: h_1/2 to the WENO3 cell centre,
   // (h_1 + h_2)/2 in the upwind three-point difference (h_1 with one grid interval). In a reverse step z = 0 is the
   // outlet end: the stencils take the first cell for node 0 (zero gradient).
-  std::vector<double> boundaryConcentration;
+  // Work arrays: the stencil concentrations, the values at the face z = L, the reverse face values, then those of
+  // WENO3; allocated here when the caller brings too few.
+  const size_t nodes = numberOfGridPoints + 1;
+  const size_t wenoOffset = nodes * numberOfComponents + numberOfComponents + nodes;
+  std::vector<double> localScratch;
+  if (wenoScratch.size() < wenoOffset + (weno ? (numberOfComponents + 4) * nodes : 0))
+  {
+    localScratch.resize(wenoOffset + (numberOfComponents + 4) * nodes);
+    wenoScratch = localScratch;
+  }
+  const std::span<double> boundaryConcentration = wenoScratch.first(nodes * numberOfComponents);
   if (danckwerts || reverse)
   {
-    boundaryConcentration.assign(concentration.begin(), concentration.end());
+    std::ranges::copy(concentration, boundaryConcentration.begin());
     const double firstSpacing = gridSpacing(columnDistances, 1);
     const double inletDistance = weno                    ? 0.5 * firstSpacing
                                  : numberOfGridPoints > 1 ? 0.5 * (firstSpacing + gridSpacing(columnDistances, 2))
@@ -1013,8 +1042,8 @@ void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents
                                              : lastSpacing;
   const double outletInflowVelocity = std::max(0.0, -interstitialGasVelocity[outlet]);
   const bool outletDispersion = danckwerts ? outletInflowVelocity > 0.0 : reverse;
-  std::vector<double> outletFace(concentration.begin() + static_cast<std::ptrdiff_t>(outlet * numberOfComponents),
-                                 concentration.end());
+  const std::span<double> outletFace = wenoScratch.subspan(nodes * numberOfComponents, numberOfComponents);
+  std::ranges::copy(concentration.subspan(outlet * numberOfComponents), outletFace.begin());
   if (outletInflowVelocity > 0.0 || reverse)
   {
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
@@ -1077,19 +1106,15 @@ void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents
     // Finite volumes with the local spacings h_i = z_i - z_{i-1}: node i holds the cell (z_{i-1}, z_i], node 0 the
     // inlet face value. Fluxes are superficial, eps_t v c, so that they are continuous where eps_t changes (C-MBD-1).
     // Faces with v < 0 take the reconstruction from the side of z = L.
-    const size_t nodes = numberOfGridPoints + 1;
-    if (wenoScratch.size() < (numberOfComponents + 4) * nodes)
-    {
-      throw std::runtime_error("Error: the WENO3 work array of computeMassDerivatives is too small");
-    }
-    const std::span<double> values = wenoScratch.subspan(0, nodes);
-    const std::span<double> faces = wenoScratch.subspan(nodes, nodes);
-    const std::span<double> totalConcentration = wenoScratch.subspan(2 * nodes, nodes);
-    const std::span<double> faceFractionSum = wenoScratch.subspan(3 * nodes, nodes);
-    const std::span<double> faceFlux = wenoScratch.subspan(4 * nodes, numberOfComponents * nodes);
+    const std::span<double> wenoWork = wenoScratch.subspan(wenoOffset);
+    const std::span<double> values = wenoWork.subspan(0, nodes);
+    const std::span<double> faces = wenoWork.subspan(nodes, nodes);
+    const std::span<double> totalConcentration = wenoWork.subspan(2 * nodes, nodes);
+    const std::span<double> faceFractionSum = wenoWork.subspan(3 * nodes, nodes);
+    const std::span<double> faceFlux = wenoWork.subspan(4 * nodes, numberOfComponents * nodes);
     const bool anyReverseFace = std::any_of(interstitialGasVelocity.begin(), interstitialGasVelocity.end(),
                                             [](double velocity) { return velocity < 0.0; });
-    std::vector<double> reverseFaces(anyReverseFace ? nodes : 0);
+    const std::span<double> reverseFaces = wenoScratch.subspan(nodes * numberOfComponents + numberOfComponents, nodes);
     std::ranges::fill(totalConcentration, 0.0);
     std::ranges::fill(faceFractionSum, 0.0);
     const bool gasPhase = fluidPhase == Column::FluidPhase::Gas;
@@ -1275,7 +1300,8 @@ double GasTemperatureBalance::rate(size_t grid, double lowerVelocity, double upp
   }
 
   const double gasSolidExchange = fluidSolidContactArea[grid] * heatTransferGasSolid * invGasDensity / heatCapacityGas;
-  const double gasWallExchange = gasWallPrefactor * invGasDensity;
+  // fluidWallContactArea is per fluid volume (4/(eps d_in) for a packed bed), consistent with the wall balance.
+  const double gasWallExchange = fluidWallContactArea[grid] * heatTransferGasWall / heatCapacityGas * invGasDensity;
   double result = gasSolidExchange * (solidTemperature[grid] - gasTemperature[grid]) +
                   gasWallExchange * (wallTemperature[grid] - gasTemperature[grid]);
   result += ends.pressureRate * invGasDensity / heatCapacityGas;  // the pressure work of a ramp
@@ -1304,7 +1330,8 @@ double GasTemperatureBalance::rate(size_t grid, double lowerVelocity, double upp
 void computeEnergyDerivatives(size_t numberOfGridPoints, size_t numberOfComponents, double externalTemperature,
                               std::span<const Geometry> geometries, std::span<const double> particleDensity,
                               std::span<const double> solidFluidContactArea,
-                              std::span<const double> fluidSolidContactArea, std::span<const double> heatOfAdsorption,
+                              std::span<const double> fluidSolidContactArea,
+                              std::span<const double> fluidWallContactArea, std::span<const double> heatOfAdsorption,
                               std::span<const double> heatOfChemisorption, double wallDensity,
                               double gasThermalConductivity, double wallThermalConductivity,
                               double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
@@ -1332,10 +1359,6 @@ void computeEnergyDerivatives(size_t numberOfGridPoints, size_t numberOfComponen
            std::max(1e-30, hm * hp * (hm + hp));
   };
 
-  // fluidWallPerFluidVolume is per fluid volume (4/(eps d_in) for a packed bed), consistent with the wall balance.
-  double prefactorGasWall = geometries.front().contactAreas.fluidWallPerFluidVolume *
-                            heatTransferGasWall / heatCapacityGas;
-
   auto coeffSolidGasAt = [&](size_t grid)
   {
     return solidFluidContactArea[grid] * heatTransferGasSolid /
@@ -1357,8 +1380,8 @@ void computeEnergyDerivatives(size_t numberOfGridPoints, size_t numberOfComponen
   const GasTemperatureBalance gasTemperatureBalance{
       columnDistances,       gasTemperature,         solidTemperature,     wallTemperature,
       gasDensity,            fluidSolidContactArea,  totalVoidFraction,    gasThermalConductivity,
-      heatTransferGasSolid,  heatCapacityGas,        prefactorGasWall,     inletCondition,
-      ends};
+      heatTransferGasSolid,  heatCapacityGas,        fluidWallContactArea, heatTransferGasWall,
+      inletCondition,        ends};
 
   auto solidHeatExchange = [&](size_t grid)
   { return coeffSolidGasAt(grid) * (gasTemperature[grid] - solidTemperature[grid]); };

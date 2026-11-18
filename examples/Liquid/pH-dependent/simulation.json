@@ -1,0 +1,48 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Liquid pH-dependent adsorption",
+  "FluidPhase": "Liquid",
+  "MixturePredictionMethod": "SPI",
+  "pHMode": "Fixed",
+  "pHValue": 6.5,
+  "Temperature": 298.15,
+  "LiquidDensity": 997.0,
+  "DynamicViscosity": 0.00089,
+  "ParticleDiameter": 0.001,
+  "ParticleDensity": 1050.0,
+  "InletPressure": 150000.0,
+  "ColumnEntranceVelocity": 0.001,
+  "ColumnLength": 0.1,
+  "ColumnVoidFraction": 0.4,
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "BreakthroughIntegrator": "RungeKutta3",
+  "SimulationTime": 20.0,
+  "WriteInterval": 1.0,
+  "TimeStep": 0.05,
+  "NumberOfGridPoints": 20,
+  "Components": [
+    {
+      "Name": "Solute",
+      "LiquidPhaseConcentration": 2.0,
+      "InitialLiquidPhaseConcentration": 0.0,
+      "MassTransferCoefficient": 0.08,
+      "AxialDispersionCoefficient": 1e-07,
+      "MolecularWeight": 0.1,
+      "PhysisorptionSites": [
+        {
+          "Type": "pH-Langmuir",
+          "Parameters": [
+            2.0,
+            0.5,
+            7.0
+          ]
+        }
+      ]
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  }
+}

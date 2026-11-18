@@ -5,6 +5,7 @@ if(NOT GTest_FOUND)
   FetchContent_Declare(
     googletest
     URL https://github.com/google/googletest/archive/refs/tags/v1.15.2.zip
+    SYSTEM  # its headers are compiled with our warning flags otherwise
   )
 
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
@@ -26,8 +27,10 @@ add_executable(ruptura_tests
   temperature_law_tests.cpp
 )
 
+# A GoogleTest in /usr/local/include is not a system header for Apple Clang: its headers gave ~200 warnings.
 target_compile_options(ruptura_tests PRIVATE
   ${RUPTURA_COMPILE_OPTIONS}
+  $<$<CXX_COMPILER_ID:AppleClang,Clang>:--system-header-prefix=gtest/>
 )
 
 target_compile_definitions(ruptura_tests PRIVATE
@@ -40,17 +43,7 @@ target_link_libraries(ruptura_tests PRIVATE
 )
 
 include(GoogleTest)
+# The tests write output files into their working directory, which must not be the source tree.
 gtest_discover_tests(ruptura_tests
-  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
-
-if(TARGET ruptura_lab_support)
-  add_executable(ruptura_lab_tests lab_input_tests.cpp)
-  target_link_libraries(ruptura_lab_tests PRIVATE ruptura_lab_support GTest::gtest)
-  target_compile_definitions(ruptura_lab_tests PRIVATE RUPTURA_SOURCE_DIR="${PROJECT_SOURCE_DIR}")
-  if(TARGET ruptura)
-    target_compile_definitions(ruptura_lab_tests PRIVATE LAB_CLI_EXECUTABLE="$<TARGET_FILE:ruptura>")
-  endif()
-  add_test(NAME RupturaLab.InputCompatibility COMMAND ruptura_lab_tests)
-  set_tests_properties(RupturaLab.InputCompatibility PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
-endif()

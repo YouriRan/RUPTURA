@@ -38,6 +38,7 @@ selfdriving = [
   "scipy",
 ]
 lab = [
+  "anywidget",
   "ipywidgets",
   "jupyterlab",
   "matplotlib",
@@ -74,7 +75,7 @@ BUILD_CLI = "ON"
 BUILD_DOCS = "OFF"
 BUILD_TESTING = "OFF"
 BUILD_APP = "OFF"
-BUILD_BENCHMARKS = "OFF"
+RUPTURA_NATIVE_ARCH = "OFF"
 
 [tool.scikit-build.sdist]
 exclude = [

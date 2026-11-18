@@ -548,6 +548,8 @@ TEST(MPDInput, WarnsWhenReferenceTemperatureHasNoTargetTemperature)
   nlohmann::json input = {
       {"SimulationType", "MixturePrediction"},
       {"MixturePredictionMethod", "MPD"},
+      {"PressureStart", 1.0e3},
+      {"PressureEnd", 1.0e6},
       {"MPDSettings",
        {{"FileName", distributionPath.string()},
         {"ReferenceTemperature", 300.0},

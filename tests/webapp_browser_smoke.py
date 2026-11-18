@@ -32,13 +32,14 @@ if not args.url:
     line=process.stdout.readline()
     if not line.startswith('Ruptura Lab: '): raise RuntimeError(line+process.stdout.read())
     args.url=line.removeprefix('Ruptura Lab: ').strip()
+origin,_,session=args.url.partition('/?session=')  # the address holds the session key
 with sync_playwright() as p:
     browser=p.chromium.launch(headless=True)
     page=browser.new_page(viewport={'width':1512,'height':1100},device_scale_factor=1)
     errors=[]
     page.on('pageerror',lambda error:errors.append(str(error)))
     page.goto(args.url,wait_until='networkidle')
-    page.context.grant_permissions(['clipboard-read','clipboard-write'],origin=args.url)
+    page.context.grant_permissions(['clipboard-read','clipboard-write'],origin=origin)
     expect(page.locator('#about-page')).to_be_visible()
     expect(page.locator('.sidebar')).to_be_visible()
     assert page.locator('.library-column, #library-editor-page, #workspace-page').count()==0
@@ -53,7 +54,7 @@ with sync_playwright() as p:
     expect(page.locator('#experiments .experiment')).to_have_count(4)
     assert page.locator('.experiment-row').count()==page.locator('.experiment-row .simulation-menu-button').count()
     page.screenshot(path=str(out/'30-simulation-sidebar-dark.png'),full_page=True)
-    boot=page.request.get(args.url+'/api/bootstrap').json()
+    boot=page.request.get(origin+'/api/bootstrap',headers={'X-Ruptura-Session':session}).json()
     source=boot['state']['simulations'][0]
     gas_id=source['id']
     assert 'library' not in boot['state'] and 'library' not in boot['schema']

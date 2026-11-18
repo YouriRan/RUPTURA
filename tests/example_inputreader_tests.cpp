@@ -92,6 +92,28 @@ Column loadBeaBreakthroughColumn()
   // Column state after 100 s of RungeKutta3 on this example (Δt = 1e-3 s); running the example overwrites its own
   // column.json, so the snapshot is kept with the tests.
   column.readJSON(examplePath("tests/data/bea_breakthrough_column.json"));
+  // The snapshot is an older state file that also holds the derived fields; readJSON reads the state only.
+  std::ifstream snapshotFile(examplePath("tests/data/bea_breakthrough_column.json"));
+  const nlohmann::json snapshot = nlohmann::json::parse(snapshotFile);
+  for (const auto& [key, field] :
+       {std::pair{"interstitialGasVelocity", &column.interstitialGasVelocity},
+        std::pair{"gasDensity", &column.gasDensity},
+        std::pair{"totalConcentration", &column.totalConcentration},
+        std::pair{"totalPressure", &column.totalPressure},
+        std::pair{"moleFraction", &column.moleFraction},
+        std::pair{"partialPressure", &column.partialPressure},
+        std::pair{"equilibriumPhysisorption", &column.equilibriumPhysisorption},
+        std::pair{"bulkSpeciesSink", &column.bulkSpeciesSink},
+        std::pair{"cachedPressure", &column.cachedPressure},
+        std::pair{"cachedGrandPotential", &column.cachedGrandPotential}})
+  {
+    *field = snapshot.at(key).get<std::vector<double>>();
+  }
+  for (const auto& [key, field] : {std::pair{"concentrationDot", column.concentrationDot},
+                                   std::pair{"physisorptionDot", column.physisorptionDot}})
+  {
+    std::ranges::copy(snapshot.at(key).get<std::vector<double>>(), field.begin());
+  }
   column.convectionScheme = Column::ConvectionScheme::Upwind;  // the snapshot and expectedMassDerivative are upwind
   return column;
 }
@@ -1673,7 +1695,9 @@ TEST(EnergyBalance, GasWallExchangeConservesEnergyInPackedBed)
   const std::vector<double> heatOfAdsorption(nodes, 0.0);
   const std::vector<double> columnDistances{0.0, 0.05, 0.1};
   computeEnergyDerivatives(numberOfGridPoints, 1, 300.0, geometries, particleDensity, solidFluidContactArea,
-                           fluidSolidContactArea, heatOfAdsorption, {}, wallDensity, 0.0, 0.0, 10.0, 50.0, 0.0,
+                           fluidSolidContactArea,
+                           std::vector<double>(nodes, geometries.front().contactAreas.fluidWallPerFluidVolume),
+                           heatOfAdsorption, {}, wallDensity, 0.0, 0.0, 10.0, 50.0, 0.0,
                            heatCapacityGas, 900.0,
                            heatCapacityWall, columnDistances, velocity, std::vector<double>(nodes, 1.0), gasDensity,
                            coeffDiffusion, 0,
@@ -2508,4 +2532,226 @@ TEST(TimeInput, SwingWritesAnOutputAtAPhaseStartUnderThatPhasesConditions)
   EXPECT_DOUBLE_EQ(inletRows[0][2], 523.15);
   EXPECT_DOUBLE_EQ(inletRows[1][2], 600.0);  // written after the second phase's conditions are applied
   EXPECT_NEAR(inletRows[2][0], 4.0e-4, 1.0e-12);
+}
+
+namespace
+{
+/// Times in s of the snapshots in a column.data file: every snapshot has one row at z = 0 (time in min in column 2).
+std::vector<double> snapshotTimes(const std::filesystem::path& columnData)
+{
+  std::ifstream file(columnData);
+  std::vector<double> times;
+  for (std::string line; std::getline(file, line);)
+  {
+    if (line.empty() || line.front() == '#') continue;
+    std::istringstream fields(line);
+    std::array<double, 3> values{};
+    for (double& value : values) fields >> value;
+    if (values[2] == 0.0) times.push_back(values[1] * 60.0);
+  }
+  return times;
+}
+}  // namespace
+
+TEST(Restart, ContinuesTheClockAndTheOutputFilesUnlessResetClock)
+{
+  nlohmann::json data = makeTimeTestInput();
+  data["Components"][1]["PhysisorptionSites"] = {{{"Type", "Langmuir"}, {"Parameters", {2.0, 1.0e-5}}}};
+  data["Components"][1]["MassTransferCoefficient"] = 10.0;
+  data["WriteInterval"] = 2.0e-3;
+  data["SimulationTime"] = 4.0e-3;
+
+  std::vector<double> uninterrupted;
+  {
+    WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_restart_clock_whole");
+    std::ofstream("simulation.json") << data;
+    InputReader reader("simulation.json");
+    Breakthrough breakthrough(reader);
+    breakthrough.run();
+    uninterrupted = breakthrough.column.state;
+  }
+
+  // The same 4 ms as a run of 2 ms and its continuation.
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_restart_clock_parts");
+  data["SimulationTime"] = 2.0e-3;
+  std::ofstream("simulation.json") << data;
+  {
+    InputReader reader("simulation.json");
+    Breakthrough first(reader);
+    first.run();
+  }
+  data["ReadColumnFile"] = "column.json";
+  std::ofstream("continued.json") << data;
+  {
+    InputReader reader("continued.json");
+    Breakthrough second(reader);
+    EXPECT_DOUBLE_EQ(second.time, 2.0e-3);
+    EXPECT_EQ(second.numberOfOutputs, 1U);
+    second.run();
+    EXPECT_DOUBLE_EQ(second.time, 4.0e-3);
+    ASSERT_EQ(second.column.state.size(), uninterrupted.size());
+    for (size_t i = 0; i < uninterrupted.size(); ++i)
+    {
+      EXPECT_NEAR(second.column.state[i], uninterrupted[i], 1.0e-9 * std::max(1.0, std::abs(uninterrupted[i])));
+    }
+  }
+  // One header, and every output time once: the continuation does not repeat the state it starts from.
+  std::vector<double> times = snapshotTimes("column.data");
+  ASSERT_EQ(times.size(), 3U);
+  EXPECT_NEAR(times[1], 2.0e-3, 1.0e-12);
+  EXPECT_NEAR(times[2], 4.0e-3, 1.0e-12);
+  std::ifstream columnData("column.data");
+  const std::string contents{std::istreambuf_iterator<char>(columnData), std::istreambuf_iterator<char>()};
+  EXPECT_EQ(contents.find("# column 1:"), contents.rfind("# column 1:"));
+
+  // ResetClock starts a new experiment from the state: t = 0 and new output files.
+  data["ResetClock"] = true;
+  std::ofstream("reset.json") << data;
+  {
+    InputReader reader("reset.json");
+    Breakthrough third(reader);
+    EXPECT_DOUBLE_EQ(third.time, 0.0);
+    third.run();
+    EXPECT_DOUBLE_EQ(third.time, 2.0e-3);
+  }
+  times = snapshotTimes("column.data");
+  ASSERT_EQ(times.size(), 2U);
+  EXPECT_DOUBLE_EQ(times[0], 0.0);
+  EXPECT_NEAR(times[1], 2.0e-3, 1.0e-12);
+
+  data.erase("ReadColumnFile");
+  std::ofstream("reset.json") << data;
+  EXPECT_THROW(InputReader{"reset.json"}, std::runtime_error);
+}
+
+TEST(Output, AFileThatCannotBeWrittenStopsTheRun)
+{
+  nlohmann::json data = makeTimeTestInput();
+  data["Components"][1]["Name"] = "CO/x";  // its file would lie in a directory that does not exist
+
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_unwritable_output");
+  std::ofstream("simulation.json") << data;
+  InputReader reader("simulation.json");
+  Breakthrough breakthrough(reader);
+  EXPECT_THROW(breakthrough.run(), std::runtime_error);
+}
+
+TEST(MixturePredictionConvergence, FastIASTThrowsBeyondThePoleOfAnIsotherm)
+{
+  // BET has a pole at p = 1 / 1e-6 Pa; beyond it the Newton iteration of IAST ends at its step limit without a solution.
+  const std::vector<Component> components{
+      Component(0, "A", std::vector<Isotherm>{Isotherm(Isotherm::Type::BET, {2.0, 1.0e-3, 1.0e-6})}, 0.5, 0.1, 0.0),
+      Component(1, "B", std::vector<Isotherm>{Isotherm(Isotherm::Type::Langmuir, {3.0, 1.0e-6})}, 0.5, 0.1, 0.0)};
+  MixturePrediction mixture("pole", components, 0, 0, 300.0, 1.0, 1.0e6, 2, 0, 0, 0);
+  const std::vector<double> gasMoleFractions{0.5, 0.5};
+  std::vector<double> adsorbedMoleFractions(2), loadings(2);
+  double temperature = 300.0;
+  for (const auto& [pressure, converges] : {std::pair{5.0e5, true}, std::pair{3.0e6, false}})
+  {
+    std::vector<double> cachedPressure(2 * mixture.maxIsothermTerms, 0.0);
+    std::vector<double> cachedGrandPotential(mixture.maxIsothermTerms, 0.0);
+    const auto predict = [&]
+    {
+      mixture.predictMixture(gasMoleFractions, pressure, adsorbedMoleFractions, loadings, cachedPressure,
+                             cachedGrandPotential, temperature);
+    };
+    if (converges)
+    {
+      EXPECT_NO_THROW(predict());
+    }
+    else
+    {
+      EXPECT_THROW(predict(), std::runtime_error);
+    }
+  }
+}
+
+TEST(Multibed, GasWallAreaFollowsTheVoidFractionOfEachBed)
+{
+  std::ifstream source(examplePath("examples/Multibed/C6-alkanes-layered/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(source);
+  data["Geometry"]["InternalDiameter"] = 0.01;
+  data["Geometry"]["OuterDiameter"] = 0.012;
+  data["Adsorbents"][0]["ColumnVoidFraction"] = 0.39;
+  data["Adsorbents"][1]["ColumnVoidFraction"] = 0.6;
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_multibed_wall_area.json";
+  std::ofstream(path) << data;
+
+  InputReader reader(path.string());
+  Column column(reader);
+  column.initialize();
+  // 4 / (eps d_in) of the bed at the node, not that of the first bed.
+  EXPECT_DOUBLE_EQ(column.fluidWallContactArea[1], 4.0 / (0.39 * 0.01));
+  EXPECT_DOUBLE_EQ(column.fluidWallContactArea[column.numberOfGridPoints], 4.0 / (0.6 * 0.01));
+}
+
+TEST(InputValidation, RejectsInputsThatCannotRun)
+{
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_input_validation.json";
+  const auto loads = [&](const nlohmann::json& data)
+  {
+    std::ofstream(path) << data;
+    try
+    {
+      InputReader reader(path.string());
+    }
+    catch (const std::runtime_error&)
+    {
+      return false;
+    }
+    return true;
+  };
+
+  nlohmann::json data = makeTimeTestInput();
+  EXPECT_TRUE(loads(data));
+  data["Temperature"] = 0.0;
+  EXPECT_FALSE(loads(data));
+
+  data = makeTimeTestInput();
+  data["NumberOfGridPoints"] = 1;  // WENO3, the default, needs two cells
+  EXPECT_FALSE(loads(data));
+  data["ConvectionScheme"] = "Upwind";
+  EXPECT_TRUE(loads(data));
+
+  data = makeTimeTestInput();
+  data["Components"][1]["MassTransferCoefficient"] = -0.1;
+  EXPECT_FALSE(loads(data));
+
+  data = makeTimeTestInput();
+  data["energyBalance"] = true;
+  data["wallDensity"] = 7800.0;
+  data["heatCapacityWall"] = 500.0;
+  data["heatCapacityGas"] = 1000.0;
+  data["heatCapacitySolid"] = 900.0;
+  EXPECT_TRUE(loads(data));
+  data["heatCapacitySolid"] = 0.0;
+  EXPECT_FALSE(loads(data));
+}
+
+TEST(InputKeys, ComponentNamesAsKeysAreCaseInsensitive)
+{
+  std::ifstream source(examplePath("examples/PSA-H2-activated-carbon/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(source);
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_component_name_keys.json";
+
+  data["SwingAdsorptionPhases"].back()["GasPhaseMolFractions"] = {{"h2", 1.0}};
+  std::ofstream(path) << data;
+  InputReader reader(path.string());
+  EXPECT_EQ(reader.swingAdsorptionPhases.back().gasPhaseMolFractions, (std::vector<double>{0.0, 0.0, 0.0, 1.0}));
+
+  // Both keys name the component H2.
+  data["SwingAdsorptionPhases"].back()["GasPhaseMolFractions"] = {{"H2", 0.5}, {"h2", 0.5}};
+  std::ofstream(path) << data;
+  EXPECT_THROW(InputReader{path.string()}, std::runtime_error);
+}
+
+TEST(ExampleFitting, RejectsDataThatIsNotANumber)
+{
+  InputReader reader(examplePath("examples/BEA-alkanes-C7/fitting/simulation.json"));
+  Fitting fitting(reader);
+  // The pressure is column 3 and the loading column 8; a decimal comma would be read as 10 and 0.
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_fitting_decimal_comma.dat";
+  std::ofstream(path) << "# a comment\n\n1 2 10,5 4 5 6 7 0,3\n";
+  fitting.filename[0] = path.string();
+  EXPECT_THROW(fitting.readData(0), std::runtime_error);
 }

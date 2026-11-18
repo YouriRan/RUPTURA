@@ -1,0 +1,110 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Multibed CO2/N2 polishing",
+  "Temperature": 300.0,
+  "ColumnVoidFraction": 0.4,
+  "DynamicViscosity": 1.8e-05,
+  "ParticleDiameter": 0.001,
+  "ParticleDensity": 1000.0,
+  "InletPressure": 100000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.08,
+  "BreakthroughIntegrator": "RungeKutta3",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "SimulationTime": "auto",
+  "WriteInterval": 20.0,
+  "TimeStep": 0.002,
+  "NumberOfGridPoints": 50,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.85,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.1
+    },
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.05
+    }
+  ],
+  "Adsorbents": [
+    {
+      "Name": "13X-front",
+      "AdsorbentLength": 0.06,
+      "ColumnVoidFraction": 0.38,
+      "ParticleDensity": 1150.0,
+      "ParticleDiameter": 0.0008,
+      "ComponentParameters": {
+        "CO2": {
+          "MassTransferCoefficient": 0.08,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                4.8,
+                3.2e-05
+              ]
+            }
+          ]
+        },
+        "N2": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                0.45,
+                3e-06
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Name": "carbon-polisher",
+      "AdsorbentLength": 0.04,
+      "ColumnVoidFraction": 0.42,
+      "ParticleDensity": 900.0,
+      "ParticleDiameter": 0.0012,
+      "ComponentParameters": {
+        "CO2": {
+          "MassTransferCoefficient": 0.04,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                1.2,
+                8e-06
+              ]
+            }
+          ]
+        },
+        "N2": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                0.9,
+                1.1e-05
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  }
+}

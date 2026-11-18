@@ -1,0 +1,10 @@
+*/analysis.ipynb
+*/benchmark.json
+*/column.data
+*/column.json
+*/component_*.data
+*/failed_state.json
+*/ruptura.log
+*/stderr.log
+*/stdout.log
+benchmark_results.csv

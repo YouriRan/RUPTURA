@@ -107,8 +107,11 @@ cmake --build build
 
 Relevant options: `BUILD_CLI` (command-line executable, ON), `BUILD_SUNDIALS`
 (CVODE integrator, ON), `BUILD_PYTHON` (nanobind extension, OFF), `BUILD_APP`
-(Qt application, OFF), `BUILD_DOCS` (Doxygen target, ON), `BUILD_TESTING`
-(C++ unit tests, ON).
+(Ruptura Lab launcher, OFF), `BUILD_DOCS` (Doxygen target, ON), `BUILD_TESTING`
+(C++ unit tests, ON), `RUPTURA_NATIVE_ARCH` (`-march=native`, ON; OFF for `pip install`
+and the conda packages). A build with it runs only on CPUs like the one it was built
+on ("Illegal instruction" elsewhere, e.g. on older cluster nodes): pass
+`-DRUPTURA_NATIVE_ARCH=OFF` for a binary that is used on other machines.
 
 to clean:<br>
 ```
@@ -148,10 +151,14 @@ rattler-build build -r conda/rupturalib -m conda/variants.yaml -c conda-forge --
 
 Running
 =======
+`ruptura` runs the `simulation.json` of the current directory and writes its output there:
+
 ```
-cd examples/Silicalite-CO2-N2/breakthrough/Langmuir<br>
-./run
+cd examples/BEA-alkanes-C7/breakthrough
+ruptura
 ```
+
+`ruptura --validate` checks the input without running it.
 
 Ruptura Lab (local web application)
 ===================================
@@ -228,12 +235,14 @@ and Plotly, and point it at a built CLI:
 python -m ruptura.webapp --cli ./build/ruptura
 ```
 
-The browser opens `http://127.0.0.1:8765`. Use `--no-browser` to print the address,
+The browser opens `http://127.0.0.1:8765/?session=<key>`; the key is new at every start and
+keeps other local users and programs out, so open the Lab through the printed address. Use
+`--no-browser` to print the address,
 `--port 0` to choose an available port, or `--workspace /path/to/project` to select
 a workspace. The service accepts local connections only and serves its Plotly
 JavaScript locally; viewing results does not require internet access or Jupyter.
 
-A native launcher can also be built without Qt:
+A native launcher can also be built:
 
 ```sh
 cmake -S . -B build -DBUILD_APP=ON
@@ -272,8 +281,6 @@ its curve directly, including a component marked as carrier gas.
 Closing the browser tab leaves the local server and runs active. Press Ctrl+C in
 the server terminal to stop it and cancel queued or active jobs. On restart,
 saved outputs remain available and previously active jobs are marked interrupted.
-The optional legacy Qt application is available with `-DBUILD_QT_APP=ON` as the
-`ruptura_lab_qt` target.
 
 Web integration tests:
 
@@ -289,16 +296,21 @@ check an installed launcher.
 
 Running the `ruptura` command-line binary also creates the matching
 `analysis.ipynb` beside `simulation.json`. If the notebook already exists, the
-binary and the Qt application leave it unchanged.
+binary leaves it unchanged.
 
 Input
 =====
-See the cited article.
+`docs/GENERATIVE_AI_SIMULATION_PROMPT.md` describes the keys of `simulation.json` with their units, and the
+directories under `examples/` hold complete inputs. Keys are case-insensitive.
 
 Simulated time and output are set in seconds: `SimulationTime` (a time, or
 `"auto"` to stop 10% after the breakthrough or reaction steady state is
 reached) and `WriteInterval` (one column profile and progress line every so
-many seconds). `TimeStep` is the fixed step of `RungeKutta3`; `CVODE` and
+many seconds). `TimeStep` is the fixed step of `RungeKutta3`. It is not checked
+for stability: keep it below the time in which the fluid crosses the smallest
+grid cell (dz / v), below about 2 / k for the largest `MassTransferCoefficient`
+k, and below dz² / (2 D) for the largest axial dispersion coefficient D; a
+larger step gives wrong curves without an error. `CVODE` and
 `ROS34PW2` (an adaptive Rosenbrock-W method with the analytical sorption
 Jacobian, controlled by `ROS34PW2RelativeTolerance` and the
 `ROS34PW2AbsoluteTolerance...` keys) choose their own steps and reject
@@ -306,6 +318,13 @@ Jacobian, controlled by `ROS34PW2RelativeTolerance` and the
 RUPTURA 2 (`NumberOfTimeSteps`, `WriteEvery`, `PrintEvery`) are rejected with
 the equivalent times; `python convert.py simulation.json` converts a file in
 place and keeps the original as `_legacy_simulation.json`.
+
+Every output rewrites `column.json`, the state of the column and its time; a
+failed run leaves `failed_state.json`. `"ReadColumnFile": "column.json"` starts a
+run from such a state and continues it: the clock goes on from the time of the
+state, for `SimulationTime` (or the phase durations) more, and the outputs are
+appended to the files of the run directory. With `"ResetClock": true` the state
+starts a new experiment instead, at t = 0 and with new output files.
 
 Swing adsorption inputs use `SimulationType: "SwingAdsorption"` and define
 ordered phases. Each phase runs for its `Duration` in seconds after the previous one and can

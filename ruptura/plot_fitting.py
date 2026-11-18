@@ -14,6 +14,7 @@ import plotly.colors as pc
 
 from .base_plotly import BasePlotly
 from .utils import ComponentInfo, load_simulation_metadata
+from .webapp.config import canonicalize
 
 
 @dataclass(frozen=True)
@@ -256,7 +257,7 @@ class FittingPlotly(BasePlotly):
     ) -> "FittingPlotly":
         simulation_json_path = Path(simulation_json)
         with simulation_json_path.open("r", encoding="utf-8") as stream:
-            simulationJson = json.load(stream)
+            simulationJson = canonicalize(json.load(stream))
 
         if not isinstance(simulationJson, Mapping):
             raise ValueError(f"{simulation_json_path} must contain a JSON object")
@@ -330,7 +331,7 @@ class FittingPlotly(BasePlotly):
     def _read_fit_isotherms_json(self, fit_json: Union[str, Path]) -> list[JsonMultiSiteIsotherm]:
         fit_json_path = Path(fit_json)
         with fit_json_path.open("r", encoding="utf-8") as stream:
-            payload = json.load(stream)
+            payload = canonicalize(json.load(stream))
 
         if isinstance(payload, list):
             componentsJson = payload

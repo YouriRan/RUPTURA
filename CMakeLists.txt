@@ -118,6 +118,7 @@ if(BUILD_SUNDIALS)
     FetchContent_Declare(sundials
       GIT_REPOSITORY https://github.com/LLNL/sundials.git
       GIT_TAG v7.5.0
+      SYSTEM  # its headers are compiled with our warning flags otherwise
     )
 
     set(BUILD_CVODE ON CACHE BOOL "" FORCE)
@@ -317,12 +318,6 @@ if(BUILD_CLI)
     rupturalib
   )
 
-  if(BUILD_MAC_PACKAGE)
-    install(CODE "execute_process(COMMAND
-      codesign --force --options runtime --timestamp --sign \"Developer ID Application: David Dubbeldam (24U2ZRZ6SC)\"
-      \"$<TARGET_FILE:${PROJECT_NAME}>\")" COMPONENT app)
-  endif()
-
   if(RUPTURA_BUILDING_WHEEL)
     set(RUPTURA_CLI_INSTALL_DIR "${SKBUILD_SCRIPTS_DIR}")
   else()
@@ -333,9 +328,8 @@ if(BUILD_CLI)
 endif()
 
 option(BUILD_APP "Build the local Ruptura Lab web application launcher" OFF)
-option(BUILD_QT_APP "Build the legacy Qt Ruptura Lab application" OFF)
 
-if(BUILD_APP OR BUILD_QT_APP)
+if(BUILD_APP)
   add_subdirectory(app)
 endif()
 

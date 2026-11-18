@@ -1,0 +1,80 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Chemisorption CO2/N2 monolith",
+  "Temperature": 300.0,
+  "Geometry": {
+    "Type": "Monolith",
+    "ChannelShape": "square",
+    "InternalChannelDimension": 0.001,
+    "OuterDiameter": 0.01,
+    "NumberOfChannels": 10,
+    "WashcoatThickness": 0.0001
+  },
+  "DynamicViscosity": 1.8e-05,
+  "ParticleDensity": 1000.0,
+  "InletPressure": 100000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.08,
+  "ColumnLength": 0.1,
+  "BreakthroughIntegrator": "RungeKutta3",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "SimulationTime": "auto",
+  "WriteInterval": 20.0,
+  "TimeStep": 0.002,
+  "NumberOfGridPoints": 40,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.85,
+      "CarrierGas": true,
+      "MolecularWeight": 0.004
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.1,
+      "MassTransferCoefficient": 0.05,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.044,
+      "ChemisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.8,
+            2.5e-05
+          ],
+          "RateEquation": "FirstOrder",
+          "RateEquationParameters": {
+            "MassTransferCoefficient": 0.04
+          },
+          "HeatOfAdsorption": 42000.0,
+          "MaximumLoading": 0.8
+        }
+      ],
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.2,
+            2.5e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.05,
+      "MassTransferCoefficient": 0.05,
+      "AxialDispersionCoefficient": 0.0,
+      "MolecularWeight": 0.028,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            5.65,
+            3e-05
+          ]
+        }
+      ]
+    }
+  ]
+}

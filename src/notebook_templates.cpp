@@ -69,7 +69,8 @@ Notebook setupCell()
       "run_dir = Path.cwd()  # the folder of this notebook, which holds the simulation results\n"
       "simulation_json = run_dir / 'simulation.json'\n"
       "data_dir = run_dir\n"
-      "simulation_config = json.loads(simulation_json.read_text())\n\n"
+      "from ruptura.webapp.config import canonicalize  # input keys are case-insensitive\n"
+      "simulation_config = canonicalize(json.loads(simulation_json.read_text()))\n\n"
       "from IPython.display import display\n"
       "simulation_config.get('SimulationType')\n");
 }
@@ -85,13 +86,6 @@ Notebook initialCells(const std::string& title, const std::string& description, 
 
 namespace RupturaNotebooks
 {
-SimulationType simulationTypeFromName(std::string_view name)
-{
-  if (name == "MixturePrediction") return SimulationType::MixturePrediction;
-  if (name == "Fitting") return SimulationType::Fitting;
-  return SimulationType::Breakthrough;
-}
-
 Notebook defaultMixturePredictionNotebook(std::string_view runId)
 {
   Notebook cells = initialCells("Mixture prediction analysis",
@@ -183,21 +177,20 @@ Notebook defaultFittingNotebook(std::string_view runId)
   return notebook(cells);
 }
 
-Notebook defaultNotebookForSimulation(SimulationType simulationType, std::string_view runId)
+Notebook defaultNotebookForSimulation(InputReader::SimulationType simulationType, std::string_view runId)
 {
   switch (simulationType)
   {
-    case SimulationType::MixturePrediction:
+    case InputReader::SimulationType::MixturePrediction:
       return defaultMixturePredictionNotebook(runId);
-    case SimulationType::Fitting:
+    case InputReader::SimulationType::Fitting:
       return defaultFittingNotebook(runId);
-    case SimulationType::Breakthrough:
     default:
       return defaultBreakthroughNotebook(runId);
   }
 }
 
-WriteResult writeDefaultNotebook(const std::filesystem::path& notebookPath, SimulationType simulationType,
+WriteResult writeDefaultNotebook(const std::filesystem::path& notebookPath, InputReader::SimulationType simulationType,
                                  std::string_view runId)
 {
   std::error_code existsError;

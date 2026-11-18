@@ -220,6 +220,7 @@ void Column::bindStateViews() noexcept
 void Column::initialize()
 {
   validateAdsorbentVectors(*this);
+  chemisorptionSites = chemisorptionSitesPerComponent(physisorptionMixtures, numberOfComponents);
 
   std::vector<double> interfaceStarts;
   if (adsorbentMixFractions.empty())
@@ -489,7 +490,8 @@ void Column::initialize()
   computeBulkSpeciesSink(physisorptionMixtures, numberOfGridPoints, numberOfComponents, numberOfAdsorbents,
                          maxChemisorptionSites, geometries, fractionOfAdsorbent, loadingPrefactor, concentration,
                          physisorptionDot, chemisorptionDot, surfaceConcentration, bulkSpeciesSink,
-                         reactionPhysisorptionSource, reactionChemisorptionSource, reactionBulkSource);
+                         reactionPhysisorptionSource, reactionChemisorptionSource, reactionBulkSource,
+                         chemisorptionSites);
   updateVelocityAndPressure(components, boundaryCondition, numberOfGridPoints, numberOfComponents, inletPressure,
                             outletPressure, pressureGradient, columnLength, numberOfAdsorbents, columnEntranceVelocity,
                             dynamicViscosity, columnDistances, fractionOfAdsorbent, geometries, pressureDropLaw,
@@ -530,6 +532,7 @@ void Column::computeAdsorbentBlends()
     DispersionLaw dispersion{};
     solidFluidContactArea[grid] = 0.0;
     fluidSolidContactArea[grid] = 0.0;
+    fluidWallContactArea[grid] = 0.0;
     for (size_t ads = 0; ads < numberOfAdsorbents; ++ads)
     {
       const double fraction = fractionOfAdsorbent[base + ads];
@@ -538,6 +541,7 @@ void Column::computeAdsorbentBlends()
       solidVolumeDensity += solidVolume;
       solidFluidContactArea[grid] += fraction * geometries[ads].contactAreas.solidFluidPerSolidVolume;
       fluidSolidContactArea[grid] += fraction * geometries[ads].contactAreas.fluidSolidPerFluidVolume;
+      fluidWallContactArea[grid] += fraction * geometries[ads].contactAreas.fluidWallPerFluidVolume;
       law.viscousCoefficient += fraction * geometries[ads].pressureDrop.viscousCoefficient;
       law.inertialCoefficient += fraction * geometries[ads].pressureDrop.inertialCoefficient;
       dispersion.dispersivity += fraction * geometries[ads].dispersion.dispersivity;
@@ -862,7 +866,7 @@ std::string Column::repr() const
           : std::string{"none (constant molecular part)"});
 }
 
-void Column::writeJSON(const std::string& filename) const
+void Column::writeJSON(const std::string& filename, double time) const
 {
   std::ofstream out(filename);
   if (!out) throw std::runtime_error("Column::writeJSON: cannot open file '" + filename + "'");
@@ -870,6 +874,7 @@ void Column::writeJSON(const std::string& filename) const
   // The state only: the derived fields (velocity, pressure, equilibrium loadings, rates, mixture-prediction caches)
   // follow from it and are recomputed after reading (Breakthrough constructor).
   nlohmann::json j;
+  j["time"] = time;
   j["numberOfGridPoints"] = numberOfGridPoints;
   j["numberOfComponents"] = numberOfComponents;
   j["maxIsothermTerms"] = maxIsothermTerms;
@@ -890,9 +895,11 @@ void Column::writeJSON(const std::string& filename) const
   }
 
   out << j.dump(4) << "\n";
+  out.flush();
+  if (!out) throw std::runtime_error("Column::writeJSON: cannot write file '" + filename + "'");
 }
 
-void Column::readJSON(const std::string& filename)
+double Column::readJSON(const std::string& filename)
 {
   std::ifstream in(filename);
   if (!in) throw std::runtime_error("Column::readJSONFile: cannot open file '" + filename + "'");
@@ -928,19 +935,6 @@ void Column::readJSON(const std::string& filename)
                              std::to_string(fileMaxChemisorptionSites) + ", column " +
                              std::to_string(maxChemisorptionSites) + ")");
 
-  auto loadVectorChecked = [&](const char* key, std::vector<double>& dst)
-  {
-    if (!j.contains(key)) return;
-    const auto& a = j.at(key);
-    if (!a.is_array())
-      throw std::runtime_error(std::string("Column::readJSON: key '") + key + "' is not an array");
-
-    if (a.size() != dst.size())
-      throw std::runtime_error("Column::readJSON: size mismatch for '" + std::string(key) + "'");
-
-    dst = a.get<std::vector<double>>();
-  };
-
   auto loadSpanChecked = [&](const char* key, std::span<double> dst)
   {
     if (!j.contains(key)) return;
@@ -955,48 +949,13 @@ void Column::readJSON(const std::string& filename)
     std::copy(tmp.begin(), tmp.end(), dst.begin());
   };
 
-  loadVectorChecked("idealGasMolFractions", idealGasMolFractions);
-  loadVectorChecked("adsorbedMolFractions", adsorbedMolFractions);
-  loadVectorChecked("numberOfMolecules", numberOfMolecules);
-
-  loadVectorChecked("interstitialGasVelocity", interstitialGasVelocity);
-  loadVectorChecked("gasDensity", gasDensity);
-  loadVectorChecked("totalConcentration", totalConcentration);
-  loadVectorChecked("totalVoidFraction", totalVoidFraction);
-  loadVectorChecked("particleDensity", particleDensity);
-  loadVectorChecked("totalPressure", totalPressure);
-  loadVectorChecked("pH", pH);
-
   loadSpanChecked("gasTemperature", gasTemperature);
-  loadSpanChecked("gasTemperatureDot", gasTemperatureDot);
   loadSpanChecked("solidTemperature", solidTemperature);
-  loadSpanChecked("solidTemperatureDot", solidTemperatureDot);
   loadSpanChecked("wallTemperature", wallTemperature);
-  loadSpanChecked("wallTemperatureDot", wallTemperatureDot);
-
   loadSpanChecked("concentration", concentration);
-  loadSpanChecked("concentrationDot", concentrationDot);
   loadSpanChecked("physisorption", physisorption);
-  loadSpanChecked("physisorptionDot", physisorptionDot);
   loadSpanChecked("chemisorption", chemisorption);
-  loadSpanChecked("chemisorptionDot", chemisorptionDot);
-  loadVectorChecked("bulkSpeciesSink", bulkSpeciesSink);
   loadSpanChecked("surfaceConcentration", surfaceConcentration);
-  loadSpanChecked("surfaceConcentrationDot", surfaceConcentrationDot);
   loadSpanChecked("poreConcentration", poreConcentration);
-  loadSpanChecked("poreConcentrationDot", poreConcentrationDot);
-
-  loadVectorChecked("partialPressure", partialPressure);
-  loadVectorChecked("equilibriumPhysisorption", equilibriumPhysisorption);
-  loadVectorChecked("equilibriumChemisorption", equilibriumChemisorption);
-  loadVectorChecked("moleFraction", moleFraction);
-  loadVectorChecked("fractionOfAdsorbent", fractionOfAdsorbent);
-
-  loadVectorChecked("cachedPressure", cachedPressure);
-  loadVectorChecked("cachedGrandPotential", cachedGrandPotential);
-  loadVectorChecked("cachedChemisorptionPressure", cachedChemisorptionPressure);
-  loadVectorChecked("cachedChemisorptionGrandPotential", cachedChemisorptionGrandPotential);
-  loadVectorChecked("columnDistances", columnDistances);
-  validateColumnDistances(columnDistances, numberOfGridPoints, columnLength);
-  computeAdsorbentBlends();
+  return j.value("time", 0.0);
 }

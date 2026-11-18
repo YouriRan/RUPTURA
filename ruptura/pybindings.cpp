@@ -55,6 +55,12 @@ std::vector<T> spanToVector(std::span<const T> values)
   return std::vector<T>(values.begin(), values.end());
 }
 
+// Ctrl-C in Python raises KeyboardInterrupt at the next output of a run.
+void checkSignals()
+{
+  if (PyErr_CheckSignals() != 0) throw nb::python_error();
+}
+
 // One row per node and snapshot with the columns of the output files (R-PY-2): those of column.data, then for each
 // component those of its component file after tau, t, and z. ruptura.breakthrough_columns names them.
 nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough& self)
@@ -102,7 +108,7 @@ nb::ndarray<nb::numpy, double, nb::ndim<3>> computeBreakthrough(Breakthrough& se
               << std::endl;
 
     if (finished) break;
-    if (PyErr_CheckSignals() != 0) throw nb::python_error();
+    checkSignals();
     finished = self.advanceToNextOutput();
     appendSnapshot(*buffer);
   }
@@ -137,7 +143,7 @@ void bindBreakthrough(nb::module_& module)
       .def_rw("integration_scheme", &Simulation::integrationScheme)
       .def("print", &Simulation::print)
       .def("__repr__", &Simulation::repr)
-      .def("run", &Simulation::run)
+      .def("run", [](Simulation& self) { self.afterOutput = &checkSignals; self.run(); })
       .def("compute", &computeBreakthrough)
       .def(
           "advance_to", [](Simulation& self, double endTime) { self.advanceTo(endTime, self.timings); },
@@ -202,7 +208,7 @@ void bindSwingAdsorption(nb::module_& module)
           nb::rv_policy::reference_internal)
       .def_rw("sub_stages", &Simulation::subStages)
       .def_ro("phase_records", &Simulation::phaseRecords)
-      .def("run", &Simulation::run)
+      .def("run", [](Simulation& self) { self.breakthrough.afterOutput = &checkSignals; self.run(); })
       .def("print", &Simulation::print)
       .def("__repr__", &Simulation::repr);
 }
@@ -268,8 +274,7 @@ EXPAND_MODULE(MODULE_NAME)
       .value("BREAKTHROUGH", InputReader::SimulationType::Breakthrough)
       .value("MIXTURE_PREDICTION", InputReader::SimulationType::MixturePrediction)
       .value("FITTING", InputReader::SimulationType::Fitting)
-      .value("SWING_ADSORPTION", InputReader::SimulationType::SwingAdsorption)
-      .value("TEST", InputReader::SimulationType::Test);
+      .value("SWING_ADSORPTION", InputReader::SimulationType::SwingAdsorption);
 
   nb::class_<InputReader::SwingAdsorptionPhase>(m, "InputSwingAdsorptionPhase")
       .def(nb::init<>())
@@ -357,7 +362,8 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("column_error", &InputReader::columnError)
       .def_rw("fitting_weighting", &InputReader::fittingWeighting)
       .def_rw("swing_adsorption_phases", &InputReader::swingAdsorptionPhases)
-      .def_rw("read_column_file", &InputReader::readColumnFile);
+      .def_rw("read_column_file", &InputReader::readColumnFile)
+      .def_rw("reset_clock", &InputReader::resetClock);
 
   nb::class_<WaterSaturationPressure> waterSaturationPressure(m, "WaterSaturationPressure");
   nb::enum_<WaterSaturationPressure::Model>(waterSaturationPressure, "Model", nb::is_arithmetic())
@@ -701,7 +707,7 @@ EXPAND_MODULE(MODULE_NAME)
 
             for (size_t pressureIndex = 0; pressureIndex < self.numberOfPressurePoints; ++pressureIndex)
             {
-              if (PyErr_CheckSignals() != 0) throw nb::python_error();
+              checkSignals();
 
               double physicalTemperature = self.temperature;
               double chemicalTemperature = chemical.temperature;
@@ -798,7 +804,8 @@ EXPAND_MODULE(MODULE_NAME)
             {
               self.components[i].initialGasMoleFraction = molfracs[i];
               size_t numberOfParameters = self.components[i].isotherm.numberOfParameters;
-              std::vector<double> slicedVec(params.begin() + index, params.begin() + index + numberOfParameters);
+              std::vector<double> slicedVec(params.begin() + static_cast<std::ptrdiff_t>(index),
+                                            params.begin() + static_cast<std::ptrdiff_t>(index + numberOfParameters));
               index += numberOfParameters;
               self.components[i].isotherm.setParameters(slicedVec);
             }
@@ -955,7 +962,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def("compute_adsorbent_blends", &Column::computeAdsorbentBlends)
       .def("set_temperature", &Column::setTemperature, nb::arg("temperature"))
       .def("__repr__", &Column::repr)
-      .def("write_json", &Column::writeJSON, nb::arg("file_name"))
+      .def("write_json", &Column::writeJSON, nb::arg("file_name"), nb::arg("time") = 0.0)
       .def("read_json", &Column::readJSON, nb::arg("file_name"));
 
   m.def(
@@ -1064,7 +1071,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def(nb::init<const InputReader&>(), nb::arg("input_reader"))
       .def(nb::init<>())
       .def("reinitialize", nb::overload_cast<>(&CVODE::reinitialize))
-      .def("initialize", nb::overload_cast<Column&>(&CVODE::initialize), nb::arg("column"))
+      .def("initialize", &CVODE::initialize, nb::arg("column"), nb::arg("start_time") = 0.0)
       .def(
           "advance",
           [](CVODE& self, Column& column, double endTime)
@@ -1102,12 +1109,11 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("column_loading", &Fitting::columnLoading)
       .def_rw("column_error", &Fitting::columnError)
       .def_rw("maximum_loading", &Fitting::maximumLoading)
-      .def_rw("external_temperature", &Fitting::externalTemperature)
       .def_rw("pressure_scale", &Fitting::pressureScale)
       .def_rw("fitting_weighting", &Fitting::fittingWeighting)
       .def_rw("raw_data", &Fitting::rawData)
       .def("read_data", &Fitting::readData, nb::arg("component"))
-      .def("run", &Fitting::run)
+      .def("run", [](Fitting& self) { self.afterOutput = &checkSignals; self.run(); })
       .def("write_components_json", &Fitting::writeComponentsJson, nb::arg("path"));
 
   nb::class_<SwingAdsorptionSubStage>(m, "SwingAdsorptionSubStage")
@@ -1153,8 +1159,6 @@ EXPAND_MODULE(MODULE_NAME)
             return nb::cast(Fitting(inputReader));
           case InputReader::SimulationType::SwingAdsorption:
             return nb::cast(new SwingAdsorption(inputReader), nb::rv_policy::take_ownership);
-          case InputReader::SimulationType::Test:
-            throw std::invalid_argument("SimulationType 'Test' does not have a Python simulation object");
         }
 
         throw std::invalid_argument("Unknown SimulationType");

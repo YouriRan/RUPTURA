@@ -15,7 +15,8 @@ void computeChemisorptionTransportDerivatives(
     std::span<const Geometry> geometries, std::span<const double> poreLoadingConversion,
     std::span<const double> concentration, std::span<const double> chemisorptionDot,
     std::span<const double> surfaceConcentration, std::span<double> surfaceConcentrationDot,
-    std::span<const double> poreConcentration, std::span<double> poreConcentrationDot);
+    std::span<const double> poreConcentration, std::span<double> poreConcentrationDot,
+    std::span<const size_t> sitesOfComponent = {});
 
 /**
  * \brief Builds the gas-phase sink from bed-weighted solid uptake.
@@ -28,4 +29,5 @@ void computeBulkSpeciesSink(const std::vector<MixturePrediction>& physisorptionM
                             std::span<const double> surfaceConcentration, std::span<double> bulkSpeciesSink,
                             std::span<const double> reactionPhysisorptionSource = {},
                             std::span<const double> reactionChemisorptionSource = {},
-                            std::span<const double> reactionBulkSource = {});
+                            std::span<const double> reactionBulkSource = {},
+                            std::span<const size_t> sitesOfComponent = {});

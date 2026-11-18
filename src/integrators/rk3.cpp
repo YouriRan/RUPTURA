@@ -115,7 +115,8 @@ void precompute(ColumnData& column, const ColumnStateViews& views, Timing& timin
                                  column.fractionOfAdsorbent, column.loadingPrefactor, views.concentration,
                                  views.physisorptionDot, views.chemisorptionDot, views.surfaceConcentration,
                                  column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                                 column.reactionChemisorptionSource, column.reactionBulkSource);
+                                 column.reactionChemisorptionSource, column.reactionBulkSource,
+                                 column.chemisorptionSites);
         ::updateVelocityAndPressure(
             column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
             column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength,
@@ -164,16 +165,17 @@ void computeDerivatives(ColumnData& column, const ColumnStateViews& views, bool 
                          column.numberOfAdsorbents, column.maxChemisorptionSites, column.externalTemperature,
                          column.fractionOfAdsorbent, column.particleDensities,
                          column.equilibriumChemisorption, views.concentration, views.chemisorption,
-                         views.chemisorptionDot, views.poreConcentration, views.solidTemperature);
+                         views.chemisorptionDot, views.poreConcentration, views.solidTemperature,
+                         column.chemisorptionSites);
 
   ::computeChemisorptionTransportDerivatives(
       column.physisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents, column.numberOfAdsorbents,
       column.maxChemisorptionSites, column.fractionOfAdsorbent, column.geometries, column.poreLoadingConversion,
       views.concentration, views.chemisorptionDot, views.surfaceConcentration, views.surfaceConcentrationDot,
-      views.poreConcentration, views.poreConcentrationDot);
+      views.poreConcentration, views.poreConcentrationDot, column.chemisorptionSites);
 
   ::computeReactionDerivatives(
-      column.physisorptionMixtures.front().components, column.reactions, column.numberOfGridPoints,
+      column.physisorptionMixtures, column.reactions, column.numberOfGridPoints,
       column.numberOfComponents, column.maxChemisorptionSites, column.externalTemperature, views.physisorption,
       views.physisorptionDot, views.chemisorption, views.chemisorptionDot, views.poreConcentration,
       views.poreConcentrationDot, views.solidTemperature, column.reactionPhysisorptionSource,
@@ -186,7 +188,8 @@ void computeDerivatives(ColumnData& column, const ColumnStateViews& views, bool 
                            column.fractionOfAdsorbent, column.loadingPrefactor, views.concentration,
                            views.physisorptionDot, views.chemisorptionDot, views.surfaceConcentration,
                            column.bulkSpeciesSink, column.reactionPhysisorptionSource,
-                           column.reactionChemisorptionSource, column.reactionBulkSource);
+                           column.reactionChemisorptionSource, column.reactionBulkSource,
+                           column.chemisorptionSites);
   if (sorptionOnly) return;
 
   // precompute built the velocity from the sink of the previous stage; rebuild it from this sink so that the
@@ -207,10 +210,11 @@ void computeDerivatives(ColumnData& column, const ColumnStateViews& views, bool 
         column.gasThermalConductivity,
         column.heatTransferGasSolid,
         column.heatCapacityGas,
-        column.geometries.front().contactAreas.fluidWallPerFluidVolume * column.heatTransferGasWall /
-            column.heatCapacityGas,
+        column.fluidWallContactArea,
+        column.heatTransferGasWall,
         column.inletCondition,
-        column.flowEnds()};
+        column.flowEnds(),
+        column.temperatureRateScratch};
     ::updateVelocityAndPressure(
         column.components, column.boundaryCondition, column.numberOfGridPoints, column.numberOfComponents,
         column.inletPressure, column.outletPressure, column.pressureGradient, column.columnLength,
@@ -234,7 +238,8 @@ void computeDerivatives(ColumnData& column, const ColumnStateViews& views, bool 
   {
     ::computeEnergyDerivatives(
         column.numberOfGridPoints, column.numberOfComponents, column.externalTemperature, column.geometries,
-        column.particleDensity, column.solidFluidContactArea, column.fluidSolidContactArea, column.heatOfAdsorption,
+        column.particleDensity, column.solidFluidContactArea, column.fluidSolidContactArea,
+        column.fluidWallContactArea, column.heatOfAdsorption,
         column.heatOfChemisorption, column.wallDensity, column.gasThermalConductivity, column.wallThermalConductivity,
         column.heatTransferGasSolid, column.heatTransferGasWall, column.heatTransferWallExternal,
         column.heatCapacityGas, column.heatCapacitySolid, column.heatCapacityWall, column.columnDistances,

@@ -1,0 +1,114 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Liquid multibed transported pH front",
+  "FluidPhase": "Liquid",
+  "MixturePredictionMethod": "SPI",
+  "pHMode": "HPlus",
+  "pHComponent": 0,
+  "Temperature": 298.15,
+  "LiquidDensity": 997.0,
+  "DynamicViscosity": 0.00089,
+  "ParticleDiameter": 0.001,
+  "ParticleDensity": 1000.0,
+  "InletPressure": 160000.0,
+  "ColumnEntranceVelocity": 0.001,
+  "ColumnVoidFraction": 0.4,
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "BreakthroughIntegrator": "CVODE",
+  "SimulationTime": 30.0,
+  "WriteInterval": 2.0,
+  "NumberOfGridPoints": 20,
+  "Components": [
+    {
+      "Name": "H+",
+      "LiquidPhaseConcentration": 1e-05,
+      "InitialLiquidPhaseConcentration": 0.0001,
+      "MassTransferCoefficient": 0.0,
+      "AxialDispersionCoefficient": 1e-07,
+      "MolecularWeight": 0.001008
+    },
+    {
+      "Name": "Solute",
+      "LiquidPhaseConcentration": 2.0,
+      "InitialLiquidPhaseConcentration": 0.0,
+      "MassTransferCoefficient": 0.08,
+      "AxialDispersionCoefficient": 1e-07,
+      "MolecularWeight": 0.1
+    }
+  ],
+  "Adsorbents": [
+    {
+      "Name": "weak-site front bed",
+      "AdsorbentLength": 0.05,
+      "ColumnVoidFraction": 0.36,
+      "ParticleDensity": 1100.0,
+      "ParticleDiameter": 0.0008,
+      "ComponentParameters": {
+        "H+": {
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                0.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "Solute": {
+          "MassTransferCoefficient": 0.08,
+          "AxialDispersionCoefficient": 1e-07,
+          "PhysisorptionSites": [
+            {
+              "Type": "pH-Langmuir",
+              "Parameters": [
+                2.0,
+                0.25,
+                7.0
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Name": "strong-site polishing bed",
+      "AdsorbentLength": 0.05,
+      "ColumnVoidFraction": 0.44,
+      "ParticleDensity": 900.0,
+      "ParticleDiameter": 0.0012,
+      "ComponentParameters": {
+        "H+": {
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                0.0,
+                0.0
+              ]
+            }
+          ]
+        },
+        "Solute": {
+          "MassTransferCoefficient": 0.05,
+          "AxialDispersionCoefficient": 1e-07,
+          "PhysisorptionSites": [
+            {
+              "Type": "pH-Langmuir",
+              "Parameters": [
+                3.0,
+                0.5,
+                7.5
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  }
+}

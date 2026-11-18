@@ -315,7 +315,7 @@ TEST(DanckwertsInlet, ConductsNoHeatAcrossTheInletFace)
     std::vector<double> gasTemperatureDot(nodes, 0.0);
     std::vector<double> solidTemperatureDot(nodes, 0.0);
     std::vector<double> wallTemperatureDot(nodes, 0.0);
-    computeEnergyDerivatives(gridPoints, 1, 300.0, geometries, particleDensity, zeros, zeros, zeros, {}, 4000.0,
+    computeEnergyDerivatives(gridPoints, 1, 300.0, geometries, particleDensity, zeros, zeros, zeros, zeros, {}, 4000.0,
                              gasThermalConductivity, 0.0, 0.0, 0.0, 0.0, heatCapacityGas, 900.0, 500.0, distances,
                              velocity, std::vector<double>(nodes, 1.0), gasDensity, coeffDiffusion, 0, zeros, {},
                              gasTemperature, gasTemperatureDot,
@@ -865,7 +865,9 @@ TEST(FlowReversal, TemperatureDerivativesAreTheMirrorImageOfTheForwardOnes)
       for (std::vector<double>& rate : rates[direction]) rate.assign(nodes, 0.0);
       std::vector<double> coeffDiffusion(nodes, 0.0);
       const bool backward = direction == 1;
-      computeEnergyDerivatives(gridPoints, 1, 300.0, geometries, particleDensity, area, area, zeros, {}, 4000.0, 6.0,
+      computeEnergyDerivatives(gridPoints, 1, 300.0, geometries, particleDensity, area, area,
+                               std::vector<double>(nodes, geometries.front().contactAreas.fluidWallPerFluidVolume),
+                               zeros, {}, 4000.0, 6.0,
                                0.0, 20.0, 30.0, 5.0, 1000.0, 900.0, 500.0, distances,
                                backward ? reverseVelocity : velocity, std::vector<double>(nodes, 1.0),
                                backward ? reverseDensity : gasDensity,

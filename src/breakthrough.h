@@ -1,7 +1,10 @@
 #pragma once
 
 #include <cstddef>
+#include <fstream>
+#include <functional>
 #include <string>
+#include <vector>
 
 #include "column.h"
 #include "cvode.h"
@@ -37,6 +40,12 @@ struct Breakthrough
   void advanceTo(double endTime, Timing& accumulatedTimings);
 
   /**
+   * \brief Writes column.json and one snapshot to column.data and the component files, which the first call starts,
+   *        and prints the progress lines. Throws when a file cannot be written.
+   */
+  void writeOutput();
+
+  /**
    * \brief Integrates to the next output time and applies the automatic stop criteria.
    *
    * \return True once the simulation time is reached.
@@ -54,6 +63,12 @@ struct Breakthrough
   double time{0.0};          ///< Current simulated time in s.
   size_t numberOfOutputs{0};  ///< Output intervals completed; the next output is at (numberOfOutputs + 1) writeInterval.
   size_t maxIsothermTerms;   ///< Maximum number of isotherm terms.
+  /// run() continues the output files and leaves out the snapshot at its start, which they hold already: after
+  /// ReadColumnFile without ResetClock, or once the files are started.
+  bool appendOutput;
+  bool warnedIdealGasDeviation{false};          ///< The warning of writeOutput is printed once.
+  std::vector<std::ofstream> componentStreams;  ///< Output file of each component, opened by the first writeOutput.
+  std::ofstream columnStream;                   ///< column.data, opened by the first writeOutput.
 
   Column column;                                    ///< Column model advanced by the simulation.
   RungeKutta3 rk3;                                  ///< Explicit RK3 integrator instance.
@@ -61,4 +76,5 @@ struct Breakthrough
   CVODE cvode;                                      ///< CVODE integrator instance.
   BreakthroughIntegrationScheme integrationScheme;  ///< Selected integration scheme.
   Timing timings;                                   ///< Accumulated timing diagnostics.
+  std::function<void()> afterOutput;  ///< Called by run() after every output; Python checks for Ctrl-C here.
 };

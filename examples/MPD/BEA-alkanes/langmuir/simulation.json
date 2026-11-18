@@ -1,0 +1,65 @@
+{
+  "SimulationType": "MixturePrediction",
+  "MixturePredictionMethod": "SCI",
+  "DisplayName": "BEA C7 alkanes — competitive multisite Langmuir",
+  "Temperature": 552.0,
+  "PressureStart": 1000.0,
+  "PressureEnd": 10000000.0,
+  "NumberOfPressurePoints": 50,
+  "PressureScale": "Log",
+  "Components": [
+    {"Name": "Helium", "GasPhaseMolFraction": 0.93, "CarrierGas": true},
+    {
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.01,
+      "PhysisorptionSites": [
+        {"Type": "Langmuir", "Parameters": [1.2, 6.55857e-5]},
+        {"Type": "Langmuir", "Parameters": [0.4, 8.90731e-7]}
+      ]
+    },
+    {
+      "Name": "C6m2",
+      "GasPhaseMolFraction": 0.01,
+      "PhysisorptionSites": [
+        {"Type": "Langmuir", "Parameters": [1.2, 3.90895e-5]},
+        {"Type": "Langmuir", "Parameters": [0.4, 9.64046e-8]}
+      ]
+    },
+    {
+      "Name": "C6m3",
+      "GasPhaseMolFraction": 0.01,
+      "PhysisorptionSites": [
+        {"Type": "Langmuir", "Parameters": [1.2, 2.61740e-5]},
+        {"Type": "Langmuir", "Parameters": [0.4, 7.99897e-8]}
+      ]
+    },
+    {
+      "Name": "C5m2m2",
+      "GasPhaseMolFraction": 0.01,
+      "PhysisorptionSites": [
+        {"Type": "Langmuir", "Parameters": [1.2, 6.99287e-6]}
+      ]
+    },
+    {
+      "Name": "C5m2m3",
+      "GasPhaseMolFraction": 0.01,
+      "PhysisorptionSites": [
+        {"Type": "Langmuir", "Parameters": [1.2, 1.41992e-5]}
+      ]
+    },
+    {
+      "Name": "C5m2m4",
+      "GasPhaseMolFraction": 0.01,
+      "PhysisorptionSites": [
+        {"Type": "Langmuir", "Parameters": [1.2, 2.11233e-5]}
+      ]
+    },
+    {
+      "Name": "C5m3m3",
+      "GasPhaseMolFraction": 0.01,
+      "PhysisorptionSites": [
+        {"Type": "Langmuir", "Parameters": [1.2, 4.39800e-6]}
+      ]
+    }
+  ]
+}

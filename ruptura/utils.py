@@ -8,6 +8,8 @@ from typing import Dict, List, Optional, Union
 
 import numpy as np
 
+from .webapp.config import canonicalize
+
 
 @dataclass
 class ComponentInfo:
@@ -20,7 +22,7 @@ class ComponentInfo:
 def load_simulation_metadata(simulation_json: Union[str, Path]) -> Dict[str, object]:
     path = Path(simulation_json)
     with path.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+        data = canonicalize(json.load(f))  # keys are case-insensitive, as in the input reader
 
     components: List[ComponentInfo] = []
     for i, comp in enumerate(data.get("Components", [])):
@@ -36,7 +38,7 @@ def load_simulation_metadata(simulation_json: Union[str, Path]) -> Dict[str, obj
     return {
         "simulationType": data.get("SimulationType"),
         "displayName": data.get("DisplayName", path.stem),
-        "temperature": data.get("Temperature", next((phase["Temperature"] for phase in data.get("SwingAdsorptionPhases", [])[:1] if "Temperature" in phase), 433.0)),
+        "temperature": data.get("Temperature", next((phase["Temperature"] for phase in data.get("SwingAdsorptionPhases", [])[:1] if "Temperature" in phase), 298.0)),
         "inletPressure": data.get("InletPressure", next((phase["InletPressure"] for phase in data.get("SwingAdsorptionPhases", [])[:1] if "InletPressure" in phase), 0.0)),
         "fluidPhase": data.get("FluidPhase", "Gas"),
         "pressureStart": data.get("PressureStart"),

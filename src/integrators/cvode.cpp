@@ -254,7 +254,7 @@ void buildSparsePattern(CVODE& integrator, const Column& column)
   }
 }
 
-void initializeCVODE(CVODE& integrator, Column& column)
+void initializeCVODE(CVODE& integrator, Column& column, double startTime)
 {
   static_assert(std::is_same_v<sunrealtype, double>, "CVODE currently requires SUNDIALS sunrealtype to be double");
 
@@ -284,7 +284,7 @@ void initializeCVODE(CVODE& integrator, Column& column)
   CVodeSetMaxNumSteps(integrator.cvodeMem, maximumStepsPerCall);
   integrator.userData = {&column, &integrator};
   CVodeSetUserData(integrator.cvodeMem, &integrator.userData);
-  integrator.currentTime = 0.0;
+  integrator.currentTime = startTime;
 
   int flag = CVodeInit(integrator.cvodeMem, CVODE::evaluateDerivatives, integrator.currentTime, integrator.stateVector);
   if (flag != CV_SUCCESS) throw std::runtime_error("CVodeInit failed");
@@ -389,7 +389,7 @@ void CVODE::advance(Column& column, double endTime, Timing& timings)
   advanceCVODE(*this, column, endTime, timings);
 }
 
-void CVODE::initialize(Column& column) { initializeCVODE(*this, column); }
+void CVODE::initialize(Column& column, double startTime) { initializeCVODE(*this, column, startTime); }
 
 void CVODE::reinitialize()
 {
@@ -657,7 +657,7 @@ void CVODE::advance(Column&, double, Timing&)
   throw std::runtime_error("CVODE::advance() called, but this build was compiled without SUNDIALS support");
 }
 
-void CVODE::initialize(Column&) {}
+void CVODE::initialize(Column&, double) {}
 
 void CVODE::reinitialize() {}
 

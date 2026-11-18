@@ -59,7 +59,8 @@ void computePhysisorption(size_t numberOfGridPoints, size_t numberOfComponents,
                           std::span<double> physisorptionDot);
 
 /**
- * \brief Largest chemisorption site count of each component over the adsorbents.
+ * \brief Largest chemisorption site count of each component over the adsorbents. The sorption and transport kernels
+ *        take it as sitesOfComponent, and compute it per call when that is empty.
  */
 std::vector<size_t> chemisorptionSitesPerComponent(const std::vector<MixturePrediction>& mixtures,
                                                    size_t numberOfComponents);
@@ -73,4 +74,5 @@ void computeChemisorption(const std::vector<MixturePrediction>& physisorptionMix
                           std::span<const double> particleDensities,
                           std::span<const double> equilibriumChemisorption, std::span<const double> concentration,
                           std::span<const double> chemisorption, std::span<double> chemisorptionDot,
-                          std::span<const double> poreConcentration, std::span<const double> solidTemperature);
+                          std::span<const double> poreConcentration, std::span<const double> solidTemperature,
+                          std::span<const size_t> sitesOfComponent = {});

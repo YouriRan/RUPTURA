@@ -365,7 +365,7 @@ TEST(MultibedExamples, ParseAndAdvanceWithAdsorbentSpecificParameters)
   }
 }
 
-TEST(SingleAdsorbent, RunsAsAOneAdsorbentColumnAndIgnoresDebugForceMultibed)
+TEST(SingleAdsorbent, RunsAsAOneAdsorbentColumn)
 {
   const std::filesystem::path sourcePath =
       std::filesystem::path{RUPTURA_SOURCE_DIR} / "examples/MOR-CO2-C3H8/breakthrough/simulation.json";
@@ -385,10 +385,6 @@ TEST(SingleAdsorbent, RunsAsAOneAdsorbentColumnAndIgnoresDebugForceMultibed)
     Breakthrough breakthrough(reader);
     EXPECT_EQ(breakthrough.column.numberOfAdsorbents, 1U);
   }
-
-  input["DebugForceMultibed"] = true;
-  std::ofstream(inputPath) << input;
-  EXPECT_NO_THROW(InputReader{inputPath.string()});
 }
 
 TEST(MultibedExamples, LayerFractionsFollowConfiguredSectionsAndInterfaces)

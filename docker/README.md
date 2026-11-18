@@ -21,7 +21,7 @@ Ruptura uses `<print>` and `<mdspan>`, so it needs GCC 16 or newer, or Clang wit
 distribution's default GCC is older, the image uses Clang with libc++ instead.
 
 All images put CMake, Ninja, SuiteSparse (KLU), LAPACK, Python with its headers, and a virtual environment in
-`/opt/venv` with nanobind, NumPy, pandas, Plotly and pytest. SUNDIALS and GoogleTest are downloaded by CMake.
+`/opt/venv` with nanobind, NumPy, pandas, Plotly, SciPy and pytest. SUNDIALS and GoogleTest are downloaded by CMake.
 
 ## Running locally with Docker
 

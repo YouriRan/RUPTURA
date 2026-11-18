@@ -77,7 +77,7 @@ function fieldDescription(definition, path) {
   return state.schema.help[key] || `Set ${definition.label.toLowerCase()} for the selected simulation.`;
 }
 function field(definition, prefix = [], extra = "") {
-  const path = [...prefix, definition.key], id = `field-${path.join("-")}`;
+  const path = [...prefix, definition.key], id = escapeHtml(`field-${path.join("-")}`);
   let value = getPath(config(), path);
   if (path.length === 1 && path[0] === "ColumnLength" && config().ColumnSections?.length) {value=columnLength();extra+=" disabled";}
   if (path[0] === "Reactions" && ["Reactants","Products"].includes(path[2]) && typeof value === "string") value=config().Components.findIndex(component=>component.Name.toLowerCase()===value.toLowerCase());
@@ -102,7 +102,7 @@ function lawField(definition, prefix, spec) {
   if (!spec) return field(definition, prefix);
   const path = [...prefix, definition.key], value = getPath(config(), path);
   const law = value && typeof value === "object" ? value.Law || "Constant" : "Constant";
-  const id = `law-${path.join("-")}`, description = "Choose how this parameter depends on temperature: a constant number or one of the laws allowed here.";
+  const id = escapeHtml(`law-${path.join("-")}`), description = "Choose how this parameter depends on temperature: a constant number or one of the laws allowed here.";
   const select = `<div class="field">${fieldHeader(id, "Temperature law", description)}<select id="${id}" data-law-path="${escapeHtml(JSON.stringify(path))}">${["Constant", ...spec.laws].map(name => `<option value="${name}" ${name === law ? "selected" : ""}>${name}</option>`).join("")}</select></div>`;
   if (law === "Constant") return field(definition, prefix) + select;
   const [key, label] = state.schema.temperatureLaws.coefficients[law] || [];
@@ -155,7 +155,7 @@ function header() {
   const latest = runs[0], mixture = input.SimulationType === "MixturePrediction";
   const metrics = [
     ["Simulation type", mixture ? "Equilibrium" : input.SimulationType === "SwingAdsorption" ? "Swing adsorption" : "Breakthrough", ""],
-    ["Temperature", format(input.Temperature ?? 433), "K"],
+    ["Temperature", format(input.Temperature ?? 298), "K"],
     [mixture ? "Mixture method" : "Column length", mixture ? (input.MixturePredictionMethod || "IAST") : format(columnLength()), mixture ? "" : "m"],
     ["Latest run", latest ? pill(latest.status) : "Ready to run", ""]];
   $("#metrics").innerHTML = metrics.map(([label, value, unit]) => `<div class="metric"><span class="metric-label">${label}</span><span class="metric-value">${label === "Latest run" && latest ? value : escapeHtml(value)}</span><span class="metric-unit">${unit}</span></div>`).join("");
@@ -827,6 +827,7 @@ async function poll() {
   finally {polling=false;}
 }
 async function boot() {
+  state.session=new URLSearchParams(location.search).get("session")||"";  // from the address the server printed
   const data=await api("/api/bootstrap");
   Object.assign(state,{workspace:data.state,schema:data.schema,presets:data.presets,presetInfo:data.presetInfo,presetNotes:data.presetNotes,about:data.about,runs:data.runs,session:data.session,capabilities:data.capabilities,root:data.workspace,python:data.python});
   $("#workspace-path").textContent=data.workspace; $("#workspace-path").title=data.workspace;

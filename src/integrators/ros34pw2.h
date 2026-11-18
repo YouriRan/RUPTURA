@@ -139,9 +139,9 @@ struct ROS34PW2
   void allocate(const Column& column);
 
   /**
-   * \brief Factorizes W at gamma timeStep from the assembled J~; false if a block of it is singular.
+   * \brief Factorizes W at gamma h, with h the step in s, from the assembled J~; false if a block of it is singular.
    */
-  bool factorize(double timeStep);
+  bool factorize(double h);
 
   /**
    * \brief Overwrites the state-sized vector x with W^-1 x; W is the identity outside the concentrations, physisorbed

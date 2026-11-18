@@ -45,6 +45,8 @@ from pathlib import Path
 
 import numpy as np
 
+from ..webapp.config import canonicalize
+
 GAS_CONSTANT = 8.31446261815324  # J/(mol K)
 
 # The setup the optimizer may choose, name: (lower bound, upper bound, scale of the search).
@@ -109,7 +111,7 @@ class PressureSwingCycle:
 
     def __post_init__(self):
         self.base_input = Path(self.base_input)
-        self.base = json.loads(self.base_input.read_text(encoding="utf-8"))
+        self.base = canonicalize(json.loads(self.base_input.read_text(encoding="utf-8")))  # keys in any case
         self.logarithmic = np.array([bounds[2] == "log" for bounds in self.variables.values()])
         lower = np.array([bounds[0] for bounds in self.variables.values()])
         upper = np.array([bounds[1] for bounds in self.variables.values()])

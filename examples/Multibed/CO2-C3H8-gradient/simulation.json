@@ -1,0 +1,195 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Multibed CO2/C3H8 gradient",
+  "Temperature": 300.0,
+  "ColumnVoidFraction": 0.4,
+  "DynamicViscosity": 1.8e-05,
+  "ParticleDiameter": 0.001,
+  "ParticleDensity": 1000.0,
+  "InletPressure": 2500000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "BreakthroughIntegrator": "RungeKutta3",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "SimulationTime": "auto",
+  "WriteInterval": 5.0,
+  "TimeStep": 0.0005,
+  "MixturePredictionMethod": "SIAST",
+  "ColumnDistances": [
+    0.0,
+    0.005,
+    0.0125,
+    0.02,
+    0.03,
+    0.04,
+    0.044,
+    0.048,
+    0.06,
+    0.073,
+    0.086,
+    0.098,
+    0.103,
+    0.108,
+    0.12,
+    0.13,
+    0.138
+  ],
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.9,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.05
+    },
+    {
+      "Name": "C3H8",
+      "GasPhaseMolFraction": 0.05
+    }
+  ],
+  "Adsorbents": [
+    {
+      "Name": "MOR-front",
+      "ColumnVoidFraction": 0.38,
+      "ParticleDensity": 1693.89,
+      "ParticleDiameter": 0.0008,
+      "ComponentParameters": {
+        "CO2": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                4.4,
+                0.000291
+              ]
+            },
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                10.0,
+                6.96e-07
+              ]
+            }
+          ]
+        },
+        "C3H8": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                4.97,
+                9.3e-09
+              ]
+            },
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                2.99,
+                0.000279
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Name": "MFI-middle",
+      "ColumnVoidFraction": 0.4,
+      "ParticleDensity": 1250.0,
+      "ParticleDiameter": 0.001,
+      "ComponentParameters": {
+        "CO2": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                2.6,
+                7e-05
+              ]
+            }
+          ]
+        },
+        "C3H8": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                3.4,
+                9.5e-05
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "Name": "carbon-tail",
+      "ColumnVoidFraction": 0.43,
+      "ParticleDensity": 850.0,
+      "ParticleDiameter": 0.0012,
+      "ComponentParameters": {
+        "CO2": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                1.2,
+                8e-06
+              ]
+            }
+          ]
+        },
+        "C3H8": {
+          "MassTransferCoefficient": 0.06,
+          "AxialDispersionCoefficient": 0.0,
+          "PhysisorptionSites": [
+            {
+              "Type": "Langmuir",
+              "Parameters": [
+                4.1,
+                0.00016
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "ColumnSections": [
+    {
+      "Adsorbent": "MOR-front",
+      "Length": 0.04
+    },
+    {
+      "InterfaceLength": 0.008
+    },
+    {
+      "Adsorbent": "MFI-middle",
+      "Length": 0.05
+    },
+    {
+      "InterfaceLength": 0.01
+    },
+    {
+      "Adsorbent": "carbon-tail",
+      "Length": 0.03
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.4,
+    "ParticleDiameter": 0.001
+  }
+}

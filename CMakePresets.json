@@ -20,8 +20,7 @@
         "BUILD_PYTHON": true,
         "BUILD_TESTING": true,
         "BUILD_DOCS": false,
-        "BUILD_APP": false,
-        "BUILD_BENCHMARKS": false
+        "BUILD_APP": false
       }
     },
     {

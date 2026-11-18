@@ -1,0 +1,258 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Pore oxidation reactions (CO and H2 over O2)",
+  "Temperature": 500.0,
+  "InfluxTemperature": 500.0,
+  "ColumnVoidFraction": 0.38,
+  "DynamicViscosity": 2.4e-05,
+  "ParticleDiameter": 0.0012,
+  "ParticleDensity": 950.0,
+  "InletPressure": 180000.0,
+  "ColumnEntranceVelocity": 0.06,
+  "ColumnLength": 0.08,
+  "BreakthroughIntegrator": "CVODE",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "SimulationTime": 0.1,
+  "WriteInterval": 0.1,
+  "NumberOfGridPoints": 20,
+  "energyBalance": true,
+  "heatCapacityGas": 1100.0,
+  "heatCapacitySolid": 850.0,
+  "heatCapacityWall": 500.0,
+  "wallDensity": 7800.0,
+  "gasThermalConductivity": 0.04,
+  "wallThermalConductivity": 16.0,
+  "heatTransferGasSolid": 120.0,
+  "heatTransferGasWall": 20.0,
+  "heatTransferWallExternal": 5.0,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.88,
+      "CarrierGas": true,
+      "MolecularWeight": 0.0040026
+    },
+    {
+      "Name": "CO",
+      "GasPhaseMolFraction": 0.05,
+      "MassTransferCoefficient": 0.04,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.0280101,
+      "HeatOfAdsorption": 18000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.9,
+            2e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "O2",
+      "GasPhaseMolFraction": 0.04,
+      "MassTransferCoefficient": 0.04,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.0319988,
+      "HeatOfAdsorption": 12000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.5,
+            5e-06
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "H2",
+      "GasPhaseMolFraction": 0.03,
+      "MassTransferCoefficient": 0.04,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.00201588,
+      "HeatOfAdsorption": 6000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.3,
+            1e-06
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.0,
+      "MassTransferCoefficient": 0.04,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.0440095,
+      "HeatOfAdsorption": 30000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.1,
+            3e-05
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "H2O",
+      "GasPhaseMolFraction": 0.0,
+      "MassTransferCoefficient": 0.04,
+      "AxialDispersionCoefficient": 1e-06,
+      "MolecularWeight": 0.01801528,
+      "HeatOfAdsorption": 42000.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.0,
+            8e-05
+          ]
+        }
+      ]
+    }
+  ],
+  "Reactions": [
+    {
+      "Phase": "PoreConcentration",
+      "Style": "LangmuirHinshelwood",
+      "Site": 0,
+      "Reactants": [
+        "CO",
+        "O2"
+      ],
+      "Products": [
+        "CO2"
+      ],
+      "Stoichiometry": {
+        "Reactants": [
+          1.0,
+          0.5
+        ],
+        "Products": [
+          1.0
+        ]
+      },
+      "Kinetics": {
+        "ForwardRateCoefficient": {
+          "Value": 100000.0,
+          "Law": "Arrhenius",
+          "ActivationEnergy": 55000.0
+        },
+        "EquilibriumConstant": {
+          "Value": 1.0,
+          "Law": "VantHoff"
+        },
+        "HeatOfReaction": 250000.0,
+        "AdsorptionConstants": {
+          "CO": {
+            "Value": 0.083,
+            "Law": "VantHoff",
+            "Energy": 18000.0,
+            "ReferenceTemperature": 500.0
+          },
+          "O2": {
+            "Value": 0.021,
+            "Law": "VantHoff",
+            "Energy": 12000.0,
+            "ReferenceTemperature": 500.0
+          },
+          "H2": {
+            "Value": 0.0042,
+            "Law": "VantHoff",
+            "Energy": 6000.0,
+            "ReferenceTemperature": 500.0
+          },
+          "CO2": {
+            "Value": 0.12,
+            "Law": "VantHoff",
+            "Energy": 30000.0,
+            "ReferenceTemperature": 500.0
+          },
+          "H2O": {
+            "Value": 0.33,
+            "Law": "VantHoff",
+            "Energy": 42000.0,
+            "ReferenceTemperature": 500.0
+          }
+        }
+      }
+    },
+    {
+      "Phase": "PoreConcentration",
+      "Style": "LangmuirHinshelwoodHougenWatson",
+      "Site": 0,
+      "Reactants": [
+        "H2",
+        "O2"
+      ],
+      "Products": [
+        "H2O"
+      ],
+      "Stoichiometry": {
+        "Reactants": [
+          1.0,
+          0.5
+        ],
+        "Products": [
+          1.0
+        ]
+      },
+      "Kinetics": {
+        "ForwardRateCoefficient": {
+          "Value": 10000.0,
+          "Law": "Arrhenius",
+          "ActivationEnergy": 35000.0
+        },
+        "EquilibriumConstant": {
+          "Value": 1.0,
+          "Law": "VantHoff"
+        },
+        "HeatOfReaction": 230000.0,
+        "AdsorptionConstants": {
+          "CO": {
+            "Value": 0.083,
+            "Law": "VantHoff",
+            "Energy": 18000.0,
+            "ReferenceTemperature": 500.0
+          },
+          "O2": {
+            "Value": 0.021,
+            "Law": "VantHoff",
+            "Energy": 12000.0,
+            "ReferenceTemperature": 500.0
+          },
+          "H2": {
+            "Value": 0.0042,
+            "Law": "VantHoff",
+            "Energy": 6000.0,
+            "ReferenceTemperature": 500.0
+          },
+          "CO2": {
+            "Value": 0.12,
+            "Law": "VantHoff",
+            "Energy": 30000.0,
+            "ReferenceTemperature": 500.0
+          },
+          "H2O": {
+            "Value": 0.33,
+            "Law": "VantHoff",
+            "Energy": 42000.0,
+            "ReferenceTemperature": 500.0
+          }
+        }
+      }
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.38,
+    "ParticleDiameter": 0.0012
+  }
+}

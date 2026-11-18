@@ -76,17 +76,6 @@ struct Timing
   };
 
   /**
-   * \brief Resets all accumulated timing values to zero.
-   */
-  void clear()
-  {
-    total = 0.0;
-    updateVelocityAndPressure = 0.0;
-    computeEquilibriumLoadings = 0.0;
-    computeDerivatives = 0.0;
-  }
-
-  /**
    * \brief Creates an RAII scope that accumulates elapsed time into the supplied value.
    */
   Scope scoped(double& value) { return Scope(value); }

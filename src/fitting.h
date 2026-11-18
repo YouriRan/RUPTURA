@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -76,12 +77,6 @@ struct Fitting
   void readData(size_t ID);
 
   /**
-   * \brief Prints the solution for a specific component.
-   * \param ID Index of the component.
-   */
-  void printSolution(size_t ID);
-
-  /**
    * \brief Runs the fitting process for all components.
    */
   void run();
@@ -91,18 +86,6 @@ struct Fitting
    * \param path Output JSON path.
    */
   void writeComponentsJson(const std::string& path) const;
-
-  // /**
-  //  * \brief Creates plot scripts for a specific component.
-  //  * \param citizen DNA of the optimized individual.
-  //  * \param ID Index of the component.
-  //  */
-  // void createPlotScripts(const DNA& citizen, size_t ID);
-
-  // /**
-  //  * \brief Creates a master plot script.
-  //  */
-  // void createPlotScript();
 
   /**
    * \brief Generates a new individual for the genetic algorithm.
@@ -224,7 +207,6 @@ struct Fitting
   size_t columnLoading{1};                          ///< Column index for loading data.
   size_t columnError{2};                            ///< Column index for error data.
   double maximumLoading{0.0};                       ///< Maximum loading observed in mol/kg.
-  double externalTemperature{298.0};                ///< Temperature for the fitting in K, currently unused.
   PressureScale pressureScale{PressureScale::Log};  ///< Pressure scale type.
   FittingWeighting fittingWeighting{FittingWeighting::Absolute};  ///< Residual minimized by the fit.
 
@@ -241,8 +223,7 @@ struct Fitting
   size_t geneticAlgorithmElitists;         ///< Number of elite individuals.
   size_t geneticAlgorithmMotleists;        ///< Number of diverse individuals.
 
-  std::vector<DNA> alphaPopulation;  ///< First population buffer.
-  std::vector<DNA> betaPopulation;   ///< Second population buffer.
-  std::vector<DNA>& parents;         ///< Reference to current parent population.
-  std::vector<DNA>& children;        ///< Reference to current child population.
+  std::vector<DNA> parents;   ///< Current parent population; swapped with children every generation.
+  std::vector<DNA> children;  ///< Current child population.
+  std::function<void()> afterOutput;  ///< Called after every generation and simplex step; Python checks Ctrl-C here.
 };

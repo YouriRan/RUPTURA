@@ -229,6 +229,9 @@ struct MixturePrediction
       segregatedSortedComponents;  ///< Segregated and sorted components for SIAST/SEI methods.
   std::vector<size_t> segregatedNumberOfSortedComponents;  ///< Active component count for each segregated site.
   std::vector<double> equilibriumSiteLoadings;  ///< Site-major component loadings from the latest prediction.
+  /// predictMixture fills equilibriumSiteLoadings also for IAST, which takes one more isotherm evaluation per site; a
+  /// column switches it off for its physisorption mixtures, whose site loadings nothing reads.
+  bool storeSiteLoadings{true};
   bool temperatureDependent{false};  ///< Some isotherm depends on temperature, so setTemperature has work to do.
   bool humidityDependent{false};     ///< Some isotherm depends on the relative humidity (humidityState).
   /// Index of the water component (Component::isWater), or numberOfComponents if there is none.
@@ -327,9 +330,13 @@ struct MixturePrediction
                                              std::span<double> cachedGrandPotential, double& gasTemperature);
 
   /**
-   * \brief Computes mixture prediction for a specific term using Fast SIAST method.
+   * \brief Computes the Fast IAST of one phase and adds its loadings to numberOfMolecules. Throws when the solve ends
+   *        far from the solution.
    *
-   * \param term The index of the isotherm term.
+   * \param siteComponents The components of the phase with its isotherms, the adsorbing ones first: those of one
+   *        site (SIAST), or all components with their multisite isotherms (IAST).
+   * \param activeComponents The number of adsorbing components of the phase.
+   * \param site The index of the phase in the caches: the isotherm site, or 0 for IAST.
    * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
@@ -338,7 +345,8 @@ struct MixturePrediction
    * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> computeFastSIAST(size_t term, std::span<const double> idealGasMolFractions,
+  std::pair<size_t, size_t> computeFastSIAST(const std::vector<Component>& siteComponents, size_t activeComponents,
+                                             size_t site, std::span<const double> idealGasMolFractions,
                                              const double& externalPressure, std::span<double> adsorbedMolFractions,
                                              std::span<double> numberOfMolecules, std::span<double> cachedPressure,
                                              std::span<double> cachedGrandPotential, double& gasTemperature);
@@ -382,9 +390,9 @@ struct MixturePrediction
                                                             double& gasTemperature);
 
   /**
-   * \brief Computes mixture prediction for a specific term using SIAST with nested loop bisection method.
+   * \brief Computes the IAST of one phase by nested loop bisection and adds its loadings to numberOfMolecules.
    *
-   * \param term The index of the isotherm term.
+   * \param siteComponents, activeComponents, site The phase, as in computeFastSIAST.
    * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
    * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
@@ -393,7 +401,9 @@ struct MixturePrediction
    * \param cachedGrandPotential An array to cache intermediate reducedGrandPotential calculations.
    * \return A pair containing the number of IAST steps and a status code.
    */
-  std::pair<size_t, size_t> computeSIASTNestedLoopBisection(size_t term, std::span<const double> idealGasMolFractions,
+  std::pair<size_t, size_t> computeSIASTNestedLoopBisection(const std::vector<Component>& siteComponents,
+                                                            size_t activeComponents, size_t site,
+                                                            std::span<const double> idealGasMolFractions,
                                                             const double& externalPressure,
                                                             std::span<double> adsorbedMolFractions,
                                                             std::span<double> numberOfMolecules,
@@ -431,20 +441,20 @@ struct MixturePrediction
                                                             double& gasTemperature);
 
   /**
-   * \brief Computes mixture prediction for a specific term using segregated explicit isotherm model.
+   * \brief Computes the explicit isotherm of one phase and adds its loadings to numberOfMolecules.
    *
-   * \param site The index of the isotherm site.
+   * \param siteComponents The components of the phase, sorted by saturation loading; their first site is used.
+   * \param activeComponents The number of adsorbing components of the phase.
    * \param idealGasMolFractions The gas phase mole fractions.
    * \param P The total pressure.
-   * \param adsorbedMolFractions The adsorbed phase mole fractions (output).
    * \param numberOfMolecules The number of adsorbed molecules of each component (output).
    * \return A pair containing the number of steps and a status code.
    */
-  std::pair<size_t, size_t> computeSegratedExplicitIsotherm(size_t site, std::span<const double> idealGasMolFractions,
+  std::pair<size_t, size_t> computeSegratedExplicitIsotherm(const std::vector<Component>& siteComponents,
+                                                            size_t activeComponents,
+                                                            std::span<const double> idealGasMolFractions,
                                                             const double& externalPressure,
-                                                            std::span<double> adsorbedMolFractions,
-                                                            std::span<double> numberOfMolecules,
-                                                            double& gasTemperature);
+                                                            std::span<double> numberOfMolecules);
 
   /**
    * \brief Computes mixture prediction using segregated competitive isotherms.

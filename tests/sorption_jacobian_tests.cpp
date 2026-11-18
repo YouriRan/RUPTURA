@@ -493,7 +493,7 @@ TEST(ThermalJacobian, MatchesCentralDifferencesOfTheEnergyBalanceAtFrozenFlowAnd
         computeEnergyDerivatives(
             column.numberOfGridPoints, column.numberOfComponents, column.externalTemperature, column.geometries,
             column.particleDensity, column.solidFluidContactArea, column.fluidSolidContactArea,
-            column.heatOfAdsorption, column.heatOfChemisorption, column.wallDensity, column.gasThermalConductivity,
+            column.fluidWallContactArea, column.heatOfAdsorption, column.heatOfChemisorption, column.wallDensity, column.gasThermalConductivity,
             column.wallThermalConductivity, column.heatTransferGasSolid, column.heatTransferGasWall,
             column.heatTransferWallExternal, column.heatCapacityGas, column.heatCapacitySolid,
             column.heatCapacityWall, column.columnDistances, column.interstitialGasVelocity, column.totalVoidFraction,

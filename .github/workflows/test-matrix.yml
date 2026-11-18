@@ -67,7 +67,7 @@ jobs:
         run: |
           brew install ninja suitesparse
           python3 -m venv "$RUNNER_TEMP/venv"
-          "$RUNNER_TEMP/venv/bin/pip" install nanobind numpy pandas plotly pytest
+          "$RUNNER_TEMP/venv/bin/pip" install nanobind numpy pandas plotly scipy pytest
           echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
           echo "VIRTUAL_ENV=$RUNNER_TEMP/venv" >> "$GITHUB_ENV"
 

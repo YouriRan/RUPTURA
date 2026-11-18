@@ -6,4 +6,4 @@ pacman -Syu --noconfirm --needed --disable-sandbox git cmake ninja gcc suitespar
 pacman -Scc --noconfirm
 
 python -m venv /opt/venv
-/opt/venv/bin/pip install --no-cache-dir nanobind numpy pandas plotly pytest
+/opt/venv/bin/pip install --no-cache-dir nanobind numpy pandas plotly scipy pytest
