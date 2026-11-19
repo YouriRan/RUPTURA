@@ -445,10 +445,10 @@ TEST(DanckwertsInlet, SorptionJacobianCouplesTheFirstCellToTheInletFaceValue)
   };
 
   SorptionJacobian danckwerts(column);
-  assembleSorptionJacobian(column, column.concentration, column.gasTemperature, danckwerts);
+  assembleSorptionJacobian(column, column.concentration, column.gasTemperature, column.solidTemperature, danckwerts);
   column.inletCondition = Column::InletCondition::Dirichlet;
   SorptionJacobian dirichlet(column);
-  assembleSorptionJacobian(column, column.concentration, column.gasTemperature, dirichlet);
+  assembleSorptionJacobian(column, column.concentration, column.gasTemperature, column.solidTemperature, dirichlet);
 
   for (size_t comp = 0; comp < n; ++comp)
   {

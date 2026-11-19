@@ -16,7 +16,7 @@ void computePhysisorptionEquilibriumLoadings(
     size_t maxIsothermTerms, std::pair<size_t, size_t>& iastPerformance, std::span<double> idealGasMolFractions,
     std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, std::span<const double> totalPressure,
     std::span<double> equilibriumPhysisorption, std::span<double> cachedPressure,
-    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> gasTemperature,
+    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> solidTemperature,
     MixturePrediction::DrivingForceInput input, std::span<const double> concentration,
     std::span<const double> pH)
 {
@@ -67,7 +67,7 @@ void computePhysisorptionEquilibriumLoadings(
           idealGasMolFractions,
           input == MixturePrediction::DrivingForceInput::MoleFraction ? totalPressure[grid] : 1.0,
           adsorbedMolFractions, numberOfMolecules, spanCachedPressure, spanCachedGrandPotential,
-          gasTemperature[grid], pH[grid], input);
+          solidTemperature[grid], pH[grid], input);
 
       for (size_t comp = 0; comp < numberOfComponents; ++comp)
       {
@@ -83,7 +83,7 @@ void computePhysisorptionEquilibriumSensitivities(
     size_t numberOfAdsorbents, std::span<const double> fractionOfAdsorbent, const std::vector<bool>& hasAdsorbentOfType,
     size_t maxIsothermTerms, std::span<double> idealGasMolFractions, std::span<double> mixtureSensitivity,
     std::span<const double> totalPressure, std::span<const double> cachedPressure, std::span<const double> moleFraction,
-    std::span<const double> gasTemperature, MixturePrediction::DrivingForceInput input,
+    std::span<const double> solidTemperature, MixturePrediction::DrivingForceInput input,
     std::span<const double> concentration, std::span<const double> pH,
     std::span<double> equilibriumPhysisorptionSensitivity, bool pressureOfTheGas)
 {
@@ -121,7 +121,7 @@ void computePhysisorptionEquilibriumSensitivities(
           idealGasMolFractions, gas ? totalPressure[grid] : 1.0,
           cachedPressure.subspan((grid * numberOfAdsorbents + ads) * numberOfComponents * maxIsothermTerms,
                                  numberOfComponents * maxIsothermTerms),
-          gasTemperature[grid], pH[grid], mixtureSensitivity);
+          solidTemperature[grid], pH[grid], mixtureSensitivity);
 
       const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
       for (size_t i = 0; i < numberOfComponents; ++i)
@@ -148,7 +148,7 @@ void computeChemisorptionEquilibriumLoadings(
     size_t maxChemisorptionSites, std::pair<size_t, size_t>& iastPerformance, std::span<double> idealGasMolFractions,
     std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, std::span<const double> totalPressure,
     std::span<double> equilibriumChemisorption, std::span<double> cachedPressure,
-    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> gasTemperature,
+    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> solidTemperature,
     MixturePrediction::DrivingForceInput input, std::span<const double> concentration,
     std::span<const double> pH)
 {
@@ -189,7 +189,7 @@ void computeChemisorptionEquilibriumLoadings(
           idealGasMolFractions,
           input == MixturePrediction::DrivingForceInput::MoleFraction ? totalPressure[grid] : 1.0,
           adsorbedMolFractions, numberOfMolecules, spanCachedPressure, spanCachedGrandPotential,
-          gasTemperature[grid], pH[grid], input);
+          solidTemperature[grid], pH[grid], input);
 
       const double fraction = fractionOfAdsorbent[grid * numberOfAdsorbents + ads];
       for (size_t site = 0; site < mixture.maxIsothermTerms; ++site)

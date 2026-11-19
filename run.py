@@ -5,12 +5,22 @@
     nohup python run.py > rerun.out 2>&1 &
     python run.py --dry-run             # list what would run, longest first, with the expected core time
     python run.py --resume              # after an interruption: skip what already finished in rerun_results.csv
-    python run.py --only liu marx2      # only simulations under these paths
+    python run.py --only validation/3.3.4_humid_dac_liu validation/3.4.3_sensitivity   # only under these paths
     python run.py --skip-benchmarks     # leave out the timed benchmark studies
+    python run.py --paper               # only the cases of validation/cases.csv: the paper and its cross-checks
+    python run.py --paper --generate    # first rewrite their inputs with the generators that cases.csv lists
+    python run.py --paper --list        # write validation/jobs.csv, one row per simulation directory, and stop
 
 Every directory with a simulation.json is run in place, outside .worktrees, build*, and EXCLUDED. The binary is
 built first and frozen as build/ruptura-rerun, so a rebuild of build/ruptura during the run does not mix binaries.
-Each input is validated first; invalid inputs are reported and skipped.
+Each input is validated first; invalid inputs are reported and skipped. Paths are the real ones: the case
+directories that moved into validation/ on 2026-11-19 (marx2, stampi-bombelli, stadler, ...) keep a symlink at
+their old place, which the search does not follow.
+
+validation/cases.csv lists the cases behind the paper, with their generators, simulation directories, timeouts,
+and which ones the paper times (validation/README.md, "Full rerun on a cluster node"). A case timeout there
+replaces --timeout-hours for its directories. --list writes validation/jobs.csv for a batch script elsewhere,
+including the directories of the timed studies, without building or validating anything.
 
 - A directory with a run.sh (the Dantas runs) is run through that script, which prepares its restart files and
   calls build/ruptura itself; its own output goes to run.sh.log.
@@ -43,14 +53,17 @@ ROOT = Path(__file__).resolve().parent
 BUILD_BINARY = ROOT / "build" / "ruptura"
 FROZEN_BINARY = ROOT / "build" / "ruptura-rerun"
 RESULTS_PATH = ROOT / "rerun_results.csv"
+CASES_PATH = ROOT / "validation" / "cases.csv"
+JOBS_PATH = ROOT / "validation" / "jobs.csv"
+JOB_FIELDS = ("job", "paper_section", "case", "directory", "timed", "timeout_s", "in_paper", "previous_wall_time_s")
 # Marked for deletion, and the run records of Ruptura Lab.
-EXCLUDED = ("stampi-bombelli/_to_delete", "simulations")
+EXCLUDED = ("validation/3.3.2_monoliths_stampi_bombelli/stampi-bombelli/_to_delete", "simulations")
 # Timed studies with their own run.py, and its option for the binary.
 TIMED_STUDIES = {
-    "benchmark/breakthrough": "--binary",
+    "validation/3.5_numerical_performance/breakthrough": "--binary",
     "benchmark/cvode-max-step": "--binary",
-    "benchmark/convection": "--binary",
-    "benchmark/figures": "--executable",
+    "validation/3.5_numerical_performance/convection": "--binary",
+    "validation/3.5_numerical_performance/figures": "--executable",
 }
 # Expected core time of a simulation without a previous log, for the run order only.
 DEFAULT_SECONDS = 600.0
@@ -95,32 +108,92 @@ def main() -> None:
     parser.add_argument("--skip-benchmarks", action="store_true", help="leave out the timed benchmark studies")
     parser.add_argument("--no-build", action="store_true", help="use build/ruptura as it is")
     parser.add_argument("--dry-run", action="store_true", help="list the runs, longest first, and stop")
+    parser.add_argument("--paper", action="store_true", help="only the cases of validation/cases.csv")
+    parser.add_argument("--generate", action="store_true", help="first rerun the generators of validation/cases.csv")
+    parser.add_argument("--list", action="store_true", help="write validation/jobs.csv and stop")
     arguments = parser.parse_args()
     only = [Path(path).as_posix().rstrip("/") for path in arguments.only]
 
-    if not arguments.no_build and not arguments.dry_run:
+    if not arguments.no_build and not arguments.dry_run and not arguments.list:
         print(f"{datetime.now().strftime(STAMP)}  building build/ruptura", flush=True)
         subprocess.run(["cmake", "--build", "build", "--target", "ruptura"], cwd=ROOT, check=True)
-    if not BUILD_BINARY.is_file():
+    if not arguments.list and not BUILD_BINARY.is_file():
         raise SystemExit(f"Ruptura binary not found at {BUILD_BINARY}; build it first")
-    if not arguments.dry_run:
+    if not arguments.dry_run and not arguments.list:
         shutil.copy2(BUILD_BINARY, FROZEN_BINARY)
 
-    # Simulation directories, pruning the worktrees, build trees, and the excluded and timed paths.
+    cases = []
+    if CASES_PATH.is_file():
+        with CASES_PATH.open(newline="", encoding="utf-8") as stream:
+            cases = list(csv.DictReader(stream))
+    if arguments.generate:
+        # In the order of cases.csv: the cross-checks copy the inputs of the cases above them.
+        for case in cases:
+            if case["generate"]:
+                command = case["generate"].split()
+                command[0] = sys.executable if command[0] == "python" else command[0]
+                print(f"{datetime.now().strftime(STAMP)}  generating {case['case']}: {case['generate']} in "
+                      f"{case['directory']}", flush=True)
+                subprocess.run(command, cwd=ROOT / case["directory"], check=True)
+
+    # Simulation directories, pruning the worktrees, build trees, and the excluded paths.
     directories = []
-    skipped_prefixes = EXCLUDED + tuple(TIMED_STUDIES)
     for current, subdirectories, files in os.walk(ROOT):
         relative = Path(current).relative_to(ROOT).as_posix()
         subdirectories[:] = sorted(
             name for name in subdirectories
             if not name.startswith((".", "build", "__pycache__", "node_modules"))
-            and (Path(relative) / name).as_posix() not in skipped_prefixes)
+            and (Path(relative) / name).as_posix() not in EXCLUDED)
         if "simulation.json" in files and relative != "." and (
                 not only or any(relative == path or relative.startswith(path + "/") for path in only)):
             directories.append(Path(current))
         if "run.sh" in files:
             subdirectories[:] = []  # run.sh runs its nested simulations (the Dantas preconditioning) itself
     binary = FROZEN_BINARY if not arguments.dry_run else BUILD_BINARY
+
+    # The case of every simulation directory that cases.csv lists (the first case that claims it), and its position.
+    case_of = {}
+    for index, case in enumerate(cases):
+        for pattern in case["simulations"].split():
+            case_root = ROOT / case["directory"]
+            for root in [case_root] if pattern == "." else case_root.glob(pattern):
+                for path in sorted(root.rglob("simulation.json")):
+                    case_of.setdefault(path.parent, (index, case))
+    if arguments.paper:
+        directories = sorted((directory for directory in directories if directory in case_of),
+                             key=lambda directory: (case_of[directory][0], directory))
+    timeouts = {directory: float(case["timeout_s"]) for directory, (_, case) in case_of.items() if case["timeout_s"]}
+
+    # The "Total time" of the previous log, if any.
+    total_time = re.compile(r"Total time:\s*([0-9.eE+-]+)\s*s")
+    previous = {}
+    for directory in directories:
+        times = [float(match) for name in ("run.log", "ruptura.log", "nohup.out") if (directory / name).is_file()
+                 for match in total_time.findall((directory / name).read_text(errors="ignore")[-4000:])]
+        if times:
+            previous[directory] = times[-1]
+
+    if arguments.list:
+        with JOBS_PATH.open("w", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(stream, fieldnames=JOB_FIELDS)
+            writer.writeheader()
+            for job, directory in enumerate(directories, start=1):
+                case = case_of.get(directory, (0, {}))[1]
+                writer.writerow({
+                    "job": job, "paper_section": case.get("paper_section", ""), "case": case.get("case", ""),
+                    "directory": directory.relative_to(ROOT).as_posix(), "timed": case.get("timed", ""),
+                    "timeout_s": case.get("timeout_s", ""), "in_paper": case.get("in_paper", ""),
+                    "previous_wall_time_s": f"{previous[directory]:.1f}" if directory in previous else ""})
+        print(f"{len(directories)} jobs written to {JOBS_PATH.relative_to(ROOT)}; their previous runs took "
+              f"{sum(previous.values()) / 3600:.1f} h of wall time together "
+              f"({len(directories) - len(previous)} without a time)")
+        return
+
+    # The timed studies run afterwards through their own run.py, not in the pool.
+    directories = [directory for directory in directories
+                   if not any(directory.relative_to(ROOT).as_posix() == study
+                              or directory.relative_to(ROOT).as_posix().startswith(study + "/")
+                              for study in TIMED_STUDIES)]
 
     # Validate every input with the binary, in parallel; invalid inputs are skipped.
     def validate(directory: Path) -> tuple[Path, str]:
@@ -143,15 +216,11 @@ def main() -> None:
     pending = [directory for directory in valid if str(directory.relative_to(ROOT)) not in finished]
 
     # Longest first, from the "Total time" of the previous log, so that the pool does not end with one long run.
-    total_time = re.compile(r"Total time:\s*([0-9.eE+-]+)\s*s")
-    expected = {}
-    for directory in pending:
-        times = [float(match) for name in ("run.log", "ruptura.log", "nohup.out") if (directory / name).is_file()
-                 for match in total_time.findall((directory / name).read_text(errors="ignore")[-4000:])]
-        expected[directory] = times[-1] if times else DEFAULT_SECONDS
+    expected = {directory: previous.get(directory, DEFAULT_SECONDS) for directory in pending}
     pending.sort(key=lambda directory: expected[directory], reverse=True)
     studies = [study for study in TIMED_STUDIES if not arguments.skip_benchmarks
                and (not only or any(study == path or study.startswith(path + "/") for path in only))
+               and (not arguments.paper or any(study == case["directory"] for case in cases))
                and not (arguments.resume and study in finished)]
 
     print(f"{datetime.now().strftime(STAMP)}  {len(directories)} simulations found: {len(pending)} to run, "
@@ -176,7 +245,8 @@ def main() -> None:
     running, lock = set(), threading.Lock()
     results, started, interrupted = [], time.perf_counter(), False
     with ThreadPoolExecutor(max_workers=arguments.workers) as executor:
-        futures = [executor.submit(run_job, directory, timeout, running, lock) for directory in pending]
+        futures = [executor.submit(run_job, directory, timeouts.get(directory, timeout), running, lock)
+                   for directory in pending]
         try:
             for count, future in enumerate(as_completed(futures), start=1):
                 result = future.result()

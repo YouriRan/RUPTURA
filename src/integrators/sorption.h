@@ -9,6 +9,8 @@
 
 /**
  * \brief Computes per-bed physisorption equilibrium and blends interface loadings.
+ *
+ * The isotherms take the adsorbent temperature: their van 't Hoff factor comes from desorption at the surface.
  */
 void computePhysisorptionEquilibriumLoadings(
     std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
@@ -16,7 +18,7 @@ void computePhysisorptionEquilibriumLoadings(
     size_t maxIsothermTerms, std::pair<size_t, size_t>& iastPerformance, std::span<double> idealGasMolFractions,
     std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, std::span<const double> totalPressure,
     std::span<double> equilibriumPhysisorption, std::span<double> cachedPressure,
-    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> gasTemperature,
+    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> solidTemperature,
     MixturePrediction::DrivingForceInput input, std::span<const double> concentration,
     std::span<const double> pH);
 
@@ -35,7 +37,7 @@ void computePhysisorptionEquilibriumSensitivities(
     size_t numberOfAdsorbents, std::span<const double> fractionOfAdsorbent, const std::vector<bool>& hasAdsorbentOfType,
     size_t maxIsothermTerms, std::span<double> idealGasMolFractions, std::span<double> mixtureSensitivity,
     std::span<const double> totalPressure, std::span<const double> cachedPressure, std::span<const double> moleFraction,
-    std::span<const double> gasTemperature, MixturePrediction::DrivingForceInput input,
+    std::span<const double> solidTemperature, MixturePrediction::DrivingForceInput input,
     std::span<const double> concentration, std::span<const double> pH,
     std::span<double> equilibriumPhysisorptionSensitivity, bool pressureOfTheGas = false);
 
@@ -48,7 +50,7 @@ void computeChemisorptionEquilibriumLoadings(
     size_t maxChemisorptionSites, std::pair<size_t, size_t>& iastPerformance, std::span<double> idealGasMolFractions,
     std::span<double> adsorbedMolFractions, std::span<double> numberOfMolecules, std::span<const double> totalPressure,
     std::span<double> equilibriumChemisorption, std::span<double> cachedPressure,
-    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> gasTemperature,
+    std::span<double> cachedGrandPotential, std::span<const double> moleFraction, std::span<double> solidTemperature,
     MixturePrediction::DrivingForceInput input, std::span<const double> concentration,
     std::span<const double> pH);
 

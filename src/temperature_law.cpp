@@ -11,13 +11,14 @@
 
 namespace
 {
-constexpr std::array<std::pair<TemperatureLaw::Type, std::string_view>, 6> lawNames{{
+constexpr std::array<std::pair<TemperatureLaw::Type, std::string_view>, 7> lawNames{{
     {TemperatureLaw::Type::Constant, "Constant"},
     {TemperatureLaw::Type::VantHoff, "VantHoff"},
     {TemperatureLaw::Type::Arrhenius, "Arrhenius"},
     {TemperatureLaw::Type::Exponential, "Exponential"},
     {TemperatureLaw::Type::Linear, "Linear"},
     {TemperatureLaw::Type::Inverse, "Inverse"},
+    {TemperatureLaw::Type::Arctan, "Arctan"},
 }};
 
 double boundedExp(double exponent) { return std::exp(std::clamp(exponent, -700.0, 700.0)); }
@@ -46,6 +47,9 @@ double TemperatureLaw::operator()(double temperature) const
     case Type::Inverse:
       return value +
              coefficient * (1.0 - referenceTemperature.value_or(temperature) / std::max(temperature, 1.0e-10));
+    case Type::Arctan:
+      return 1.0 / (1.0 / value + coefficient * std::atan(secondCoefficient *
+                                                          (temperature - referenceTemperature.value_or(temperature))));
   }
   return value;
 }
@@ -71,6 +75,9 @@ std::string TemperatureLaw::repr() const
       break;
     case Type::Inverse:
       s += std::format(", alpha = {:8.4e}", coefficient);
+      break;
+    case Type::Arctan:
+      s += std::format(", alpha = {:8.4e}, beta = {:8.4e} /K", coefficient, secondCoefficient);
       break;
     case Type::Constant:
       break;
@@ -105,6 +112,7 @@ std::string_view TemperatureLaw::coefficientKey(Type type) noexcept
     case Type::Linear:
       return "Slope";
     case Type::Inverse:
+    case Type::Arctan:
       return "Alpha";
   }
   return "";

@@ -16,7 +16,7 @@
  * The transport rows are the exact derivatives of computeMassDerivatives at the velocity of the last precompute:
  * upwind convection, or WENO3 with its nonlinear weights and, in the gas phase, the mole fractions and the upwind
  * total molar flux; the equilibrium enters through computePhysisorptionEquilibriumSensitivities at a fixed total
- * pressure (not for MPD, which has no sensitivities: there the loading rows hold the mass-transfer rate only).
+ * pressure (for MPD the covariance of the particle numbers, MixturePrediction::predictMixtureSensitivities).
  * Chemisorption, reactions, pore transport, the velocity closures, and the energy balance are not included.
  *
  * The matrix is kept in LAPACK general band storage with room for the fill-in of dgbtrf: with b sub- and
@@ -86,12 +86,14 @@ struct SorptionJacobian
 };
 
 /**
- * \brief Assembles the Jacobian at the given concentrations and gas temperatures; call after the right-hand side at
- *        that state (precompute, or the CVODE right-hand side), which leaves the velocity, total pressure, mole
- *        fractions, and the hypothetical pressures of the equilibrium sensitivities in the column.
+ * \brief Assembles the Jacobian at the given concentrations and gas and adsorbent temperatures (the gas pressure
+ *        follows the former, the isotherms the latter); call after the right-hand side at that state (precompute, or
+ *        the CVODE right-hand side), which leaves the velocity, total pressure, mole fractions, and the hypothetical
+ *        pressures of the equilibrium sensitivities in the column.
  */
 void assembleSorptionJacobian(Column& column, std::span<const double> concentration,
-                              std::span<const double> gasTemperature, SorptionJacobian& jacobian);
+                              std::span<const double> gasTemperature, std::span<const double> solidTemperature,
+                              SorptionJacobian& jacobian);
 
 /**
  * \brief Jacobian of the gas, solid, and wall temperatures of computeEnergyDerivatives with respect to themselves, as a

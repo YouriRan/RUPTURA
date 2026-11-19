@@ -362,7 +362,8 @@ double ROS34PW2::advance(Column& column, double startTime, double endTime, Timin
     std::copy(column.stateDot.begin(), column.stateDot.end(), rates.begin());
     stepCachedPressure = column.cachedPressure;
     stepCachedGrandPotential = column.cachedGrandPotential;
-    assembleSorptionJacobian(column, column.concentration, column.gasTemperature, *sorptionJacobian);
+    assembleSorptionJacobian(column, column.concentration, column.gasTemperature, column.solidTemperature,
+                             *sorptionJacobian);
     if (keepTotalConcentration) stepMoleFractions.assign(column.moleFraction.begin(), column.moleFraction.end());
     for (size_t node = 1; node < stepExpansion.size(); ++node)
     {

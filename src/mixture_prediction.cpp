@@ -581,10 +581,6 @@ void MixturePrediction::predictMixtureSensitivities(std::span<const double> idea
   {
     throw std::runtime_error("Error: the sensitivity matrix size does not match the component count");
   }
-  if (predictionMethod == PredictionMethod::MPD)
-  {
-    throw std::runtime_error("Error: equilibrium sensitivities are not available for MPD mixture prediction");
-  }
   std::fill(sensitivities.begin(), sensitivities.end(), 0.0);
   setTemperature(gasTemperature);
 
@@ -596,6 +592,33 @@ void MixturePrediction::predictMixtureSensitivities(std::span<const double> idea
   const auto partialPressure = [&](const Component& component)
   { return idealGasMolFractions[component.id] * externalPressure; };
   const auto sensitivity = [&](size_t row, size_t column) -> double& { return sensitivities[row + column * n]; };
+
+  if (predictionMethod == PredictionMethod::MPD)
+  {
+    if (!macrostateParticleDistribution.has_value())
+    {
+      throw std::runtime_error("Error: MPD mixture prediction has no loaded particle distribution");
+    }
+    if (!(externalPressure > 0.0)) return;
+    // Fluctuation relation d<n_a>/df_b = Cov(n_a, n_b) / f_b, f_b = y_b P; y_b >= tiny keeps it finite at y_b = 0.
+    const size_t rank = mpdComponentIds.size();
+    std::vector<double> fractions(rank);
+    for (size_t d = 0; d < rank; ++d) fractions[d] = std::max(idealGasMolFractions[mpdComponentIds[d]], tiny);
+    std::vector<double> covariance(rank * rank);
+    macrostateParticleDistribution->meanParticleNumbers(fractions, externalPressure, gasTemperature, covariance);
+    constexpr double avogadroConstant = 6.02214076e23;  // mol^-1, exact SI definition
+    const double loadingConversion =
+        1.0 / (avogadroConstant * macrostateParticleDistribution->referenceFrameworkMass());
+    for (size_t a = 0; a < rank; ++a)
+    {
+      for (size_t b = 0; b < rank; ++b)
+      {
+        sensitivity(mpdComponentIds[a], mpdComponentIds[b]) =
+            loadingConversion * covariance[a * rank + b] / (fractions[b] * externalPressure);
+      }
+    }
+    return;
+  }
 
   const double waterPressure = waterComponent < n ? idealGasMolFractions[waterComponent] * externalPressure : 0.0;
   const auto [humidity, waterLoading] =

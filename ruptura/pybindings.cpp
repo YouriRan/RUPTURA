@@ -228,14 +228,17 @@ EXPAND_MODULE(MODULE_NAME)
       .value("ARRHENIUS", TemperatureLaw::Type::Arrhenius)
       .value("EXPONENTIAL", TemperatureLaw::Type::Exponential)
       .value("LINEAR", TemperatureLaw::Type::Linear)
-      .value("INVERSE", TemperatureLaw::Type::Inverse);
+      .value("INVERSE", TemperatureLaw::Type::Inverse)
+      .value("ARCTAN", TemperatureLaw::Type::Arctan);
   temperatureLaw.def(nb::init<>())
       .def(nb::init<double>(), nb::arg("value"))
-      .def(nb::init<TemperatureLaw::Type, double, double, std::optional<double>>(), nb::arg("type"), nb::arg("value"),
-           nb::arg("coefficient"), nb::arg("reference_temperature") = nb::none())
+      .def(nb::init<TemperatureLaw::Type, double, double, std::optional<double>, double>(), nb::arg("type"),
+           nb::arg("value"), nb::arg("coefficient"), nb::arg("reference_temperature") = nb::none(),
+           nb::arg("second_coefficient") = 0.0)
       .def_rw("type", &TemperatureLaw::type)
       .def_rw("value", &TemperatureLaw::value)
       .def_rw("coefficient", &TemperatureLaw::coefficient)
+      .def_rw("second_coefficient", &TemperatureLaw::secondCoefficient)
       .def_rw("reference_temperature", &TemperatureLaw::referenceTemperature)
       .def_rw("energy_inherited", &TemperatureLaw::energyInherited)
       .def("is_constant", &TemperatureLaw::isConstant)
@@ -1018,14 +1021,14 @@ EXPAND_MODULE(MODULE_NAME)
             column.numberOfAdsorbents, column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxIsothermTerms,
             column.iastPerformance, column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules,
             column.totalPressure, column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
-            column.moleFraction, column.gasTemperature, input, column.concentration, column.pH);
+            column.moleFraction, column.solidTemperature, input, column.concentration, column.pH);
         computeChemisorptionEquilibriumLoadings(
             column.chemisorptionMixtures, column.numberOfGridPoints, column.numberOfComponents,
             column.numberOfAdsorbents, column.fractionOfAdsorbent, column.hasAdsorbentOfType,
             column.maxChemisorptionSites, column.iastPerformance, column.idealGasMolFractions,
             column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
             column.equilibriumChemisorption, column.cachedChemisorptionPressure,
-            column.cachedChemisorptionGrandPotential, column.moleFraction, column.gasTemperature, input,
+            column.cachedChemisorptionGrandPotential, column.moleFraction, column.solidTemperature, input,
             column.concentration, column.pH);
       },
       nb::arg("column"));
