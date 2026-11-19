@@ -37,6 +37,15 @@
  * keeps its order and the invariants of the right-hand side. InletPressureOutletPressure balances the molar flux of
  * the pressure profile instead, and there W keeps acting on the total concentration: the projection held the steps
  * of a dilute BEA breakthrough at a fiftieth of their length.
+ *
+ * With MomentumBalance the velocity follows the pressure of the gas, R T_g sum_j c_ij, and J~ holds its derivatives
+ * with respect to the concentrations (jacobian.h): the relaxation of the pressure is the stiffest part of the column.
+ * With the energy balance the gas temperature is part of that pressure, the velocity carries it along, and a
+ * compression heats it through the pressure work: the concentrations and the temperatures then relax together, and W
+ * is one block-banded matrix on the concentrations and the three temperatures of every node. Next to J~ of the two
+ * separate systems it holds the derivatives of the concentration rates with respect to the gas temperatures, those of
+ * the convection of the gas temperature with respect to the gas that sets the face velocities, and the pressure work,
+ * kappa T_g / (C (1 - kappa)) times the rate of the total concentration of the cell, kappa = R C / (rho c_p).
  */
 struct ROS34PW2
 {
@@ -46,7 +55,8 @@ struct ROS34PW2
   /// K = Gamma k: a = A Gamma^-1, c = -Gamma^-1 below the diagonal, m = b Gamma^-1, e = (b - b^) Gamma^-1, and
   /// alpha_i = sum_j A_ij. Lower-triangular entries are stored row by row: (2,1), (3,1), (3,2), (4,1), (4,2), (4,3).
   /// The time derivative dF/dt of a Rosenbrock method is part of the Jacobian that a W-method may approximate; it is
-  /// left out.
+  /// left out, except where the time drives the stiff part of the right-hand side: the ramped pressure of a port of
+  /// MomentumBalance, whose stages add gamma h^2 gamma_i dF/dt (gammaSum).
   static constexpr size_t stages = 4;
   static constexpr double gamma = 4.3586652150845900e-01;
   static constexpr std::array<double, 6> a{2.0,
@@ -60,17 +70,36 @@ struct ROS34PW2
   static constexpr std::array<double, 4> m{4.1847604823191601453, -0.28519201735549587377, 2.2942803602790413955, 1.0};
   static constexpr std::array<double, 4> e{0.27774994764796811038, -1.4032398951759990242, 1.7726301276675507452, 0.5};
   static constexpr std::array<double, 4> alpha{0.0, 0.87173304301691801, 0.73157995778885238, 1.0};
+  /// The row sums gamma_i of the table Gamma: the inverse of the lower-triangular matrix with 1 / gamma on the diagonal
+  /// and -c below it, by forward substitution.
+  static constexpr std::array<double, stages> gammaSum = []
+  {
+    std::array<std::array<double, stages>, stages> table{};
+    std::array<double, stages> sums{};
+    for (size_t i = 0; i < stages; ++i)
+    {
+      for (size_t j = 0; j <= i; ++j)
+      {
+        double sum = i == j ? 1.0 : 0.0;
+        for (size_t l = j; l < i; ++l) sum += c[i * (i - 1) / 2 + l] * table[l][j];
+        table[i][j] = gamma * sum;
+        sums[i] += table[i][j];
+      }
+    }
+    return sums;
+  }();
 
   /**
    * \brief Computes the stage increments K_i of one step from caller-supplied stage operations.
    *
    * On entry, function holds F(time, state); it is overwritten. evaluate(t, u, F) writes the right-hand side at a
    * stage state into F, and solve(x) overwrites x with W^-1 x. stageState is workspace of the state size.
+   * timeDerivative, when given, is dF/dt at (time, state).
    */
   template <typename Evaluate, typename Solve>
   static void stageIncrements(double time, double timeStep, std::span<const double> state, std::span<double> function,
                               std::span<double> stageState, const std::array<std::span<double>, stages>& increments,
-                              const Evaluate& evaluate, const Solve& solve)
+                              const Evaluate& evaluate, const Solve& solve, std::span<const double> timeDerivative = {})
   {
     for (size_t stage = 0; stage < stages; ++stage)
     {
@@ -91,6 +120,10 @@ struct ROS34PW2
         for (size_t j = 0; j < stage; ++j) coupling += c[first + j] * increments[j][row];
         increments[stage][row] = gamma * timeStep * function[row] + gamma * coupling;
       }
+      for (size_t row = 0; row < timeDerivative.size(); ++row)
+      {
+        increments[stage][row] += gamma * timeStep * timeStep * gammaSum[stage] * timeDerivative[row];
+      }
       solve(increments[stage]);
     }
   }
@@ -104,10 +137,11 @@ struct ROS34PW2
            double absoluteToleranceTemperature, double maximumTimeStep = 0.0);
 
   /**
-   * \brief Advances the column from startTime to endTime in s. On entry and on return the column holds the fields of
-   *        a precompute at its state.
+   * \brief Advances the column from startTime to endTime in s, or with singleStep by one accepted step towards it,
+   *        and returns the time reached. On entry and on return the column holds the fields of a precompute at its
+   *        state.
    */
-  void advance(Column& column, double startTime, double endTime, Timing& timings);
+  double advance(Column& column, double startTime, double endTime, Timing& timings, bool singleStep = false);
 
   /**
    * \brief Forgets the step size, after a swing phase changes the boundary conditions: the next step starts small.
@@ -161,13 +195,23 @@ struct ROS34PW2
   BlockBandedMatrix thermalMatrix;             ///< W on the temperatures, factorized.
   mutable std::vector<double> thermalVector;   ///< Node-major temperatures of a solve.
   bool keepTotalConcentration{false};          ///< A gas with a marching continuity closure: W keeps sum_j c_ij.
+  bool pressureWork{false};                    ///< MomentumBalance with the energy balance (see the class description).
+  /// W of pressureWork on the concentrations and the gas, solid, and wall temperature of each node, factorized.
+  BlockBandedMatrix coupledMatrix;
+  mutable std::vector<double> coupledVector;   ///< Node-major concentrations and temperatures of a solve.
+  std::vector<double> gasRateByVelocity;       ///< assembleThermalJacobian: d(dT_g/dt)/dv of the faces of each node.
   std::vector<double> stepMoleFractions;       ///< Mole fractions at the step start, grid-major.
-  std::vector<double> stepExpansion;           ///< sum_j c_ij / T_g of each cell at the step start (energy balance).
+  /// Per cell at the step start, with the energy balance: sum_j c_ij / T_g for a continuity closure, and the gas
+  /// temperature rise per unit of total concentration, kappa T_g / (C (1 - kappa)), with MomentumBalance.
+  std::vector<double> stepExpansion;
   mutable std::vector<double> totalIncrement;  ///< Right-hand-side total concentration of each cell in a solve.
   std::vector<double> state;                   ///< State at the step start.
   std::vector<double> rates;                   ///< Right-hand side at the step start.
+  std::vector<double> stepCachedPressure;      ///< Column::cachedPressure at the step start.
+  std::vector<double> stepCachedGrandPotential;  ///< Column::cachedGrandPotential at the step start.
   std::vector<double> function;                ///< Right-hand side of the current stage.
-  std::vector<double> stageState;              ///< State of the current stage, then the new state.
+  std::vector<double> timeDerivative;          ///< dF/dt at the step start while a port pressure follows a ramp.
+  std::vector<double> stageState;              ///< State of the current stage, then the new state (unclamped).
   std::vector<double> absoluteTolerance;       ///< Absolute tolerance of every state component.
   std::array<std::vector<double>, stages> increments;  ///< Stage increments K_i.
 };

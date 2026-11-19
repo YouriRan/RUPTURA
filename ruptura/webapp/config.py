@@ -117,7 +117,7 @@ SCHEMA = {
     "operating": [field("Temperature", "Temperature [K]", 298), field("FluidPhase", "Fluid phase", "Gas", ["Gas", "Liquid"]),
                   field("MixturePredictionMethod", "Mixture method", "IAST", METHODS), field("IASTMethod", "IAST solver", "FastIAST", ["FastIAST", "NestedLoopBisection"])],
     "integration": [field("BreakthroughIntegrator", "Integrator", "RungeKutta3", ["RungeKutta3", "CVODE", "ROS34PW2"]),
-                    field("ConvectionScheme", "Convection scheme", "WENO3", ["WENO3", "Upwind"]),
+                    field("ConvectionScheme", "Convection scheme", "WENO3", ["WENO3", "WENO5", "TVD", "Upwind"]),
                     field("InletCondition", "Inlet condition", "Danckwerts", ["Danckwerts", "Dirichlet"]),
                     field("FlowDirection", "Flow direction (feed end)", "Forward", ["Forward", "Reverse"]),
                     field("SimulationTime", "Simulation time [s] (or auto)", "auto", kind="text"),
@@ -137,7 +137,7 @@ SCHEMA = {
                  field("NumberOfPressurePoints", "Pressure points", 100), field("PressureScale", "Pressure scale", "Log", ["Log", "Linear"])],
     "column": [field("ColumnLength", "Column length [m]", 0.3), field("ColumnVoidFraction", "Void fraction", 0.4), field("ParticleDensity", "Particle density [kg/m³]", 1000),
                field("ParticleDiameter", "Particle diameter [m]", 0.001), field("DynamicViscosity", "Dynamic viscosity [Pa s]", 1e-5),
-               field("BoundaryCondition", "Boundary condition", "InletPressureInletVelocity", ["InletPressureInletVelocity", "InletPressureOutletPressure", "InletVelocityOutletPressure", "FixedVelocity", "FixedPressureInletVelocity"]),
+               field("BoundaryCondition", "Boundary condition", "InletPressureInletVelocity", ["InletPressureInletVelocity", "InletPressureOutletPressure", "InletVelocityOutletPressure", "FixedVelocity", "FixedPressureInletVelocity", "MomentumBalance"]),
                field("InletPressure", "Inlet pressure [Pa]"), field("OutletPressure", "Outlet pressure [Pa]"),
                field("ColumnEntranceVelocity", "Inlet velocity [m/s]"), field("PressureGradient", "Pressure gradient [Pa/m]", 0),
                field("AxialDispersionReferenceTemperature", "Dispersion reference temperature [K]"),
@@ -167,7 +167,7 @@ SCHEMA = {
                  field("AxialDispersivity", "Axial dispersivity [m]", 0), field("TaylorArisDispersion", "Taylor–Aris dispersion (monolith)", False, kind="boolean")],
 }
 
-_KEYS = "ClosedEnd PressureRamp Shape TimeConstant SimulationType DisplayName Components Adsorbents ColumnSections Geometry PhysisorptionSites ChemisorptionSites Name Type Parameters RateEquation RateEquationParameters MaximumLoading HeatOfAdsorption Reactions Phase Style Site Reactants Products Stoichiometry Kinetics ForwardOrders BackwardOrders RateLimitTime CarrierGas Water FileName ReadColumnFile ResetClock ColumnDistances MPDSettings SwingAdsorptionPhases ProductEndGasPhaseMolFractions Adsorbent AdsorbentLength Length InterfaceLength ComponentParameters MixFraction ColumnPressure ColumnLoading ColumnError FittingWeighting ForwardRateCoefficient EquilibriumConstant HeatOfReaction AdsorptionConstants Value Law Energy ActivationEnergy Chi Slope Alpha".split()
+_KEYS = "Coolant MassFlowRate Density HeatCapacity FlowDirection ParticleTransport Model RadialCells DesorptionRateCoefficient DesorptionOrder Columns Buffers Connections From To FlowModel Conductance Area MolarFlow Opening CheckValve MaximumMolarFlow Efficiency Volume MaximumPressure ThermalControl HeatTransferCoefficient ExhaustPressure CompressionEfficiency Column ClosedEnd PressureRamp Shape TimeConstant StopCriterion Metric End Component Operator Value All Any MinimumDuration TimeoutPolicy FeedEnd ProductEnd Mode Pressure Velocity MolarFlux CyclicSteadyState Tolerance ConsecutiveCycles NumberOfCycles GasHeatCapacity SimulationType DisplayName Components Adsorbents ColumnSections Geometry PhysisorptionSites ChemisorptionSites Name Type Parameters RateEquation RateEquationParameters MaximumLoading HeatOfAdsorption Reactions Phase Style Site Reactants Products Stoichiometry Kinetics ForwardOrders BackwardOrders RateLimitTime CarrierGas Water FileName ReadColumnFile ResetClock ColumnDistances MPDSettings SwingAdsorptionPhases ProductEndGasPhaseMolFractions Adsorbent AdsorbentLength Length InterfaceLength ComponentParameters MixFraction ColumnPressure ColumnLoading ColumnError FittingWeighting ForwardRateCoefficient EquilibriumConstant HeatOfReaction AdsorptionConstants Value Law Energy ActivationEnergy Chi Slope Alpha".split()
 _KEYS += [item["key"] for group in SCHEMA.values() if isinstance(group, list) for item in group if isinstance(item, dict)]
 KEYS = {key.lower(): key for key in _KEYS}
 ENUMS = {item["key"]: item["options"] for group in SCHEMA.values() if isinstance(group, list) for item in group if isinstance(item, dict) and item["options"]}

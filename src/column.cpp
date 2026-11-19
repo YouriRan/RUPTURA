@@ -208,8 +208,8 @@ std::vector<MixturePrediction> ColumnData::makeChemisorptionMixtures(
 
 ColumnStateLayout Column::stateLayout() const noexcept
 {
-  return ColumnStateLayout{numberOfGridPoints, numberOfComponents, maxChemisorptionSites,
-                                   surfacePoreTransportEnabled};
+  return ColumnStateLayout{numberOfGridPoints,   numberOfComponents, maxChemisorptionSites, surfacePoreTransportEnabled,
+                           streamAmountsEnabled, coolantEnabled,     numberOfShells};
 }
 
 void Column::bindStateViews() noexcept
@@ -366,6 +366,12 @@ void Column::initialize()
       fillVelocity(columnEntranceVelocity);
       break;
     }
+    case BoundaryCondition::MomentumBalance:
+    {
+      // At rest at the outlet pressure; the gas then follows its ports.
+      fillPressure(outletPressure);
+      break;
+    }
   }
 
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
@@ -486,20 +492,21 @@ void Column::initialize()
   std::fill(gasTemperature.begin(), gasTemperature.end(), influxTemperature);
   std::fill(solidTemperature.begin(), solidTemperature.end(), influxTemperature);
   std::fill(wallTemperature.begin(), wallTemperature.end(), influxTemperature);
+  std::ranges::fill(coolantTemperature, influxTemperature);
 
   computeBulkSpeciesSink(physisorptionMixtures, numberOfGridPoints, numberOfComponents, numberOfAdsorbents,
                          maxChemisorptionSites, geometries, fractionOfAdsorbent, loadingPrefactor, concentration,
                          physisorptionDot, chemisorptionDot, surfaceConcentration, bulkSpeciesSink,
                          reactionPhysisorptionSource, reactionChemisorptionSource, reactionBulkSource,
                          chemisorptionSites);
-  updateVelocityAndPressure(components, boundaryCondition, numberOfGridPoints, numberOfComponents, inletPressure,
-                            outletPressure, pressureGradient, columnLength, numberOfAdsorbents, columnEntranceVelocity,
-                            dynamicViscosity, columnDistances, fractionOfAdsorbent, geometries, pressureDropLaw,
-                            totalVoidFraction, interstitialGasVelocity, gasDensity, totalConcentration, totalPressure,
-                            concentration, partialPressure, moleFraction, bulkSpeciesSink, gasTemperature, fluidPhase,
-                            liquidDensity, pHMode, pHValue, pKw, pHComponent, pH, molecularDispersionCoefficient,
-                            dispersionLaw, dispersionReferenceTemperature, dispersionReferencePressure,
-                            axialDispersionCoefficient, convectionScheme, inletCondition, nullptr, flowEnds());
+  updateVelocityAndPressure(
+      components, boundaryCondition, numberOfGridPoints, numberOfComponents, inletPressure, outletPressure,
+      pressureGradient, columnLength, numberOfAdsorbents, columnEntranceVelocity, dynamicViscosity, columnDistances,
+      fractionOfAdsorbent, geometries, pressureDropLaw, totalVoidFraction, interstitialGasVelocity, gasDensity,
+      totalConcentration, totalPressure, concentration, partialPressure, moleFraction, bulkSpeciesSink, gasTemperature,
+      fluidPhase, liquidDensity, pHMode, pHValue, pKw, pHComponent, pH, molecularDispersionCoefficient, dispersionLaw,
+      dispersionReferenceTemperature, dispersionReferencePressure, axialDispersionCoefficient, convectionScheme,
+      inletCondition, nullptr, flowEnds(), gasHeatCapacity);
   computePhysisorptionEquilibriumLoadings(
       physisorptionMixtures, numberOfGridPoints, numberOfComponents, numberOfAdsorbents, fractionOfAdsorbent,
       hasAdsorbentOfType, maxIsothermTerms, iastPerformance, idealGasMolFractions, adsorbedMolFractions,
@@ -884,6 +891,8 @@ void Column::writeJSON(const std::string& filename, double time) const
   j["gasTemperature"] = toVector(gasTemperature);
   j["solidTemperature"] = toVector(solidTemperature);
   j["wallTemperature"] = toVector(wallTemperature);
+  if (!coolantTemperature.empty()) j["coolantTemperature"] = toVector(coolantTemperature);
+  if (!shellLoading.empty()) j["shellLoading"] = toVector(shellLoading);
 
   j["concentration"] = toVector(concentration);
   j["physisorption"] = toVector(physisorption);
@@ -954,6 +963,11 @@ double Column::readJSON(const std::string& filename)
   loadSpanChecked("wallTemperature", wallTemperature);
   loadSpanChecked("concentration", concentration);
   loadSpanChecked("physisorption", physisorption);
+  // A file without them (a run with the linear driving force) starts every radial cell at the loading of the particle.
+  for (size_t index = 0; index < shellLoading.size(); ++index)
+    shellLoading[index] = physisorption[index % physisorption.size()];
+  loadSpanChecked("shellLoading", shellLoading);
+  loadSpanChecked("coolantTemperature", coolantTemperature);
   loadSpanChecked("chemisorption", chemisorption);
   loadSpanChecked("surfaceConcentration", surfaceConcentration);
   loadSpanChecked("poreConcentration", poreConcentration);

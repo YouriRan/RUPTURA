@@ -210,7 +210,25 @@ TEST(TemperatureInput, KineticCoefficientsAcceptArrheniusLaws)
   const double k = 0.05 * std::exp(-20000.0 / R * (1.0 / 330.0 - 1.0 / 300.0));
   EXPECT_NEAR(site.rate(2.0, 1.75, 0.0, 330.0), k * std::pow(0.25, 1.5), 1.0e-14);
 
-  input["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"]["RateCoefficient"] = vantHoff(0.05);
+  // The release (q > q*) with a coefficient, an activation energy, and an order of its own.
+  nlohmann::json& parameters = input["Components"][1]["ChemisorptionSites"][0]["RateEquationParameters"];
+  parameters["desorptionratecoefficient"] = {
+      {"Value", 0.2}, {"Law", "Arrhenius"}, {"ActivationEnergy", 60000.0}, {"ReferenceTemperature", 300.0}};
+  parameters["DesorptionOrder"] = 2.0;
+  {
+    const InputReader directional = readInput(input);
+    const Chemisorption& released = directional.components[1].chemisorption.sites[0];
+    const double release = 0.2 * std::exp(-60000.0 / R * (1.0 / 330.0 - 1.0 / 300.0));
+    EXPECT_NEAR(released.rate(2.0, 1.75, 0.0, 330.0), k * std::pow(0.25, 1.5), 1.0e-14);
+    EXPECT_NEAR(released.rate(1.75, 2.0, 0.0, 330.0), -release * std::pow(0.25, 2.0), 1.0e-14);
+  }
+  input["Components"][1]["ChemisorptionSites"][0]["RateEquation"] = "Avrami";
+  expectRejected(input, "DesorptionRateCoefficient and DesorptionOrder belong to PseudoNth");
+  input["Components"][1]["ChemisorptionSites"][0]["RateEquation"] = "PseudoNth";
+  parameters.erase("desorptionratecoefficient");
+  parameters.erase("DesorptionOrder");
+
+  parameters["RateCoefficient"] = vantHoff(0.05);
   expectRejected(input, "the RateCoefficient cannot use the temperature law 'VantHoff'; use Arrhenius");
 }
 

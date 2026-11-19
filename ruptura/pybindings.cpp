@@ -208,6 +208,11 @@ void bindSwingAdsorption(nb::module_& module)
           nb::rv_policy::reference_internal)
       .def_rw("sub_stages", &Simulation::subStages)
       .def_ro("phase_records", &Simulation::phaseRecords)
+      .def_ro("phases_per_cycle", &Simulation::phasesPerCycle)
+      .def_ro("column_names", &Simulation::columnNames)
+      .def_ro("buffer_amounts", &Simulation::bufferAmounts)
+      .def_rw("steady_state_tolerance", &Simulation::steadyStateTolerance)
+      .def_rw("steady_state_cycles", &Simulation::steadyStateCycles)
       .def("run", [](Simulation& self) { self.breakthrough.afterOutput = &checkSignals; self.run(); })
       .def("print", &Simulation::print)
       .def("__repr__", &Simulation::repr);
@@ -287,7 +292,11 @@ EXPAND_MODULE(MODULE_NAME)
               &InputReader::SwingAdsorptionPhase::productEndGasPhaseMolFractions)
       .def_rw("closed_end", &InputReader::SwingAdsorptionPhase::closedEnd)
       .def_rw("pressure_ramp_shape", &InputReader::SwingAdsorptionPhase::pressureRampShape)
-      .def_rw("pressure_ramp_time_constant", &InputReader::SwingAdsorptionPhase::pressureRampTimeConstant);
+      .def_rw("pressure_ramp_time_constant", &InputReader::SwingAdsorptionPhase::pressureRampTimeConstant)
+      .def_rw("feed_from_phase", &InputReader::SwingAdsorptionPhase::feedFromPhase)
+      .def_rw("product_end_from_phase", &InputReader::SwingAdsorptionPhase::productEndFromPhase)
+      .def_rw("minimum_duration", &InputReader::SwingAdsorptionPhase::minimumDuration)
+      .def_rw("error_on_timeout", &InputReader::SwingAdsorptionPhase::errorOnTimeout);
 
   inputReader.def(nb::init<const std::string>(), nb::arg("file_name"))
       .def_rw("components", &InputReader::components)
@@ -362,6 +371,9 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("column_error", &InputReader::columnError)
       .def_rw("fitting_weighting", &InputReader::fittingWeighting)
       .def_rw("swing_adsorption_phases", &InputReader::swingAdsorptionPhases)
+      .def_rw("number_of_cycles", &InputReader::numberOfCycles)
+      .def_rw("cyclic_steady_state_tolerance", &InputReader::cyclicSteadyStateTolerance)
+      .def_rw("cyclic_steady_state_cycles", &InputReader::cyclicSteadyStateCycles)
       .def_rw("read_column_file", &InputReader::readColumnFile)
       .def_rw("reset_clock", &InputReader::resetClock);
 
@@ -504,6 +516,8 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("pore_concentration_order", &Chemisorption::poreConcentrationOrder)
       .def_rw("capacity_order", &Chemisorption::capacityOrder)
       .def_rw("desorption_order", &Chemisorption::desorptionOrder)
+      .def_rw("release_rate_coefficient", &Chemisorption::releaseRateCoefficient)
+      .def_rw("release_order", &Chemisorption::releaseOrder)
       .def_rw("elovich_alpha", &Chemisorption::elovichAlpha)
       .def_rw("elovich_beta", &Chemisorption::elovichBeta)
       .def_rw("film_mass_transfer_coefficient", &Chemisorption::filmMassTransferCoefficient)
@@ -548,6 +562,7 @@ EXPAND_MODULE(MODULE_NAME)
       .def_rw("is_carrier_gas", &Component::isCarrierGas)
       .def_rw("is_water", &Component::isWater)
       .def_rw("molecular_weight", &Component::molecularWeight)
+      .def_rw("gas_heat_capacity", &Component::gasHeatCapacity)
       .def("print", &Component::print)
       .def("__repr__", &Component::repr);
 
@@ -833,7 +848,8 @@ EXPAND_MODULE(MODULE_NAME)
       .value("INLET_PRESSURE_OUTLET_PRESSURE", Column::BoundaryCondition::InletPressureOutletPressure)
       .value("INLET_VELOCITY_OUTLET_PRESSURE", Column::BoundaryCondition::InletVelocityOutletPressure)
       .value("FIXED_VELOCITY", Column::BoundaryCondition::FixedVelocity)
-      .value("FIXED_PRESSURE_INLET_VELOCITY", Column::BoundaryCondition::FixedPressureInletVelocity);
+      .value("FIXED_PRESSURE_INLET_VELOCITY", Column::BoundaryCondition::FixedPressureInletVelocity)
+      .value("MOMENTUM_BALANCE", Column::BoundaryCondition::MomentumBalance);
 
   nb::enum_<Column::FlowDirection>(column, "FlowDirection", nb::is_arithmetic())
       .value("FORWARD", Column::FlowDirection::Forward)
@@ -1137,7 +1153,10 @@ EXPAND_MODULE(MODULE_NAME)
       .def_ro("gas_at_start", &SwingAdsorptionPhaseRecord::gasAtStart)
       .def_ro("adsorbed_at_start", &SwingAdsorptionPhaseRecord::adsorbedAtStart)
       .def_ro("gas_at_end", &SwingAdsorptionPhaseRecord::gasAtEnd)
-      .def_ro("adsorbed_at_end", &SwingAdsorptionPhaseRecord::adsorbedAtEnd);
+      .def_ro("adsorbed_at_end", &SwingAdsorptionPhaseRecord::adsorbedAtEnd)
+      .def_ro("stream_amounts", &SwingAdsorptionPhaseRecord::streamAmounts)
+      .def_ro("wall_heat", &SwingAdsorptionPhaseRecord::wallHeat)
+      .def_ro("exhaust_work", &SwingAdsorptionPhaseRecord::exhaustWork);
 
   bindSwingAdsorption(m);
 

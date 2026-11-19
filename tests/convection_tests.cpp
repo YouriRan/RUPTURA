@@ -104,6 +104,74 @@ TEST(WENO3Reconstruction, KeepsAStepWithinItsBounds)
   EXPECT_NEAR(faces[8], 0.0, 1.0e-12);  // first cell after the step
 }
 
+TEST(ConvectionSchemes, TvdAndWeno5ReconstructLinearProfilesStepsAndSmoothProfilesAtTheirOrder)
+{
+  using Scheme = Column::ConvectionScheme;
+  // Largest error over the faces that have five cells around them, for the cell averages of exp(z) on [0, 1].
+  const auto interiorError = [](size_t intervals, Scheme scheme)
+  {
+    const std::vector<double> distances = uniformDistances(intervals, 1.0);
+    std::vector<double> values(intervals + 1, 1.0);
+    for (size_t i = 1; i <= intervals; ++i)
+    {
+      values[i] = (std::exp(distances[i]) - std::exp(distances[i - 1])) / distances[1];
+    }
+    std::vector<double> faces(intervals + 1);
+    scheme == Scheme::WENO3 ? computeWENO(values, distances, faces)
+                            : computeFaceValues(scheme, values, 0.0, distances, faces, false);
+    double error = 0.0;
+    for (size_t i = 3; i + 2 <= intervals; ++i) error = std::max(error, std::abs(faces[i] - std::exp(distances[i])));
+    return error;
+  };
+  EXPECT_GT(interiorError(20, Scheme::TVD) / interiorError(40, Scheme::TVD), 3.5);       // second order
+  EXPECT_GT(interiorError(20, Scheme::WENO5) / interiorError(40, Scheme::WENO5), 24.0);  // fifth order
+  EXPECT_LT(interiorError(20, Scheme::WENO5), 1.0e-3 * interiorError(20, Scheme::WENO3));
+
+  const std::vector<double> stretched{0.0, 0.01, 0.025, 0.05, 0.06, 0.1, 0.16, 0.2, 0.21};
+  std::vector<double> step(21, 0.0);
+  std::fill(step.begin(), step.begin() + 8, 1.0);
+  for (const Scheme scheme : {Scheme::TVD, Scheme::WENO5})
+  {
+    // A linear profile is exact on a uniform grid.
+    const std::vector<double> uniform = uniformDistances(12, 0.6);
+    const std::vector<double> linear = linearCellValues(uniform, 0.3, -1.7);
+    std::vector<double> faces(linear.size());
+    computeFaceValues(scheme, linear, 0.0, uniform, faces, false);
+    for (size_t i = 1; i + 1 < linear.size(); ++i) EXPECT_NEAR(faces[i], 0.3 - 1.7 * uniform[i], 1.0e-13) << i;
+
+    // A step stays within its bounds, and the cells next to it keep their values at their faces.
+    faces.assign(step.size(), 0.0);
+    computeFaceValues(scheme, step, 0.0, uniformDistances(20, 1.0), faces, false);
+    for (const double face : faces)
+    {
+      EXPECT_GE(face, -1.0e-9);
+      EXPECT_LE(face, 1.0 + 1.0e-9);
+    }
+    EXPECT_NEAR(faces[7], 1.0, 1.0e-9);
+    EXPECT_NEAR(faces[8], 0.0, 1.0e-9);
+
+    // Flow towards z = 0 is the mirror image: the face of cell c towards z = 0 is that of cell N + 1 - c of the
+    // mirrored values towards z = L.
+    const size_t last = step.size() - 1;
+    std::vector<double> values(step.size());
+    for (size_t i = 0; i <= last; ++i) values[i] = std::sin(0.3 * static_cast<double>(i)) + (i > 12 ? 1.0 : 0.0);
+    std::vector<double> mirrored(step.size(), 0.25);
+    for (size_t i = 1; i <= last; ++i) mirrored[i] = values[last + 1 - i];
+    std::vector<double> reverse(step.size());
+    computeFaceValues(scheme, mirrored, 0.0, uniformDistances(20, 1.0), faces, false);
+    computeFaceValues(scheme, values, 0.25, uniformDistances(20, 1.0), reverse, true);
+    for (size_t i = 1; i < last; ++i) EXPECT_NEAR(reverse[i], faces[last - i], 1.0e-13) << i;
+  }
+
+  // WENO5 needs five cells of one width; elsewhere, as on a stretched grid, it is WENO3.
+  const std::vector<double> values = linearCellValues(stretched, 0.3, -1.7);
+  std::vector<double> third(values.size());
+  std::vector<double> fifth(values.size());
+  computeWENO(values, stretched, third);
+  computeFaceValues(Scheme::WENO5, values, 0.0, stretched, fifth, false);
+  for (size_t i = 0; i < values.size(); ++i) EXPECT_NEAR(fifth[i], third[i], 1.0e-14) << i;
+}
+
 TEST(MassBalanceWENO3, GasSpeciesFluxesSumToTheUpwindTotalFlux)
 {
   // The velocity closures conserve the upwind total molar flux v_i c_tot,i, so the WENO3 species fluxes must sum to
@@ -127,22 +195,26 @@ TEST(MassBalanceWENO3, GasSpeciesFluxesSumToTheUpwindTotalFlux)
   const std::vector<double> ones(gridPoints + 1, 1.0);
   const std::vector<double> noDispersion(concentration.size(), 0.0);
   std::vector<double> wenoScratch((gridPoints + 1) * (componentCount + 4));
-  computeMassDerivatives(gridPoints, componentCount, uniformDistances(gridPoints, gridPoints * resolution),
-                         noDispersion, velocity, concentration, concentrationDot, sink, Column::FluidPhase::Gas, ones,
-                         Column::ConvectionScheme::WENO3, Column::InletCondition::Danckwerts, wenoScratch);
-
   auto total = [&](size_t grid)
   {
     double sum = 0.0;
     for (size_t comp = 0; comp < componentCount; ++comp) sum += concentration[grid * componentCount + comp];
     return sum;
   };
-  for (size_t grid = 1; grid <= gridPoints; ++grid)
+  // TVD and WENO5 reconstruct the same mole fractions, so that the same holds for them.
+  using Scheme = Column::ConvectionScheme;
+  for (const Scheme scheme : {Scheme::WENO3, Scheme::TVD, Scheme::WENO5})
   {
-    double sumDot = 0.0;
-    for (size_t comp = 0; comp < componentCount; ++comp) sumDot += concentrationDot[grid * componentCount + comp];
-    const double upwindTotal = -(velocity[grid] * total(grid) - velocity[grid - 1] * total(grid - 1)) / resolution;
-    EXPECT_NEAR(sumDot, upwindTotal, 1.0e-10 * std::abs(velocity[0] * total(0) / resolution)) << grid;
+    computeMassDerivatives(gridPoints, componentCount, uniformDistances(gridPoints, gridPoints * resolution),
+                           noDispersion, velocity, concentration, concentrationDot, sink, Column::FluidPhase::Gas, ones,
+                           scheme, Column::InletCondition::Danckwerts, wenoScratch);
+    for (size_t grid = 1; grid <= gridPoints; ++grid)
+    {
+      double sumDot = 0.0;
+      for (size_t comp = 0; comp < componentCount; ++comp) sumDot += concentrationDot[grid * componentCount + comp];
+      const double upwindTotal = -(velocity[grid] * total(grid) - velocity[grid - 1] * total(grid - 1)) / resolution;
+      EXPECT_NEAR(sumDot, upwindTotal, 1.0e-10 * std::abs(velocity[0] * total(0) / resolution)) << grid;
+    }
   }
 }
 
@@ -194,6 +266,13 @@ TEST(ConvectionSchemeInput, DefaultsToWENO3ForEveryIntegrator)
   data["ConvectionScheme"] = "Upwind";
   std::ofstream(path) << data;
   EXPECT_EQ(Column(InputReader(path.string())).convectionScheme, Column::ConvectionScheme::Upwind);
+
+  data["ConvectionScheme"] = "tvd";
+  std::ofstream(path) << data;
+  EXPECT_EQ(Column(InputReader(path.string())).convectionScheme, Column::ConvectionScheme::TVD);
+  data["ConvectionScheme"] = "WENO5";
+  std::ofstream(path) << data;
+  EXPECT_EQ(Column(InputReader(path.string())).convectionScheme, Column::ConvectionScheme::WENO5);
 
   data["ConvectionScheme"] = "Central";
   std::ofstream(path) << data;

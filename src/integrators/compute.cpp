@@ -356,17 +356,16 @@ void updateVelocityAndPressure(
     double pressureGradient, double columnLength, size_t numberOfAdsorbents, double& columnEntranceVelocity,
     double dynamicViscosity, std::span<const double> columnDistances, std::span<const double> fractionOfAdsorbent,
     std::span<const Geometry> geometries, std::span<const PressureDropLaw> pressureDropLaw,
-    std::span<const double> totalVoidFraction, std::span<double> interstitialGasVelocity,
-    std::span<double> gasDensity, std::span<double> totalConcentration, std::span<double> totalPressure,
-    std::span<const double> concentration, std::span<double> partialPressure, std::span<double> moleFraction,
-    std::span<const double> bulkSpeciesSink, std::span<const double> gasTemperature,
-    Column::FluidPhase fluidPhase, double liquidDensity, Column::PHMode pHMode,
+    std::span<const double> totalVoidFraction, std::span<double> interstitialGasVelocity, std::span<double> gasDensity,
+    std::span<double> totalConcentration, std::span<double> totalPressure, std::span<const double> concentration,
+    std::span<double> partialPressure, std::span<double> moleFraction, std::span<const double> bulkSpeciesSink,
+    std::span<const double> gasTemperature, Column::FluidPhase fluidPhase, double liquidDensity, Column::PHMode pHMode,
     double pHValue, double pKw, size_t pHComponent, std::span<double> pH,
     std::span<const double> molecularDispersionCoefficient, std::span<const DispersionLaw> dispersionLaw,
     double dispersionReferenceTemperature, double dispersionReferencePressure,
     std::span<double> axialDispersionCoefficient, Column::ConvectionScheme convectionScheme,
     Column::InletCondition inletCondition, const GasTemperatureBalance* gasTemperatureBalance,
-    const Column::FlowEnds& ends)
+    const Column::FlowEnds& ends, std::span<double> gasHeatCapacity)
 {
   const bool reverse = ends.direction == Column::FlowDirection::Reverse;
   const bool danckwerts = inletCondition == Column::InletCondition::Danckwerts;
@@ -457,7 +456,7 @@ void updateVelocityAndPressure(
   // total flux is eps_N v_N times the product-end gas. In a reverse step z = 0 has zero gradient, and a Dirichlet inlet
   // at z = L conducts towards the feed, as at z = 0 in a forward step.
   const double lastSpacing = gridSpacing(columnDistances, outlet);
-  const double outletDistance = convectionScheme == Column::ConvectionScheme::WENO3 ? 0.5 * lastSpacing
+  const double outletDistance = convectionScheme != Column::ConvectionScheme::Upwind ? 0.5 * lastSpacing
                                 : outlet > 1 ? 0.5 * (lastSpacing + gridSpacing(columnDistances, outlet - 1))
                                              : lastSpacing;
   auto dispersionTerm = [&](size_t grid)
@@ -483,10 +482,10 @@ void updateVelocityAndPressure(
       {
         const double downstream = concentration[(grid + 1) * numberOfComponents + comp];
         const double hp = gridSpacing(columnDistances, grid + 1);
-        d2cDz2 = grid == 1 && convectionScheme == Column::ConvectionScheme::WENO3
-                     ? ((downstream - centre) / (0.5 * (hm + hp)) - (centre - upstream) / (0.5 * hm)) / hm
-                     : 2.0 * (hm * downstream - (hm + hp) * centre + hp * upstream) /
-                           std::max(1e-30, hm * hp * (hm + hp));
+        d2cDz2 =
+            grid == 1 && convectionScheme != Column::ConvectionScheme::Upwind
+                ? ((downstream - centre) / (0.5 * (hm + hp)) - (centre - upstream) / (0.5 * hm)) / hm
+                : 2.0 * (hm * downstream - (hm + hp) * centre + hp * upstream) / std::max(1e-30, hm * hp * (hm + hp));
       }
       term += axialDispersionCoefficient[grid * numberOfComponents + comp] * d2cDz2;
     }
@@ -661,6 +660,15 @@ void updateVelocityAndPressure(
         gasDensity[grid] += concentration[index] * components[comp].molecularWeight;
       }
     }
+    if (!gasHeatCapacity.empty())
+    {
+      double molarHeatCapacity = 0.0;
+      for (size_t comp = 0; comp < numberOfComponents; ++comp)
+      {
+        molarHeatCapacity += concentration[grid * numberOfComponents + comp] * components[comp].gasHeatCapacity;
+      }
+      gasHeatCapacity[grid] = molarHeatCapacity / std::max(1e-10, gasDensity[grid]);
+    }
 
     if (pHMode == Column::PHMode::HPlus)
     {
@@ -812,6 +820,54 @@ void updateVelocityAndPressure(
     if (totalPressure[reverse ? 0 : numberOfGridPoints] <= 0.0)
     {
       throw std::runtime_error("Error: pressure gradient is too large (negative outlet pressure)\n");
+    }
+    for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+    {
+      setAxialDispersion(grid, interstitialGasVelocity[grid]);
+    }
+    return;
+  }
+
+  if (boundaryCondition == Column::BoundaryCondition::MomentumBalance)
+  {
+    // The pressure is that of all the gas of a node, a concentration that the integration left slightly below zero
+    // included: the clamp of the mole fractions would put a kink in the velocity at every component that is absent.
+    for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+    {
+      const auto first = concentration.begin() + static_cast<std::ptrdiff_t>(grid * numberOfComponents);
+      totalPressure[grid] = R * std::max(1e-10, gasTemperature[grid]) *
+                            std::reduce(first, first + static_cast<std::ptrdiff_t>(numberOfComponents));
+    }
+    for (size_t grid = 1; grid < numberOfGridPoints; ++grid)
+    {
+      const double distance = 0.5 * (gridSpacing(columnDistances, grid) + gridSpacing(columnDistances, grid + 1));
+      interstitialGasVelocity[grid] =
+          pressureDropLaw[grid].velocity(dynamicViscosity, 0.5 * (gasDensity[grid] + gasDensity[grid + 1]),
+                                         (totalPressure[grid + 1] - totalPressure[grid]) / distance);
+    }
+    for (size_t end = 0; end < ends.ports.size(); ++end)
+    {
+      const Column::Port& port = ends.ports[end];
+      const size_t face = end == 0 ? 0 : outlet;
+      const size_t cell = end == 0 ? 1 : outlet;
+      const double inward = end == 0 ? 1.0 : -1.0;  // the sign of a velocity into the column
+      interstitialGasVelocity[face] = 0.0;
+      if (port.mode == Column::Port::Mode::Velocity) interstitialGasVelocity[face] = inward * port.velocity;
+      if (port.mode == Column::Port::Mode::Flux)
+      {
+        // The gas that carries the flux is that of the port for a flux into the column, else that of the end cell.
+        const double carrier = port.flux < 0.0 ? totalConcentration[cell]
+                               : end == 0      ? totalConcentration[0]
+                                               : productEndTotal;
+        interstitialGasVelocity[face] = inward * port.flux / (totalVoidFraction[face] * std::max(1e-30, carrier));
+      }
+      if (port.mode == Column::Port::Mode::Pressure)
+      {
+        const double portDensity = end == 0 ? gasDensity[0] : productEndDensity;
+        interstitialGasVelocity[face] = pressureDropLaw[face].velocity(
+            dynamicViscosity, 0.5 * (gasDensity[cell] + portDensity),
+            inward * (totalPressure[cell] - port.pressure) / (0.5 * gridSpacing(columnDistances, cell)));
+      }
     }
     for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
     {
@@ -980,9 +1036,10 @@ void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents
                             std::span<double> concentrationDot, std::span<const double> bulkSpeciesSink,
                             Column::FluidPhase fluidPhase, std::span<const double> totalVoidFraction,
                             Column::ConvectionScheme convectionScheme, Column::InletCondition inletCondition,
-                            std::span<double> wenoScratch, const Column::FlowEnds& ends)
+                            std::span<double> wenoScratch, const Column::FlowEnds& ends,
+                            std::span<double> streamAmountDot)
 {
-  const bool weno = convectionScheme == Column::ConvectionScheme::WENO3;
+  const bool weno = convectionScheme != Column::ConvectionScheme::Upwind;  // finite volumes with reconstructed faces
   const bool danckwerts = inletCondition == Column::InletCondition::Danckwerts;
   const bool reverse = ends.direction == Column::FlowDirection::Reverse;
   const size_t outlet = numberOfGridPoints;
@@ -1004,13 +1061,13 @@ void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents
     wenoScratch = localScratch;
   }
   const std::span<double> boundaryConcentration = wenoScratch.first(nodes * numberOfComponents);
+  const double firstSpacing = gridSpacing(columnDistances, 1);
+  const double inletDistance = weno                     ? 0.5 * firstSpacing
+                               : numberOfGridPoints > 1 ? 0.5 * (firstSpacing + gridSpacing(columnDistances, 2))
+                                                        : firstSpacing;
   if (danckwerts || reverse)
   {
     std::ranges::copy(concentration, boundaryConcentration.begin());
-    const double firstSpacing = gridSpacing(columnDistances, 1);
-    const double inletDistance = weno                    ? 0.5 * firstSpacing
-                                 : numberOfGridPoints > 1 ? 0.5 * (firstSpacing + gridSpacing(columnDistances, 2))
-                                                          : firstSpacing;
     const double inflowVelocity =
         std::max(0.0, totalVoidFraction[0] * interstitialGasVelocity[0] / totalVoidFraction[1]);
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
@@ -1101,6 +1158,22 @@ void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents
     spanConcentrationDot[0, comp] = reverse ? 0.0 : ends.relativePressureRate * feed[comp];
   }
 
+  // Net superficial molar flux into the column through each end. Both schemes take the node values at the end faces
+  // (the inlet-face value at z = 0, the value at z = L for inflow there), and the dispersion across an end face is that
+  // of the stencil of its cell: with a Danckwerts inlet the two add up to the feed flux.
+  for (size_t comp = 0; comp < numberOfComponents && !streamAmountDot.empty(); ++comp)
+  {
+    streamAmountDot[comp] = totalVoidFraction[0] * interstitialGasVelocity[0] * upwindFace(0, comp) +
+                            totalVoidFraction[1] * axialDispersion(1, comp) *
+                                (spanConcentration[0, comp] - spanConcentration[1, comp]) /
+                                std::max(1e-30, inletDistance);
+    streamAmountDot[numberOfComponents + comp] =
+        -totalVoidFraction[outlet] * interstitialGasVelocity[outlet] * upwindFace(outlet, comp) +
+        (outletDispersion ? totalVoidFraction[outlet] * axialDispersion(outlet, comp) *
+                                (outletFace[comp] - spanConcentration[outlet, comp]) / std::max(1e-30, outletDistance)
+                          : 0.0);
+  }
+
   if (weno)
   {
     // Finite volumes with the local spacings h_i = z_i - z_{i-1}: node i holds the cell (z_{i-1}, z_i], node 0 the
@@ -1145,13 +1218,17 @@ void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents
           values[grid] = spanConcentration[grid, comp];
         }
       }
-      computeWENO(values, columnDistances, faces);
+      // WENO3 by its own routines; the other schemes by computeFaceValues.
+      const bool third = convectionScheme == Column::ConvectionScheme::WENO3;
+      if (third) computeWENO(values, columnDistances, faces);
+      if (!third) computeFaceValues(convectionScheme, values, 0.0, columnDistances, faces, false);
       if (anyReverseFace)
       {
         const double inflow = !gasPhase               ? outletFace[comp]
                               : outletFaceTotal > 0.0 ? std::max(0.0, outletFace[comp]) / outletFaceTotal
                                                       : 0.0;
-        computeWENOReverse(values, inflow, columnDistances, reverseFaces);
+        if (third) computeWENOReverse(values, inflow, columnDistances, reverseFaces);
+        if (!third) computeFaceValues(convectionScheme, values, inflow, columnDistances, reverseFaces, true);
         for (size_t grid = 0; grid < nodes; ++grid)
         {
           if (interstitialGasVelocity[grid] < 0.0) faces[grid] = reverseFaces[grid];
@@ -1249,7 +1326,8 @@ double GasTemperatureBalance::rate(size_t grid, double lowerVelocity, double upp
   lowerVelocity *= totalVoidFraction[grid - 1] / totalVoidFraction[grid];
   const size_t outlet = gasTemperature.size() - 1;
   const double invGasDensity = 1.0 / std::max(1e-10, gasDensity[grid]);
-  const double diffusivity = gasThermalConductivity * invGasDensity / heatCapacityGas;
+  const double heatCapacity = nodeHeatCapacity.empty() ? heatCapacityGas : nodeHeatCapacity[grid];
+  const double diffusivity = gasThermalConductivity * invGasDensity / heatCapacity;
   const bool danckwerts = inletCondition == Column::InletCondition::Danckwerts;
   const bool reverse = ends.direction == Column::FlowDirection::Reverse;
 
@@ -1299,12 +1377,12 @@ double GasTemperatureBalance::rate(size_t grid, double lowerVelocity, double upp
     }
   }
 
-  const double gasSolidExchange = fluidSolidContactArea[grid] * heatTransferGasSolid * invGasDensity / heatCapacityGas;
+  const double gasSolidExchange = fluidSolidContactArea[grid] * heatTransferGasSolid * invGasDensity / heatCapacity;
   // fluidWallContactArea is per fluid volume (4/(eps d_in) for a packed bed), consistent with the wall balance.
-  const double gasWallExchange = fluidWallContactArea[grid] * heatTransferGasWall / heatCapacityGas * invGasDensity;
+  const double gasWallExchange = fluidWallContactArea[grid] * heatTransferGasWall / heatCapacity * invGasDensity;
   double result = gasSolidExchange * (solidTemperature[grid] - gasTemperature[grid]) +
                   gasWallExchange * (wallTemperature[grid] - gasTemperature[grid]);
-  result += ends.pressureRate * invGasDensity / heatCapacityGas;  // the pressure work of a ramp
+  result += ends.pressureRate * invGasDensity / heatCapacity;  // the pressure work of a ramp
 
   const double hm = gridSpacing(columnDistances, grid);
   const double inverseSpacing = 1.0 / std::max(1e-30, hm);
@@ -1327,25 +1405,23 @@ double GasTemperatureBalance::rate(size_t grid, double lowerVelocity, double upp
   return result;
 }
 
-void computeEnergyDerivatives(size_t numberOfGridPoints, size_t numberOfComponents, double externalTemperature,
-                              std::span<const Geometry> geometries, std::span<const double> particleDensity,
-                              std::span<const double> solidFluidContactArea,
-                              std::span<const double> fluidSolidContactArea,
-                              std::span<const double> fluidWallContactArea, std::span<const double> heatOfAdsorption,
-                              std::span<const double> heatOfChemisorption, double wallDensity,
-                              double gasThermalConductivity, double wallThermalConductivity,
-                              double heatTransferGasSolid, double heatTransferGasWall, double heatTransferWallExternal,
-                              double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
-                              std::span<const double> columnDistances, std::span<const double> interstitialGasVelocity,
-                              std::span<const double> totalVoidFraction, std::span<const double> gasDensity,
-                              std::span<double> coeffDiffusion,
-                              size_t maxChemisorptionSites, std::span<const double> physisorptionDot,
-                              std::span<const double> chemisorptionDot, std::span<const double> gasTemperature,
-                              std::span<double> gasTemperatureDot, std::span<const double> solidTemperature,
-                              std::span<double> solidTemperatureDot, std::span<const double> wallTemperature,
-                              std::span<double> wallTemperatureDot, std::span<const double> reactionPhysisorptionSource,
-                              std::span<const double> reactionChemisorptionSource, std::span<const double> reactionHeat,
-                              Column::InletCondition inletCondition, const Column::FlowEnds& ends)
+void computeEnergyDerivatives(
+    size_t numberOfGridPoints, size_t numberOfComponents, double externalTemperature,
+    std::span<const Geometry> geometries, std::span<const double> particleDensity,
+    std::span<const double> solidFluidContactArea, std::span<const double> fluidSolidContactArea,
+    std::span<const double> fluidWallContactArea, std::span<const double> heatOfAdsorption,
+    std::span<const double> heatOfChemisorption, double wallDensity, double gasThermalConductivity,
+    double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
+    double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
+    std::span<const double> columnDistances, std::span<const double> interstitialGasVelocity,
+    std::span<const double> totalVoidFraction, std::span<const double> gasDensity, std::span<double> coeffDiffusion,
+    size_t maxChemisorptionSites, std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot,
+    std::span<const double> gasTemperature, std::span<double> gasTemperatureDot,
+    std::span<const double> solidTemperature, std::span<double> solidTemperatureDot,
+    std::span<const double> wallTemperature, std::span<double> wallTemperatureDot,
+    std::span<const double> reactionPhysisorptionSource, std::span<const double> reactionChemisorptionSource,
+    std::span<const double> reactionHeat, Column::InletCondition inletCondition, const Column::FlowEnds& ends,
+    std::span<const double> nodeHeatCapacity)
 {
   mdspan2d_const spanAdsorptionDot(physisorptionDot.data(), numberOfGridPoints + 1, numberOfComponents);
   mdspan3d_const spanChemisorptionDot(chemisorptionDot.data(), maxChemisorptionSites, numberOfGridPoints + 1,
@@ -1374,14 +1450,26 @@ void computeEnergyDerivatives(size_t numberOfGridPoints, size_t numberOfComponen
   for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
   {
     double invGasDensity = 1.0 / std::max(1e-10, gasDensity[grid]);
-    coeffDiffusion[grid] = gasThermalConductivity * invGasDensity / heatCapacityGas;
+    coeffDiffusion[grid] =
+        gasThermalConductivity * invGasDensity / (nodeHeatCapacity.empty() ? heatCapacityGas : nodeHeatCapacity[grid]);
   }
 
-  const GasTemperatureBalance gasTemperatureBalance{
-      columnDistances,       gasTemperature,         solidTemperature,     wallTemperature,
-      gasDensity,            fluidSolidContactArea,  totalVoidFraction,    gasThermalConductivity,
-      heatTransferGasSolid,  heatCapacityGas,        fluidWallContactArea, heatTransferGasWall,
-      inletCondition,        ends};
+  const GasTemperatureBalance gasTemperatureBalance{columnDistances,
+                                                    gasTemperature,
+                                                    solidTemperature,
+                                                    wallTemperature,
+                                                    gasDensity,
+                                                    fluidSolidContactArea,
+                                                    totalVoidFraction,
+                                                    gasThermalConductivity,
+                                                    heatTransferGasSolid,
+                                                    heatCapacityGas,
+                                                    fluidWallContactArea,
+                                                    heatTransferGasWall,
+                                                    inletCondition,
+                                                    ends,
+                                                    {},
+                                                    nodeHeatCapacity};
 
   auto solidHeatExchange = [&](size_t grid)
   { return coeffSolidGasAt(grid) * (gasTemperature[grid] - solidTemperature[grid]); };
@@ -1612,6 +1700,78 @@ void computeWENOReverse(std::span<const double> values, double inflow, std::span
                         upstreamSlope * upstreamSlope, stencil.downstreamWeight, stencil.upstreamWeight);
   }
   faces[0] = values[1];
+}
+
+void computeFaceValues(Column::ConvectionScheme scheme, std::span<const double> values, double inflow,
+                       std::span<const double> columnDistances, std::span<double> faces, bool reverse)
+{
+  const size_t last = values.size() - 1;
+  if (values.size() < 3 || columnDistances.size() != values.size())
+  {
+    throw std::runtime_error(
+        "Unable to reconstruct faces with numberOfGridPoints smaller than 2 or without node positions.");
+  }
+
+  // WENO5 needs a grid of one cell width and two cells on either side of the cell; elsewhere it is WENO3.
+  bool uniform = scheme == Column::ConvectionScheme::WENO5;
+  for (size_t node = 2; uniform && node <= last; ++node)
+  {
+    uniform = std::abs(columnDistances[node] - columnDistances[node - 1] - columnDistances[1] + columnDistances[0]) <=
+              1.0e-9 * (columnDistances[1] - columnDistances[0]);
+  }
+
+  faces[0] = reverse ? values[1] : values[0];
+  faces[last] = reverse ? inflow : values[last];
+  for (size_t i = 1; i < last; ++i)
+  {
+    // The cell whose downstream face is z_i: cell i for flow towards z = L, cell i + 1 for flow towards z = 0, with
+    // its neighbours counted along the flow (computeWENO, computeWENOReverse).
+    const size_t cell = reverse ? i + 1 : i;
+    const WenoStencil stencil = wenoStencil(columnDistances, i, reverse);
+    const double centre = values[cell];
+    const double downstream = reverse ? values[i] : values[i + 1];
+    const double upstream = !reverse ? values[i - 1] : cell < last ? values[cell + 1] : inflow;
+    const double downstreamSlope = stencil.downstreamFactor * (downstream - centre);
+    const double upstreamSlope = stencil.upstreamFactor * (centre - upstream);
+    if (scheme == Column::ConvectionScheme::TVD)
+    {
+      // The smaller of the two slopes where they have one sign (minmod), none elsewhere.
+      const double slope = std::abs(downstreamSlope) < std::abs(upstreamSlope) ? downstreamSlope : upstreamSlope;
+      faces[i] = downstreamSlope * upstreamSlope > 0.0 ? centre + 0.5 * slope : centre;
+    }
+    else if (uniform && cell >= 3 && cell + 2 <= last)
+    {
+      // WENO5 (Jiang and Shu): the three quadratic candidates of the five cells, by their linear weights and
+      // smoothness indicators.
+      const double outerDownstream = reverse ? values[cell - 2] : values[cell + 2];
+      const double outerUpstream = reverse ? values[cell + 2] : values[cell - 2];
+      const std::array<double, 3> candidates{(2.0 * outerUpstream - 7.0 * upstream + 11.0 * centre) / 6.0,
+                                             (-upstream + 5.0 * centre + 2.0 * downstream) / 6.0,
+                                             (2.0 * centre + 5.0 * downstream - outerDownstream) / 6.0};
+      const std::array<double, 3> curvatures{outerUpstream - 2.0 * upstream + centre,
+                                             upstream - 2.0 * centre + downstream,
+                                             centre - 2.0 * downstream + outerDownstream};
+      const std::array<double, 3> slopes{outerUpstream - 4.0 * upstream + 3.0 * centre, upstream - downstream,
+                                         3.0 * centre - 4.0 * downstream + outerDownstream};
+      double weightedSum = 0.0;
+      double weightSum = 0.0;
+      for (size_t k = 0; k < 3; ++k)
+      {
+        const double indicator =
+            wenoEpsilon + 13.0 / 12.0 * curvatures[k] * curvatures[k] + 0.25 * slopes[k] * slopes[k];
+        const double alpha = std::array<double, 3>{0.1, 0.6, 0.3}[k] / (indicator * indicator);
+        weightedSum += alpha * candidates[k];
+        weightSum += alpha;
+      }
+      faces[i] = weightedSum / weightSum;
+    }
+    else
+    {
+      faces[i] =
+          wenoFace(centre + 0.5 * downstreamSlope, centre + 0.5 * upstreamSlope, downstreamSlope * downstreamSlope,
+                   upstreamSlope * upstreamSlope, stencil.downstreamWeight, stencil.upstreamWeight);
+    }
+  }
 }
 
 void computeWENOReverseLinearization(std::span<const double> values, double inflow,

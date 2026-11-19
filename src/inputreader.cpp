@@ -576,10 +576,24 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
             throw std::runtime_error("Error: RateEquationParameters is required for RateEquation '" +
                                      rateEquationString + "' (" + siteContext + ")");
           }
-          requireExactKeys(*rateParams, {"RateCoefficient", "Order"}, parametersContext);
+          // PseudoNth takes a coefficient and an order of its own for the release (q > q*).
+          requireOnlyKnownKeys(*rateParams,
+                               {"RateCoefficient", "Order", "DesorptionRateCoefficient", "DesorptionOrder"},
+                               parametersContext);
           siteChemisorption.rateCoefficient = readRateCoefficient(*rateParams, "RateCoefficient", parametersContext);
           siteChemisorption.order = getNumberOrThrow<double>(
               requireKeyCaseInsensitive(*rateParams, "Order", parametersContext), "Order", parametersContext);
+          if (containsKeyCaseInsensitive(*rateParams, "DesorptionRateCoefficient"))
+          {
+            siteChemisorption.releaseRateCoefficient =
+                readRateCoefficient(*rateParams, "DesorptionRateCoefficient", parametersContext);
+          }
+          readOptionalNumber<double>(*rateParams, "DesorptionOrder", siteChemisorption.releaseOrder);
+          if (siteChemisorption.type == Chemisorption::Type::Avrami && rateParams->size() != 2)
+          {
+            throw std::runtime_error("Error: DesorptionRateCoefficient and DesorptionOrder belong to PseudoNth (" +
+                                     parametersContext + ")");
+          }
           break;
         case Chemisorption::Type::General:
           if (rateParams == nullptr)
@@ -631,9 +645,12 @@ static void readChemisorption(MultiSiteChemisorption& chemisorption, const nlohm
           break;
       }
 
-      if (siteChemisorption.order < 0.0)
+      if (siteChemisorption.order < 0.0 || siteChemisorption.releaseOrder.value_or(0.0) < 0.0 ||
+          (siteChemisorption.releaseRateCoefficient.has_value() &&
+           siteChemisorption.releaseRateCoefficient->value < 0.0))
       {
-        throw std::runtime_error("Error: Order must be non-negative (" + parametersContext + ")");
+        throw std::runtime_error("Error: Order, DesorptionOrder, and DesorptionRateCoefficient must be non-negative (" +
+                                 parametersContext + ")");
       }
 
       // A VantHoff affinity law without Energy takes the site heat, else the component heat. The heat of the site is
@@ -942,12 +959,12 @@ static Component parseComponentObject(std::size_t componentId, const nlohmann::j
   }
 
   std::string context = "Component " + std::to_string(componentId);
-  requireOnlyKnownKeys(item,
-                       {"Name", "FileName", "CarrierGas", "Water", "GasPhaseMolFraction", "LiquidPhaseConcentration",
-                        "InitialLiquidPhaseConcentration", "MassTransferCoefficient",
-                        "AxialDispersionCoefficient", "MolecularWeight", "HeatOfAdsorption", "ReferenceTemperature",
-                        "ChemisorptionSites", "PhysisorptionSites"},
-                       context);
+  requireOnlyKnownKeys(
+      item,
+      {"Name", "FileName", "CarrierGas", "Water", "GasPhaseMolFraction", "LiquidPhaseConcentration",
+       "InitialLiquidPhaseConcentration", "MassTransferCoefficient", "AxialDispersionCoefficient", "MolecularWeight",
+       "GasHeatCapacity", "HeatOfAdsorption", "ReferenceTemperature", "ChemisorptionSites", "PhysisorptionSites"},
+      context);
 
   std::string componentName = getStringOrThrow(requireKeyCaseInsensitive(item, "Name", context), "Name", context);
 
@@ -962,6 +979,11 @@ static Component parseComponentObject(std::size_t componentId, const nlohmann::j
   readOptionalNumber<double>(item, "MassTransferCoefficient", comp.massTransferCoefficient);
   readOptionalNumber<double>(item, "AxialDispersionCoefficient", comp.axialDispersionCoefficient);
   readOptionalNumber<double>(item, "MolecularWeight", comp.molecularWeight);
+  readOptionalNumber<double>(item, "GasHeatCapacity", comp.gasHeatCapacity);
+  if (!(comp.gasHeatCapacity >= 0.0))
+  {
+    throw std::runtime_error("Error: GasHeatCapacity must be a positive heat capacity in J/(mol K) (" + context + ")");
+  }
 
   temperatureInput = ComponentTemperatureInput{};
   readOptionalNumber<double>(item, "HeatOfAdsorption", temperatureInput.heatOfAdsorption);
@@ -1466,6 +1488,13 @@ InputReader::InputReader(const std::string fileName) : components()
                         "energyBalance",
                         "SwingAdsorptionPhases",
                         "NumberOfCycles",
+                        "CyclicSteadyState",
+                        "Columns",
+                        "Buffers",
+                        "ExhaustPressure",
+                        "CompressionEfficiency",
+                        "Coolant",
+                        "ParticleTransport",
                         "ColumnSections",
                         "Adsorbents",
                         "Components",
@@ -1611,7 +1640,8 @@ InputReader::InputReader(const std::string fileName) : components()
   readOptionalMappedString(parsed_data, "BreakthroughIntegrator", breakthroughIntegrator,
                            {{"RungeKutta3", 0}, {"CVODE", 1}, {"ROS34PW2", 2}});
 
-  readOptionalMappedString(parsed_data, "ConvectionScheme", convectionScheme, {{"Upwind", 0}, {"WENO3", 1}});
+  readOptionalMappedString(parsed_data, "ConvectionScheme", convectionScheme,
+                           {{"Upwind", 0}, {"WENO3", 1}, {"TVD", 2}, {"WENO5", 3}});
   readOptionalMappedString(parsed_data, "InletCondition", inletCondition, {{"Dirichlet", 0}, {"Danckwerts", 1}});
   readOptionalMappedString(parsed_data, "FlowDirection", flowDirection, {{"Forward", 0}, {"Reverse", 1}});
 
@@ -1620,7 +1650,8 @@ InputReader::InputReader(const std::string fileName) : components()
                             {"InletPressureOutletPressure", 1},
                             {"InletVelocityOutletPressure", 2},
                             {"FixedVelocity", 3},
-                            {"FixedPressureInletVelocity", 4}});
+                            {"FixedPressureInletVelocity", 4},
+                            {"MomentumBalance", 5}});
 
   readOptionalMappedString(parsed_data, "FluidPhase", fluidPhase, {{"Gas", 0}, {"Liquid", 1}});
   readOptionalMappedString(parsed_data, "pHMode", pHMode, {{"Fixed", 0}, {"HPlus", 1}, {"OHMinus", 2}});
@@ -1908,31 +1939,93 @@ InputReader::InputReader(const std::string fileName) : components()
   std::vector<std::vector<std::pair<std::string, double>>> phaseFeedByName;
   std::vector<std::vector<std::pair<std::string, double>>> phaseProductEndByName;
   const nlohmann::json* phases = findKeyCaseInsensitive(parsed_data, "SwingAdsorptionPhases");
+  if (phases != nullptr && !phases->is_array())
+  {
+    throw std::runtime_error("Error: SwingAdsorptionPhases must be an array");
+  }
+
+  // Columns names identical columns, which the Connections of a phase couple. Every phase is then read once per
+  // column: its own keys, with those of its Columns entry for that column in their place.
+  columnNames.clear();
+  nlohmann::json phasesPerColumn = nlohmann::json::array();
+  if (const nlohmann::json* names = findKeyCaseInsensitive(parsed_data, "Columns"))
+  {
+    if (!names->is_array() || names->empty() || phases == nullptr)
+    {
+      throw std::runtime_error("Error: Columns must be an array of column names, and needs SwingAdsorptionPhases");
+    }
+    for (const nlohmann::json& name : *names)
+    {
+      columnNames.push_back(getStringOrThrow(name, "Columns", ""));
+      const auto same = [&](const std::string& other) { return caseInSensStringCompare(other, columnNames.back()); };
+      if (columnNames.back().empty() || columnNames.back().contains('.') ||
+          std::ranges::count_if(columnNames, same) != 1)
+      {
+        throw std::runtime_error("Error: Columns needs distinct, non-empty names without '.'");
+      }
+    }
+    for (size_t i = 0; i < phases->size(); ++i)
+    {
+      const std::string context = "SwingAdsorptionPhases entry " + std::to_string(i);
+      const nlohmann::json* given = findKeyCaseInsensitive((*phases)[i], "Columns");
+      if (!(*phases)[i].is_object() || (given != nullptr && !given->is_object()))
+      {
+        throw std::runtime_error("Error: a phase and its Columns must be objects (" + context + ")");
+      }
+      const nlohmann::json perColumn = given != nullptr ? *given : nlohmann::json::object();
+      for (auto it = perColumn.begin(); it != perColumn.end(); ++it)
+      {
+        const auto named = [&](const std::string& name) { return caseInSensStringCompare(name, it.key()); };
+        if (std::ranges::none_of(columnNames, named))
+        {
+          throw std::runtime_error("Error: Columns of a phase names unknown column '" + it.key() + "' (" + context +
+                                   ")");
+        }
+        requireOnlyKnownKeys(it.value(),
+                             {"FeedEnd", "ProductEnd", "GasPhaseMolFractions", "ProductEndGasPhaseMolFractions",
+                              "Temperature", "ThermalControl"},
+                             context);
+      }
+      for (const std::string& name : columnNames)
+      {
+        nlohmann::json merged = (*phases)[i];
+        const nlohmann::json* own = findKeyCaseInsensitive(perColumn, name);
+        for (auto it = merged.begin(); it != merged.end();)
+        {
+          const bool replaced = caseInSensStringCompare(it.key(), "Columns") ||
+                                (own != nullptr && findKeyCaseInsensitive(*own, it.key()) != nullptr);
+          it = replaced ? merged.erase(it) : std::next(it);
+        }
+        if (own != nullptr) merged.update(*own);
+        phasesPerColumn.push_back(std::move(merged));
+      }
+    }
+    phases = &phasesPerColumn;
+  }
+  const size_t columnsPerPhase = std::max<size_t>(1, columnNames.size());
+
   if (phases != nullptr)
   {
-    if (!phases->is_array())
-    {
-      throw std::runtime_error("Error: SwingAdsorptionPhases must be an array");
-    }
-
     swingAdsorptionPhases.reserve(phases->size());
     for (size_t i = 0; i < phases->size(); ++i)
     {
       const nlohmann::json& value = (*phases)[i];
-      const std::string context = "SwingAdsorptionPhases entry " + std::to_string(i);
+      const std::string context = "SwingAdsorptionPhases entry " + std::to_string(i / columnsPerPhase) +
+                                  (columnNames.empty() ? "" : " column " + columnNames[i % columnsPerPhase]);
       if (!value.is_object())
       {
         throw std::runtime_error("Error: each SwingAdsorptionPhases entry must be an object (" + context + ")");
       }
 
-      requireOnlyKnownKeys(value,
-                           {"Name", "Temperature", "InletPressure", "Duration", "GasPhaseMolFractions",
-                            "ColumnEntranceVelocity", "FlowDirection", "ProductEndGasPhaseMolFractions", "ClosedEnd",
-                            "PressureRamp"},
-                           context);
+      requireOnlyKnownKeys(
+          value,
+          {"Name", "Temperature", "InletPressure", "Duration", "GasPhaseMolFractions", "ColumnEntranceVelocity",
+           "FlowDirection", "ProductEndGasPhaseMolFractions", "ClosedEnd", "PressureRamp", "StopCriterion",
+           "MinimumDuration", "TimeoutPolicy", "FeedEnd", "ProductEnd", "Connections", "ThermalControl"},
+          context);
 
       SwingAdsorptionPhase phase;
-      phase.name = "Phase " + std::to_string(i + 1);
+      phase.name = "Phase " + std::to_string(i / columnsPerPhase + 1);
       readOptionalString(value, "Name", phase.name);
       readOptionalNumber<double>(value, "Temperature", phase.temperature);
       readOptionalNumber<double>(value, "InletPressure", phase.inletPressure);
@@ -1955,35 +2048,92 @@ InputReader::InputReader(const std::string fileName) : components()
         phase.flowDirection = direction;
         phase.closedEnd = true;
       }
-      if (const nlohmann::json* ramp = findKeyCaseInsensitive(value, "PressureRamp"))
+      readOptionalNumber<double>(value, "MinimumDuration", phase.minimumDuration);
+      readOptionalMappedString(value, "TimeoutPolicy", phase.errorOnTimeout, {{"Advance", false}, {"Error", true}});
+      if (const nlohmann::json* control = findKeyCaseInsensitive(value, "ThermalControl"))
       {
+        requireOnlyKnownKeys(*control, {"Temperature", "HeatTransferCoefficient", "MassFlowRate"}, context);
+        readOptionalNumber<double>(*control, "Temperature", phase.jacketTemperature);
+        readOptionalNumber<double>(*control, "HeatTransferCoefficient", phase.jacketHeatTransfer);
+        readOptionalNumber<double>(*control, "MassFlowRate", phase.coolantMassFlowRate);
+        if (phase.jacketTemperature.value_or(1.0) <= 0.0 || phase.jacketHeatTransfer.value_or(0.0) < 0.0 ||
+            phase.coolantMassFlowRate.value_or(0.0) < 0.0)
+        {
+          throw std::runtime_error(
+              "Error: ThermalControl takes a positive Temperature in K, a non-negative HeatTransferCoefficient in "
+              "W/(m^2 K), and a non-negative MassFlowRate in kg/s (" +
+              context + ")");
+        }
+      }
+
+      // The ports of MomentumBalance; a PressureRamp is that of the phase (the inlet pressure) or of a port.
+      std::vector<std::tuple<const nlohmann::json*, size_t*, double*>> ramps{
+          {&value, &phase.pressureRampShape, &phase.pressureRampTimeConstant}};
+      for (const auto& [key, port] : {std::pair{"FeedEnd", &phase.ports[0]}, std::pair{"ProductEnd", &phase.ports[1]}})
+      {
+        const nlohmann::json* object = findKeyCaseInsensitive(value, key);
+        if (object == nullptr) continue;
+        if (!object->is_object())
+        {
+          throw std::runtime_error(std::string("Error: ") + key + " must be an object with a Mode (" + context + ")");
+        }
+        requireOnlyKnownKeys(*object, {"Mode", "Pressure", "Velocity", "MolarFlux", "PressureRamp"}, context);
+        requireKeyCaseInsensitive(*object, "Mode", context);
+        readOptionalMappedString(*object, "Mode", port->mode,
+                                 {{"Closed", size_t{0}}, {"Pressure", size_t{1}}, {"Velocity", size_t{2}}});
+        readOptionalNumber<double>(*object, "Pressure", port->pressure);
+        readOptionalNumber<double>(*object, "Velocity", port->velocity);
+        readOptionalNumber<double>(*object, "MolarFlux", port->molarFlux);
+        ramps.emplace_back(object, &port->pressureRampShape, &port->pressureRampTimeConstant);
+      }
+      for (const auto& [owner, shape, timeConstant] : ramps)
+      {
+        const nlohmann::json* ramp = findKeyCaseInsensitive(*owner, "PressureRamp");
+        if (ramp == nullptr) continue;
         if (!ramp->is_object())
         {
           throw std::runtime_error("Error: PressureRamp must be an object with Shape and TimeConstant (" + context + ")");
         }
         requireOnlyKnownKeys(*ramp, {"Shape", "TimeConstant"}, context);
         requireKeyCaseInsensitive(*ramp, "Shape", context);
-        readOptionalMappedString(*ramp, "Shape", phase.pressureRampShape,
-                                 {{"Exponential", size_t{1}}, {"Linear", size_t{2}}});
-        phase.pressureRampTimeConstant =
-            getNumberOrThrow<double>(requireKeyCaseInsensitive(*ramp, "TimeConstant", context), "TimeConstant", context);
-        if (!std::isfinite(phase.pressureRampTimeConstant) || phase.pressureRampTimeConstant <= 0.0)
+        readOptionalMappedString(*ramp, "Shape", *shape, {{"Exponential", size_t{1}}, {"Linear", size_t{2}}});
+        *timeConstant = getNumberOrThrow<double>(requireKeyCaseInsensitive(*ramp, "TimeConstant", context),
+                                                 "TimeConstant", context);
+        if (!std::isfinite(*timeConstant) || *timeConstant <= 0.0)
         {
           throw std::runtime_error("Error: PressureRamp TimeConstant must be a positive time in s (" + context + ")");
         }
       }
 
-      for (const auto& [key, byName] : {std::pair{"GasPhaseMolFractions", &phaseFeedByName},
-                                        std::pair{"ProductEndGasPhaseMolFractions", &phaseProductEndByName}})
+      for (const auto& [key, byName, fromPhase] :
+           {std::tuple{"GasPhaseMolFractions", &phaseFeedByName, &phase.feedFromPhase},
+            std::tuple{"ProductEndGasPhaseMolFractions", &phaseProductEndByName, &phase.productEndFromPhase}})
       {
         std::vector<std::pair<std::string, double>> fractionsByName;
-        if (const nlohmann::json* fractions = findKeyCaseInsensitive(value, key))
+        const nlohmann::json* fractions = findKeyCaseInsensitive(value, key);
+        if (fractions != nullptr && fractions->is_string())
+        {
+          // The name of a phase of the cycle: the mean gas that left the column in it.
+          for (size_t other = 0; other < phases->size() && !fromPhase->has_value(); other += columnsPerPhase)
+          {
+            std::string name = "Phase " + std::to_string(other / columnsPerPhase + 1);
+            if ((*phases)[other].is_object()) readOptionalString((*phases)[other], "Name", name);
+            if (name == fractions->get<std::string>()) *fromPhase = other / columnsPerPhase;
+          }
+          if (!fromPhase->has_value())
+          {
+            throw std::runtime_error(std::string("Error: ") + key + " names no phase '" +
+                                     fractions->get<std::string>() + "' (" + context + ")");
+          }
+        }
+        else if (fractions != nullptr)
         {
           if (!fractions->is_object() || fractions->empty())
           {
             throw std::runtime_error(std::string("Error: ") + key +
-                                     " must be a non-empty object of component name to mole fraction (" + context +
-                                     ")");
+                                     " must be a non-empty object of component name to mole fraction, or the name of "
+                                     "a phase (" +
+                                     context + ")");
           }
           for (auto it = fractions->begin(); it != fractions->end(); ++it)
           {
@@ -2019,7 +2169,7 @@ InputReader::InputReader(const std::string fileName) : components()
     {
       throw std::runtime_error("Error: NumberOfCycles requires SwingAdsorptionPhases");
     }
-    const size_t numberOfCycles = static_cast<size_t>(cycles->get<std::int64_t>());
+    numberOfCycles = static_cast<size_t>(cycles->get<std::int64_t>());
     if (numberOfCycles > 1)
     {
       const std::vector<SwingAdsorptionPhase> cyclePhases = swingAdsorptionPhases;
@@ -2039,6 +2189,24 @@ InputReader::InputReader(const std::string fileName) : components()
           phaseProductEndByName.push_back(cycleProductEnds[i]);
         }
       }
+    }
+  }
+
+  if (const nlohmann::json* steadyState = findKeyCaseInsensitive(parsed_data, "CyclicSteadyState"))
+  {
+    if (!steadyState->is_object())
+    {
+      throw std::runtime_error("Error: CyclicSteadyState must be an object with Tolerance and ConsecutiveCycles");
+    }
+    requireOnlyKnownKeys(*steadyState, {"Tolerance", "ConsecutiveCycles"}, "CyclicSteadyState");
+    cyclicSteadyStateTolerance = 1.0e-3;
+    readOptionalNumber<double>(*steadyState, "Tolerance", cyclicSteadyStateTolerance);
+    readOptionalNonNegativeInteger(*steadyState, "ConsecutiveCycles", cyclicSteadyStateCycles);
+    if (!(cyclicSteadyStateTolerance > 0.0) || cyclicSteadyStateCycles == 0 || numberOfCycles < 2)
+    {
+      throw std::runtime_error(
+          "Error: CyclicSteadyState needs a positive Tolerance, ConsecutiveCycles of at least "
+          "1, and NumberOfCycles, the largest number of cycles, of at least 2");
     }
   }
 
@@ -2065,7 +2233,8 @@ InputReader::InputReader(const std::string fileName) : components()
     }
     simulationTime =
         std::accumulate(swingAdsorptionPhases.begin(), swingAdsorptionPhases.end(), 0.0,
-                        [](double total, const SwingAdsorptionPhase& phase) { return total + phase.duration; });
+                        [](double total, const SwingAdsorptionPhase& phase) { return total + phase.duration; }) /
+        static_cast<double>(columnsPerPhase);
     autoSimulationTime = false;
   }
 
@@ -2165,11 +2334,301 @@ InputReader::InputReader(const std::string fileName) : components()
     }
   }
 
+  // A heat-transfer fluid along the outer wall, and diffusion in the particle in place of the linear driving force.
+  if (const nlohmann::json* fluid = findKeyCaseInsensitive(parsed_data, "Coolant"))
+  {
+    requireOnlyKnownKeys(*fluid, {"MassFlowRate", "Volume", "Density", "HeatCapacity", "FlowDirection"}, "Coolant");
+    coolant = true;
+    readOptionalNumber<double>(*fluid, "MassFlowRate", coolantMassFlowRate);
+    readOptionalNumber<double>(*fluid, "Volume", coolantVolume);
+    readOptionalNumber<double>(*fluid, "Density", coolantDensity);
+    readOptionalNumber<double>(*fluid, "HeatCapacity", coolantHeatCapacity);
+    readOptionalMappedString(*fluid, "FlowDirection", coolantCounterCurrent,
+                             {{"CoCurrent", false}, {"CounterCurrent", true}});
+    if (!energyBalance || !(coolantMassFlowRate >= 0.0) || !(coolantVolume > 0.0) || !(coolantDensity > 0.0) ||
+        !(coolantHeatCapacity > 0.0))
+    {
+      throw std::runtime_error(
+          "Error: Coolant needs the energy balance, a Volume in m^3, a non-negative MassFlowRate "
+          "in kg/s, and a positive Density and HeatCapacity");
+    }
+  }
+  if (const nlohmann::json* particle = findKeyCaseInsensitive(parsed_data, "ParticleTransport"))
+  {
+    requireOnlyKnownKeys(*particle, {"Model", "RadialCells"}, "ParticleTransport");
+    bool diffusion = false;
+    radialCells = 12;
+    readOptionalMappedString(*particle, "Model", diffusion, {{"LDF", false}, {"HSDM", true}});
+    readOptionalNonNegativeInteger(*particle, "RadialCells", radialCells);
+    if (radialCells < 2 || radialCells > 100)
+    {
+      throw std::runtime_error("Error: ParticleTransport takes 2 to 100 RadialCells");
+    }
+    if (!diffusion) radialCells = 0;
+  }
+
+  // The work of compressing gas that leaves below the exhaust pressure, and the gas vessels of the connections.
+  readOptionalNumber<double>(parsed_data, "ExhaustPressure", exhaustPressure);
+  readOptionalNumber<double>(parsed_data, "CompressionEfficiency", compressionEfficiency);
+  if (!(exhaustPressure >= 0.0) || !(compressionEfficiency > 0.0 && compressionEfficiency <= 1.0))
+  {
+    throw std::runtime_error("Error: ExhaustPressure is a pressure in Pa, and CompressionEfficiency lies in (0, 1]");
+  }
+  buffers.clear();
+  if (const nlohmann::json* vessels = findKeyCaseInsensitive(parsed_data, "Buffers"))
+  {
+    if (!vessels->is_object() || columnNames.empty())
+    {
+      throw std::runtime_error("Error: Buffers must be an object of name to buffer, and needs Columns");
+    }
+    for (auto it = vessels->begin(); it != vessels->end(); ++it)
+    {
+      const std::string context = "Buffers '" + it.key() + "'";
+      requireOnlyKnownKeys(it.value(), {"Volume", "Pressure", "Temperature", "GasPhaseMolFractions", "MaximumPressure"},
+                           context);
+      Buffer buffer{
+          .name = it.key(), .temperature = temperature, .moleFractions = std::vector<double>(components.size())};
+      for (const auto& [key, target] : {std::pair{"Volume", &buffer.volume}, std::pair{"Pressure", &buffer.pressure}})
+      {
+        *target = getNumberOrThrow<double>(requireKeyCaseInsensitive(it.value(), key, context), key, context);
+      }
+      readOptionalNumber<double>(it.value(), "Temperature", buffer.temperature);
+      readOptionalNumber<double>(it.value(), "MaximumPressure", buffer.maximumPressure);
+      const nlohmann::json& fractions = requireKeyCaseInsensitive(it.value(), "GasPhaseMolFractions", context);
+      double sum = 0.0;
+      for (auto fraction = fractions.begin(); fractions.is_object() && fraction != fractions.end(); ++fraction)
+      {
+        const size_t component = findComponent(components, fraction.key(), context);
+        if (component == components.size())
+        {
+          throw std::runtime_error("Error: unknown component '" + fraction.key() + "' (" + context + ")");
+        }
+        buffer.moleFractions[component] = getNumberOrThrow<double>(fraction.value(), fraction.key(), context);
+        sum += buffer.moleFractions[component];
+      }
+      const auto sameName = [&](const auto& other) { return caseInSensStringCompare(other, buffer.name); };
+      if (!(buffer.volume > 0.0) || !(buffer.pressure > 0.0) || !(buffer.temperature > 0.0) || !(sum > 0.0) ||
+          std::ranges::any_of(buffer.moleFractions, [](double fraction) { return !(fraction >= 0.0); }) ||
+          !(buffer.maximumPressure == 0.0 || buffer.maximumPressure >= buffer.pressure) || buffer.name.contains('.') ||
+          std::ranges::any_of(columnNames, sameName) || std::ranges::any_of(buffers, sameName, &Buffer::name))
+      {
+        throw std::runtime_error(
+            "Error: a buffer needs a name of its own without '.', a positive Volume in m^3, Pressure in Pa, and "
+            "Temperature in K, non-negative GasPhaseMolFractions, and a MaximumPressure of at least its Pressure (" +
+            context + ")");
+      }
+      for (double& fraction : buffer.moleFractions) fraction /= sum;
+      buffers.push_back(std::move(buffer));
+    }
+  }
+  if (!columnNames.empty() && (boundaryCondition != 5 || breakthroughIntegrator != 2 || readColumnFile.has_value()))
+  {
+    throw std::runtime_error(
+        "Error: Columns needs BoundaryCondition MomentumBalance and BreakthroughIntegrator "
+        "ROS34PW2, and cannot start from a ReadColumnFile");
+  }
+
   // Resolve per-phase feed and product-end compositions; components a phase does not list are absent from them.
   for (size_t phaseIndex = 0; phaseIndex < phaseFeedByName.size(); ++phaseIndex)
   {
     SwingAdsorptionPhase& phase = swingAdsorptionPhases[phaseIndex];
     const std::string context = "SwingAdsorptionPhases '" + phase.name + "'";
+    const nlohmann::json& value = (*phases)[phaseIndex % phases->size()];
+    const bool momentumBalance = boundaryCondition == 5;
+    if ((phase.jacketTemperature.has_value() || phase.jacketHeatTransfer.has_value()) && !energyBalance)
+    {
+      throw std::runtime_error("Error: ThermalControl needs the energy balance (" + context + ")");
+    }
+    if (phase.coolantMassFlowRate.has_value() && !coolant)
+    {
+      throw std::runtime_error("Error: the MassFlowRate of ThermalControl is that of the Coolant (" + context + ")");
+    }
+
+    // The valves and compressors of the phase, read with its first column. An endpoint is a buffer, or
+    // <column>.FeedEnd or <column>.ProductEnd, whose port is then closed: the connections carry its gas.
+    const nlohmann::json* connections = findKeyCaseInsensitive(value, "Connections");
+    if (connections != nullptr && (columnNames.empty() || !connections->is_array()))
+    {
+      throw std::runtime_error("Error: Connections must be an array, and needs Columns (" + context + ")");
+    }
+    for (size_t index = 0; connections != nullptr && phaseIndex % columnsPerPhase == 0 && index < connections->size();
+         ++index)
+    {
+      const nlohmann::json& entry = (*connections)[index];
+      requireOnlyKnownKeys(entry,
+                           {"Name", "From", "To", "FlowModel", "Conductance", "Area", "MolarFlow", "Opening",
+                            "CheckValve", "MaximumMolarFlow", "Efficiency"},
+                           context);
+      Connection connection;
+      using FlowModel = Connection::FlowModel;
+      readOptionalMappedString(entry, "FlowModel", connection.flowModel,
+                               {{"Linear", FlowModel::Linear},
+                                {"SquareRoot", FlowModel::SquareRoot},
+                                {"Orifice", FlowModel::Orifice},
+                                {"Compressor", FlowModel::Compressor}});
+      const std::string sizeKey = connection.flowModel == FlowModel::Orifice      ? "Area"
+                                  : connection.flowModel == FlowModel::Compressor ? "MolarFlow"
+                                                                                  : "Conductance";
+      connection.conductance =
+          getNumberOrThrow<double>(requireKeyCaseInsensitive(entry, sizeKey, context), sizeKey, context);
+      readOptionalNumber<double>(entry, "Opening", connection.opening);
+      readOptionalBool(entry, "CheckValve", connection.checkValve);
+      readOptionalNumber<double>(entry, "MaximumMolarFlow", connection.maximumMolarFlow);
+      readOptionalNumber<double>(entry, "Efficiency", connection.efficiency);
+      for (const auto& [key, endpoint] :
+           {std::pair{"From", &connection.endpoints[0]}, std::pair{"To", &connection.endpoints[1]}})
+      {
+        const std::string name = getStringOrThrow(requireKeyCaseInsensitive(entry, key, context), key, context);
+        connection.name += (connection.name.empty() ? "" : " to ") + name;
+        const size_t dot = std::min(name.rfind('.'), name.size());
+        const auto named = [&](const auto& other) { return caseInSensStringCompare(other, name.substr(0, dot)); };
+        const size_t column = static_cast<size_t>(std::ranges::find_if(columnNames, named) - columnNames.begin());
+        const size_t buffer =
+            static_cast<size_t>(std::ranges::find_if(buffers, named, &Buffer::name) - buffers.begin());
+        const size_t end = caseInSensStringCompare(name.substr(dot), ".FeedEnd")      ? 0
+                           : caseInSensStringCompare(name.substr(dot), ".ProductEnd") ? 1
+                                                                                      : 2;
+        if (dot == name.size() ? buffer == buffers.size() : column == columnNames.size() || end == 2)
+        {
+          throw std::runtime_error("Error: " + std::string(key) + " '" + name +
+                                   "' is no buffer and no <column>.FeedEnd or <column>.ProductEnd (" + context + ")");
+        }
+        *endpoint = dot == name.size() ? 2 * columnNames.size() + buffer : 2 * column + end;
+        if (dot != name.size() && swingAdsorptionPhases[phaseIndex + column].ports[end].mode != 0)
+        {
+          throw std::runtime_error("Error: a connection ends at " + name + ", which then takes no port (" + context +
+                                   ")");
+        }
+      }
+      readOptionalString(entry, "Name", connection.name);
+      const bool compressor = connection.flowModel == FlowModel::Compressor;
+      const int sizes = containsKeyCaseInsensitive(entry, "Conductance") + containsKeyCaseInsensitive(entry, "Area") +
+                        containsKeyCaseInsensitive(entry, "MolarFlow");
+      if (connection.endpoints[0] == connection.endpoints[1] || !(connection.conductance > 0.0) || sizes != 1 ||
+          !(connection.opening >= 0.0 && connection.opening <= 1.0) || !(connection.maximumMolarFlow > 0.0) ||
+          !(connection.efficiency > 0.0 && connection.efficiency <= 1.0) ||
+          (!compressor && containsKeyCaseInsensitive(entry, "Efficiency")) || (compressor && connection.checkValve))
+      {
+        throw std::runtime_error(
+            "Error: a connection needs two different endpoints, a positive " + sizeKey +
+            " as its only size, an Opening from 0 to 1, a positive MaximumMolarFlow, and, for a Compressor only, an "
+            "Efficiency in (0, 1]; a Compressor takes no CheckValve ('" +
+            connection.name + "', " + context + ")");
+      }
+      phase.connections.push_back(std::move(connection));
+    }
+    if (momentumBalance && (phase.inletPressure.has_value() || phase.columnEntranceVelocity.has_value() ||
+                            phase.flowDirection.has_value() || phase.pressureRampShape != 0))
+    {
+      throw std::runtime_error(
+          "Error: with BoundaryCondition MomentumBalance the ports FeedEnd and ProductEnd set "
+          "the ends of a phase; remove InletPressure, ColumnEntranceVelocity, FlowDirection, "
+          "ClosedEnd, and the PressureRamp of the phase (" +
+          context + ")");
+    }
+    if (!momentumBalance &&
+        (containsKeyCaseInsensitive(value, "FeedEnd") || containsKeyCaseInsensitive(value, "ProductEnd")))
+    {
+      throw std::runtime_error("Error: FeedEnd and ProductEnd need BoundaryCondition MomentumBalance (" + context +
+                               ")");
+    }
+    for (const auto& [key, port] : {std::pair{"FeedEnd", &phase.ports[0]}, std::pair{"ProductEnd", &phase.ports[1]}})
+    {
+      const bool flowGiven = port->velocity.has_value() || port->molarFlux.has_value();
+      const bool valid = port->mode == 0   ? !port->pressure.has_value() && !flowGiven && port->pressureRampShape == 0
+                         : port->mode == 1 ? port->pressure.value_or(0.0) > 0.0 && !flowGiven
+                                           : port->pressureRampShape == 0 &&
+                                                 port->velocity.has_value() != port->molarFlux.has_value() &&
+                                                 (port->molarFlux.has_value() || port->pressure.value_or(0.0) > 0.0);
+      if (!valid)
+      {
+        throw std::runtime_error(std::string("Error: ") + key +
+                                 ": a Closed port takes no other key, a Pressure port a positive Pressure and an "
+                                 "optional PressureRamp, and a Velocity port a Velocity with the Pressure of its gas, "
+                                 "or a MolarFlux (" +
+                                 context + ")");
+      }
+    }
+    if ((phase.feedFromPhase.has_value() || phase.productEndFromPhase.has_value()) && fluidPhase != 0)
+    {
+      throw std::runtime_error("Error: the gas of a phase is only available for gas-phase columns (" + context + ")");
+    }
+
+    // One criterion, or {"All": [...]} or {"Any": [...]} with several.
+    if (const nlohmann::json* stop = findKeyCaseInsensitive(value, "StopCriterion"))
+    {
+      const nlohmann::json* all = stop->is_object() ? findKeyCaseInsensitive(*stop, "All") : nullptr;
+      const nlohmann::json* any = stop->is_object() ? findKeyCaseInsensitive(*stop, "Any") : nullptr;
+      const nlohmann::json* list = all != nullptr ? all : any;
+      if (!stop->is_object() || (list != nullptr && (!list->is_array() || list->empty() || stop->size() != 1)))
+      {
+        throw std::runtime_error(
+            "Error: StopCriterion must be a criterion with Metric, Operator, and Value, or "
+            "{\"All\": [...]} or {\"Any\": [...]} with such criteria (" +
+            context + ")");
+      }
+      phase.stopOnAny = any != nullptr;
+      for (size_t index = 0; index < (list != nullptr ? list->size() : 1); ++index)
+      {
+        const nlohmann::json& entry = list != nullptr ? (*list)[index] : *stop;
+        if (!entry.is_object())
+        {
+          throw std::runtime_error("Error: each StopCriterion entry must be an object (" + context + ")");
+        }
+        requireOnlyKnownKeys(entry, {"Metric", "End", "Component", "Operator", "Value", "Column"}, context);
+        StopCriterion criterion;
+        if (const nlohmann::json* name = findKeyCaseInsensitive(entry, "Column"))
+        {
+          const std::string column = getStringOrThrow(*name, "Column", context);
+          const auto named = [&](const std::string& other) { return caseInSensStringCompare(other, column); };
+          criterion.column = static_cast<size_t>(std::ranges::find_if(columnNames, named) - columnNames.begin());
+          if (criterion.column == columnNames.size())
+          {
+            throw std::runtime_error("Error: the Column of a StopCriterion names no column (" + context + ")");
+          }
+        }
+        requireKeyCaseInsensitive(entry, "Metric", context);
+        readOptionalMappedString(entry, "Metric", criterion.metric,
+                                 {{"Pressure", StopCriterion::Metric::Pressure},
+                                  {"AveragePressure", StopCriterion::Metric::AveragePressure},
+                                  {"MaximumTemperature", StopCriterion::Metric::MaximumTemperature},
+                                  {"MinimumTemperature", StopCriterion::Metric::MinimumTemperature},
+                                  {"MoleFraction", StopCriterion::Metric::MoleFraction},
+                                  {"AmountIn", StopCriterion::Metric::AmountIn},
+                                  {"AmountOut", StopCriterion::Metric::AmountOut}});
+        readOptionalMappedString(entry, "End", criterion.end, {{"FeedEnd", size_t{0}}, {"ProductEnd", size_t{1}}});
+        requireKeyCaseInsensitive(entry, "Operator", context);
+        readOptionalMappedString(entry, "Operator", criterion.atLeast, {{">=", true}, {"<=", false}});
+        criterion.value =
+            getNumberOrThrow<double>(requireKeyCaseInsensitive(entry, "Value", context), "Value", context);
+        if (const nlohmann::json* name = findKeyCaseInsensitive(entry, "Component"))
+        {
+          criterion.component = findComponent(components, getStringOrThrow(*name, "Component", context), context);
+          if (*criterion.component == components.size())
+          {
+            throw std::runtime_error("Error: StopCriterion names unknown component '" + name->get<std::string>() +
+                                     "' (" + context + ")");
+          }
+        }
+        if (criterion.metric == StopCriterion::Metric::MoleFraction && !criterion.component.has_value())
+        {
+          throw std::runtime_error("Error: a MoleFraction StopCriterion needs a Component (" + context + ")");
+        }
+        phase.stopCriteria.push_back(criterion);
+      }
+    }
+    if (phase.stopCriteria.empty() ? phase.minimumDuration != 0.0 || phase.errorOnTimeout
+                                   : !(phase.minimumDuration >= 0.0 && phase.minimumDuration < phase.duration))
+    {
+      throw std::runtime_error(
+          "Error: MinimumDuration and TimeoutPolicy belong to a StopCriterion, and "
+          "MinimumDuration lies between 0 and the Duration, the longest the phase lasts (" +
+          context + ")");
+    }
+    streamAmounts = streamAmounts || momentumBalance || cyclicSteadyStateTolerance > 0.0 ||
+                    !phase.stopCriteria.empty() || phase.feedFromPhase.has_value() ||
+                    phase.productEndFromPhase.has_value();
+
     if ((phase.closedEnd || phase.pressureRampShape != 0) && (fluidPhase != 0 || boundaryCondition != 0))
     {
       throw std::runtime_error(
@@ -2180,13 +2639,15 @@ InputReader::InputReader(const std::string fileName) : components()
     {
       throw std::runtime_error("Error: ClosedEnd needs InletCondition Danckwerts (" + context + ")");
     }
-    if (phase.closedEnd && (phase.columnEntranceVelocity.has_value() || !phaseProductEndByName[phaseIndex].empty()))
+    if (phase.closedEnd && (phase.columnEntranceVelocity.has_value() || !phaseProductEndByName[phaseIndex].empty() ||
+                            phase.productEndFromPhase.has_value()))
     {
       throw std::runtime_error(
           "Error: a closed-end phase takes no ColumnEntranceVelocity or ProductEndGasPhaseMolFractions (" + context +
           ")");
     }
-    if (!phaseProductEndByName[phaseIndex].empty() && phase.flowDirection.value_or(flowDirection) == 1)
+    if ((!phaseProductEndByName[phaseIndex].empty() || phase.productEndFromPhase.has_value()) &&
+        phase.flowDirection.value_or(flowDirection) == 1)
     {
       throw std::runtime_error(
           "Error: ProductEndGasPhaseMolFractions sets the gas that flows back in at z = L in a forward phase; the "
@@ -3380,16 +3841,30 @@ InputReader::InputReader(const std::string fileName) : components()
     static constexpr size_t inletVelocityOutletPressure = 2;
     static constexpr size_t fixedVelocity = 3;
     static constexpr size_t fixedPressureInletVelocity = 4;
+    static constexpr size_t momentumBalance = 5;
 
     // Boundary conditions define which externally supplied quantities are mandatory.
     const bool boundaryNeedsInletPressure = boundaryCondition == inletPressureInletVelocity ||
                                             boundaryCondition == inletPressureOutletPressure ||
                                             boundaryCondition == fixedPressureInletVelocity;
-    const bool boundaryNeedsOutletPressure =
-        boundaryCondition == inletPressureOutletPressure || boundaryCondition == inletVelocityOutletPressure;
+    // MomentumBalance starts the column at the outlet pressure; without swing phases it feeds at the inlet velocity.
+    const bool boundaryNeedsOutletPressure = boundaryCondition == inletPressureOutletPressure ||
+                                             boundaryCondition == inletVelocityOutletPressure ||
+                                             boundaryCondition == momentumBalance;
     const bool boundaryNeedsInletVelocity =
         boundaryCondition == inletPressureInletVelocity || boundaryCondition == inletVelocityOutletPressure ||
-        boundaryCondition == fixedVelocity;
+        boundaryCondition == fixedVelocity ||
+        (boundaryCondition == momentumBalance && simulationType == SimulationType::Breakthrough);
+    requireConfigured(
+        boundaryCondition != momentumBalance || (fluidPhase == 0 && inletCondition == 1 && flowDirection == 0),
+        "Error: MomentumBalance needs a gas, InletCondition Danckwerts, and no FlowDirection: its ports "
+        "set where the gas enters");
+    // RK3 needs steps of about a microsecond; Dense loses the coupling of absent components in its difference
+    // quotients, and SPGMR leaves pressure errors of the size of the differences that drive the gas (B-ITG-21).
+    requireConfigured(boundaryCondition != momentumBalance || breakthroughIntegrator == 2 ||
+                          (breakthroughIntegrator == 1 && cvodeLinearSolver == 2),
+                      "Error: MomentumBalance is stiff in the pressure and needs the Jacobian of the velocity: use "
+                      "BreakthroughIntegrator ROS34PW2, or CVODE with CVODELinearSolver KLU");
     const bool effectiveHasInletPressure =
         hasInletPressure || (simulationType == SimulationType::SwingAdsorption && !swingAdsorptionPhases.empty() &&
                              swingAdsorptionPhases.front().inletPressure.has_value());
@@ -3452,10 +3927,15 @@ InputReader::InputReader(const std::string fileName) : components()
       warnDefault(withoutMolecularWeight.empty(), "MolecularWeight of " + withoutMolecularWeight, 1.0, " kg/mol");
       if (energyBalance)
       {
+        // The gas takes the molar heat capacities of its components when every one of them gives its own.
+        const size_t withHeatCapacity = static_cast<size_t>(std::ranges::count_if(
+            components, [](const Component& component) { return component.gasHeatCapacity > 0.0; }));
+        requireConfigured(withHeatCapacity == 0 || (fluidPhase == 0 && withHeatCapacity == components.size()),
+                          "Error: GasHeatCapacity belongs to a gas, and to every component or to none");
         if (fluidPhase == 0)
         {
-          warnDefault(containsKeyCaseInsensitive(parsed_data, "heatCapacityGas"), "heatCapacityGas", heatCapacityGas,
-                      " J/(kg K)");
+          warnDefault(containsKeyCaseInsensitive(parsed_data, "heatCapacityGas") || withHeatCapacity != 0,
+                      "heatCapacityGas", heatCapacityGas, " J/(kg K)");
         }
         else
         {
@@ -3471,7 +3951,7 @@ InputReader::InputReader(const std::string fileName) : components()
 
     requireConfigured(temperature > 0.0, "Error: Temperature must be positive (Use e.g.: 'Temperature 300')");
     requireConfigured(numberOfGridPoints >= 2 || convectionScheme == 0,
-                      "Error: ConvectionScheme WENO3 needs NumberOfGridPoints >= 2");
+                      "Error: ConvectionScheme WENO3, TVD, and WENO5 need NumberOfGridPoints >= 2");
     for (const std::vector<Component>& componentsForAdsorbent : adsorbentComponents)
     {
       for (const Component& component : componentsForAdsorbent)
@@ -3621,9 +4101,13 @@ InputReader::InputReader(const std::string fileName) : components()
                       "Error: CVODEPreconditioner SorptionJacobian does not support MPD mixture prediction");
     // The KLU Jacobian covers the concentrations and physisorbed loadings only.
     const bool kluJacobian = breakthroughIntegrator == 1 && cvodeLinearSolver == 2;
-    requireConfigured(!kluJacobian || (reactions.empty() && !componentsHaveChemisorption && !energyBalance),
-                      "Error: CVODELinearSolver KLU does not support reactions, chemisorption, or the energy balance; "
-                      "use SPGMR or Dense");
+    requireConfigured(
+        !kluJacobian || (reactions.empty() && !componentsHaveChemisorption && !energyBalance && radialCells == 0),
+        "Error: CVODELinearSolver KLU does not support reactions, chemisorption, the energy balance, or "
+        "ParticleTransport HSDM; use SPGMR or Dense");
+    // The reaction sources of the physisorbed phase act on the loading of the particle, which HSDM resolves radially.
+    requireConfigured(radialCells == 0 || reactions.empty(),
+                      "Error: ParticleTransport HSDM does not support Reactions");
     requireConfigured(!kluJacobian || mixturePredictionMethod != 6,
                       "Error: CVODELinearSolver KLU does not support MPD mixture prediction");
     requireConfigured(adsorbentComponents.size() <= 1 || mixturePredictionMethod != 6,

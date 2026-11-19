@@ -391,6 +391,227 @@ pressurization and blowdown steps of a PSA cycle (`examples/PSA-H2-activated-car
   temperature-swing cycles of the paper (30 cycles of 2 × 1000 s), max |R T Σc/P − 1| stays
   below 1e-4.
 
+A phase can end on a condition, take the gas that left an earlier phase, and the run can end at
+the cyclic steady state:
+
+```json
+"NumberOfCycles": 40,
+"CyclicSteadyState": {"Tolerance": 1.0e-3, "ConsecutiveCycles": 1},
+"SwingAdsorptionPhases": [
+  {"Name": "Adsorption", "Duration": 300.0, "MinimumDuration": 10.0,
+   "StopCriterion": {"Metric": "MoleFraction", "Component": "CO2", "End": "ProductEnd",
+                     "Operator": ">=", "Value": 0.05}},
+  {"Name": "Purge", "FlowDirection": "Reverse", "GasPhaseMolFractions": "Adsorption", "Duration": 60.0}
+]
+```
+
+- `StopCriterion` ends a phase at the time at which its `Metric` reaches the `Value`
+  (`Operator` `>=` or `<=`); the `Duration` is then the longest the phase lasts. The metrics
+  are `Pressure` (gas pressure of the cell at the `End`, Pa), `AveragePressure`,
+  `MaximumTemperature` and `MinimumTemperature` (solid temperature, K), `MoleFraction` (of the
+  `Component`, in the cell at the `End`), and `AmountIn` and `AmountOut` (net amount that
+  entered or left at the `End` in this phase, of the `Component` or in total, mol/m²). `End` is
+  `FeedEnd` (z = 0) or `ProductEnd` (z = L, the default). `{"All": [...]}` and
+  `{"Any": [...]}` combine criteria. The criteria apply from `MinimumDuration` on.
+  `TimeoutPolicy` `Error` stops the run when the `Duration` passes first; `Advance` (default)
+  goes on to the next phase. CVODE finds the time with its root finding; RungeKutta3 and
+  ROS34PW2 repeat the step in which the criteria turn true and bisect its end. The outputs
+  stay at multiples of `WriteInterval`.
+- `GasPhaseMolFractions` and `ProductEndGasPhaseMolFractions` take the name of a phase in
+  place of mole fractions: the mean gas that left the column in that phase the last time it
+  ran, e.g. a purge with the product of the adsorption step. Until that phase has run, the
+  feed is that of `Components`, and the product-end gas that of the last cell.
+- `CyclicSteadyState` ends the run before `NumberOfCycles`, which is then the largest number
+  of cycles, once `ConsecutiveCycles` cycles in a row end within `Tolerance` of the cycle
+  before, in three relative measures: every state value, the amount of every component in
+  the column, and every stream amount of every phase. Each change is taken relative to the
+  size of the value plus the largest of its kind, so that values near zero count against that
+  largest one. `cycles.data` lists the three per cycle, and next to them the amount that the
+  streams and the column of the cycle do not account for (the mass balance).
+- With any of these keys, and with `MomentumBalance` below, the column integrates the amount
+  of each component that passes each end, and `phases.data` and
+  `SwingAdsorption.phase_records[i].stream_amounts` hold, per phase, what entered and left at
+  z = 0 and at z = L (four values per component, mol/m²). They are net per end: a component
+  that entered and left at one end in a phase shows the difference.
+
+`BoundaryCondition` `MomentumBalance` drops the continuity closure. The pressure of every cell
+is that of its gas, R T Σc, and the velocity between two cells follows from the pressure-drop
+law of the bed for their pressure difference. The column can then be filled and emptied through
+either end, as in the steps of a PSA cycle (`examples/PSA-H2-activated-carbon-ports`):
+
+```json
+"BoundaryCondition": "MomentumBalance",
+"BreakthroughIntegrator": "ROS34PW2",
+"OutletPressure": 1.0e5,
+"SwingAdsorptionPhases": [
+  {"Name": "Pressurization", "Duration": 40.0,
+   "FeedEnd": {"Mode": "Pressure", "Pressure": 1.0e6,
+               "PressureRamp": {"Shape": "Linear", "TimeConstant": 40.0}},
+   "ProductEnd": {"Mode": "Closed"}},
+  {"Name": "Adsorption", "Duration": 60.0,
+   "FeedEnd": {"Mode": "Velocity", "Velocity": 0.03, "Pressure": 1.0e6},
+   "ProductEnd": {"Mode": "Pressure", "Pressure": 1.0e6}},
+  {"Name": "Blowdown", "Duration": 40.0,
+   "FeedEnd": {"Mode": "Pressure", "Pressure": 1.0e5,
+               "PressureRamp": {"Shape": "Linear", "TimeConstant": 40.0}},
+   "ProductEnd": {"Mode": "Closed"}},
+  {"Name": "Purge", "Duration": 60.0, "ProductEndGasPhaseMolFractions": "Adsorption",
+   "FeedEnd": {"Mode": "Pressure", "Pressure": 1.0e5},
+   "ProductEnd": {"Mode": "Velocity", "Velocity": 0.1, "Pressure": 1.0e5}}
+]
+```
+
+- The column starts at rest at `OutletPressure`, filled with the carrier gas, and keeps its
+  gas from one phase to the next. It needs a gas and the Danckwerts inlet.
+- Each phase sets the two ends with the ports `FeedEnd` (z = 0) and `ProductEnd` (z = L);
+  an end without a port is closed. `Mode` is `Closed`, `Pressure`, or `Velocity`:
+  - `Pressure`: gas at `Pressure` beyond the end. The velocity follows from the pressure-drop
+    law over the half cell between that gas and the centre of the end cell, so that gas
+    flows in or out as the pressures require. That half cell is the only resistance: a
+    `PressureRamp`, from the pressure of the end cell at the start of the phase, stands for
+    the valve or the pump that sets how fast the column follows.
+  - `Velocity`: the interstitial `Velocity` into the column (negative: out of it) of gas at
+    the `Pressure` given with it, or a `MolarFlux` into the column in mol/(m² s) of column
+    cross-section.
+  Gas that enters at z = 0 is the phase `GasPhaseMolFractions` (default: the `Components`
+  feed), gas that enters at z = L the `ProductEndGasPhaseMolFractions` (default: the gas of
+  the last cell), both at the phase `Temperature`. The phase keys `InletPressure`,
+  `ColumnEntranceVelocity`, `FlowDirection`, `ClosedEnd`, and `PressureRamp` are not used.
+- Without swing phases the feed enters at `ColumnEntranceVelocity`, as gas at `OutletPressure`,
+  and leaves to `OutletPressure` at z = L.
+- With the energy balance the pressure work of the gas follows its own pressure, which leaves
+  its heat capacity at constant volume. That needs a molar heat capacity above R: give every
+  component its `GasHeatCapacity` in J/(mol K), which then takes the place of
+  `heatCapacityGas` (per kg, one value for any composition; too small for helium- or
+  hydrogen-rich gas). `GasHeatCapacity` can be used with every boundary condition.
+- The relaxation of the pressure is stiff, and its Jacobian is that of the velocity. Use
+  ROS34PW2, which holds it, with the gas temperature and the time derivative of a ramped
+  port. CVODE with `CVODELinearSolver` `KLU` works without the energy balance; the reader
+  rejects CVODE with `Dense` or `SPGMR`, which take many more steps, and RungeKutta3, which
+  needs steps of about a microsecond. With CVODE the stream amounts through a pressure port hold its tolerance on a
+  flux that follows a small pressure difference, which is less than that of the column
+  amounts; `cycles.data` shows it as the mass balance.
+
+Several identical columns run one cycle together when `Columns` names them. The `Connections`
+of a phase are valves and compressors between the ends of the columns and `Buffers`, as in a
+pressure equalization, a purge with the product of the other bed, or a product tank
+(`examples/PSA-H2-activated-carbon-two-beds`):
+
+```json
+"Columns": ["A", "B"],
+"Buffers": {"Tank": {"Volume": 1.0e-3, "Pressure": 1.0e6, "MaximumPressure": 1.0e6,
+                     "GasPhaseMolFractions": {"H2": 1.0}}},
+"SwingAdsorptionPhases": [
+  {"Name": "Adsorption A, purge B", "Duration": 40.0,
+   "Columns": {"A": {"FeedEnd": {"Mode": "Velocity", "Velocity": 0.03, "Pressure": 1.0e6}},
+               "B": {"FeedEnd": {"Mode": "Pressure", "Pressure": 1.0e5}}},
+   "Connections": [
+     {"Name": "Product", "From": "A.ProductEnd", "To": "Tank", "Conductance": 2.0e-8,
+      "CheckValve": true},
+     {"Name": "Purge", "From": "A.ProductEnd", "To": "B.ProductEnd", "Conductance": 8.0e-10}]},
+  {"Name": "Equalization A to B", "Duration": 20.0,
+   "Connections": [{"From": "A.ProductEnd", "To": "B.ProductEnd", "Conductance": 5.0e-8}]}
+]
+```
+
+- `Columns` needs `MomentumBalance`, ROS34PW2, and the `InternalDiameter` of the `Geometry`
+  (the connections carry mol/s). All columns have the input of the one column and start
+  alike, so that the first cycles are a start-up. Each writes its output files, with its own
+  `phases.data`, to a directory of its name.
+- The keys of a phase hold for every column. Its `Columns` object gives single columns their
+  own `FeedEnd`, `ProductEnd`, `GasPhaseMolFractions`, `ProductEndGasPhaseMolFractions`,
+  `Temperature`, or `ThermalControl`. A `StopCriterion` names its `Column` (default: the
+  first), and a phase name as gas is the gas that left that same column.
+- A connection runs `From` one endpoint `To` another: `<column>.FeedEnd`,
+  `<column>.ProductEnd`, or the name of a buffer. An end with a connection takes no port. Gas
+  flows from the higher to the lower pressure, `Opening` (0 to 1) times the flow of its
+  `FlowModel`, at most `MaximumMolarFlow` mol/s, and with `"CheckValve": true` only from
+  `From` to `To`:
+  - `Linear` (default): `Conductance` × ΔP, in mol/(s Pa).
+  - `SquareRoot`: `Conductance` × √|ΔP|, in mol/(s Pa^0.5).
+  - `Orifice`: the isentropic flow of an ideal gas through the effective `Area` in m²
+    (discharge coefficient included), choked below the critical pressure ratio.
+  - `Compressor`: `MolarFlow` in mol/s from `From` to `To` whatever the pressures. Its work,
+    the isentropic compression of that gas over `Efficiency` (default 1), is in
+    `connections.data`.
+  `Orifice` and `Compressor` need the `GasHeatCapacity` of the components. The gas keeps the
+  temperature of its donor (that of a compressor is cooled back to it).
+- A buffer is a mixed vessel of `Volume` m³ at a constant `Temperature` (default: the root
+  one), which starts at `Pressure` with `GasPhaseMolFractions`. Gas above `MaximumPressure`
+  leaves it: the product of a tank held at its pressure.
+- `connections.data` holds, per phase and connection, the amount of each component that
+  passed in mol and the compressor work in J; `buffers.data`, per phase and buffer, the
+  pressure, the amounts, and what left above `MaximumPressure`.
+- `python -m ruptura.flowsheet simulation.json > flowsheet.tex` writes a TikZ picture of the
+  columns, buffers, valves, and compressors (`\usepackage{tikz}` suffices). With a phase
+  name or number after the file name, the connections of that phase carry their direction,
+  the others are gray, and its ports are at the column ends.
+- Each column keeps its integrator, and the connections exchange gas in coupling steps: the
+  flows follow from the pressures at the start of a step, a twentieth of the time in which
+  the fastest connection evens out its two pressures, and a column that gives gas takes the
+  step before the column that receives it. What leaves one column is then what enters the
+  next, for every component. A valve so wide that it evens out the pressures within 1e-4 of
+  the phase is cut to that rate. One end cannot take gas from one connection and give it to
+  another at once (put a buffer between them), and gas cannot go around a ring of columns.
+
+A phase can hold the wall at a temperature, and the run lists what the cycle costs:
+
+```json
+"ExhaustPressure": 1.0e5,
+"CompressionEfficiency": 0.75,
+"SwingAdsorptionPhases": [
+  {"Name": "Heating", "Duration": 600.0,
+   "ThermalControl": {"Temperature": 400.0, "HeatTransferCoefficient": 100.0}}
+]
+```
+
+- `ThermalControl` (energy balance) sets, for its phase, the `Temperature` beyond the outer
+  wall and the `HeatTransferCoefficient` of that wall in W/(m² K); without them the phase
+  `Temperature` and `heatTransferWallExternal`.
+- With the stream amounts, `phases.data` ends with the heat that entered through the outer
+  wall in the phase (negative: cooling) and the work that brings the gas that left through
+  a pressure port below `ExhaustPressure` to that pressure, both in J/m² of column
+  cross-section (`wall_heat` and `exhaust_work` of the phase records in Python). The work
+  is the isentropic compression from the port pressure over `CompressionEfficiency`
+  (default 1): that of a vacuum pump.
+- `"Coolant": {"MassFlowRate": 0.002, "Volume": 2.0e-4}` (root key, energy balance) puts a
+  heat-transfer fluid along the outer wall in place of the constant temperature beyond it. It
+  enters at that temperature (the `Temperature` of `ThermalControl`) at z = 0, or at z = L
+  with `"FlowDirection": "CounterCurrent"`, and each cell of it exchanges heat with the wall
+  of its cell through the `HeatTransferCoefficient`, so that the fluid cools or warms on its
+  way. `MassFlowRate` is in kg/s (a `ThermalControl` can set it per phase; 0 leaves the fluid
+  where it is), `Volume` in m³ is that of the fluid along the column, and `Density` and
+  `HeatCapacity` default to water (1000 kg/m³, 4180 J/(kg K)). The wall heat in `phases.data`
+  is then the heat that the fluid gave to the wall.
+
+Optional numerics and particle models
+-------------------------------------
+
+```json
+"ConvectionScheme": "WENO5",
+"ParticleTransport": {"Model": "HSDM", "RadialCells": 12}
+```
+
+- `ConvectionScheme` is `WENO3` (default), `WENO5`, `TVD`, or `Upwind`. `WENO5` is of fifth
+  order on a grid of one cell width and `WENO3` next to the column ends and on a non-uniform
+  grid; `TVD` is the second-order MUSCL scheme with the minmod
+  limiter. On T15 (40 cells) the CO2 front is 180 s wide (10 to 90 %) with `Upwind`, 166 s
+  with `TVD`, 165 s with `WENO3`, and 164 s with `WENO5`; CVODE and ROS34PW2 agree for each.
+  The Jacobian of ROS34PW2 and of CVODE with KLU is that of `WENO3` for all three, which
+  costs `WENO5` about 60 % more steps with ROS34PW2.
+- `ParticleTransport` `HSDM` replaces the linear driving force of physisorption by diffusion
+  of the adsorbed phase in a spherical particle (homogeneous surface diffusion) with
+  `RadialCells` cells along its radius (2 to 100, default 12). The surface is at equilibrium
+  with the gas. The diffusivity is that of the `MassTransferCoefficient` k of each component,
+  D_s/R² = k/15 (Glueckauf), so that both models agree at long contact times and the particle
+  takes up faster than the linear driving force at short ones; a temperature law of k carries
+  over. Not with `Reactions` or CVODE with KLU. ROS34PW2 treats the radial cells explicitly:
+  its step stays below about R²/(D_s N²).
+- A `PseudoNth` chemisorption site takes `DesorptionRateCoefficient` and `DesorptionOrder`
+  in its `RateEquationParameters` for the release (q > q*); both default to those of the
+  uptake, and the coefficient can be a temperature law with its own activation energy. Two
+  such sites give dual-order kinetics.
+
 Temperature-dependent parameters
 --------------------------------
 
@@ -635,8 +856,12 @@ cycle = PressureSwingCycle("simulation.json", product="H2", purity_target=0.999)
 Campaign(cycle, "campaign", rounds=15, batch_size=8, workers=8).run()
 ```
 
-`examples/Self-driving-lab-H2-PSA/analysis.ipynb` runs and analyzes such a
-campaign for H2 from the T15 feed on activated carbon.
+`TwoBedPressureSwingCycle` runs the cycle on two beds (`Columns`) with valves
+between their product ends, a product tank, and a pressure equalization in place
+of the backfill, from a `MomentumBalance` input such as
+`examples/PSA-H2-activated-carbon-two-beds`.
+`examples/Self-driving-lab-H2-PSA/analysis.ipynb` runs and analyzes both
+campaigns for H2 from the T15 feed on activated carbon.
 
 A released version can also be installed from an index, without a source
 checkout:

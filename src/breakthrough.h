@@ -35,9 +35,10 @@ struct Breakthrough
   void run();
 
   /**
-   * \brief Integrates the column from the current time to endTime in s with the selected integrator.
+   * \brief Integrates the column from the current time to endTime in s with the selected integrator, or, with a stop
+   *        residual, to the time at which that turns from negative to non-negative; returns true when it ended there.
    */
-  void advanceTo(double endTime, Timing& accumulatedTimings);
+  bool advanceTo(double endTime, Timing& accumulatedTimings, const StopResidual* stop = nullptr);
 
   /**
    * \brief Writes column.json and one snapshot to column.data and the component files, which the first call starts,
@@ -67,6 +68,8 @@ struct Breakthrough
   /// ReadColumnFile without ResetClock, or once the files are started.
   bool appendOutput;
   bool warnedIdealGasDeviation{false};          ///< The warning of writeOutput is printed once.
+  /// Put before the names of the output files: the directory of this column, with its '/', in a run of several.
+  std::string outputPrefix{};
   std::vector<std::ofstream> componentStreams;  ///< Output file of each component, opened by the first writeOutput.
   std::ofstream columnStream;                   ///< column.data, opened by the first writeOutput.
 

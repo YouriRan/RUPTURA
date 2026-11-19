@@ -27,6 +27,9 @@ struct Chemisorption
   double heatOfChemisorption{0.0};  ///< Heat released per mole chemisorbed on this site, in J/mol.
   TemperatureLaw adsorptionRateCoefficient{0.0};  ///< General adsorption coefficient k+.
   TemperatureLaw desorptionRateCoefficient{0.0};  ///< General desorption coefficient k-.
+  // PseudoNth: the coefficient and the order of the release (q > q*); those of the uptake unless given.
+  std::optional<TemperatureLaw> releaseRateCoefficient{};
+  std::optional<double> releaseOrder{};
   size_t poreConcentrationOrder{1};
   size_t capacityOrder{1};
   size_t desorptionOrder{1};
