@@ -85,7 +85,7 @@ void computePhysisorptionEquilibriumSensitivities(
     std::span<const double> totalPressure, std::span<const double> cachedPressure, std::span<const double> moleFraction,
     std::span<const double> gasTemperature, MixturePrediction::DrivingForceInput input,
     std::span<const double> concentration, std::span<const double> pH,
-    std::span<double> equilibriumPhysisorptionSensitivity)
+    std::span<double> equilibriumPhysisorptionSensitivity, bool pressureOfTheGas)
 {
   const size_t blockSize = numberOfComponents * numberOfComponents;
   const bool gas = input == MixturePrediction::DrivingForceInput::MoleFraction;
@@ -127,7 +127,7 @@ void computePhysisorptionEquilibriumSensitivities(
       for (size_t i = 0; i < numberOfComponents; ++i)
       {
         double compositionSlope = 0.0;
-        for (size_t j = 0; j < numberOfComponents; ++j)
+        for (size_t j = 0; j < numberOfComponents && !pressureOfTheGas; ++j)
         {
           compositionSlope += mixtureSensitivity[i + j * numberOfComponents] * idealGasMolFractions[j];
         }

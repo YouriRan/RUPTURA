@@ -12,8 +12,12 @@ SorptionJacobian::SorptionJacobian(const Column& column)
     : numberOfComponents(column.numberOfComponents),
       numberOfNodes(column.numberOfGridPoints + 1),
       size(2 * column.numberOfComponents * (column.numberOfGridPoints + 1)),
-      // A WENO3 row reaches the concentrations two nodes upstream, up to 5N - 1 positions before the diagonal.
-      bandwidth((column.convectionScheme == Column::ConvectionScheme::WENO3 ? 5 : 2) * column.numberOfComponents),
+      // A WENO3 row reaches the concentrations two nodes upstream, up to 5N - 1 positions before the diagonal; with
+      // MomentumBalance a row reaches every component of the neighbouring cells through the velocity, up to 3N - 1.
+      bandwidth((column.convectionScheme != Column::ConvectionScheme::Upwind              ? 5
+                 : column.boundaryCondition == Column::BoundaryCondition::MomentumBalance ? 3
+                                                                                          : 2) *
+                column.numberOfComponents),
       leadingDimension(3 * bandwidth + 1),
       band(leadingDimension * size, 0.0),
       equilibriumSensitivity((column.numberOfGridPoints + 1) * column.numberOfComponents * column.numberOfComponents),
@@ -58,10 +62,11 @@ namespace
  * f_ik the face value of the mole fraction y_k = c_k / C, and S_i = sum_k f_ik, so that every component couples to
  * every other; in the liquid phase F_ik = eps_i v_i f_ik with f the face value of c_k. Node 0 holds the inlet-face
  * value, and node N + 1 stands for the value at the face z_N for inflow there (outletFace), which changes with c_N by
- * outletSlope.
+ * outletSlope. faceConcentration, when given, receives the concentration F_ik / (eps_i v_i) that each face transports.
  */
 void addWenoConvection(const Column& column, std::span<const double> concentration, std::span<const double> outletFace,
-                       std::span<const double> outletSlope, SorptionJacobian& jacobian)
+                       std::span<const double> outletSlope, SorptionJacobian& jacobian,
+                       std::span<double> faceConcentration)
 {
   const size_t n = column.numberOfComponents;
   const size_t nodes = column.numberOfGridPoints + 1;
@@ -125,6 +130,12 @@ void addWenoConvection(const Column& column, std::span<const double> concentrati
     // upstream of the face is the centre one.
     const size_t first = velocity < 0.0 ? face : face - 1;  // wraps for face 0, whose slot 0 is skipped
     const size_t upwind = velocity < 0.0 ? face + 1 : face;
+    for (size_t k = 0; k < n && !faceConcentration.empty(); ++k)
+    {
+      faceConcentration[face * n + k] = !gas            ? faceValues[face * n + k]
+                                        : faceSum > 0.0 ? total[upwind] * faceValues[face * n + k] / faceSum
+                                                        : 0.0;
+    }
     for (size_t slot = 0; slot < 3; ++slot)
     {
       const size_t source = first + slot;
@@ -197,7 +208,9 @@ void assembleSorptionJacobian(Column& column, std::span<const double> concentrat
   const size_t n = column.numberOfComponents;
   const size_t outlet = column.numberOfGridPoints;
   const bool gas = column.fluidPhase == Column::FluidPhase::Gas;
-  const bool weno = column.convectionScheme == Column::ConvectionScheme::WENO3;
+  // shortcut: TVD and WENO5 take the linearization of WENO3, which W-methods and Newton iterations allow; their own
+  // derivatives (WENO5 reaches a node further) are worth it only if these schemes turn out to cost steps.
+  const bool weno = column.convectionScheme != Column::ConvectionScheme::Upwind;
   const bool reverse = column.flowDirection == Column::FlowDirection::Reverse;
   const bool hasSensitivities =
       std::none_of(column.physisorptionMixtures.begin(), column.physisorptionMixtures.end(),
@@ -210,7 +223,8 @@ void assembleSorptionJacobian(Column& column, std::span<const double> concentrat
         column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxIsothermTerms, column.idealGasMolFractions,
         jacobian.mixtureSensitivity, column.totalPressure, column.cachedPressure, column.moleFraction, gasTemperature,
         gas ? MixturePrediction::DrivingForceInput::MoleFraction : MixturePrediction::DrivingForceInput::Concentration,
-        concentration, column.pH, jacobian.equilibriumSensitivity);
+        concentration, column.pH, jacobian.equilibriumSensitivity,
+        column.boundaryCondition == Column::BoundaryCondition::MomentumBalance);
   }
   else
   {
@@ -369,8 +383,13 @@ void assembleSorptionJacobian(Column& column, std::span<const double> concentrat
       }
     }
   }
-  if (weno) addWenoConvection(column, transported, outletFace, outletSlope, jacobian);
-
+  // MomentumBalance: the velocity of a face follows the gas of its two cells (updateVelocityAndPressure), so that the
+  // flux eps_i v_i phi_ik through it changes with their concentrations through v_i as well. phi is the concentration
+  // that the face transports; at an end with inflow it is the port gas, the convective and dispersive inflow of a
+  // Danckwerts end together.
+  const bool momentumBalance = column.boundaryCondition == Column::BoundaryCondition::MomentumBalance;
+  std::vector<double> faceConcentration(momentumBalance ? (outlet + 1) * n : 0);
+  if (weno) addWenoConvection(column, transported, outletFace, outletSlope, jacobian, faceConcentration);
   // The entries for node 0 are those of its stencil value: c_b of a Danckwerts inlet, with dc_b/dc_in = u / (u + g) and
   // dc_b/dc_1 = g / (u + g), or the first cell in a reverse step.
   if (danckwerts || reverse)
@@ -392,9 +411,91 @@ void assembleSorptionJacobian(Column& column, std::span<const double> concentrat
       }
     }
   }
+
+  if (momentumBalance)
+  {
+    double productEndDensity = followsLastCell ? column.gasDensity[outlet] : 0.0;
+    for (size_t comp = 0; comp < n; ++comp)
+    {
+      if (!followsLastCell)
+        productEndDensity += column.productEndConcentration[comp] * column.components[comp].molecularWeight;
+      for (size_t face = 1; face < outlet && !weno; ++face)
+      {
+        faceConcentration[face * n + comp] =
+            transported[(column.interstitialGasVelocity[face] >= 0.0 ? face : face + 1) * n + comp];
+      }
+      faceConcentration[comp] = column.interstitialGasVelocity[0] >= 0.0 ? concentration[comp] : transported[n + comp];
+      faceConcentration[outlet * n + comp] = column.interstitialGasVelocity[outlet] >= 0.0 || followsLastCell
+                                                 ? transported[outlet * n + comp]
+                                                 : column.productEndConcentration[comp];
+    }
+    jacobian.velocityByConcentration.assign(2 * (outlet + 1) * n, 0.0);
+    jacobian.velocityByTemperature.assign(2 * (outlet + 1), 0.0);
+    jacobian.temperatureCoupling.assign(3 * (outlet + 1) * n, 0.0);
+    // The flux into the column is eps v phi at z = 0 and -eps v phi at z = L.
+    jacobian.streamByVelocity.assign(2 * n, 0.0);
+    for (size_t comp = 0; comp < n; ++comp)
+    {
+      jacobian.streamByVelocity[comp] = column.totalVoidFraction[0] * faceConcentration[comp];
+      jacobian.streamByVelocity[n + comp] = -column.totalVoidFraction[outlet] * faceConcentration[outlet * n + comp];
+    }
+    for (size_t face = 0; face <= outlet; ++face)
+    {
+      const bool interior = face > 0 && face < outlet;
+      if (!interior && column.ports[face == 0 ? 0 : 1].mode != Column::Port::Mode::Pressure) continue;
+      // The law A v + B rho v |v| = -dP/dz, with dP/dz over the distance between the cell centres (half a cell to a
+      // port) and the mean density of the two sides: dv = -(d(dP/dz) + B v |v| d rho) / (A + 2 B rho |v|).
+      const double velocity = column.interstitialGasVelocity[face];
+      const PressureDropLaw& law = column.pressureDropLaw[face];
+      const double density =
+          0.5 * (column.gasDensity[face] + (face < outlet ? column.gasDensity[face + 1] : productEndDensity));
+      const double resistance = law.viscousCoefficient * column.dynamicViscosity +
+                                2.0 * law.inertialCoefficient * density * std::abs(velocity);
+      if (resistance <= 0.0) continue;
+      const double distance = 0.5 * ((face > 0 ? gridSpacing(column.columnDistances, face) : 0.0) +
+                                     (face < outlet ? gridSpacing(column.columnDistances, face + 1) : 0.0));
+      for (size_t side = 0; side < 2; ++side)
+      {
+        const size_t source = face + side;
+        if (source > outlet) continue;
+        // The pressure P = R T_g C of the node below the face drives the gas up. The pressures of the ports are set,
+        // but the gas of node 0 is part of the state and of the mean density; the last cell counts twice in that
+        // density when the product-end gas is its own.
+        const double byPressure = source == 0 ? 0.0 : (side == 0 ? 1.0 : -1.0) / (distance * resistance);
+        const double densityShare = face == outlet && followsLastCell ? 1.0 : 0.5;
+        const std::span<double> byConcentration(jacobian.velocityByConcentration.data() + (2 * face + side) * n, n);
+        for (size_t m = 0; m < n; ++m)
+        {
+          byConcentration[m] = byPressure * R * gasTemperature[source] -
+                               law.inertialCoefficient * velocity * std::abs(velocity) * densityShare *
+                                   column.components[m].molecularWeight / resistance;
+        }
+        const double byTemperature = byPressure * R * column.totalConcentration[source];
+        jacobian.velocityByTemperature[2 * face + side] = byTemperature;
+        // The flux through face i leaves cell i and enters cell i + 1.
+        for (const auto& [node, sign] : {std::pair{face, -1.0}, std::pair{face + 1, 1.0}})
+        {
+          if (node == 0 || node > outlet) continue;
+          const double factor =
+              sign * column.totalVoidFraction[face] /
+              std::max(1e-30, gridSpacing(column.columnDistances, node) * column.totalVoidFraction[node]);
+          for (size_t k = 0; k < n; ++k)
+          {
+            const double fluxPerVelocity = factor * faceConcentration[face * n + k];
+            for (size_t m = 0; m < n; ++m)
+            {
+              jacobian(jacobian.concentrationIndex(node, k), jacobian.concentrationIndex(source, m)) +=
+                  fluxPerVelocity * byConcentration[m];
+            }
+            jacobian.temperatureCoupling[(3 * node + source + 1 - node) * n + k] += fluxPerVelocity * byTemperature;
+          }
+        }
+      }
+    }
+  }
 }
 
-void assembleThermalJacobian(const Column& column, BlockBandedMatrix& jacobian)
+void assembleThermalJacobian(const Column& column, BlockBandedMatrix& jacobian, std::span<double> gasRateByVelocity)
 {
   // Node blocks (T_g, T_s, T_w); see computeEnergyDerivatives for the coefficients.
   constexpr size_t gasT = 0;
@@ -445,10 +546,12 @@ void assembleThermalJacobian(const Column& column, BlockBandedMatrix& jacobian)
     if (node == 0) continue;  // the inlet gas temperature is prescribed, and the inlet wall node does not conduct
 
     const double inverseGasDensity = 1.0 / std::max(1e-10, column.gasDensity[node]);
-    const double gasSolid = column.fluidSolidContactArea[node] * column.heatTransferGasSolid * inverseGasDensity /
-                            column.heatCapacityGas;
+    const double heatCapacityGas =
+        column.gasHeatCapacity.empty() ? column.heatCapacityGas : column.gasHeatCapacity[node];
+    const double gasSolid =
+        column.fluidSolidContactArea[node] * column.heatTransferGasSolid * inverseGasDensity / heatCapacityGas;
     const double gasWall =
-        column.fluidWallContactArea[node] * column.heatTransferGasWall / column.heatCapacityGas * inverseGasDensity;
+        column.fluidWallContactArea[node] * column.heatTransferGasWall / heatCapacityGas * inverseGasDensity;
     jacobian(node, node, gasT, gasT) = -gasSolid - gasWall;
     jacobian(node, node, gasT, solidT) = gasSolid;
     jacobian(node, node, gasT, wallT) = gasWall;
@@ -495,6 +598,29 @@ void assembleThermalJacobian(const Column& column, BlockBandedMatrix& jacobian)
       jacobian(node, node - 1, temperature, temperature) += 2.0 * diffusivity * hp / denominator;
       jacobian(node, node, temperature, temperature) -= 2.0 * diffusivity * (hm + hp) / denominator;
       jacobian(node, node + 1, temperature, temperature) += 2.0 * diffusivity * hm / denominator;
+    }
+
+    // MomentumBalance divides the gas-temperature rate by 1 - kappa, kappa = R C / (rho c_p) (computeDerivatives).
+    if (column.boundaryCondition == Column::BoundaryCondition::MomentumBalance)
+    {
+      const double factor = 1.0 / (1.0 - R * column.totalConcentration[node] * inverseGasDensity / heatCapacityGas);
+      for (size_t other = node - 1; other <= std::min(node + 1, outlet); ++other)
+      {
+        for (size_t field : {gasT, solidT, wallT}) jacobian(node, other, gasT, field) *= factor;
+      }
+      if (!gasRateByVelocity.empty())
+      {
+        const double perLength = factor / std::max(1e-30, hm);
+        const double beyond = column.gasTemperature[node < outlet ? node + 1 : node];
+        gasRateByVelocity[2 * node] = column.interstitialGasVelocity[node - 1] < 0.0
+                                          ? perLength * column.totalVoidFraction[node - 1] /
+                                                column.totalVoidFraction[node] * (column.gasTemperature[node] - beyond)
+                                          : 0.0;
+        gasRateByVelocity[2 * node + 1] =
+            column.interstitialGasVelocity[node] > 0.0
+                ? -perLength * (column.gasTemperature[node] - column.gasTemperature[node - 1])
+                : 0.0;
+      }
     }
   }
 

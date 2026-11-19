@@ -86,19 +86,19 @@ void Breakthrough::writeOutput()
   // The files are started here and not in the constructor, which would empty the results of an earlier run.
   if (!columnStream.is_open())
   {
-    const bool append = appendOutput && std::filesystem::exists("column.data");
+    const bool append = appendOutput && std::filesystem::exists(outputPrefix + "column.data");
     const auto openMode = append ? std::ios_base::app : std::ios_base::trunc;
     componentStreams.clear();
     for (size_t comp = 0; comp < numberOfComponents; ++comp)
     {
-      componentStreams.emplace_back(componentFileName(column, comp), openMode);
+      componentStreams.emplace_back(outputPrefix + componentFileName(column, comp), openMode);
     }
-    columnStream.open("column.data", openMode);
+    columnStream.open(outputPrefix + "column.data", openMode);
     if (!append) column.writeOutputHeader(componentStreams, columnStream);
     appendOutput = true;
   }
 
-  column.writeJSON("column.json", time);
+  column.writeJSON(outputPrefix + "column.json", time);
   column.writeOutput(componentStreams, columnStream, time);
   // A snapshot that did not reach its file (a component name with '/', a full disk) stops the run.
   columnStream.flush();
@@ -156,21 +156,63 @@ void Breakthrough::run()
   if (integrationScheme == BreakthroughIntegrationScheme::ROS34PW2) ros34pw2.printStatistics();
 }
 
-void Breakthrough::advanceTo(double endTime, Timing& accumulatedTimings)
+bool Breakthrough::advanceTo(double endTime, Timing& accumulatedTimings, const StopResidual* stop)
 {
-  switch (integrationScheme)
+  if (integrationScheme == BreakthroughIntegrationScheme::CVODE)
   {
-    case BreakthroughIntegrationScheme::SSP_RK:
-      rk3.advance(column, time, endTime, accumulatedTimings);
-      break;
-    case BreakthroughIntegrationScheme::CVODE:
-      cvode.advance(column, endTime, accumulatedTimings);
-      break;
-    case BreakthroughIntegrationScheme::ROS34PW2:
-      ros34pw2.advance(column, time, endTime, accumulatedTimings);
-      break;
+    const bool stopped = cvode.advance(column, endTime, accumulatedTimings, stop);
+    time = stopped ? cvode.currentTime : endTime;
+    return stopped;
   }
-  time = endTime;
+
+  // Advances from start to end, or with singleStep by one step towards it, and returns the time reached.
+  const auto advance = [&](double start, double end, bool singleStep)
+  {
+    if (integrationScheme == BreakthroughIntegrationScheme::ROS34PW2)
+    {
+      return ros34pw2.advance(column, start, end, accumulatedTimings, singleStep);
+    }
+    const double target = singleStep && start + (1.0 + 1.0e-6) * rk3.timeStep < end ? start + rk3.timeStep : end;
+    rk3.advance(column, start, target, accumulatedTimings);
+    return target;
+  };
+  if (stop == nullptr)
+  {
+    advance(time, endTime, false);
+    time = endTime;
+    return false;
+  }
+
+  // RK3 and ROS34PW2 are one-step methods: the step in which the residual turns non-negative is repeated from its
+  // start, with its end bisected to the time at which the residual has just turned.
+  while (time < endTime)
+  {
+    const std::vector<double> state(column.state);
+    const std::vector<double> rates(column.stateDot);
+    const double stepStart = time;
+    time = advance(stepStart, endTime, true);
+    if ((*stop)(time, column) < 0.0) continue;
+
+    const auto repeatStepTo = [&](double end)
+    {
+      std::copy(state.begin(), state.end(), column.state.begin());
+      std::copy(rates.begin(), rates.end(), column.stateDot.begin());
+      column.advancePressureRamp(stepStart);
+      precompute(column, accumulatedTimings);
+      advance(stepStart, end, false);
+    };
+    double low = stepStart;
+    const double tolerance = 1.0e-6 * (time - stepStart);
+    while (time - low > tolerance)
+    {
+      const double middle = 0.5 * (low + time);
+      repeatStepTo(middle);
+      ((*stop)(middle, column) < 0.0 ? low : time) = middle;
+    }
+    repeatStepTo(time);
+    return true;
+  }
+  return false;
 }
 
 bool Breakthrough::advanceToNextOutput()

@@ -57,11 +57,22 @@ double minimumGridSpacing(const Column& column)
   return spacing;
 }
 
-void advanceCVODE(CVODE& integrator, Column& column, double endTime, Timing& timings)
+bool advanceCVODE(CVODE& integrator, Column& column, double endTime, Timing& timings, const StopResidual* stop)
 {
   sunrealtype tReturn = integrator.currentTime;
   auto timer = timings.scoped(timings.total);
   integrator.userData.timings = &timings;
+  // Root finding is on only while a phase has a stop residual, and takes its rising root.
+  if (stop != nullptr || integrator.userData.stop != nullptr)
+  {
+    int rising = 1;
+    if (CVodeRootInit(integrator.cvodeMem, stop != nullptr ? 1 : 0, CVODE::evaluateStopResidual) != CV_SUCCESS ||
+        (stop != nullptr && CVodeSetRootDirection(integrator.cvodeMem, &rising) != CV_SUCCESS))
+    {
+      throw std::runtime_error("CVodeRootInit failed");
+    }
+  }
+  integrator.userData.stop = stop;
 
   integrator.userData.lastError.clear();
   // A call that reaches maximumStepsPerCall is continued: an output interval that is long against the step can need
@@ -105,8 +116,9 @@ void advanceCVODE(CVODE& integrator, Column& column, double endTime, Timing& tim
     }
     throw std::runtime_error(message);
   }
+  const bool stopped = flag == CV_ROOT_RETURN;
   integrator.currentTime = tReturn;
-  clampNonnegative(column.state);
+  clampNonnegative(std::span<double>(column.state).first(column.state.size() - column.streamAmount.size()));
 
   // Refreshes the derived column fields (pressure, mole fractions, rates) for the interpolated state.
   flag = CVODE::evaluateDerivatives(tReturn, integrator.stateVector, integrator.stateDerivativeVector,
@@ -115,6 +127,7 @@ void advanceCVODE(CVODE& integrator, Column& column, double endTime, Timing& tim
   {
     throw std::runtime_error("CVODE derivative evaluation failed after propagation: " + integrator.userData.lastError);
   }
+  return stopped;
 }
 
 /**
@@ -171,6 +184,8 @@ void fillAbsoluteTolerances(const CVODE& integrator, const Column& column, N_Vec
   fill(layout.gasTemperature(base), integrator.absoluteToleranceTemperature);
   fill(layout.solidTemperature(base), integrator.absoluteToleranceTemperature);
   fill(layout.wallTemperature(base), integrator.absoluteToleranceTemperature);
+  fill(layout.coolantTemperature(base), integrator.absoluteToleranceTemperature);
+  fill(layout.shellLoading(base), integrator.absoluteToleranceLoading);
 }
 
 /**
@@ -222,8 +237,10 @@ void buildSparsePattern(CVODE& integrator, const Column& column)
         rows.push_back(loadingOffset + node * n + other);
       }
       // A WENO3 face flux reaches two nodes upstream, on either side with the sign of the velocity.
-      const bool weno = column.convectionScheme == Column::ConvectionScheme::WENO3;
-      const bool allComponents = weno && column.fluidPhase == Column::FluidPhase::Gas;
+      // With MomentumBalance the velocity of a face couples every component of its two cells.
+      const bool weno = column.convectionScheme != Column::ConvectionScheme::Upwind;
+      const bool allComponents = (weno || column.boundaryCondition == Column::BoundaryCondition::MomentumBalance) &&
+                                 column.fluidPhase == Column::FluidPhase::Gas;
       const size_t reach = weno ? 2 : 1;
       for (size_t row = node > reach ? node - reach : 0; row < std::min(nodes, node + reach + 1); ++row)
       {
@@ -384,9 +401,9 @@ void initializeCVODE(CVODE& integrator, Column& column, double startTime)
 }
 }  // namespace
 
-void CVODE::advance(Column& column, double endTime, Timing& timings)
+bool CVODE::advance(Column& column, double endTime, Timing& timings, const StopResidual* stop)
 {
-  advanceCVODE(*this, column, endTime, timings);
+  return advanceCVODE(*this, column, endTime, timings, stop);
 }
 
 void CVODE::initialize(Column& column, double startTime) { initializeCVODE(*this, column, startTime); }
@@ -506,7 +523,8 @@ int CVODE::evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector sta
     // the sink, and one pass suffices.
     const bool sinkSetsVelocity = column.fluidPhase == Column::FluidPhase::Gas &&
                                   column.boundaryCondition != Column::BoundaryCondition::FixedVelocity &&
-                                  column.boundaryCondition != Column::BoundaryCondition::FixedPressureInletVelocity;
+                                  column.boundaryCondition != Column::BoundaryCondition::FixedPressureInletVelocity &&
+                                  column.boundaryCondition != Column::BoundaryCondition::MomentumBalance;
     precompute(column, views, timings);
     if (sinkSetsVelocity)
     {
@@ -526,6 +544,23 @@ int CVODE::evaluateDerivatives(sunrealtype t, N_Vector stateVector, N_Vector sta
     return -1;
   }
 
+  return 0;
+}
+
+int CVODE::evaluateStopResidual(sunrealtype t, N_Vector stateVector, sunrealtype* residual, void* user_data)
+{
+  auto* data = static_cast<CVODE::UserData*>(user_data);
+  const Column& column = *data->column;
+  double* base = N_VGetArrayPointer(stateVector);
+  ColumnStateViews views = column.stateLayout().views(base, base);
+  // Without the energy balance the temperatures are the fixed fields of the column, as in evaluateDerivatives.
+  if (!column.energyBalance)
+  {
+    views.gasTemperature = column.gasTemperature;
+    views.solidTemperature = column.solidTemperature;
+    views.wallTemperature = column.wallTemperature;
+  }
+  residual[0] = (*data->stop)(t, views);
   return 0;
 }
 
@@ -652,7 +687,7 @@ int CVODE::solvePreconditioner(sunrealtype, N_Vector, N_Vector, N_Vector r, N_Ve
 
 CVODE::~CVODE() = default;
 
-void CVODE::advance(Column&, double, Timing&)
+bool CVODE::advance(Column&, double, Timing&, const StopResidual*)
 {
   throw std::runtime_error("CVODE::advance() called, but this build was compiled without SUNDIALS support");
 }

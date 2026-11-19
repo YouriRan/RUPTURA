@@ -19,19 +19,34 @@ which grows as L^2 (dP/dt) / P_L, small against P_L: the closures follow the pre
 holds it below 1 % for the 1.2 m column of Marx T15 between 10 and 1 bar. The column keeps the sorbent mass of the base
 input, D = D_0 (L_0 / L)^(1/2), and its wall thickness.
 
-The analytics read the phase records, the gas and adsorbed amounts n_j per unit cross-section at the start and end of
-each phase; their change dn_j is what entered minus what left. With the feed N_F,j = eps v_F P_H / (R T) t_ads y_F,j,
-the product of the adsorption step is N_P,j = max(N_F,j - dn_j(adsorption), 0), the product used is
-G sum_j N_F,j + dn_product(backfill), through whose closed feed end nothing leaves, and
+The analytics read the stream amounts of the phase records: what entered and what left at each end of the column in
+each phase, per component and unit cross-section. With N_P,j what left at z = L in the adsorption step, N_F,j what
+entered at z = 0 in it and in the feed pressurization, and the product used that which entered at z = L in the purge
+and the backfill,
 
     purity       = N_P,product / sum_j N_P,j
-    recovery     = (N_P,product - used) / (N_F,product + dn_product(feed pressurization))
+    recovery     = (N_P,product - used) / N_F,product
     productivity = (N_P,product - used) / ((1 - eps) rho_p L t_cycle)      [mol/(kg s)]
 
-A run goes on in blocks of cycles, each from the column state at the end of the previous one, until in the last cycle
-the amount of every component in the column changes by less than the tolerance times the feed of a cycle, the recovery
-and the productivity by less than the tolerance relative to their values, and the purity by less than the tolerance
-times its margin to the target.
+A run ends at its cyclic steady state (CyclicSteadyState of the input): the first cycle whose state, amounts, and
+streams are within the tolerance of those of the cycle before, or after maximum_cycles.
+
+TwoBedPressureSwingCycle runs the cycle on two such columns, A and B, half a cycle apart, on a base input with
+BoundaryCondition MomentumBalance. Valves between their product ends and a product tank take the place of the product
+that the one-column cycle takes from outside for purge and backfill, and a pressure equalization, with the share e of
+P_H - P_L, takes the place of the backfill. Each half cycle has three phases, here for A adsorbing:
+
+1. pressurization of A and blowdown of B through their feed ends, linearly to P_H and P_L in t_r;
+2. adsorption in A, the feed at v_F and P_H, while B is purged at P_L: the product end of A feeds the tank (held at
+   P_H, a check valve) and the product end of B (a check valve) through valves that pass the molar feed flow
+   F = eps v_F P_H A / (R T) at 2 % above P_H and G F between P_H and P_L;
+3. equalization: a valve from the product end of A to that of B until the mean pressure of B is P_L + e (P_H - P_L),
+   at most t_r; it evens out the gas of a column, eps A L P / (R T), with a time constant of a tenth of t_r. An
+   equalization below 1 % is left out; with e = 0 the cycle is the Skarstrom cycle on two beds.
+
+The product is what reaches the tank, the net amount through the product ends of both columns, N_P,j = sum over the
+phases and columns of (left - entered) at z = L; nothing is used from outside, and the productivity is per kg of the
+sorbent of both columns.
 """
 
 from __future__ import annotations
@@ -71,17 +86,19 @@ BASELINE = {
     "length": 1.2,
     "backfill": 0.0,
 }
+# Two beds: the pressure equalization, as a share of P_H - P_L, in place of the backfill; the baseline is the same
+# Skarstrom cycle on two beds.
+TWO_BED_VARIABLES = {**{name: bounds for name, bounds in VARIABLES.items() if name != "backfill"},
+                     "equalization": (0.0, 0.5, "linear")}
+TWO_BED_BASELINE = {**{name: value for name, value in BASELINE.items() if name != "backfill"}, "equalization": 0.0}
 
 
 @dataclass
 class Robot:
-    """What the process of one experiment needs besides its input: the product, the target, and when to stop."""
+    """What the process of one experiment needs besides its input: the product and its target."""
 
     product: str = "H2"
     purity_target: float = 0.999
-    cycles_per_block: int = 10
-    maximum_blocks: int = 10
-    cyclic_steady_state_tolerance: float = 2.0e-3
 
 
 @dataclass
@@ -102,8 +119,7 @@ class PressureSwingCycle:
     grid_points: int = 80
     integrator: str = "ROS34PW2"
     relative_tolerance: float = 1.0e-5
-    cycles_per_block: int = 10
-    maximum_blocks: int = 10
+    maximum_cycles: int = 100
     cyclic_steady_state_tolerance: float = 2.0e-3
     reference_ramp_time: float = 40.0  # s, for the base length and P_H / P_L = 10
     shortest_ramp_time: float = 10.0  # s
@@ -170,7 +186,8 @@ class PressureSwingCycle:
             ColumnLength=setup["length"],
             NumberOfGridPoints=self.grid_points,
             BreakthroughIntegrator=self.integrator,
-            NumberOfCycles=self.cycles_per_block,
+            NumberOfCycles=self.maximum_cycles,
+            CyclicSteadyState={"Tolerance": self.cyclic_steady_state_tolerance},
             WriteInterval=1.0e7,
         )
         data[f"{self.integrator}RelativeTolerance"] = self.relative_tolerance
@@ -211,63 +228,118 @@ class PressureSwingCycle:
         (directory / "robot.json").write_text(json.dumps(robot, indent=2) + "\n", encoding="utf-8")
 
 
-def key_performance(records, setup, data, robot):
-    """The KPIs of the last cycle of a run, and how far it is from the cyclic steady state.
+@dataclass
+class TwoBedPressureSwingCycle(PressureSwingCycle):
+    """The cycle on two columns with valves, a product tank, and pressure equalization (see the module description).
 
-    The records hold the amounts per unit cross-section, in mol/m^2 (see the module description for the equations).
+    base_input is a swing-adsorption input with BoundaryCondition MomentumBalance and Columns, such as
+    examples/PSA-H2-activated-carbon-two-beds; its phases, columns, and buffers are replaced.
+    """
+
+    variables: dict = field(default_factory=lambda: dict(TWO_BED_VARIABLES))
+    baseline: dict = field(default_factory=lambda: dict(TWO_BED_BASELINE))
+
+    def result_columns(self):
+        """The columns of the lab notebook that the KPIs of an experiment fill: those of one column without backfill."""
+        return [name for name in super().result_columns() if name != "backfill_to_feed"]
+
+    @staticmethod
+    def name(index, setup):
+        """An explicit directory name: the experiment number and its setup."""
+        return (
+            f"exp_{index:03d}_T{setup['temperature']:.0f}K_PH{setup['high_pressure'] / 1e5:.2f}bar"
+            f"_PL{setup['low_pressure'] / 1e5:.2f}bar_vf{setup['feed_velocity']:.3f}ms"
+            f"_tads{setup['adsorption_time']:.0f}s"
+            f"_PF{setup['purge_to_feed']:.3f}_L{setup['length']:.2f}m_EQ{setup['equalization']:.2f}"
+        )
+
+    def simulation_input(self, setup):
+        """The RUPTURA input of a setup: that of the one-column cycle without backfill, with the columns, the tank, and
+        the six phases of the module description."""
+        data = super().simulation_input({**setup, "backfill": 0.0})
+        ramp_time = data["SwingAdsorptionPhases"][0]["Duration"]  # the feed pressurization, without backfill
+        temperature, high, low = setup["temperature"], setup["high_pressure"], setup["low_pressure"]
+        del data["InletPressure"]
+        data["OutletPressure"] = low  # the columns start at rest at P_L
+        area = math.pi * data["Geometry"]["InternalDiameter"] ** 2 / 4.0
+        feed = data["ColumnVoidFraction"] * setup["feed_velocity"] * high / (GAS_CONSTANT * temperature) * area  # mol/s
+        holdup = data["ColumnVoidFraction"] * area * setup["length"] / (GAS_CONSTANT * temperature)  # mol/Pa
+        data["Columns"] = ["A", "B"]
+        data["Buffers"] = {"Tank": {"Volume": area * setup["length"], "Pressure": high, "MaximumPressure": high,
+                                    "Temperature": temperature, "GasPhaseMolFractions": {self.product: 1.0}}}
+        ramp = {"Shape": "Linear", "TimeConstant": ramp_time}
+        phases = []
+        for bed, other in (("A", "B"), ("B", "A")):
+            phases += [
+                {"Name": f"Pressurization {bed}, blowdown {other}", "Temperature": temperature, "Duration": ramp_time,
+                 "Columns": {bed: {"FeedEnd": {"Mode": "Pressure", "Pressure": high, "PressureRamp": ramp}},
+                             other: {"FeedEnd": {"Mode": "Pressure", "Pressure": low, "PressureRamp": ramp}}}},
+                {"Name": f"Adsorption {bed}, purge {other}", "Temperature": temperature,
+                 "Duration": setup["adsorption_time"],
+                 "Columns": {bed: {"FeedEnd": {"Mode": "Velocity", "Velocity": setup["feed_velocity"],
+                                               "Pressure": high}},
+                             other: {"FeedEnd": {"Mode": "Pressure", "Pressure": low}}},
+                 "Connections": [
+                     {"Name": "Product", "From": f"{bed}.ProductEnd", "To": "Tank", "Conductance": feed / (0.02 * high),
+                      "CheckValve": True},
+                     {"Name": "Purge", "From": f"{bed}.ProductEnd", "To": f"{other}.ProductEnd",
+                      "Conductance": setup["purge_to_feed"] * feed / (high - low), "CheckValve": True}]},
+                {"Name": f"Equalization {bed} to {other}", "Temperature": temperature, "Duration": ramp_time,
+                 "Connections": [{"Name": "Equalization", "From": f"{bed}.ProductEnd", "To": f"{other}.ProductEnd",
+                                  "Conductance": 5.0 * holdup / ramp_time, "CheckValve": True}],
+                 "StopCriterion": {"Column": other, "Metric": "AveragePressure", "Operator": ">=",
+                                   "Value": low + setup["equalization"] * (high - low)}},
+            ]
+        data["SwingAdsorptionPhases"] = [phase for phase in phases if
+                                         not phase["Name"].startswith("Equalization") or setup["equalization"] >= 0.01]
+        return data
+
+
+def key_performance(records, setup, data, robot):
+    """The KPIs of the last cycle of a run (see the module description for the equations).
+
+    The stream amounts of a record are what entered at z = 0, left at z = 0, entered at z = L, and left at z = L in its
+    phase, each per component in mol/m^2 of column cross-section.
     """
     names = [component["Name"] for component in data["Components"]]
     product = names.index(robot.product)
-    fractions = np.array([component["GasPhaseMolFraction"] for component in data["Components"]])
-    void_fraction = data["ColumnVoidFraction"]
-    sorbent_mass = (1.0 - void_fraction) * data["ParticleDensity"] * setup["length"]  # kg/m^2
-    molar_density = setup["high_pressure"] / (GAS_CONSTANT * setup["temperature"])  # mol/m^3
-    phases_per_cycle = len(data["SwingAdsorptionPhases"])
-    amount = lambda record, end: (np.array(record.gas_at_end if end else record.gas_at_start)
-                                  + (record.adsorbed_at_end if end else record.adsorbed_at_start))
-    change = lambda record: amount(record, True) - amount(record, False)
-
-    def performance(cycle):
-        phase = {record.name.split(" (cycle ")[0]: record for record in cycle}  # "Adsorption (cycle 3)"
-        fed = void_fraction * setup["feed_velocity"] * molar_density * setup["adsorption_time"] * fractions
-        purged = setup["purge_to_feed"] * fed.sum()
-        backfilled = change(phase["Backfill"])[product] if "Backfill" in phase else 0.0
-        pressurized = change(phase["Pressurization"])[product] if "Pressurization" in phase else 0.0
-        # A component that the column takes up beyond its feed (gas then flows back in at z = L) is not in the product;
-        # without a product the purity is 0.
-        out = np.maximum(fed - change(phase["Adsorption"]), 0.0)
-        net = out[product] - purged - backfilled
-        total = out.sum() if out.sum() > 0.0 else np.inf
-        cycle_time = cycle[-1].end_time - cycle[0].start_time
-        return {
-            "purity": float(out[product] / total),
-            **{f"product_fraction_{name}": float(out[k] / total) for k, name in enumerate(names)
-               if k != product and fractions[k] > 0.0},
-            "recovery": float(net / (fed[product] + pressurized)),
-            "productivity": float(net / (sorbent_mass * cycle_time)),  # mol/(kg s)
-            "backfill_to_feed": float(backfilled / fed.sum()),
-            "cycle_time": float(cycle_time),
-            "gas_deviation": float(max(record.gas_deviation for record in cycle)),
-            "cycle_amount_change": float(np.max(np.abs(amount(cycle[-1], True) - amount(cycle[0], False))) / fed.sum()),
-        }
-
-    last = performance(records[-phases_per_cycle:])
-    previous = performance(records[-2 * phases_per_cycle:-phases_per_cycle])
-    relative = lambda now, before: abs(now - before) / max(abs(now), 1.0e-9)
-    last["cyclic_steady_state_change"] = max(
-        last["cycle_amount_change"],
-        abs(last["purity"] - previous["purity"]) / (1.0 - robot.purity_target),
-        relative(last["recovery"], previous["recovery"]),
-        relative(last["productivity"], previous["productivity"]),
-    )
-    return last
+    beds = max(1, len(data.get("Columns", [])))  # the records of a phase are those of every column in turn
+    sorbent_mass = beds * (1.0 - data["ColumnVoidFraction"]) * data["ParticleDensity"] * setup["length"]  # kg/m^2
+    cycle = records[-beds * len(data["SwingAdsorptionPhases"]):]
+    streams = [np.reshape(record.stream_amounts, (4, len(names))) for record in cycle]
+    fed = sum(stream[0] for stream in streams)  # the feed enters at z = 0 only
+    kpis = {}
+    if beds > 1:
+        # The product ends of the columns feed each other and the tank: what reaches the tank is their net outflow.
+        out = sum(stream[3] - stream[2] for stream in streams)
+        net = out[product]
+    else:
+        # The product leaves in the adsorption phase; purge and backfill take product from outside.
+        nothing = np.zeros((4, len(names)))
+        phase = {record.name.split(" (cycle ")[0]: stream for record, stream in zip(cycle, streams)}  # "Adsorption (cycle 3)"
+        out = phase["Adsorption"][3]
+        backfilled = phase.get("Backfill", nothing)[2][product]
+        net = out[product] - phase.get("Purge", nothing)[2][product] - backfilled
+        kpis["backfill_to_feed"] = float(backfilled / phase["Adsorption"][0].sum())
+    total = out.sum() if out.sum() > 0.0 else np.inf  # without a product the purity is 0
+    cycle_time = cycle[-1].end_time - cycle[0].start_time
+    return {
+        "purity": float(out[product] / total),
+        **{f"product_fraction_{name}": float(out[k] / total) for k, name in enumerate(names)
+           if k != product and data["Components"][k]["GasPhaseMolFraction"] > 0.0},
+        "recovery": float(net / fed[product]),
+        "productivity": float(net / (sorbent_mass * cycle_time)),  # mol/(kg s)
+        **kpis,
+        "cycle_time": float(cycle_time),
+        "gas_deviation": float(max(record.gas_deviation for record in cycle)),
+    }
 
 
 def run_experiment(directory):
     """Runs the experiment of a directory through the Python interface and writes its KPIs to kpis.json.
 
-    The run goes on in blocks of cycles, each from the column state at the end of the previous one, until the cyclic
-    steady state or the last block. A failed integration is a result of the experiment.
+    cycles.data of the run holds, for its last cycle, the changes from the cycle before, which the cyclic steady state
+    is measured by. A failed integration is a result of the experiment.
     """
     import ruptura
 
@@ -280,18 +352,15 @@ def run_experiment(directory):
     working_directory = Path.cwd()
     try:
         os.chdir(directory)  # RUPTURA writes its output next to the input
-        input_name = "simulation.json"
-        for block in range(1, robot.maximum_blocks + 1):
-            simulation = ruptura.load_simulation(input_name)
-            simulation.run()
-            kpis = key_performance(simulation.phase_records, setup, data, robot)
-            kpis["cycles"] = block * robot.cycles_per_block
-            kpis["status"] = "converged"
-            if kpis["cyclic_steady_state_change"] < robot.cyclic_steady_state_tolerance:
-                break
-            kpis["status"] = "not_converged"
-            Path("continued.json").write_text(json.dumps({**data, "ReadColumnFile": "column.json"}), encoding="utf-8")
-            input_name = "continued.json"
+        simulation = ruptura.load_simulation("simulation.json")
+        simulation.run()
+        kpis = key_performance(simulation.phase_records, setup, data, robot)
+        last = np.loadtxt("cycles.data", ndmin=2)[-1]  # cycle, time, change of state, amounts, streams, mass balance
+        kpis["cycle_amount_change"] = float(last[3])
+        kpis["cyclic_steady_state_change"] = float(last[2:5].max())
+        kpis["cycles"] = int(last[0])
+        converged = kpis["cyclic_steady_state_change"] <= data["CyclicSteadyState"]["Tolerance"]
+        kpis["status"] = "converged" if converged else "not_converged"
     except Exception as error:
         kpis = {"status": "failed", "error": str(error)}
     finally:

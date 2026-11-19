@@ -73,6 +73,7 @@ struct CVODE
     CVODE* integrator{nullptr};
     Timing* timings{nullptr};
     std::string lastError{};  ///< Message of the last exception that a callback turned into a CVODE error flag.
+    const StopResidual* stop{nullptr};  ///< Stop residual of the running advance, whose root CVODE finds.
   };
 
   /**
@@ -177,6 +178,11 @@ struct CVODE
                               void* user_data, N_Vector scratch1, N_Vector scratch2, N_Vector scratch3);
 
   /**
+   * \brief Root function of CVODE: the stop residual of UserData at a trial state.
+   */
+  static int evaluateStopResidual(sunrealtype t, N_Vector stateVector, sunrealtype* residual, void* user_data);
+
+  /**
    * \brief Solves (I - gamma J) z = r on the concentration and loading blocks; z = r on the others.
    */
   static int solvePreconditioner(sunrealtype t, N_Vector stateVector, N_Vector stateDerivativeVector, N_Vector r,
@@ -186,9 +192,11 @@ struct CVODE
   /**
    * \brief Advances the column from the current CVODE time to endTime in s with one CVode call.
    *
-   * CVODE chooses its own internal steps (capped by maximumTimeStep) and interpolates the state at endTime.
+   * CVODE chooses its own internal steps (capped by maximumTimeStep) and interpolates the state at endTime. With a stop
+   * residual, CVODE finds the time at which it turns from negative to non-negative (its root finding), the advance ends
+   * there, at currentTime, and returns true.
    */
-  void advance(Column& column, double endTime, Timing& timings);
+  bool advance(Column& column, double endTime, Timing& timings, const StopResidual* stop = nullptr);
 
   /**
    * \brief Initializes CVODE state and solver data for the given column, whose state is that at startTime in s.

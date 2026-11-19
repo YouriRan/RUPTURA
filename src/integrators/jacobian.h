@@ -35,6 +35,16 @@ struct SorptionJacobian
   std::vector<double> band;                    ///< Column-major band storage, see above.
   std::vector<double> equilibriumSensitivity;  ///< dq*_i/dc_l per node, column-major N x N blocks.
   std::vector<double> mixtureSensitivity;      ///< Scratch for one mixture, N x N.
+  // MomentumBalance, set by assembleSorptionJacobian. The velocity of face i follows the gas of node i (side 0) and of
+  // node i + 1 (side 1): its derivatives with respect to their concentrations, at (2 i + side) N + component, and to
+  // their gas temperatures, at 2 i + side. temperatureCoupling holds what the velocities make of the latter in the
+  // concentration rows: d(dc_ik/dt)/dT_g of the nodes i - 1, i, and i + 1, at (3 i + neighbour) N + k.
+  std::vector<double> velocityByConcentration;
+  std::vector<double> velocityByTemperature;
+  std::vector<double> temperatureCoupling;
+  /// The derivative of each stream-amount rate (ColumnStateViews::streamAmountDot) with respect to the velocity of the
+  /// face of its end.
+  std::vector<double> streamByVelocity;
 
   double& operator()(size_t row, size_t col) noexcept
   {
@@ -90,5 +100,10 @@ void assembleSorptionJacobian(Column& column, std::span<const double> concentrat
  *        velocity, and conductivity are held fixed, and the coupling to the loadings (heat of adsorption, temperature
  *        dependence of the isotherms) is left out. Call after computeDerivatives, which sets the conduction
  *        coefficients of the column.
+ *
+ * gasRateByVelocity, when given (MomentumBalance), receives per node the derivative of its gas-temperature rate with
+ * respect to the velocity of its lower face, at 2 node, and of its upper face, at 2 node + 1: the convection, with the
+ * node temperatures for the values beyond the ends.
  */
-void assembleThermalJacobian(const Column& column, BlockBandedMatrix& jacobian);
+void assembleThermalJacobian(const Column& column, BlockBandedMatrix& jacobian,
+                             std::span<double> gasRateByVelocity = {});

@@ -1,10 +1,12 @@
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <concepts>
 #include <cstddef>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <limits>
 #include <numeric>
@@ -44,7 +46,26 @@ struct ColumnStateViews
   std::span<double> solidTemperatureDot;      ///< Time derivative of solid temperature; size numberOfGridPoints + 1.
   std::span<double> wallTemperature;          ///< Wall temperature; size numberOfGridPoints + 1.
   std::span<double> wallTemperatureDot;       ///< Time derivative of wall temperature; size numberOfGridPoints + 1.
+  /// Temperature of the heat-transfer fluid along the outer wall in K, per node; empty without a Coolant.
+  std::span<double> coolantTemperature;
+  std::span<double> coolantTemperatureDot;
+  /// Loading of the radial cells of the particle (ParticleTransport HSDM), from the centre outwards: one block of the
+  /// size and order of physisorption per cell; empty with the linear driving force.
+  std::span<double> shellLoading;
+  std::span<double> shellLoadingDot;
+  /// Net amount of each component that entered the column at z = 0, then at z = L, since the start of the swing phase,
+  /// per unit column cross-section in mol/m^2 (negative: it left), and after these 2 numberOfComponents values the heat
+  /// that entered through the outer wall and the work that brings the gas leaving through pressure ports to the
+  /// exhaust pressure, in J/m^2; empty without them (ColumnStateLayout).
+  std::span<double> streamAmount;
+  std::span<double> streamAmountDot;  ///< The molar fluxes into the column at the ends in mol/(m^2 s), then W/m^2.
 };
+
+/**
+ * \brief Residual of the stop criteria of a swing phase at a time in s and a column state: the integration of the
+ *        phase ends at the time at which it turns from negative to non-negative.
+ */
+using StopResidual = std::function<double(double, const ColumnStateViews&)>;
 
 /**
  * \brief Centralized view of the flattened column ODE state layout: gas concentration, physisorption,
@@ -56,6 +77,11 @@ struct ColumnStateLayout
   size_t numberOfComponents{0};
   size_t numberOfChemisorptionSites{1};
   bool includeSurfacePoreTransport{false};
+  /// The state ends with the net amounts that entered through the two ends (ColumnStateViews::streamAmount), which
+  /// the integrators then integrate with the column: for stop criteria, cyclic steady state, and MomentumBalance.
+  bool includeStreamAmounts{false};
+  bool includeCoolant{false};  ///< After the temperatures: that of the heat-transfer fluid (coolantTemperature).
+  size_t numberOfShells{0};    ///< Then the loadings of that many radial cells of the particle (shellLoading).
 
   [[nodiscard]] size_t nodeCount() const noexcept { return numberOfGridPoints + 1; }
   [[nodiscard]] size_t componentBlockSize() const noexcept { return nodeCount() * numberOfComponents; }
@@ -69,7 +95,19 @@ struct ColumnStateLayout
     return 2 + chemisorptionSiteCount() * (includeSurfacePoreTransport ? 3 : 1);
   }
   [[nodiscard]] size_t temperatureOffset() const noexcept { return componentBlockCount() * componentBlockSize(); }
-  [[nodiscard]] size_t stateSize() const noexcept { return temperatureOffset() + 3 * scalarBlockSize(); }
+  [[nodiscard]] size_t streamAmountSize() const noexcept
+  {
+    return includeStreamAmounts ? 2 * numberOfComponents + 2 : 0;
+  }
+  [[nodiscard]] size_t coolantSize() const noexcept { return includeCoolant ? scalarBlockSize() : 0; }
+  [[nodiscard]] size_t shellOffset() const noexcept
+  {
+    return temperatureOffset() + 3 * scalarBlockSize() + coolantSize();
+  }
+  [[nodiscard]] size_t stateSize() const noexcept
+  {
+    return shellOffset() + numberOfShells * componentBlockSize() + streamAmountSize();
+  }
 
   [[nodiscard]] std::span<double> componentBlock(double* base, size_t block) const noexcept
   {
@@ -107,6 +145,18 @@ struct ColumnStateLayout
   {
     return {base + temperatureOffset() + 2 * scalarBlockSize(), scalarBlockSize()};
   }
+  [[nodiscard]] std::span<double> coolantTemperature(double* base) const noexcept
+  {
+    return {base + temperatureOffset() + 3 * scalarBlockSize(), coolantSize()};
+  }
+  [[nodiscard]] std::span<double> shellLoading(double* base) const noexcept
+  {
+    return {base + shellOffset(), numberOfShells * componentBlockSize()};
+  }
+  [[nodiscard]] std::span<double> streamAmount(double* base) const noexcept
+  {
+    return {base + shellOffset() + numberOfShells * componentBlockSize(), streamAmountSize()};
+  }
 
   /**
    * \brief Views of the fields of the state vector at base and of their derivatives in the vector at baseDot.
@@ -128,7 +178,13 @@ struct ColumnStateLayout
             .solidTemperature = solidTemperature(base),
             .solidTemperatureDot = solidTemperature(baseDot),
             .wallTemperature = wallTemperature(base),
-            .wallTemperatureDot = wallTemperature(baseDot)};
+            .wallTemperatureDot = wallTemperature(baseDot),
+            .coolantTemperature = coolantTemperature(base),
+            .coolantTemperatureDot = coolantTemperature(baseDot),
+            .shellLoading = shellLoading(base),
+            .shellLoadingDot = shellLoading(baseDot),
+            .streamAmount = streamAmount(base),
+            .streamAmountDot = streamAmount(baseDot)};
   }
 };
 
@@ -150,7 +206,8 @@ struct ColumnData
     InletPressureOutletPressure = 1,  ///< Boundary data: P_in and P_out.
     InletVelocityOutletPressure = 2,  ///< Boundary data: v_in and P_out.
     FixedVelocity = 3,                ///< Boundary data: fixed v, with P_in or P_out.
-    FixedPressureInletVelocity = 4    ///< Boundary data: fixed pressure profile and v_in.
+    FixedPressureInletVelocity = 4,   ///< Boundary data: fixed pressure profile and v_in.
+    MomentumBalance = 5  ///< Gas: pressure of the gas in each cell, velocity from the pressure-drop law; ports.
   };
 
   enum class FluidPhase
@@ -172,7 +229,9 @@ struct ColumnData
   enum class ConvectionScheme
   {
     Upwind = 0,  ///< First-order upwind: the face value is the upstream node value.
-    WENO3 = 1    ///< Third-order WENO; gas phase: mole fractions at the faces, total molar flux upwind.
+    WENO3 = 1,   ///< Third-order WENO; gas phase: mole fractions at the faces, total molar flux upwind.
+    TVD = 2,     ///< Second-order MUSCL with the minmod limiter, on the quantities and faces of WENO3.
+    WENO5 = 3    ///< Fifth-order WENO on a grid of one cell width, WENO3 next to the ends and on other grids.
   };
 
   /**
@@ -194,26 +253,6 @@ struct ColumnData
   };
 
   /**
-   * \brief The flow direction and the gas at the product end z = L, as the transport and closure kernels take them.
-   *
-   * In a forward step the feed enters at z = 0 from node 0, and gas that flows back in at z = L is the product-end
-   * gas, or that of the last cell when none is set. In a reverse step the product-end gas is the feed, the boundary
-   * settings apply at z = L for the inlet and at z = 0 for the outlet, and gas that flows back in at z = 0 is that of
-   * the first cell; node 0 is not used. A closed end is the end opposite the one where the feed enters: z = L in a
-   * forward step, z = 0 in a reverse step. Gas then enters or leaves at the other end only, as the pressure rate and
-   * the uptake require.
-   */
-  struct FlowEnds
-  {
-    FlowDirection direction{FlowDirection::Forward};
-    std::span<const double> productEndConcentration{};  ///< In mol/m^3; empty: the gas of the last cell.
-    double productEndTemperature{0.0};                  ///< In K; 0: that of the last cell.
-    bool closedEnd{false};                              ///< The velocity is zero at the end opposite the feed.
-    double pressureRate{0.0};                           ///< dP/dt of the column pressure in Pa/s.
-    double relativePressureRate{0.0};                   ///< (dP/dt) / P in 1/s.
-  };
-
-  /**
    * \brief Inlet pressure of a swing phase: from startPressure to targetPressure, exponentially with the time constant,
    *        or linearly over the time constant and constant after it.
    */
@@ -231,6 +270,68 @@ struct ColumnData
     double startPressure{0.0};   ///< In Pa.
     double targetPressure{0.0};  ///< In Pa.
     double time{0.0};            ///< Time of the current pressure in s.
+
+    /**
+     * \brief The pressure in Pa and its rate in Pa/s at the given time in s, for a shape other than None.
+     */
+    [[nodiscard]] std::pair<double, double> at(double atTime) const noexcept
+    {
+      const double elapsed = atTime - startTime;
+      const double change = targetPressure - startPressure;
+      if (shape == Shape::Exponential)
+      {
+        const double decay = std::exp(-elapsed / timeConstant);
+        return {targetPressure - change * decay, change * decay / timeConstant};
+      }
+      if (elapsed < timeConstant) return {startPressure + change * elapsed / timeConstant, change / timeConstant};
+      return {targetPressure, 0.0};
+    }
+  };
+
+  /**
+   * \brief An end of the column with MomentumBalance: closed, open to gas at a pressure, or with a set velocity.
+   *
+   * Gas that flows in is that of node 0 at z = 0 and the product-end gas at z = L; gas that flows out is that of the
+   * end cell. A pressure port takes the velocity that the pressure-drop law gives over the half cell between its gas
+   * and the centre of the end cell, so that the gas flows either way; its pressure can follow a ramp, which stands for
+   * the valve or the pump that sets how fast the column follows. A flux port carries a set molar flux, whatever the gas
+   * that carries it: the connections of the swing driver to other columns and to buffers.
+   */
+  struct Port
+  {
+    enum class Mode
+    {
+      Closed = 0,
+      Pressure = 1,
+      Velocity = 2,
+      Flux = 3
+    };
+    Mode mode{Mode::Closed};
+    double pressure{0.0};  ///< Pressure of the gas beyond the end in Pa.
+    double velocity{0.0};  ///< Interstitial velocity into the column in m/s (Velocity).
+    PressureRamp ramp{};   ///< Ramp of the pressure (Pressure).
+    double flux{0.0};      ///< Molar flux into the column per column cross-section in mol/(m^2 s) (Flux).
+  };
+
+  /**
+   * \brief The flow direction and the gas at the product end z = L, as the transport and closure kernels take them.
+   *
+   * In a forward step the feed enters at z = 0 from node 0, and gas that flows back in at z = L is the product-end
+   * gas, or that of the last cell when none is set. In a reverse step the product-end gas is the feed, the boundary
+   * settings apply at z = L for the inlet and at z = 0 for the outlet, and gas that flows back in at z = 0 is that of
+   * the first cell; node 0 is not used. A closed end is the end opposite the one where the feed enters: z = L in a
+   * forward step, z = 0 in a reverse step. Gas then enters or leaves at the other end only, as the pressure rate and
+   * the uptake require.
+   */
+  struct FlowEnds
+  {
+    FlowDirection direction{FlowDirection::Forward};
+    std::span<const double> productEndConcentration{};  ///< In mol/m^3; empty: the gas of the last cell.
+    double productEndTemperature{0.0};                  ///< In K; 0: that of the last cell.
+    bool closedEnd{false};                              ///< The velocity is zero at the end opposite the feed.
+    double pressureRate{0.0};                           ///< dP/dt of the column pressure in Pa/s.
+    double relativePressureRate{0.0};                   ///< (dP/dt) / P in 1/s.
+    std::span<const Port> ports{};                      ///< MomentumBalance: the ports at z = 0 and at z = L.
   };
 
   /**
@@ -425,6 +526,30 @@ struct ColumnData
     flowDirection = FlowDirection(inputReader.flowDirection);
     dispersionReferenceTemperature = inputReader.axialDispersionReferenceTemperature;
     dispersionReferencePressure = inputReader.axialDispersionReferencePressure;
+    // MomentumBalance without swing phases: the feed at the inlet velocity, and gas at the outlet pressure at z = L.
+    exhaustPressure = inputReader.exhaustPressure;
+    compressionEfficiency = inputReader.compressionEfficiency;
+    ports = {Port{Port::Mode::Velocity, inputReader.outletPressure, inputReader.columnEntranceVelocity},
+             Port{Port::Mode::Pressure, inputReader.outletPressure}};
+    if (std::ranges::all_of(this->components,
+                            [](const Component& component) { return component.gasHeatCapacity > 0.0; }))
+    {
+      gasHeatCapacity.assign(this->numberOfGridPoints + 1, heatCapacityGas);
+    }
+    // The optional blocks of the state (ColumnStateLayout): coolant, radial cells of the particle, stream amounts.
+    streamAmountsEnabled = inputReader.streamAmounts;
+    numberOfShells = inputReader.radialCells;
+    coolantEnabled = inputReader.coolant;
+    coolantMassFlow = inputReader.coolantMassFlowRate;
+    coolantHeatCapacity = inputReader.coolantHeatCapacity;
+    coolantHeatCapacityPerLength =
+        inputReader.coolantDensity * inputReader.coolantHeatCapacity * inputReader.coolantVolume / columnLength;
+    coolantCounterCurrent = inputReader.coolantCounterCurrent;
+    const size_t nodes = this->numberOfGridPoints + 1;
+    state.resize(state.size() + (coolantEnabled ? nodes : 0) + numberOfShells * nodes * numberOfComponents +
+                     (streamAmountsEnabled ? 2 * numberOfComponents + 2 : 0),
+                 0.0);
+    stateDot.resize(state.size(), 0.0);
   }
 
   // Model configuration and component data.
@@ -445,10 +570,27 @@ struct ColumnData
   PressureRamp pressureRamp{};       ///< Pressure ramp of the swing phase.
   double pressureRate{0.0};          ///< dP/dt of the inlet pressure in Pa/s; see advancePressureRamp.
   double relativePressureRate{0.0};  ///< (dP/dt) / P of the inlet pressure in 1/s; see advancePressureRamp.
+  std::array<Port, 2> ports{};       ///< MomentumBalance: the ports at z = 0 and at z = L; set per swing phase.
+  /// Gas that leaves through a pressure port below this pressure costs the work of its compression to it; 0: none.
+  double exhaustPressure{0.0};
+  double compressionEfficiency{1.0};  ///< Isentropic efficiency of that compression.
+  /// Radial cells of the particle with homogeneous surface diffusion (ParticleTransport HSDM); 0: the linear driving
+  /// force. The surface diffusivity is that of the mass-transfer coefficient, D_s / R^2 = k / 15.
+  size_t numberOfShells{0};
+  /// A heat-transfer fluid flows along the outer wall (Coolant), from z = 0 or, counter-current, from z = L, where it
+  /// enters at externalTemperature: its mass flow in kg/s, heat capacity in J/(kg K), and heat capacity per column
+  /// length, rho c_p A, in J/(m K).
+  bool coolantEnabled{false};
+  double coolantMassFlow{0.0};
+  double coolantHeatCapacity{0.0};
+  double coolantHeatCapacityPerLength{0.0};
+  bool coolantCounterCurrent{false};
+  bool streamAmountsEnabled{false};  ///< The state holds the stream amounts (ColumnStateLayout::includeStreamAmounts).
   [[nodiscard]] FlowEnds flowEnds() const noexcept
   {
-    return {flowDirection, productEndConcentration, productEndTemperature, closedEnd, pressureRate,
-            relativePressureRate};
+    return {
+        flowDirection, productEndConcentration, productEndTemperature, closedEnd, pressureRate, relativePressureRate,
+        ports};
   }
 
   /**
@@ -458,23 +600,30 @@ struct ColumnData
    */
   void advancePressureRamp(double time) noexcept
   {
+    if (boundaryCondition == BoundaryCondition::MomentumBalance)
+    {
+      // The gas of a ramped port follows its pressure: that of node 0 through its rate (computeMassDerivatives), the
+      // product-end gas directly. The pressure work of the cells is in their own energy balance, not a pressure rate.
+      pressureRamp.time = time;
+      relativePressureRate = 0.0;
+      for (size_t end = 0; end < ports.size(); ++end)
+      {
+        Port& port = ports[end];
+        if (port.ramp.shape == PressureRamp::Shape::None) continue;
+        const auto [pressure, rate] = port.ramp.at(time);
+        if (end == 0) relativePressureRate = rate / pressure;
+        for (size_t comp = 0; end == 1 && comp < productEndConcentration.size(); ++comp)
+        {
+          productEndConcentration[comp] *= pressure / port.pressure;
+        }
+        port.pressure = pressure;
+      }
+      return;
+    }
     if (pressureRamp.shape == PressureRamp::Shape::None) return;
     pressureRamp.time = time;
-    const double elapsed = time - pressureRamp.startTime;
-    const double change = pressureRamp.targetPressure - pressureRamp.startPressure;
-    double pressure = pressureRamp.targetPressure;
-    pressureRate = 0.0;
-    if (pressureRamp.shape == PressureRamp::Shape::Exponential)
-    {
-      const double decay = std::exp(-elapsed / pressureRamp.timeConstant);
-      pressure -= change * decay;
-      pressureRate = change * decay / pressureRamp.timeConstant;
-    }
-    else if (elapsed < pressureRamp.timeConstant)
-    {
-      pressure = pressureRamp.startPressure + change * elapsed / pressureRamp.timeConstant;
-      pressureRate = change / pressureRamp.timeConstant;
-    }
+    const auto [pressure, rate] = pressureRamp.at(time);
+    pressureRate = rate;
     relativePressureRate = pressureRate / pressure;
     for (double& value : productEndConcentration) value *= pressure / inletPressure;
     inletPressure = pressure;
@@ -549,6 +698,9 @@ struct ColumnData
   std::vector<double> totalPressure;            ///< Total pressure at each grid node.
   std::vector<double> pH;                       ///< Local liquid pH; fixed at 7 for gas simulations.
   std::vector<double> totalVoidFraction;        ///< Packed-bed void fraction, epsilon.
+  /// Heat capacity of the gas of each node in J/(kg K), from the GasHeatCapacity of its components (precompute); empty
+  /// when they give none: the gas then has heatCapacityGas everywhere.
+  std::vector<double> gasHeatCapacity;
   std::vector<double> particleDensity;          ///< Particle density in kg/m^3.
 
   // Size (numberOfGridPoints + 1) * numberOfComponents. Grid-major index: grid * numberOfComponents + comp.
@@ -686,6 +838,16 @@ struct Column : ColumnData, ColumnStateViews
    *        per-adsorbent properties; called by initialize(), and needed again after changing either.
    */
   void computeAdsorbentBlends();
+
+  /**
+   * \brief Cross-section of the column in m^2, to which the amounts per unit cross-section refer: that of the bed of
+   *        a packed tube, and the outer one of a monolith; 0 without the diameter.
+   */
+  [[nodiscard]] double crossSection() const noexcept
+  {
+    const Geometry& geometry = geometries.front();
+    return geometry.kind == GeometryKind::Monolith ? geometry.dimensions.outerArea : geometry.dimensions.openArea;
+  }
 
   /**
    * \brief Largest |R T sum_j c_j / P - 1| over the nodes for the gas continuity closures, which keep sum_j c_j at

@@ -344,7 +344,45 @@ TEST(ROS34PW2Column, IntegratesChemisorptionLikeRungeKutta3)
   InputReader reader =
       smallInput("stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol/simulation.json", "monolith", {});
   ROS34PW2 rosenbrock(1.0e-7, 1.0e-9, 1.0e-10, 1.0e-7);
-  EXPECT_LT(differenceFromRungeKutta3(reader, 2.5e-4, 40.0, rosenbrock), 2.0e-5);
+  // RK3 clamps every step to max(0, c), which adds the undershoot at the foot of the front, 1e-6 mol/kg of loading
+  // at one node; ROS34PW2 keeps it (B-ITG-17).
+  EXPECT_LT(differenceFromRungeKutta3(reader, 2.5e-4, 40.0, rosenbrock), 1.5e-4);
+}
+
+TEST(ROS34PW2Column, ConservesATraceAdsorbateBehindAWeno3Front)
+{
+  // 0.1% of a Langmuir adsorbate in helium at a fixed velocity (B-ITG-17): WENO3 undershoots ahead of the steep front,
+  // and clamping the state each step starts from added 3e-4 of the amount fed.
+  nlohmann::json data = {
+      {"SimulationType", "Breakthrough"}, {"BreakthroughIntegrator", "ROS34PW2"}, {"ConvectionScheme", "WENO3"},
+      {"InletCondition", "Danckwerts"}, {"BoundaryCondition", "FixedVelocity"}, {"Temperature", 298.15},
+      {"InletPressure", 1.0e5}, {"ColumnEntranceVelocity", 0.05}, {"ColumnLength", 0.1}, {"ColumnVoidFraction", 0.4},
+      {"ParticleDensity", 1000.0}, {"ParticleDiameter", 0.002}, {"DynamicViscosity", 2.0e-5},
+      {"NumberOfGridPoints", 50}, {"SimulationTime", 30000.0}, {"WriteInterval", 30000.0},
+      {"Geometry", {{"Type", "PackedBed"}, {"ColumnVoidFraction", 0.4}, {"ParticleDiameter", 0.002}}},
+      {"Components",
+       {{{"Name", "Helium"}, {"GasPhaseMolFraction", 0.999}, {"MolecularWeight", 0.004}, {"CarrierGas", true}},
+        {{"Name", "A"}, {"GasPhaseMolFraction", 0.001}, {"MolecularWeight", 0.044}, {"MassTransferCoefficient", 1.0},
+         {"PhysisorptionSites", {{{"Type", "Langmuir"}, {"Parameters", {1.0, 0.04}}}}}}}}};
+  const std::filesystem::path file = testTemporaryDirectory() / "ruptura_ros34pw2_trace.json";
+  std::ofstream(file) << data;
+  const InputReader reader(file.string());
+  Column column(reader);
+  column.initialize();
+  Timing timings;
+  ROS34PW2 rosenbrock(1.0e-6, 1.0e-7, 1.0e-8, 1.0e-5);
+  rosenbrock.advance(column, 0.0, 30000.0, timings);
+
+  // Amount of A per unit fluid cross-section, sum_i h (c + F q) with F = (1 - eps) rho_p / eps, against v c_F t.
+  double amount = 0.0;
+  for (size_t node = 1; node <= column.numberOfGridPoints; ++node)
+  {
+    amount += gridSpacing(column.columnDistances, node) *
+              (column.concentration[2 * node + 1] + 1500.0 * column.physisorption[2 * node + 1]);
+  }
+  // What remains is the clamped undershoot at the front at this moment, 9e-6 of the amount fed.
+  const double fed = 0.05 * column.concentration[1] * 30000.0;
+  EXPECT_NEAR(amount, fed, 3.0e-5 * fed);
 }
 
 TEST(ROS34PW2Column, IntegratesALiquidWithADanckwertsInletLikeRungeKutta3)

@@ -57,6 +57,8 @@ struct Component
   /// Flag indicating the water component, which sets the relative humidity of the humidity-dependent isotherms.
   bool isWater{false};
   double molecularWeight{1.0};                               ///< Molecular weight in kg/mol.
+  /// Molar heat capacity of the gas at constant pressure in J/(mol K); 0: the heatCapacityGas of the column, per kg.
+  double gasHeatCapacity{0.0};
 
   /**
    * \brief Prints the component information to the console.

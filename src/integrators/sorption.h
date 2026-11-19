@@ -26,16 +26,18 @@ void computePhysisorptionEquilibriumLoadings(
  * Uses the hypothetical pressures of the last computePhysisorptionEquilibriumLoadings call (see
  * MixturePrediction::predictMixtureSensitivities). Gas: p_j = y_j P with y_j = c_j / C, C = sum_k c_k, at a frozen
  * total pressure P, so dp_j/dc_l = (P / C)(delta_jl - y_j); liquid: p_j = c_j. Output, column-major per node:
- * equilibriumPhysisorptionSensitivity[(grid * N + l) * N + i] = dq*_i/dc_l, with N the number of components.
+ * equilibriumPhysisorptionSensitivity[(grid * N + l) * N + i] = dq*_i/dc_l, with N the number of components. With
+ * pressureOfTheGas (MomentumBalance) the total pressure is that of the gas, P = R T C, so that dp_j/dc_l =
+ * (P / C) delta_jl.
  */
 void computePhysisorptionEquilibriumSensitivities(
     std::vector<MixturePrediction>& physisorptionMixtures, size_t numberOfGridPoints, size_t numberOfComponents,
     size_t numberOfAdsorbents, std::span<const double> fractionOfAdsorbent, const std::vector<bool>& hasAdsorbentOfType,
     size_t maxIsothermTerms, std::span<double> idealGasMolFractions, std::span<double> mixtureSensitivity,
-    std::span<const double> totalPressure, std::span<const double> cachedPressure,
-    std::span<const double> moleFraction, std::span<const double> gasTemperature,
-    MixturePrediction::DrivingForceInput input, std::span<const double> concentration, std::span<const double> pH,
-    std::span<double> equilibriumPhysisorptionSensitivity);
+    std::span<const double> totalPressure, std::span<const double> cachedPressure, std::span<const double> moleFraction,
+    std::span<const double> gasTemperature, MixturePrediction::DrivingForceInput input,
+    std::span<const double> concentration, std::span<const double> pH,
+    std::span<double> equilibriumPhysisorptionSensitivity, bool pressureOfTheGas = false);
 
 /**
  * \brief Computes per-bed chemisorption equilibrium and blends interface loadings.

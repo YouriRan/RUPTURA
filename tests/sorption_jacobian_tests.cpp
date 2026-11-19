@@ -39,7 +39,8 @@ InputReader smallInput(const std::string& example, const std::string& name, doub
   nlohmann::json data = nlohmann::json::parse(input);
   data["ConvectionScheme"] = convectionScheme;
   data["NumberOfGridPoints"] = 12;
-  data["BreakthroughIntegrator"] = "RungeKutta3";
+  // The reader accepts MomentumBalance only with an integrator that has the Jacobian of the velocity.
+  data["BreakthroughIntegrator"] = boundaryCondition == "MomentumBalance" ? "ROS34PW2" : "RungeKutta3";
   if (!boundaryCondition.empty()) data["BoundaryCondition"] = boundaryCondition;
   for (auto& component : data["Components"]) component["AxialDispersionCoefficient"] = dispersion;
   const std::filesystem::path path = testTemporaryDirectory() / ("ruptura_sorption_jacobian_" + name + ".json");
@@ -203,6 +204,67 @@ TEST(SorptionJacobian, MatchesCentralDifferencesOfTheGasRightHandSideAtFrozenClo
   EXPECT_EQ(jacobian.bandwidth, 16U);
   EXPECT_LT(relativeJacobianError(column, [&](Column& state) { return frozenClosureRightHandSide(state, jacobian); }),
             1.0e-5);
+}
+
+TEST(SorptionJacobian, MatchesCentralDifferencesWithMomentumBalance)
+{
+  // Marx T15 with the pressure of the gas and the velocity of the pressure-drop law: the right-hand side with its
+  // velocity update, for a velocity port and a pressure port, two pressure ports, and a closed z = L.
+  std::ifstream input(examplePath("marx2/ternary/T15/simulation.json"));
+  nlohmann::json data = nlohmann::json::parse(input);
+  data["OutletPressure"] = 1.0e6;
+  data["energyBalance"] = false;
+  const std::filesystem::path path = testTemporaryDirectory() / "ruptura_sorption_jacobian_momentum_source.json";
+  std::ofstream(path) << data;
+  using Mode = Column::Port::Mode;
+  for (const std::string scheme : {"Upwind", "WENO3"})
+  {
+    for (const auto& [feedEnd, productEnd] :
+         {std::pair{Mode::Velocity, Mode::Pressure}, std::pair{Mode::Pressure, Mode::Pressure},
+          std::pair{Mode::Pressure, Mode::Closed}})
+    {
+      SCOPED_TRACE(scheme + " " + std::to_string(static_cast<int>(feedEnd)) +
+                   std::to_string(static_cast<int>(productEnd)));
+      InputReader reader = smallInput(path.string(), "momentum", 1.0e-5, "MomentumBalance", scheme);
+      Column column(reader);
+      column.initialize();
+      SorptionJacobian jacobian(column);
+      EXPECT_EQ(jacobian.bandwidth, (scheme == "WENO3" ? 5U : 3U) * column.numberOfComponents);
+      // The port at z = 0 holds the feed at 1.02 MPa, and gas leaves at z = L to 0.99 MPa. The port gas holds a little
+      // helium too: at a concentration of zero the mole fractions are clamped and the pressure is not, a kink.
+      const size_t n = column.numberOfComponents;
+      column.ports[0].mode = feedEnd;
+      column.ports[0].pressure = 1.02e6;
+      column.ports[1].mode = productEnd;
+      column.ports[1].pressure = 0.99e6;
+      for (size_t comp = 0; comp < n; ++comp)
+      {
+        column.concentration[comp] =
+            (comp == 0 ? 0.01 : 0.99 * reader.components[comp].initialGasMoleFraction) * 1.02e6 / (R * 298.0);
+      }
+      setFrontState(column);
+      // A pressure that falls from 1.015 to 0.995 MPa along the cells, so that every face has a velocity: at rest the
+      // upwind side of a face, and with it the right-hand side, has a kink.
+      for (size_t node = 1; node <= column.numberOfGridPoints; ++node)
+      {
+        const double factor =
+            1.015 - 0.02 * static_cast<double>(node - 1) / static_cast<double>(column.numberOfGridPoints - 1);
+        for (size_t comp = 0; comp < n; ++comp) column.concentration[node * n + comp] *= factor;
+      }
+      Timing timings;
+      precompute(column, timings);
+      EXPECT_GT(column.interstitialGasVelocity[column.numberOfGridPoints / 2], 0.0);
+      const auto rightHandSide = [&](Column& state)
+      {
+        precompute(state, timings);
+        computeDerivatives(state);
+        std::vector<double> rates(jacobian.size);
+        jacobian.gather(state.concentrationDot, state.physisorptionDot, rates);
+        return rates;
+      };
+      EXPECT_LT(relativeJacobianError(column, rightHandSide), 2.0e-5);
+    }
+  }
 }
 
 TEST(SorptionJacobian, MatchesCentralDifferencesWithHumidityDependentCO2)

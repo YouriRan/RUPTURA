@@ -28,8 +28,11 @@ double Chemisorption::rate(double equilibriumLoading, double loading, double con
       }
       return rateCoefficient(temperature) * driving;
     case Type::PseudoNth:
-      // Sign-preserving k |Δq|^n sign(Δq): desorbs for q > q*, and stays finite at Δq = 0 for n < 1.
-      return rateCoefficient(temperature) * std::copysign(std::pow(std::abs(driving), order), driving);
+      // Sign-preserving k |Δq|^n sign(Δq): desorbs for q > q*, and stays finite at Δq = 0 for n < 1. The release can
+      // have its own coefficient and order.
+      return (driving < 0.0 && releaseRateCoefficient.has_value() ? *releaseRateCoefficient : rateCoefficient)(
+          temperature)*std::copysign(std::pow(std::abs(driving), driving < 0.0 ? releaseOrder.value_or(order) : order),
+                                     driving);
     case Type::Avrami:
     {
       // Autonomous (Avrami-Erofeev) form of q/q* = 1 - exp(-(k t)^n), without a clock (B-PHY-12): the loading sets

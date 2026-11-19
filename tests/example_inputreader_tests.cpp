@@ -1191,6 +1191,12 @@ TEST(ChemisorptionRate, PseudoNthIsSignPreservingAndDesorbsAboveEquilibrium)
 
   site.order = 0.5;
   EXPECT_DOUBLE_EQ(site.rate(1.0, 1.0, 0.0, 298.15), 0.0);
+
+  // The release (q > q*) with a coefficient and an order of its own; the uptake keeps k and n.
+  site.releaseRateCoefficient = 0.2;
+  site.releaseOrder = 2.0;
+  EXPECT_NEAR(site.rate(2.0, 1.75, 0.0, 298.15), 0.05 * std::pow(0.25, 0.5), 1.0e-15);
+  EXPECT_NEAR(site.rate(1.75, 2.0, 0.0, 298.15), -0.2 * std::pow(0.25, 2.0), 1.0e-15);
 }
 
 TEST(ReactionsInput, ParsesGeneralPowerLawReaction)

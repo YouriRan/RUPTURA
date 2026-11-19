@@ -29,6 +29,7 @@ struct GasTemperatureBalance
   Column::FlowEnds ends{};  ///< Flow direction and product-end gas temperature.
   /// Work array of updateVelocityAndPressure, 3 (numberOfGridPoints + 1) values; allocated per call when smaller.
   std::span<double> closureScratch{};
+  std::span<const double> nodeHeatCapacity{};  ///< Gas heat capacity per node in J/(kg K); empty: heatCapacityGas.
 
   /**
    * \brief Returns dT_f/dt of node grid (1 to numberOfGridPoints) with the velocities v_{i-1} (lowerVelocity) and v_i
@@ -61,15 +62,23 @@ struct GasTemperatureBalance
  * eps changes, the superficial velocity eps v is continuous and v is not (C-MBD-1). FixedVelocity, and the liquid
  * phase, hold eps v at its value at the feed end, eps_in v_in.
  *
- * In a reverse step (ends) the feed enters at z = L: the inlet velocity and pressure apply at z = L, the outlet pressure
- * at z = 0, the closures march from z = L, and the velocities are negative. The molar flux through a face is its
- * velocity times the total concentration upstream of it, so that a closure that reverses the flow inside the column
+ * In a reverse step (ends) the feed enters at z = L: the inlet velocity and pressure apply at z = L, the outlet
+ * pressure at z = 0, the closures march from z = L, and the velocities are negative. The molar flux through a face is
+ * its velocity times the total concentration upstream of it, so that a closure that reverses the flow inside the column
  * (gas that flows back in at the outlet end) takes the gas of the node beyond the face, or the product-end gas.
  *
  * With a closed end (ends) the gas continuity closure marches from that end with v = 0, and the pressure follows from
  * inletPressure at the open end, whatever the boundary condition. A pressure ramp (ends) adds the accumulation
  * C_i (dP/dt) / P of every node, which neglects the time derivative of the pressure drop: the pressure drop must stay
  * small against the lowest pressure of the ramp.
+ *
+ * MomentumBalance has no closure: the pressure of a cell is that of its gas, R T sum_j c_j, and the velocity of the
+ * face z_i is that of the pressure-drop law of node i for the pressure difference between the cells i and i + 1 over
+ * the distance between their centres, with their mean density. The end faces follow the ports (ends): zero when closed,
+ * the port velocity, or the law over the half cell between the port gas and the centre of the end cell.
+ *
+ * gasHeatCapacity, when given, receives the heat capacity of the gas of each node in J/(kg K), from the molar heat
+ * capacities of the components (Component::gasHeatCapacity).
  */
 void updateVelocityAndPressure(
     const std::vector<Component>& components, const Column::BoundaryCondition& boundaryCondition,
@@ -77,16 +86,16 @@ void updateVelocityAndPressure(
     double pressureGradient, double columnLength, size_t numberOfAdsorbents, double& columnEntranceVelocity,
     double dynamicViscosity, std::span<const double> columnDistances, std::span<const double> fractionOfAdsorbent,
     std::span<const Geometry> geometries, std::span<const PressureDropLaw> pressureDropLaw,
-    std::span<const double> totalVoidFraction, std::span<double> interstitialGasVelocity,
-    std::span<double> gasDensity, std::span<double> totalConcentration, std::span<double> totalPressure,
-    std::span<const double> concentration, std::span<double> partialPressure, std::span<double> moleFraction,
-    std::span<const double> bulkSpeciesSink, std::span<const double> gasTemperature, Column::FluidPhase fluidPhase,
-    double liquidDensity, Column::PHMode pHMode, double pHValue, double pKw, size_t pHComponent,
-    std::span<double> pH, std::span<const double> molecularDispersionCoefficient,
-    std::span<const DispersionLaw> dispersionLaw, double dispersionReferenceTemperature,
-    double dispersionReferencePressure, std::span<double> axialDispersionCoefficient,
-    Column::ConvectionScheme convectionScheme, Column::InletCondition inletCondition,
-    const GasTemperatureBalance* gasTemperatureBalance = nullptr, const Column::FlowEnds& ends = {});
+    std::span<const double> totalVoidFraction, std::span<double> interstitialGasVelocity, std::span<double> gasDensity,
+    std::span<double> totalConcentration, std::span<double> totalPressure, std::span<const double> concentration,
+    std::span<double> partialPressure, std::span<double> moleFraction, std::span<const double> bulkSpeciesSink,
+    std::span<const double> gasTemperature, Column::FluidPhase fluidPhase, double liquidDensity, Column::PHMode pHMode,
+    double pHValue, double pKw, size_t pHComponent, std::span<double> pH,
+    std::span<const double> molecularDispersionCoefficient, std::span<const DispersionLaw> dispersionLaw,
+    double dispersionReferenceTemperature, double dispersionReferencePressure,
+    std::span<double> axialDispersionCoefficient, Column::ConvectionScheme convectionScheme,
+    Column::InletCondition inletCondition, const GasTemperatureBalance* gasTemperatureBalance = nullptr,
+    const Column::FlowEnds& ends = {}, std::span<double> gasHeatCapacity = {});
 
 /**
  * \brief Adds reaction source terms to explicit adsorbed/pore state arrays.
@@ -128,6 +137,10 @@ void computeReactionDerivatives(
  * in at z = L is the product-end gas of ends, or that of the last cell, with the same Danckwerts or Dirichlet condition
  * as at z = 0. In a reverse step (ends) the feed enters at z = L, and z = 0 has zero gradient: node 0 is replaced by
  * the first cell.
+ *
+ * streamAmountDot, when given, receives the net molar flux of each component into the column at z = 0, then at z = L,
+ * per unit column cross-section in mol/(m^2 s) (2 numberOfComponents values): the convection through the end face
+ * plus the dispersion that the stencil of the end cell takes across it.
  */
 void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents,
                             std::span<const double> columnDistances, std::span<const double> axialDispersionCoefficient,
@@ -136,32 +149,35 @@ void computeMassDerivatives(size_t numberOfGridPoints, size_t numberOfComponents
                             Column::FluidPhase fluidPhase, std::span<const double> totalVoidFraction,
                             Column::ConvectionScheme convectionScheme,
                             Column::InletCondition inletCondition = Column::InletCondition::Danckwerts,
-                            std::span<double> wenoScratch = {}, const Column::FlowEnds& ends = {});
+                            std::span<double> wenoScratch = {}, const Column::FlowEnds& ends = {},
+                            std::span<double> streamAmountDot = {});
 
 /**
  * \brief Computes the gas, solid, and wall temperature derivatives.
  *
  * Node 0 holds the feed temperature; with a Danckwerts inlet, the upwind stencil of node 1 uses the inlet-face
  * temperature at which no heat is conducted across the inlet face. The gas temperature follows the flow direction and
- * the product-end gas of ends (GasTemperatureBalance::rate).
+ * the product-end gas of ends (GasTemperatureBalance::rate). nodeHeatCapacity, when given, replaces heatCapacityGas by
+ * the heat capacity of the gas of each node.
  */
 void computeEnergyDerivatives(
     size_t numberOfGridPoints, size_t numberOfComponents, double externalTemperature,
     std::span<const Geometry> geometries, std::span<const double> particleDensity,
     std::span<const double> solidFluidContactArea, std::span<const double> fluidSolidContactArea,
-    std::span<const double> fluidWallContactArea, std::span<const double> heatOfAdsorption, std::span<const double> heatOfChemisorption, double wallDensity,
-    double gasThermalConductivity, double wallThermalConductivity, double heatTransferGasSolid,
-    double heatTransferGasWall, double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid,
-    double heatCapacityWall, std::span<const double> columnDistances, std::span<const double> interstitialGasVelocity,
+    std::span<const double> fluidWallContactArea, std::span<const double> heatOfAdsorption,
+    std::span<const double> heatOfChemisorption, double wallDensity, double gasThermalConductivity,
+    double wallThermalConductivity, double heatTransferGasSolid, double heatTransferGasWall,
+    double heatTransferWallExternal, double heatCapacityGas, double heatCapacitySolid, double heatCapacityWall,
+    std::span<const double> columnDistances, std::span<const double> interstitialGasVelocity,
     std::span<const double> totalVoidFraction, std::span<const double> gasDensity, std::span<double> coeffDiffusion,
-    size_t maxChemisorptionSites,
-    std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot,
+    size_t maxChemisorptionSites, std::span<const double> physisorptionDot, std::span<const double> chemisorptionDot,
     std::span<const double> gasTemperature, std::span<double> gasTemperatureDot,
     std::span<const double> solidTemperature, std::span<double> solidTemperatureDot,
     std::span<const double> wallTemperature, std::span<double> wallTemperatureDot,
     std::span<const double> reactionPhysisorptionSource = {}, std::span<const double> reactionChemisorptionSource = {},
-    std::span<const double> reactionHeat = {}, Column::InletCondition inletCondition = Column::InletCondition::Danckwerts,
-    const Column::FlowEnds& ends = {});
+    std::span<const double> reactionHeat = {},
+    Column::InletCondition inletCondition = Column::InletCondition::Danckwerts, const Column::FlowEnds& ends = {},
+    std::span<const double> nodeHeatCapacity = {});
 
 /**
  * \brief Third-order WENO face values (v > 0) on the grid with node positions columnDistances (z_0 ... z_N).
@@ -189,6 +205,17 @@ void computeWENOLinearization(std::span<const double> values, std::span<const do
  */
 void computeWENOReverse(std::span<const double> values, double inflow, std::span<const double> columnDistances,
                         std::span<double> faces);
+
+/**
+ * \brief The face values of computeWENO (reverse false) or computeWENOReverse (reverse true, with its inflow) for the
+ *        convection schemes TVD and WENO5.
+ *
+ * TVD is the MUSCL scheme with the minmod limiter on the slopes of WENO3. WENO5 is the fifth-order scheme of Jiang and
+ * Shu on a grid of one cell width, for the cells with two cells on either side; next to the ends and on other grids its
+ * faces are those of WENO3.
+ */
+void computeFaceValues(Column::ConvectionScheme scheme, std::span<const double> values, double inflow,
+                       std::span<const double> columnDistances, std::span<double> faces, bool reverse);
 
 /**
  * \brief Derivatives of the computeWENOReverse face values: face i changes by downstream[i] du_i + centre[i] du_{i+1}
