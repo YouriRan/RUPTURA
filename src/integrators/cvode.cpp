@@ -584,7 +584,8 @@ int CVODE::setupPreconditioner(sunrealtype t, N_Vector stateVector, N_Vector, su
       const ColumnStateLayout layout = column.stateLayout();
       double* base = N_VGetArrayPointer(stateVector);
       assembleSorptionJacobian(column, layout.concentration(base),
-                               column.energyBalance ? layout.gasTemperature(base) : column.gasTemperature, jacobian);
+                               column.energyBalance ? layout.gasTemperature(base) : column.gasTemperature,
+                               column.energyBalance ? layout.solidTemperature(base) : column.solidTemperature, jacobian);
       integrator.sorptionJacobianAssembled = true;
       *jacobianCurrent = SUNTRUE;
     }
@@ -632,7 +633,8 @@ int CVODE::evaluateJacobian(sunrealtype t, N_Vector stateVector, N_Vector, SUNMa
     const ColumnStateLayout layout = column.stateLayout();
     double* base = N_VGetArrayPointer(stateVector);
     assembleSorptionJacobian(column, layout.concentration(base),
-                             column.energyBalance ? layout.gasTemperature(base) : column.gasTemperature, jacobian);
+                             column.energyBalance ? layout.gasTemperature(base) : column.gasTemperature,
+                             column.energyBalance ? layout.solidTemperature(base) : column.solidTemperature, jacobian);
 
     // SUNMatZero, which CVODE calls before this function, also clears the pattern.
     std::copy(integrator.sparseColumnStarts.begin(), integrator.sparseColumnStarts.end(),

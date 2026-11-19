@@ -203,7 +203,8 @@ void addWenoConvection(const Column& column, std::span<const double> concentrati
 }  // namespace
 
 void assembleSorptionJacobian(Column& column, std::span<const double> concentration,
-                              std::span<const double> gasTemperature, SorptionJacobian& jacobian)
+                              std::span<const double> gasTemperature, std::span<const double> solidTemperature,
+                              SorptionJacobian& jacobian)
 {
   const size_t n = column.numberOfComponents;
   const size_t outlet = column.numberOfGridPoints;
@@ -212,24 +213,13 @@ void assembleSorptionJacobian(Column& column, std::span<const double> concentrat
   // derivatives (WENO5 reaches a node further) are worth it only if these schemes turn out to cost steps.
   const bool weno = column.convectionScheme != Column::ConvectionScheme::Upwind;
   const bool reverse = column.flowDirection == Column::FlowDirection::Reverse;
-  const bool hasSensitivities =
-      std::none_of(column.physisorptionMixtures.begin(), column.physisorptionMixtures.end(),
-                   [](const MixturePrediction& mixture)
-                   { return mixture.predictionMethod == MixturePrediction::PredictionMethod::MPD; });
-  if (hasSensitivities)
-  {
-    computePhysisorptionEquilibriumSensitivities(
-        column.physisorptionMixtures, column.numberOfGridPoints, n, column.numberOfAdsorbents,
-        column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxIsothermTerms, column.idealGasMolFractions,
-        jacobian.mixtureSensitivity, column.totalPressure, column.cachedPressure, column.moleFraction, gasTemperature,
-        gas ? MixturePrediction::DrivingForceInput::MoleFraction : MixturePrediction::DrivingForceInput::Concentration,
-        concentration, column.pH, jacobian.equilibriumSensitivity,
-        column.boundaryCondition == Column::BoundaryCondition::MomentumBalance);
-  }
-  else
-  {
-    std::fill(jacobian.equilibriumSensitivity.begin(), jacobian.equilibriumSensitivity.end(), 0.0);
-  }
+  computePhysisorptionEquilibriumSensitivities(
+      column.physisorptionMixtures, column.numberOfGridPoints, n, column.numberOfAdsorbents, column.fractionOfAdsorbent,
+      column.hasAdsorbentOfType, column.maxIsothermTerms, column.idealGasMolFractions, jacobian.mixtureSensitivity,
+      column.totalPressure, column.cachedPressure, column.moleFraction, solidTemperature,
+      gas ? MixturePrediction::DrivingForceInput::MoleFraction : MixturePrediction::DrivingForceInput::Concentration,
+      concentration, column.pH, jacobian.equilibriumSensitivity,
+      column.boundaryCondition == Column::BoundaryCondition::MomentumBalance);
   std::fill(jacobian.band.begin(), jacobian.band.end(), 0.0);
 
   // Danckwerts inlet: computeMassDerivatives transports the inlet-face value c_b = (u c_in + g c_1) / (u + g) in place

@@ -41,8 +41,10 @@ std::span<const TemperatureParameterSpec> Isotherm::temperatureParameters(Type t
 {
   using Law = TemperatureLaw::Type;
   constexpr unsigned vantHoff = TemperatureLaw::mask(Law::VantHoff);
-  constexpr unsigned capacity = TemperatureLaw::mask(Law::Linear) | TemperatureLaw::mask(Law::Exponential);
-  constexpr unsigned exponent = TemperatureLaw::mask(Law::Linear) | TemperatureLaw::mask(Law::Inverse);
+  constexpr unsigned capacity =
+      TemperatureLaw::mask(Law::Linear) | TemperatureLaw::mask(Law::Exponential) | TemperatureLaw::mask(Law::VantHoff);
+  constexpr unsigned exponent =
+      TemperatureLaw::mask(Law::Linear) | TemperatureLaw::mask(Law::Inverse) | TemperatureLaw::mask(Law::Arctan);
 
   // One entry per Parameters entry. The heat-linked affinity inherits the heat of adsorption in a VantHoff law
   // without "Energy"; Redlich-Peterson and GAB have two affinity-like parameters and need explicit energies.

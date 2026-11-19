@@ -181,7 +181,8 @@ struct MixturePrediction
    * p_j >= 1e-10 externalPressure, and without any adsorbing component the pure-isotherm limit is returned. The pH
    * dependence of pH-Langmuir is not differentiated. The dependence of the humidity-dependent sites on the water
    * partial pressure, through RH and the water loading, is a finite difference (none with a fixed RelativeHumidity).
-   * MPD is not supported.
+   * MPD returns Cov(n_i, n_j) / p_j of its reweighted distribution (fluctuation relation), with p_j >= 1e-10
+   * externalPressure.
    *
    * \param idealGasMolFractions The gas phase mole fractions (or concentrations) passed to predictMixture.
    * \param externalPressure The total pressure (or 1) passed to predictMixture.

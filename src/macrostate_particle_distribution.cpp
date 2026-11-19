@@ -1,5 +1,6 @@
 #include "macrostate_particle_distribution.h"
 
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <limits>
@@ -10,6 +11,7 @@
 namespace
 {
 constexpr long double boltzmannConstant = 1.380649e-23L;  // J K^-1, exact SI definition
+constexpr const char* noStateError = "Error: MPD reweighting produced no finite-probability macrostates";
 
 std::string rowContext(const std::string& fileName, std::size_t lineNumber)
 {
@@ -135,20 +137,35 @@ MacrostateParticleDistribution::MacrostateParticleDistribution(MPDSettings setti
   // Reweighting only ever visits populated macrostates, so keep just those, with their particle numbers decoded
   // from the linear index once here instead of at every evaluation.
   numberOfMacrostates_ = numberOfStates;
+  states_.particleNumbers.resize(rank());
   for (std::size_t state = 0; state < numberOfStates; ++state)
   {
     if (probabilities[state] == 0.0) continue;
 
-    logProbabilities_.push_back(std::log(static_cast<long double>(probabilities[state])));
-    std::size_t totalParticleNumber = 0;
+    states_.logProbabilities.push_back(std::log(static_cast<long double>(probabilities[state])));
     for (std::size_t component = 0; component < rank(); ++component)
     {
-      const std::size_t n = particleNumber(state, component);
-      particleNumbers_.push_back(n);
-      totalParticleNumber += n;
+      states_.particleNumbers[component].push_back(static_cast<double>(particleNumber(state, component)));
     }
-    totalParticleNumbers_.push_back(totalParticleNumber);
-    if (expectedColumns == 2) meanEnergies_.push_back(parsedEnergies[state]);
+    if (expectedColumns == 2) states_.meanEnergies.push_back(parsedEnergies[state]);
+  }
+
+  // A gas without component j reaches only the states with n_j = 0; keep them apart so it reweights just those.
+  emptyComponentStates_.resize(rank());
+  for (std::size_t empty = 0; empty < rank(); ++empty)
+  {
+    States& slice = emptyComponentStates_[empty];
+    slice.particleNumbers.resize(rank());
+    for (std::size_t state = 0; state < states_.logProbabilities.size(); ++state)
+    {
+      if (states_.particleNumbers[empty][state] != 0.0) continue;
+      slice.logProbabilities.push_back(states_.logProbabilities[state]);
+      for (std::size_t component = 0; component < rank(); ++component)
+      {
+        slice.particleNumbers[component].push_back(states_.particleNumbers[component][state]);
+      }
+      if (hasMeanEnergies()) slice.meanEnergies.push_back(states_.meanEnergies[state]);
+    }
   }
 }
 
@@ -161,12 +178,18 @@ std::size_t MacrostateParticleDistribution::particleNumber(std::size_t linearInd
 }
 
 std::vector<double> MacrostateParticleDistribution::meanParticleNumbers(std::span<const double> gasMoleFractions,
-                                                                        double fugacity, double temperature) const
+                                                                        double fugacity, double temperature,
+                                                                        std::span<double> covariance) const
 {
   if (gasMoleFractions.size() != rank())
   {
     throw std::runtime_error("Error: MPD gas mole-fraction count does not match its rank");
   }
+  if (!covariance.empty() && covariance.size() != rank() * rank())
+  {
+    throw std::runtime_error("Error: MPD covariance size does not match its rank squared");
+  }
+  std::fill(covariance.begin(), covariance.end(), 0.0);
   if (!std::isfinite(fugacity) || fugacity < 0.0)
   {
     throw std::runtime_error("Error: MPD target fugacity must be a non-negative finite number");
@@ -183,80 +206,108 @@ std::vector<double> MacrostateParticleDistribution::meanParticleNumbers(std::spa
     }
   }
 
-  const long double logFugacityRatio =
-      fugacity > 0.0 ? std::log(static_cast<long double>(fugacity) / settings_.referenceFugacity) : 0.0L;
+  std::vector<double> means(rank(), 0.0);
+  // Without fugacity or without any adsorbing component in the gas, only the empty macrostate (file index 0) counts.
+  if (fugacity == 0.0 || std::ranges::all_of(gasMoleFractions, [](double fraction) { return fraction == 0.0; }))
+  {
+    if (std::ranges::any_of(states_.particleNumbers, [](const auto& n) { return n.front() != 0.0; }))
+    {
+      throw std::runtime_error(noStateError);
+    }
+    return means;
+  }
+
+  const long double logFugacityRatio = std::log(static_cast<long double>(fugacity) / settings_.referenceFugacity);
   const long double logBetaRatio = std::log(static_cast<long double>(settings_.referenceTemperature) / temperature);
   const long double betaDifference = (1.0L / temperature - 1.0L / settings_.referenceTemperature) / boltzmannConstant;
 
-  // log y_j only depends on the call; components with y_j = 0 are never read through this table.
-  std::vector<long double> logMoleFractions(rank(), 0.0L);
+  // An absent component excludes every state that holds it: reweight the smallest slice of an absent component.
+  const States* states = &states_;
   for (std::size_t component = 0; component < rank(); ++component)
   {
-    if (gasMoleFractions[component] > 0.0)
+    const States& slice = emptyComponentStates_[component];
+    if (gasMoleFractions[component] == 0.0 && slice.logProbabilities.size() < states->logProbabilities.size())
     {
-      logMoleFractions[component] = std::log(static_cast<long double>(gasMoleFractions[component]));
+      states = &slice;
     }
   }
+  const std::size_t count = states->logProbabilities.size();
+  if (count == 0) throw std::runtime_error(noStateError);
 
-  bool hasAccumulatedWeight = false;
-  long double maximumLogWeight = 0.0L;
-  long double normalization = 0.0L;
-  std::vector<long double> weightedParticleNumbers(rank(), 0.0L);
-
-  for (std::size_t state = 0; state < logProbabilities_.size(); ++state)
+  // Pass 1: log Pi_ref + sum_j n_j (log y_j + log f/f_ref + log T_ref/T) - <H> dbeta. One buffer per thread: this
+  // runs ~1e8 times in a breakthrough.
+  thread_local std::vector<long double> logWeights;
+  logWeights.assign(states->logProbabilities.begin(), states->logProbabilities.end());
+  for (std::size_t component = 0; component < rank(); ++component)
   {
-    const std::span<const std::size_t> counts(particleNumbers_.data() + state * rank(), rank());
-
-    long double logWeight = logProbabilities_[state];
-    bool compatible = true;
-    for (std::size_t component = 0; component < rank(); ++component)
+    const std::vector<double>& n = states->particleNumbers[component];
+    if (gasMoleFractions[component] > 0.0)
     {
-      const std::size_t n = counts[component];
-      if (n == 0) continue;
-      if (gasMoleFractions[component] == 0.0)
-      {
-        compatible = false;
-        break;
-      }
-      logWeight += static_cast<long double>(n) * logMoleFractions[component];
-    }
-    const long double totalParticleNumber = static_cast<long double>(totalParticleNumbers_[state]);
-    if (!compatible || (fugacity == 0.0 && totalParticleNumber != 0.0L)) continue;
-
-    logWeight += totalParticleNumber * (logFugacityRatio + logBetaRatio);
-    if (hasMeanEnergies()) logWeight -= static_cast<long double>(meanEnergies_[state]) * betaDifference;
-
-    if (!hasAccumulatedWeight || logWeight > maximumLogWeight)
-    {
-      const long double scale = hasAccumulatedWeight ? std::exp(maximumLogWeight - logWeight) : 0.0L;
-      normalization = normalization * scale + 1.0L;
-      for (std::size_t component = 0; component < rank(); ++component)
-      {
-        weightedParticleNumbers[component] = weightedParticleNumbers[component] * scale + counts[component];
-      }
-      maximumLogWeight = logWeight;
-      hasAccumulatedWeight = true;
+      const long double slope =
+          std::log(static_cast<long double>(gasMoleFractions[component])) + logFugacityRatio + logBetaRatio;
+      for (std::size_t state = 0; state < count; ++state) logWeights[state] += n[state] * slope;
     }
     else
     {
-      const long double weight = std::exp(logWeight - maximumLogWeight);
-      normalization += weight;
-      for (std::size_t component = 0; component < rank(); ++component)
+      for (std::size_t state = 0; state < count; ++state)
       {
-        weightedParticleNumbers[component] += weight * counts[component];
+        if (n[state] != 0.0) logWeights[state] = -std::numeric_limits<long double>::infinity();
+      }
+    }
+  }
+  if (hasMeanEnergies() && betaDifference != 0.0L)
+  {
+    for (std::size_t state = 0; state < count; ++state) logWeights[state] -= states->meanEnergies[state] * betaDifference;
+  }
+
+  // Four running maxima: a single one is a serial compare-and-select chain, four times slower.
+  long double maxima[4] = {-std::numeric_limits<long double>::infinity(), -std::numeric_limits<long double>::infinity(),
+                           -std::numeric_limits<long double>::infinity(), -std::numeric_limits<long double>::infinity()};
+  std::size_t state = 0;
+  for (; state + 4 <= count; state += 4)
+  {
+    for (std::size_t lane = 0; lane < 4; ++lane) maxima[lane] = std::max(maxima[lane], logWeights[state + lane]);
+  }
+  for (; state < count; ++state) maxima[0] = std::max(maxima[0], logWeights[state]);
+  const long double maximumLogWeight = std::max({maxima[0], maxima[1], maxima[2], maxima[3]});
+  if (!std::isfinite(maximumLogWeight)) throw std::runtime_error(noStateError);
+
+  // Pass 2: states more than 50 below the maximum add < e^-50 each to a sum of at least 1, below double rounding.
+  long double normalization = 0.0L;
+  std::vector<long double> weightedParticleNumbers(rank(), 0.0L);
+  std::vector<long double> weightedProducts(covariance.size(), 0.0L);
+  for (state = 0; state < count; ++state)
+  {
+    const long double difference = logWeights[state] - maximumLogWeight;
+    if (difference < -50.0L) continue;
+    const long double weight = std::exp(difference);
+    normalization += weight;
+    for (std::size_t component = 0; component < rank(); ++component)
+    {
+      weightedParticleNumbers[component] += weight * states->particleNumbers[component][state];
+    }
+    for (std::size_t a = 0; a < rank() && !covariance.empty(); ++a)
+    {
+      for (std::size_t b = 0; b <= a; ++b)
+      {
+        weightedProducts[a * rank() + b] +=
+            weight * states->particleNumbers[a][state] * states->particleNumbers[b][state];
       }
     }
   }
 
-  if (!hasAccumulatedWeight || !(normalization > 0.0L) || !std::isfinite(normalization))
-  {
-    throw std::runtime_error("Error: MPD reweighting produced no finite-probability macrostates");
-  }
-
-  std::vector<double> means(rank(), 0.0);
   for (std::size_t component = 0; component < rank(); ++component)
   {
     means[component] = static_cast<double>(weightedParticleNumbers[component] / normalization);
+  }
+  for (std::size_t a = 0; a < rank() && !covariance.empty(); ++a)
+  {
+    for (std::size_t b = 0; b <= a; ++b)
+    {
+      const long double value = weightedProducts[a * rank() + b] / normalization -
+                                weightedParticleNumbers[a] / normalization * weightedParticleNumbers[b] / normalization;
+      covariance[a * rank() + b] = covariance[b * rank() + a] = static_cast<double>(value);
+    }
   }
   return means;
 }

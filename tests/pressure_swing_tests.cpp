@@ -24,7 +24,9 @@ namespace
 // Experiment T15 of Marx et al.: CO2/N2/H2 on activated carbon with the energy balance, in a helium-filled column.
 nlohmann::json t15Input(size_t gridPoints)
 {
-  std::ifstream input(std::filesystem::path{RUPTURA_SOURCE_DIR} / "marx2/ternary/T15/simulation.json");
+  std::ifstream input(std::filesystem::path{RUPTURA_SOURCE_DIR} /
+                      "validation/3.3.1_energy_balance_marx_ternary/marx2/"
+                      "reference_settings_hassan_chung/T15/simulation.json");
   nlohmann::json data = nlohmann::json::parse(input);
   data["NumberOfGridPoints"] = gridPoints;
   data["BreakthroughIntegrator"] = "CVODE";
@@ -1475,7 +1477,9 @@ TEST(ParticleTransport, HsdmFillsASphereAtAConstantSurfaceLoadingAsItsSeriesDoes
   // T15 with so little sorbent that the gas stays the feed, fed fast: every particle then sees a constant surface
   // loading q*, for which its loading follows q / q* = 1 - (6 / pi^2) sum_n exp(-n^2 pi^2 D_s t / R^2) / n^2. With the
   // linear driving force of the same coefficient, k = 15 D_s / R^2, it follows 1 - exp(-k t), which is slower at first.
-  std::ifstream file(std::filesystem::path{RUPTURA_SOURCE_DIR} / "marx2/ternary/T15/simulation.json");
+  std::ifstream file(std::filesystem::path{RUPTURA_SOURCE_DIR} /
+                     "validation/3.3.1_energy_balance_marx_ternary/marx2/"
+                     "reference_settings_hassan_chung/T15/simulation.json");
   nlohmann::json data = nlohmann::json::parse(file);
   data["NumberOfGridPoints"] = 6;
   data["energyBalance"] = false;

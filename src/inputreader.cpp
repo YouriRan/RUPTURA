@@ -300,17 +300,19 @@ static TemperatureLaw readTemperatureLaw(const nlohmann::json& value, const Temp
   }
 
   const std::string coefficientKey{TemperatureLaw::coefficientKey(*type)};
+  const std::string secondKey{TemperatureLaw::secondCoefficientKey(*type)};
   for (auto it = value.begin(); it != value.end(); ++it)
   {
     const bool known = caseInSensStringCompare(it.key(), "Value") || caseInSensStringCompare(it.key(), "Law") ||
                        caseInSensStringCompare(it.key(), "ReferenceTemperature") ||
-                       (!coefficientKey.empty() && caseInSensStringCompare(it.key(), coefficientKey));
+                       (!coefficientKey.empty() && caseInSensStringCompare(it.key(), coefficientKey)) ||
+                       (!secondKey.empty() && caseInSensStringCompare(it.key(), secondKey));
     if (!known)
     {
-      throw std::runtime_error(std::format("Error: unknown key '{}' in the {} law of the {}; it takes Value{}{} and "
+      throw std::runtime_error(std::format("Error: unknown key '{}' in the {} law of the {}; it takes Value{}{}{}{} and "
                                            "ReferenceTemperature ({})",
                                            it.key(), lawName, name, coefficientKey.empty() ? "" : ", ",
-                                           coefficientKey, context));
+                                           coefficientKey, secondKey.empty() ? "" : ", ", secondKey, context));
     }
   }
 
@@ -348,6 +350,21 @@ static TemperatureLaw readTemperatureLaw(const nlohmann::json& value, const Temp
   {
     throw std::runtime_error(
         std::format("Error: the {} law of the {} needs \"{}\" ({})", lawName, name, coefficientKey, context));
+  }
+  if (!secondKey.empty())
+  {
+    const nlohmann::json* second = findKeyCaseInsensitive(value, secondKey);
+    if (second == nullptr)
+    {
+      throw std::runtime_error(
+          std::format("Error: the {} law of the {} needs \"{}\" ({})", lawName, name, secondKey, context));
+    }
+    law.secondCoefficient = getNumberOrThrow<double>(*second, secondKey, context);
+    if (!std::isfinite(law.secondCoefficient) || law.value == 0.0)
+    {
+      throw std::runtime_error("Error: " + secondKey + " and the Value of the " + name +
+                               " must be finite and the Value nonzero (" + context + ")");
+    }
   }
 
   if (TemperatureLaw::requiresReferenceTemperature(law.type) && !law.referenceTemperature.has_value())

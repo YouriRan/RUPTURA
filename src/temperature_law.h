@@ -16,7 +16,9 @@
  * - Arrhenius:   V exp[-E/R (1/T - 1/T_ref)], coefficient "ActivationEnergy" E in J/mol (E > 0 grows with T);
  * - Exponential: V exp[chi (1 - T/T_ref)],    coefficient "Chi" [-];
  * - Linear:      V + a (T - T_ref),           coefficient "Slope" a in units of V per K;
- * - Inverse:     V + alpha (1 - T_ref/T),     coefficient "Alpha" alpha in units of V.
+ * - Inverse:     V + alpha (1 - T_ref/T),     coefficient "Alpha" alpha in units of V;
+ * - Arctan:      1/(1/V + alpha atan[beta (T - T_ref)]), coefficients "Alpha" alpha in units of 1/V and "Beta" beta
+ *                in 1/K: the reciprocal follows an arctangent, as the Sips exponent 1/nu of Schell et al. (2011).
  *
  * Without a reference temperature, VantHoff and Arrhenius use the uncentred forms V exp[Q/(RT)] and
  * V exp[-E/(RT)], with V the pre-exponential factor; the other laws require one. The exponents are bounded to
@@ -34,7 +36,8 @@ struct TemperatureLaw
     Arrhenius = 2,    ///< V exp[-E/R (1/T - 1/T_ref)]
     Exponential = 3,  ///< V exp[chi (1 - T/T_ref)]
     Linear = 4,       ///< V + a (T - T_ref)
-    Inverse = 5       ///< V + alpha (1 - T_ref/T)
+    Inverse = 5,      ///< V + alpha (1 - T_ref/T)
+    Arctan = 6        ///< 1/(1/V + alpha atan[beta (T - T_ref)])
   };
 
   TemperatureLaw() noexcept = default;
@@ -45,14 +48,19 @@ struct TemperatureLaw
   TemperatureLaw(double constant) noexcept : value(constant) {}  // NOLINT(google-explicit-constructor)
 
   TemperatureLaw(Type type, double value, double coefficient,
-                 std::optional<double> referenceTemperature = std::nullopt) noexcept
-      : type(type), value(value), coefficient(coefficient), referenceTemperature(referenceTemperature)
+                 std::optional<double> referenceTemperature = std::nullopt, double secondCoefficient = 0.0) noexcept
+      : type(type),
+        value(value),
+        coefficient(coefficient),
+        secondCoefficient(secondCoefficient),
+        referenceTemperature(referenceTemperature)
   {
   }
 
   Type type{Type::Constant};  ///< The temperature relation.
   double value{0.0};          ///< Value at the reference temperature (pre-exponential factor without one).
-  double coefficient{0.0};    ///< Q or E in J/mol, chi [-], slope [unit/K], or alpha [unit of the value].
+  double coefficient{0.0};    ///< Q or E in J/mol, chi [-], slope [unit/K], or alpha [unit of the value, Arctan: 1/unit].
+  double secondCoefficient{0.0};  ///< beta in 1/K (Arctan only).
   std::optional<double> referenceTemperature{std::nullopt};  ///< T_ref in K.
   /// The VantHoff energy was taken from the heat of adsorption (or reaction); it follows that heat when an
   /// adsorbent override changes it.
@@ -89,6 +97,11 @@ struct TemperatureLaw
   static std::string_view coefficientKey(Type type) noexcept;
 
   /**
+   * \brief Returns the input key of the law's second coefficient ("Beta" for Arctan), or an empty view.
+   */
+  static std::string_view secondCoefficientKey(Type type) noexcept { return type == Type::Arctan ? "Beta" : ""; }
+
+  /**
    * \brief Returns the law type with the given input name (case-insensitive), if any.
    */
   static std::optional<Type> fromName(std::string_view name) noexcept;
@@ -98,7 +111,7 @@ struct TemperatureLaw
    */
   static constexpr bool requiresReferenceTemperature(Type type) noexcept
   {
-    return type == Type::Exponential || type == Type::Linear || type == Type::Inverse;
+    return type == Type::Exponential || type == Type::Linear || type == Type::Inverse || type == Type::Arctan;
   }
 
   /**

@@ -346,6 +346,34 @@ TEST(MacrostateParticleDistribution, ReweightsCOrderedTwoComponentDistribution)
   EXPECT_NEAR(means[1], 0.60 / 0.85, 1.0e-14);
 }
 
+TEST(MacrostateParticleDistribution, ReweightsOnlyStatesWithoutAbsentComponents)
+{
+  const std::filesystem::path path = mpdTemporaryPath("absent.data");
+  writeMPDFile(path, "0.1\n0.2\n0.3\n0.4\n");
+
+  MPDSettings settings;
+  settings.fileName = path.string();
+  settings.referenceTemperature = 300.0;
+  settings.referenceFugacity = 1.0e5;
+  settings.referenceFrameworkMass = 1.0;
+  settings.componentBounds = {{"A", 0, 1, 1}, {"B", 0, 1, 1}};
+  MacrostateParticleDistribution distribution(settings);
+
+  // B absent: (0, 0) with 0.1 and (1, 0) with 0.3 * 0.25 * 2e5 / 1e5 = 0.15
+  const std::vector<double> means = distribution.meanParticleNumbers(std::vector<double>{0.25, 0.0}, 2.0e5, 300.0);
+  EXPECT_NEAR(means[0], 0.15 / 0.25, 1.0e-14);
+  EXPECT_EQ(means[1], 0.0);
+  const std::vector<double> zeros{0.0, 0.0};
+  EXPECT_EQ(distribution.meanParticleNumbers(zeros, 2.0e5, 300.0), zeros);
+  EXPECT_EQ(distribution.meanParticleNumbers(std::vector<double>{0.25, 0.75}, 0.0, 300.0), zeros);
+
+  // no state without B: a gas without B reaches none
+  settings.componentBounds = {{"A", 0, 1, 1}, {"B", 1, 2, 1}};
+  MacrostateParticleDistribution withB(settings);
+  EXPECT_THROW(static_cast<void>(withB.meanParticleNumbers(std::vector<double>{0.25, 0.0}, 2.0e5, 300.0)),
+               std::runtime_error);
+}
+
 TEST(MacrostateParticleDistribution, AppliesFirstOrderTemperatureReweightingWhenEnergyColumnExists)
 {
   const std::filesystem::path path = mpdTemporaryPath("energy.data");
@@ -1108,4 +1136,50 @@ TEST(PhysisorptionEquilibrium, SensitivitiesFollowConcentrationsAtFrozenTotalPre
     EXPECT_GT(scale, 0.0);
     EXPECT_LT(error / scale, 1.0e-5);
   }
+}
+
+TEST(MixturePrediction, MPDSensitivitiesMatchCentralDifferences)
+{
+  const std::filesystem::path distributionPath = mpdTemporaryPath("sensitivity.data");
+  const std::filesystem::path inputPath = mpdTemporaryPath("sensitivity.json");
+  writeMPDFile(distributionPath, "0.1\n0.2\n0.05\n0.3\n0.15\n0.1\n0.02\n0.05\n0.03\n");
+
+  constexpr double avogadroConstant = 6.02214076e23;
+  nlohmann::json input = {
+      {"SimulationType", "MixturePrediction"},
+      {"MixturePredictionMethod", "MPD"},
+      {"Temperature", 300.0},
+      {"PressureStart", 1.0e5},
+      {"PressureEnd", 1.0e5},
+      {"NumberOfPressurePoints", 1},
+      {"MPDSettings",
+       {{"FileName", distributionPath.filename().string()},
+        {"ReferenceTemperature", 300.0},
+        {"ReferenceFugacity", 1.0e5},
+        {"ReferenceFrameworkMass", 1.0 / avogadroConstant},
+        {"ComponentBounds",
+         nlohmann::json::array({{{"Component", "A"}, {"NMin", 0}, {"NMax", 2}, {"DeltaN", 1}},
+                                {{"Component", "B"}, {"NMin", 0}, {"NMax", 2}, {"DeltaN", 1}}})}}},
+      {"Components", nlohmann::json::array({{{"Name", "He"}, {"GasPhaseMolFraction", 0.5}, {"CarrierGas", true}},
+                                            {{"Name", "A"}, {"GasPhaseMolFraction", 0.2}},
+                                            {{"Name", "B"}, {"GasPhaseMolFraction", 0.3}}})},
+  };
+  {
+    std::ofstream output(inputPath);
+    output << input;
+  }
+  InputReader reader(inputPath.string());
+  MixturePrediction prediction(reader);
+
+  EXPECT_LT(relativeSensitivityError(prediction, {0.5, 0.2, 0.3}, 1.0e5), 1.0e-6);
+
+  // B absent from the gas: its slopes are taken at the floor y_B = 1e-10 and stay finite
+  const std::vector<double> withoutB{0.8, 0.2, 0.0};
+  std::vector<double> adsorbed(3), loadings(3), cachedPressure(3 * prediction.maxIsothermTerms), sensitivities(9);
+  std::vector<double> cachedPotential(prediction.maxIsothermTerms);
+  double temperature = 300.0;
+  prediction.predictMixture(withoutB, 1.0e5, adsorbed, loadings, cachedPressure, cachedPotential, temperature);
+  prediction.predictMixtureSensitivities(withoutB, 1.0e5, cachedPressure, temperature, 7.0, sensitivities);
+  EXPECT_TRUE(std::ranges::all_of(sensitivities, [](double value) { return std::isfinite(value); }));
+  EXPECT_GT(sensitivities[2 + 2 * 3], 0.0);
 }

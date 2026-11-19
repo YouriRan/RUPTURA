@@ -96,6 +96,39 @@ TEST(TemperatureInput, AcceptsLawsAtThePreselectedPositions)
   EXPECT_DOUBLE_EQ(reader.components[1].heatOfAdsorption, 25000.0);
 }
 
+TEST(TemperatureInput, ReproducesTheTemperatureDependentSipsOfSchellEtAl)
+{
+  // CO2 on activated carbon (Marx et al. 2014, Table 5): q_sat = a exp(-b/RT), K = A exp(-B/RT), and the exponent
+  // s = alpha atan[beta (T - T_ref)] + s_ref, which RUPTURA's Sips takes as 1/nu.
+  constexpr double a = 1.38, b = -5628.0, A = 1.68e-8, B = -9159.0, alpha = 0.072, beta = 0.106, sRef = 0.83;
+  constexpr double tRef = 298.0, tExponent = 329.0;
+  nlohmann::json input = morInput();
+  nlohmann::json& co2 = input["Components"][1];
+  co2["HeatOfAdsorption"] = 26000.0;
+  co2["PhysisorptionSites"] = {
+      {{"Type", "Sips"},
+       {"Parameters",
+        {{{"Value", a * std::exp(-b / (R * tRef))}, {"Law", "VantHoff"}, {"Energy", -b}, {"ReferenceTemperature", tRef}},
+         {{"Value", A * std::exp(-B / (R * tRef))}, {"Law", "VantHoff"}, {"Energy", -B}, {"ReferenceTemperature", tRef}},
+         {{"Value", 1.0 / sRef},
+          {"Law", "Arctan"},
+          {"Alpha", alpha},
+          {"Beta", beta},
+          {"ReferenceTemperature", tExponent}}}}}};
+
+  const InputReader reader = readInput(input);
+  const Isotherm& sips = reader.components[1].isotherm.sites[0];
+  for (const double temperature : {298.0, 318.0, 329.0, 345.0})
+  {
+    SCOPED_TRACE(temperature);
+    EXPECT_NEAR((*sips.temperatureLaw(0))(temperature), a * std::exp(-b / (R * temperature)), 1.0e-12);
+    EXPECT_NEAR((*sips.temperatureLaw(1))(temperature) / (A * std::exp(-B / (R * temperature))), 1.0, 1.0e-12);
+    EXPECT_NEAR(1.0 / (*sips.temperatureLaw(2))(temperature),
+                alpha * std::atan(beta * (temperature - tExponent)) + sRef, 1.0e-14);
+  }
+  EXPECT_EQ(sips.temperatureLaw(2)->repr(), "Arctan, alpha = 7.2000e-02, beta = 1.0600e-01 /K, T_ref = 3.2900e+02 K");
+}
+
 TEST(TemperatureInput, RejectsLawsOutsideThePreselectedPositionsAndIncompleteLaws)
 {
   const auto withParameters = [](nlohmann::json parameters, const std::string& type = "Langmuir")
@@ -106,8 +139,15 @@ TEST(TemperatureInput, RejectsLawsOutsideThePreselectedPositionsAndIncompleteLaw
     return input;
   };
 
-  expectRejected(withParameters({{{"Value", 4.4}, {"Law", "VantHoff"}}, 2.91e-4}),
-                 "the saturation loading cannot use the temperature law 'VantHoff'; use Exponential or Linear");
+  expectRejected(withParameters({{{"Value", 4.4}, {"Law", "Arrhenius"}, {"ActivationEnergy", 1.0e4}}, 2.91e-4}),
+                 "the saturation loading cannot use the temperature law 'Arrhenius'; use VantHoff or Exponential or "
+                 "Linear");
+  // The saturation loading is not heat-linked, so its VantHoff law needs its own Energy.
+  expectRejected(withParameters({{{"Value", 4.4}, {"Law", "VantHoff"}}, 2.91e-4}), "needs \"Energy\"");
+  expectRejected(withParameters({4.4, 2.91e-4, {{"Value", 1.2}, {"Law", "Arctan"}, {"Alpha", 0.07},
+                                                {"ReferenceTemperature", 329.0}}},
+                                "Sips"),
+                 "needs \"Beta\"");
   expectRejected(withParameters({4.4, {{"Value", 2.91e-4}, {"Law", "Polynomial"}}}), "temperature law 'Polynomial'");
   expectRejected(withParameters({4.4, 2.91e-4, {{"Value", 7.0}, {"Law", "Linear"}, {"Slope", 0.1}}}, "pH-Langmuir"),
                  "the pH_0 cannot depend on temperature");

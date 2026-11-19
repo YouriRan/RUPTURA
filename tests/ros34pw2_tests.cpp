@@ -332,7 +332,10 @@ TEST(ROS34PW2Column, MatchesRungeKutta3ThroughAWeno3AdsorptionFrontWithLargeStep
 TEST(ROS34PW2Column, IntegratesTheEnergyBalanceAndContinuityLikeRungeKutta3)
 {
   // Experiment T15: Sips isotherms, an energy balance, and the velocity from continuity.
-  InputReader reader = smallInput("marx2/ternary/T15/simulation.json", "t15", {});
+  InputReader reader = smallInput(
+      "validation/3.3.1_energy_balance_marx_ternary/marx2/"
+      "reference_settings_hassan_chung/T15/simulation.json",
+      "t15", {});
   ROS34PW2 rosenbrock(1.0e-7, 1.0e-9, 1.0e-10, 1.0e-7);
   EXPECT_LT(differenceFromRungeKutta3(reader, 1.0e-2, 120.0, rosenbrock), 2.0e-5);
 }
@@ -341,8 +344,9 @@ TEST(ROS34PW2Column, IntegratesChemisorptionLikeRungeKutta3)
 {
   // The monolith of Stampi-Bombelli et al.: Toth physisorption and chemisorption, dominated by axial dispersion. RK3
   // needs steps far below its stability limit (3e-2 s on this grid) to converge here (TODO.md B-ITG-2).
-  InputReader reader =
-      smallInput("stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol/simulation.json", "monolith", {});
+  InputReader reader = smallInput("validation/3.3.2_monoliths_stampi_bombelli/stampi-bombelli/dl_from_stampibombelli/"
+                                  "monolith_400ppm_1mmol/simulation.json",
+                                  "monolith", {});
   ROS34PW2 rosenbrock(1.0e-7, 1.0e-9, 1.0e-10, 1.0e-7);
   // RK3 clamps every step to max(0, c), which adds the undershoot at the foot of the front, 1e-6 mol/kg of loading
   // at one node; ROS34PW2 keeps it (B-ITG-17).

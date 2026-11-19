@@ -511,7 +511,7 @@ void Column::initialize()
       physisorptionMixtures, numberOfGridPoints, numberOfComponents, numberOfAdsorbents, fractionOfAdsorbent,
       hasAdsorbentOfType, maxIsothermTerms, iastPerformance, idealGasMolFractions, adsorbedMolFractions,
       numberOfMolecules, totalPressure, equilibriumPhysisorption, cachedPressure, cachedGrandPotential, moleFraction,
-      gasTemperature,
+      solidTemperature,
       fluidPhase == FluidPhase::Gas ? MixturePrediction::DrivingForceInput::MoleFraction
                                     : MixturePrediction::DrivingForceInput::Concentration,
       concentration, pH);
@@ -519,7 +519,7 @@ void Column::initialize()
       chemisorptionMixtures, numberOfGridPoints, numberOfComponents, numberOfAdsorbents, fractionOfAdsorbent,
       hasAdsorbentOfType, maxChemisorptionSites, iastPerformance, idealGasMolFractions, adsorbedMolFractions,
       numberOfMolecules, totalPressure, equilibriumChemisorption, cachedChemisorptionPressure,
-      cachedChemisorptionGrandPotential, moleFraction, gasTemperature,
+      cachedChemisorptionGrandPotential, moleFraction, solidTemperature,
       fluidPhase == FluidPhase::Gas ? MixturePrediction::DrivingForceInput::MoleFraction
                                     : MixturePrediction::DrivingForceInput::Concentration,
       concentration, pH);

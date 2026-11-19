@@ -134,7 +134,7 @@ std::vector<double> frozenClosureRightHandSide(Column& column, const SorptionJac
 double relativeJacobianError(Column& column, const std::function<std::vector<double>(Column&)>& rightHandSide)
 {
   SorptionJacobian jacobian(column);
-  assembleSorptionJacobian(column, column.concentration, column.gasTemperature, jacobian);
+  assembleSorptionJacobian(column, column.concentration, column.gasTemperature, column.solidTemperature, jacobian);
 
   std::vector<double> state(jacobian.size);
   jacobian.gather(column.concentration, column.physisorption, state);
@@ -210,7 +210,9 @@ TEST(SorptionJacobian, MatchesCentralDifferencesWithMomentumBalance)
 {
   // Marx T15 with the pressure of the gas and the velocity of the pressure-drop law: the right-hand side with its
   // velocity update, for a velocity port and a pressure port, two pressure ports, and a closed z = L.
-  std::ifstream input(examplePath("marx2/ternary/T15/simulation.json"));
+  std::ifstream input(
+      examplePath("validation/3.3.1_energy_balance_marx_ternary/marx2/"
+                  "reference_settings_hassan_chung/T15/simulation.json"));
   nlohmann::json data = nlohmann::json::parse(input);
   data["OutletPressure"] = 1.0e6;
   data["energyBalance"] = false;
@@ -510,7 +512,9 @@ TEST(ThermalJacobian, MatchesCentralDifferencesOfTheEnergyBalanceAtFrozenFlowAnd
     {
       if (flow > 2 && inlet == "Dirichlet") continue;
       SCOPED_TRACE(inlet + " " + std::to_string(flow));
-      std::ifstream input(examplePath("marx2/ternary/T15/simulation.json"));
+      std::ifstream input(
+          examplePath("validation/3.3.1_energy_balance_marx_ternary/marx2/"
+                      "reference_settings_hassan_chung/T15/simulation.json"));
       nlohmann::json data = nlohmann::json::parse(input);
       data["InletCondition"] = inlet;
       data["FlowDirection"] = flow == 1 || flow == 4 ? "Reverse" : "Forward";
@@ -643,3 +647,30 @@ TEST(CvodeKlu, MatchesSpgmrThroughAnUpwindFrontWithFewJacobians)
   EXPECT_LT(difference / feed, 1.0e-5);
 }
 #endif
+
+TEST(SorptionEquilibrium, FollowsTheAdsorbentTemperature)
+{
+  // The isotherms take the adsorbent temperature; the gas temperature reaches them only through the Ergun pressure
+  // drop of the continuity closure, 3e-5 of the pressure in T15.
+  InputReader reader = smallInput(
+      "validation/3.3.1_energy_balance_marx_ternary/marx2/"
+      "reference_settings_hassan_chung/T15/simulation.json",
+      "adsorbent_temperature", 1.0e-5);
+  Column column(reader);
+  column.initialize();
+  setFrontState(column);
+  Timing timings;
+  const auto totalEquilibrium = [&](double gas, double solid)
+  {
+    std::ranges::fill(column.gasTemperature, gas);
+    std::ranges::fill(column.solidTemperature, solid);
+    precompute(column, timings);
+    double total = 0.0;
+    for (const double loading : column.equilibriumPhysisorption) total += loading;
+    return total;
+  };
+  const double reference = totalEquilibrium(330.0, 330.0);
+  EXPECT_GT(reference, 0.0);
+  EXPECT_NEAR(totalEquilibrium(300.0, 330.0), reference, 1.0e-4 * reference);
+  EXPECT_GT(totalEquilibrium(330.0, 300.0), 1.1 * reference);
+}

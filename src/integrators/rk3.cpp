@@ -148,7 +148,7 @@ void precompute(ColumnData& column, const ColumnStateViews& views, Timing& timin
             column.numberOfAdsorbents, column.fractionOfAdsorbent, column.hasAdsorbentOfType, column.maxIsothermTerms,
             column.iastPerformance, column.idealGasMolFractions, column.adsorbedMolFractions, column.numberOfMolecules,
             column.totalPressure, column.equilibriumPhysisorption, column.cachedPressure, column.cachedGrandPotential,
-            column.moleFraction, views.gasTemperature,
+            column.moleFraction, views.solidTemperature,
             column.fluidPhase == Column::FluidPhase::Gas ? MixturePrediction::DrivingForceInput::MoleFraction
                                                                  : MixturePrediction::DrivingForceInput::Concentration,
             views.concentration, column.pH);
@@ -158,7 +158,7 @@ void precompute(ColumnData& column, const ColumnStateViews& views, Timing& timin
             column.maxChemisorptionSites, column.iastPerformance, column.idealGasMolFractions,
             column.adsorbedMolFractions, column.numberOfMolecules, column.totalPressure,
             column.equilibriumChemisorption, column.cachedChemisorptionPressure,
-            column.cachedChemisorptionGrandPotential, column.moleFraction, views.gasTemperature,
+            column.cachedChemisorptionGrandPotential, column.moleFraction, views.solidTemperature,
             column.fluidPhase == Column::FluidPhase::Gas ? MixturePrediction::DrivingForceInput::MoleFraction
                                                                  : MixturePrediction::DrivingForceInput::Concentration,
             views.concentration, column.pH);
