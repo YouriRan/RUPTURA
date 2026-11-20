@@ -1479,6 +1479,7 @@ InputReader::InputReader(const std::string fileName) : components()
                         "ROS34PW2AbsoluteToleranceTemperature",
                         "ROS34PW2MaximumTimeStep",
                         "WriteInterval",
+                        "WriteOutletOnly",
                         "ColumnLength",
                         "ColumnDistances",
                         "NumberOfGridPoints",
@@ -1762,6 +1763,7 @@ InputReader::InputReader(const std::string fileName) : components()
     throw std::runtime_error("Error: CVODEPreconditioner needs CVODELinearSolver SPGMR");
   }
   readOptionalNumber<double>(parsed_data, "WriteInterval", writeInterval);
+  readOptionalBool(parsed_data, "WriteOutletOnly", writeOutletOnly);
   readOptionalNumber<double>(parsed_data, "ColumnLength", columnLength);
   readOptionalNonNegativeInteger(parsed_data, "NumberOfGridPoints", numberOfGridPoints);
   if (containsKeyCaseInsensitive(parsed_data, "ColumnDistances"))

@@ -14,7 +14,7 @@
   "MixturePredictionMethod": "SPI",
   "BreakthroughIntegrator": "CVODE",
   "BoundaryCondition": "FixedVelocity",
-  "InletCondition": "Danckwerts",
+  "InletCondition": "Dirichlet",
   "NumberOfGridPoints": 25,
   "Components": [
     {

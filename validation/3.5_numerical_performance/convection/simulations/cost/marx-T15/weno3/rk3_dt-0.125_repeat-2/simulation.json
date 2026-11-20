@@ -1,7 +1,7 @@
 {
   "SimulationType": "Breakthrough",
   "BreakthroughIntegrator": "RungeKutta3",
-  "InletCondition": "Danckwerts",
+  "InletCondition": "Dirichlet",
   "MixturePredictionMethod": "SCI",
   "BoundaryCondition": "InletPressureInletVelocity",
   "PressureGradient": 0,

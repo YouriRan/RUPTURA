@@ -306,7 +306,11 @@ directories under `examples/` hold complete inputs. Keys are case-insensitive.
 Simulated time and output are set in seconds: `SimulationTime` (a time, or
 `"auto"` to stop 10% after the breakthrough or reaction steady state is
 reached) and `WriteInterval` (one column profile and progress line every so
-many seconds). `TimeStep` is the fixed step of `RungeKutta3`. It is not checked
+many seconds). `"WriteOutletOnly": true` writes only the outlet row of every
+output (z = L, or the first cell in a reverse-flow phase) to `column.data` and the
+component files, which keeps long runs small; the breakthrough and temperature
+plots read these files as usual, while profiles over position need the full
+output. `TimeStep` is the fixed step of `RungeKutta3`. It is not checked
 for stability: keep it below the time in which the fluid crosses the smallest
 grid cell (dz / v), below about 2 / k for the largest `MassTransferCoefficient`
 k, and below dz² / (2 D) for the largest axial dispersion coefficient D and,

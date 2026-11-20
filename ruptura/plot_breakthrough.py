@@ -430,11 +430,18 @@ class BreakthroughPlotly(BasePlotly):
     def _read_component_data(self, fileName: Union[str, Path]):
         return super()._read_component_data(fileName, min_columns=COMPONENT_DATA_COLUMNS)
 
+    # Both feed the profiles over position, which a WriteOutletOnly file (one row per block) cannot give.
     def _read_component_blocks(self, fileName: Union[str, Path]) -> List[np.ndarray]:
-        return _read_current_component_blocks(fileName)
+        blocks = _read_current_component_blocks(fileName)
+        if blocks and blocks[0].shape[0] == 1:
+            raise ValueError(f"{fileName} holds the outlet only (WriteOutletOnly); column profiles need every node")
+        return blocks
 
     def _read_column_data(self, fileName: Union[str, Path] = "column.data") -> List[np.ndarray]:
-        return read_blocks(self.data_dir / fileName)
+        blocks = read_blocks(self.data_dir / fileName)
+        if blocks and blocks[0].shape[0] == 1:
+            raise ValueError(f"{fileName} holds the outlet only (WriteOutletOnly); column profiles need every node")
+        return blocks
 
     def _plot_title(self, mode: str = "Breakthrough") -> str:
         return (
@@ -1001,9 +1008,10 @@ class ColumnDataExplorer:
             layout=widgets.Layout(width="520px"),
             style={"description_width": "24px"},
         )
+        outlet_only = self.z_grid.size == 1  # WriteOutletOnly: histories at the outlet only
         self.w_xmode = widgets.Dropdown(
-            options=[("grid (z)", "grid"), ("time", "time")],
-            value="grid",
+            options=[("time", "time")] if outlet_only else [("grid (z)", "grid"), ("time", "time")],
+            value="time" if outlet_only else "grid",
             description="x:",
         )
         self.w_block = widgets.IntSlider(

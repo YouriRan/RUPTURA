@@ -2642,6 +2642,42 @@ TEST(Output, AFileThatCannotBeWrittenStopsTheRun)
   EXPECT_THROW(breakthrough.run(), std::runtime_error);
 }
 
+TEST(Output, WriteOutletOnlyWritesTheOutletRowOfEveryOutput)
+{
+  nlohmann::json data = makeTimeTestInput();
+  data["WriteInterval"] = 2.0e-3;
+  data["SimulationTime"] = 4.0e-3;
+  data["writeoutletonly"] = true;
+
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_write_outlet_only");
+  std::ofstream("simulation.json") << data;
+  InputReader reader("simulation.json");
+  Breakthrough breakthrough(reader);
+  breakthrough.run();
+
+  std::vector<std::string> files{"column.data"};
+  for (size_t comp = 0; comp < breakthrough.numberOfComponents; ++comp)
+  {
+    files.push_back("component_" + std::to_string(comp) + "_" + breakthrough.column.components[comp].name + ".data");
+  }
+  // The outputs at 0, 2, and 4 ms, each the single row at z = L.
+  for (const std::string& file : files)
+  {
+    std::ifstream stream(file);
+    size_t rows = 0;
+    for (std::string line; std::getline(stream, line);)
+    {
+      if (line.empty() || line.front() == '#') continue;
+      std::istringstream fields(line);
+      std::array<double, 3> values{};
+      for (double& value : values) fields >> value;
+      EXPECT_DOUBLE_EQ(values[2], breakthrough.column.columnDistances.back()) << file;
+      ++rows;
+    }
+    EXPECT_EQ(rows, 3U) << file;
+  }
+}
+
 TEST(MixturePredictionConvergence, FastIASTThrowsBeyondThePoleOfAnIsotherm)
 {
   // BET has a pole at p = 1 / 1e-6 Pa; beyond it the Newton iteration of IAST ends at its step limit without a solution.

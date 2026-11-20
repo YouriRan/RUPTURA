@@ -14,7 +14,7 @@
   "MixturePredictionMethod": "SPI",
   "BreakthroughIntegrator": "RungeKutta3",
   "BoundaryCondition": "FixedVelocity",
-  "InletCondition": "Danckwerts",
+  "InletCondition": "Dirichlet",
   "NumberOfGridPoints": 50,
   "Components": [
     {
