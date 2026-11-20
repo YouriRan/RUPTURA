@@ -1,0 +1,52 @@
+[
+  {
+    "directory": "simulations/free_pressure/momentum_balance/isothermal",
+    "check": "free_pressure",
+    "closure": "MomentumBalance",
+    "thermal": "isothermal",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/free_pressure/momentum_balance/isothermal_cvode_klu",
+    "check": "free_pressure",
+    "closure": "MomentumBalance",
+    "thermal": "isothermal",
+    "integrator": "CVODE KLU"
+  },
+  {
+    "directory": "simulations/free_pressure/continuity_closure/isothermal",
+    "check": "free_pressure",
+    "closure": "InletVelocityOutletPressure",
+    "thermal": "isothermal",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/free_pressure/momentum_balance/energy_balance",
+    "check": "free_pressure",
+    "closure": "MomentumBalance",
+    "thermal": "energy_balance",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/free_pressure/continuity_closure/energy_balance",
+    "check": "free_pressure",
+    "closure": "InletVelocityOutletPressure",
+    "thermal": "energy_balance",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/phase_end/CVODE",
+    "check": "phase_end",
+    "integrator": "CVODE"
+  },
+  {
+    "directory": "simulations/phase_end/ROS34PW2",
+    "check": "phase_end",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/phase_end/RungeKutta3",
+    "check": "phase_end",
+    "integrator": "RungeKutta3"
+  }
+]

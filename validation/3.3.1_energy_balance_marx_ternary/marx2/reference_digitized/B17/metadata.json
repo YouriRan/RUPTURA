@@ -1,0 +1,13 @@
+{
+  "source_pdf": "10450_2013_9593_MOESM1_ESM.pdf",
+  "pdf_page": 7,
+  "source_figure": "S4",
+  "source_panel": 5,
+  "points_per_trace": 50,
+  "raw_marker_counts": {
+    "CO2": 46,
+    "N2": 46,
+    "Temp": 87
+  },
+  "temperature_sensor": "T5 (outlet-side)"
+}

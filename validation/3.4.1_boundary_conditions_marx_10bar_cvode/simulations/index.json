@@ -1,0 +1,34 @@
+[
+  {
+    "directory": "simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "reference": "3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "directory": "simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "reference": "3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "directory": "simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "reference": "3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "directory": "simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "reference": "3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "directory": "simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "reference": "3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "directory": "simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "reference": "3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "directory": "simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "reference": "3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "directory": "simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "reference": "3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity"
+  }
+]

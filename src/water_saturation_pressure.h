@@ -46,7 +46,7 @@ struct WaterSaturationPressure
         const double criticalPressure = 22.064e6;
         if (!(temperature > 0.0 && temperature < criticalTemperature))
         {
-          throw std::domain_error("Error: the Wagner saturation pressure of water needs 0 < T < 647.096 K");
+          throw std::runtime_error("Error: the Wagner saturation pressure of water needs 0 < T < 647.096 K");
         }
         const double tau = 1.0 - temperature / criticalTemperature;
         const double sqrtTau = std::sqrt(tau);

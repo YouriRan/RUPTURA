@@ -664,7 +664,7 @@ struct Isotherm
         if (pressure <= 0.0) return 0.0;
         if (!(temperature > 0.0))
         {
-          throw std::domain_error("Error: GAB needs a positive temperature (set it with setTemperature)");
+          throw std::runtime_error("Error: GAB needs a positive temperature (set it with setTemperature)");
         }
 
         const double saturationPressure = waterSaturationPressure(temperature);
@@ -675,7 +675,7 @@ struct Isotherm
         const double kRelativePressure = k * relativePressure;
         if (kRelativePressure >= 1.0)
         {
-          throw std::domain_error("Error: GAB isotherm is undefined for K p/p_sat >= 1");
+          throw std::runtime_error("Error: GAB isotherm is undefined for K p/p_sat >= 1");
         }
         const double denominator =
             (1.0 - kRelativePressure) * (1.0 + kRelativePressure * (c - 1.0));
@@ -738,7 +738,7 @@ struct Isotherm
       {
         if (!(temperature > 0.0))
         {
-          throw std::domain_error("Error: GAB needs a positive temperature (set it with setTemperature)");
+          throw std::runtime_error("Error: GAB needs a positive temperature (set it with setTemperature)");
         }
 
         // The same saturation pressure as valueSlowPath; below p = 0 the slope is its limit at p -> 0.
@@ -748,7 +748,7 @@ struct Isotherm
         const double kRelativePressure = k * std::max(pressure, 0.0) / saturationPressure;
         if (kRelativePressure >= 1.0)
         {
-          throw std::domain_error("Error: GAB isotherm is undefined for K p/p_sat >= 1");
+          throw std::runtime_error("Error: GAB isotherm is undefined for K p/p_sat >= 1");
         }
         const double denominator = (1.0 - kRelativePressure) * (1.0 + kRelativePressure * (c - 1.0));
         const double denominatorSlope = (c - 2.0) - 2.0 * (c - 1.0) * kRelativePressure;
@@ -790,7 +790,7 @@ struct Isotherm
         const double capacityReduction = parameters[3] * waterLoading;
         if (capacityReduction >= 1.0)
         {
-          throw std::domain_error("Error: GAB-modified Toth is undefined for gamma q_w >= 1");
+          throw std::runtime_error("Error: GAB-modified Toth is undefined for gamma q_w >= 1");
         }
         return {parameters[0] / (1.0 - capacityReduction), parameters[1] * (1.0 + parameters[4] * waterLoading),
                 parameters[2]};

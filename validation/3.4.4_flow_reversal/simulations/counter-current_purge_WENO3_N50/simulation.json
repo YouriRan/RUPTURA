@@ -1,0 +1,61 @@
+{
+    "SimulationType": "SwingAdsorption",
+    "DisplayName": "Trace Langmuir adsorbate, counter-current helium purge, WENO3, 50 cells",
+    "BreakthroughIntegrator": "ROS34PW2",
+    "ConvectionScheme": "WENO3",
+    "InletCondition": "Danckwerts",
+    "BoundaryCondition": "FixedVelocity",
+    "Temperature": 298.15,
+    "InletPressure": 100000.0,
+    "ColumnEntranceVelocity": 0.05,
+    "ColumnLength": 0.1,
+    "ColumnVoidFraction": 0.4,
+    "ParticleDensity": 1000.0,
+    "ParticleDiameter": 0.002,
+    "DynamicViscosity": 2e-05,
+    "NumberOfGridPoints": 50,
+    "WriteInterval": 500.0,
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.4,
+        "ParticleDiameter": 0.002
+    },
+    "Components": [
+        {
+            "Name": "Helium",
+            "GasPhaseMolFraction": 0.999,
+            "MolecularWeight": 0.0040026,
+            "CarrierGas": true
+        },
+        {
+            "Name": "A",
+            "GasPhaseMolFraction": 0.001,
+            "MolecularWeight": 0.044,
+            "MassTransferCoefficient": 1.0,
+            "AxialDispersionCoefficient": 0.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Langmuir",
+                    "Parameters": [
+                        1.0,
+                        0.04
+                    ]
+                }
+            ]
+        }
+    ],
+    "SwingAdsorptionPhases": [
+        {
+            "Name": "Loading",
+            "Duration": 30000.0
+        },
+        {
+            "Name": "Purge",
+            "Duration": 320000.0,
+            "FlowDirection": "Reverse",
+            "GasPhaseMolFractions": {
+                "Helium": 1.0
+            }
+        }
+    ]
+}

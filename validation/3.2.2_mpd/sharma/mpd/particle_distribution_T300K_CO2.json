@@ -1,0 +1,14 @@
+{
+  "FileName": "particle_distribution_T300K_CO2.data",
+  "ReferenceTemperature": 300.0,
+  "ReferenceFugacity": 173780.08287493762,
+  "ReferenceFrameworkMass": 7.662514749987346e-23,
+  "ComponentBounds": [
+    {
+      "Component": "CO2",
+      "NMin": 0,
+      "NMax": 200,
+      "DeltaN": 1
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "Liu Figure 5b - CO2 Toth isotherm, 308 K, 0.85 RH",
+  "Temperature": 308.0,
+  "MixturePredictionMethod": "SPI",
+  "PressureScale": "Linear",
+  "PressureStart": 0.5,
+  "PressureEnd": 100.0,
+  "NumberOfPressurePoints": 240,
+  "RelativeHumidity": 0.85,
+  "ColumnVoidFraction": 0.5,
+  "ParticleDensity": 1000.0,
+  "Components": [
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 1.0,
+      "MolecularWeight": 0.0440095,
+      "PhysisorptionSites": [
+        {
+          "Type": "Exponential-humidity-Toth",
+          "Parameters": [
+            0.81,
+            6.2,
+            0.4,
+            1.11
+          ]
+        }
+      ]
+    }
+  ]
+}

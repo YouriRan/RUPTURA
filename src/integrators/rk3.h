@@ -47,7 +47,9 @@ bool reactionAutoStopReached(const Column& column) noexcept;
  *
  * The step is not checked for stability. An explicit step is stable below the time in which the fluid crosses the
  * smallest grid cell, dz / v, below about 2.5 / k for the largest mass-transfer coefficient k, and below about
- * 0.6 dz^2 / D for the largest axial dispersion coefficient D; a larger step gives wrong results without an error.
+ * 0.6 dz^2 / D for the largest axial dispersion coefficient D and, with the energy balance, for the thermal
+ * diffusivity of the gas, lambda / (rho c_p); a larger step gives wrong results without an error, or a temperature
+ * that overflows and stops the run in an isotherm.
  */
 struct RungeKutta3
 {

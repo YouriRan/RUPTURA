@@ -1,0 +1,9 @@
+# The experiment directories follow from the lab notebooks (<campaign>/experiments.csv) with Campaign.write_inputs and
+# Campaign.rerun.
+campaign/round_*/
+campaign_two_beds/round_*/
+# The campaign of 2026-11-11, run with the earlier cyclic-steady-state stop in Python (kept for comparison).
+campaign_python_stop/round_*/
+# The campaigns of 2026-11-19 with the reference settings (kept for comparison).
+campaign_reference_settings/round_*/
+campaign_two_beds_reference_settings/round_*/

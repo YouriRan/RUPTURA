@@ -1,0 +1,133 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "Elfving 2021 - Run 09 - 7-parameter projection (t1=t2=3)",
+  "Temperature": 308.15,
+  "InfluxTemperature": 308.15,
+  "ColumnVoidFraction": 0.375,
+  "DynamicViscosity": 1.82e-05,
+  "ParticleDiameter": 0.0006,
+  "ParticleDensity": 720.0,
+  "InletPressure": 105000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.3493112605583437,
+  "ColumnLength": 0.01746,
+  "MixturePredictionMethod": "SPI",
+  "BreakthroughIntegrator": "RungeKutta3",
+  "BoundaryCondition": "FixedVelocity",
+  "SimulationTime": 18000.0,
+  "WriteInterval": 40.0,
+  "TimeStep": 5e-05,
+  "NumberOfGridPoints": 30,
+  "energyBalance": true,
+  "heatCapacityGas": 1060.0,
+  "heatCapacitySolid": 1580.0,
+  "heatCapacityWall": 500.0,
+  "wallDensity": 8000.0,
+  "gasThermalConductivity": 3.12,
+  "wallThermalConductivity": 16.0,
+  "heatTransferGasSolid": 250.0,
+  "heatTransferGasWall": 33.12,
+  "heatTransferWallExternal": 1000.0,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.375,
+    "ParticleDiameter": 0.0006,
+    "InternalDiameter": 0.009,
+    "OuterDiameter": 0.01
+  },
+  "Components": [
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.98063,
+      "CarrierGas": true,
+      "MolecularWeight": 0.0280134
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.00037,
+      "MassTransferCoefficient": 0.0068603783513390675,
+      "AxialDispersionCoefficient": 0.000352,
+      "MolecularWeight": 0.0440095,
+      "PhysisorptionSites": [
+        {
+          "Type": "Henry",
+          "Parameters": [
+            0.0
+          ]
+        }
+      ],
+      "ChemisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.305,
+            1000.0
+          ],
+          "RateEquation": "General",
+          "RateEquationParameters": {
+            "AdsorptionRateCoefficient": 0.13941810567801066,
+            "DesorptionRateCoefficient": 0.0024521576634147545,
+            "PoreConcentrationOrder": 1,
+            "CapacityOrder": 2,
+            "DesorptionOrder": 1,
+            "FilmMassTransferCoefficient": 0.0,
+            "PoreDiffusivity": 0.0,
+            "UsePoreSurfaceTransport": false
+          },
+          "HeatOfAdsorption": 101201.07588923337,
+          "MaximumLoading": 1.305
+        }
+      ]
+    },
+    {
+      "Name": "H2O",
+      "GasPhaseMolFraction": 0.019,
+      "MassTransferCoefficient": 0.25,
+      "AxialDispersionCoefficient": 0.000352,
+      "MolecularWeight": 0.01801528,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.0,
+            1.0
+          ]
+        }
+      ],
+      "ChemisorptionSites": [
+        {
+          "Type": "GAB",
+          "Parameters": [
+            2.58,
+            {
+              "Value": 0.155,
+              "Law": "VantHoff",
+              "Energy": 6600.0
+            },
+            0.871
+          ],
+          "RateEquationParameters": {
+            "MassTransferCoefficient": 0.25
+          },
+          "HeatOfAdsorption": 50700.0,
+          "MaximumLoading": 2.58
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.1216,
+            {
+              "Value": 0.000671217,
+              "Law": "VantHoff"
+            }
+          ],
+          "RateEquationParameters": {
+            "MassTransferCoefficient": 0.25
+          },
+          "HeatOfAdsorption": 50700.0,
+          "MaximumLoading": 1.1216
+        }
+      ]
+    }
+  ]
+}

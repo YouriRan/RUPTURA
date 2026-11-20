@@ -1,0 +1,71 @@
+{
+  "SimulationType": "Breakthrough",
+  "DisplayName": "breakthrough_IAST",
+  "Temperature": 300.0,
+  "ColumnVoidFraction": 0.128,
+  "ParticleDensity": 1711.06,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.1,
+  "ColumnLength": 0.1,
+  "BreakthroughIntegrator": "ROS34PW2",
+  "SimulationTime": "auto",
+  "WriteInterval": 5.0,
+  "NumberOfGridPoints": 100,
+  "MixturePredictionMethod": "IAST",
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.8,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.1,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.6,
+            0.0002617
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            3.62,
+            4.859e-07
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "C3H8",
+      "GasPhaseMolFraction": 0.1,
+      "MassTransferCoefficient": 0.06,
+      "AxialDispersionCoefficient": 0.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.73,
+            6.506e-09
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.09,
+            0.0002376
+          ]
+        }
+      ]
+    }
+  ],
+  "InletPressure": 100000.0,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.128
+  }
+}

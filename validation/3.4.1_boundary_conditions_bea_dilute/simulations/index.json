@@ -1,0 +1,57 @@
+[
+  {
+    "directory": "simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletVelocityOutletPressure",
+    "boundary_condition": "InletVelocityOutletPressure",
+    "paper_label": "BC1",
+    "feed_molar_mass_kg_per_mol": 0.010736278,
+    "feed_density_kg_per_m3": 0.28071248683769756,
+    "inlet_pressure_Pa": 120000.0,
+    "outlet_pressure_Pa": 119900.0,
+    "pressure_gradient_Pa_per_m": -1000.0,
+    "inlet_velocity_m_per_s": 0.09806554355105747
+  },
+  {
+    "directory": "simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletPressureOutletPressure",
+    "boundary_condition": "InletPressureOutletPressure",
+    "paper_label": "BC2",
+    "feed_molar_mass_kg_per_mol": 0.010736278,
+    "feed_density_kg_per_m3": 0.28071248683769756,
+    "inlet_pressure_Pa": 120000.0,
+    "outlet_pressure_Pa": 119900.0,
+    "pressure_gradient_Pa_per_m": -1000.0,
+    "inlet_velocity_m_per_s": 0.09806554355105747
+  },
+  {
+    "directory": "simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletPressureInletVelocity",
+    "boundary_condition": "InletPressureInletVelocity",
+    "paper_label": "BC3",
+    "feed_molar_mass_kg_per_mol": 0.010736278,
+    "feed_density_kg_per_m3": 0.28071248683769756,
+    "inlet_pressure_Pa": 120000.0,
+    "outlet_pressure_Pa": 119900.0,
+    "pressure_gradient_Pa_per_m": -1000.0,
+    "inlet_velocity_m_per_s": 0.09806554355105747
+  },
+  {
+    "directory": "simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/FixedPressureInletVelocity",
+    "boundary_condition": "FixedPressureInletVelocity",
+    "paper_label": "BC4",
+    "feed_molar_mass_kg_per_mol": 0.010736278,
+    "feed_density_kg_per_m3": 0.28071248683769756,
+    "inlet_pressure_Pa": 120000.0,
+    "outlet_pressure_Pa": 119900.0,
+    "pressure_gradient_Pa_per_m": -1000.0,
+    "inlet_velocity_m_per_s": 0.09806554355105747
+  },
+  {
+    "directory": "simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/FixedVelocity",
+    "boundary_condition": "FixedVelocity",
+    "paper_label": "BC5",
+    "feed_molar_mass_kg_per_mol": 0.010736278,
+    "feed_density_kg_per_m3": 0.28071248683769756,
+    "inlet_pressure_Pa": 120000.0,
+    "outlet_pressure_Pa": 119900.0,
+    "pressure_gradient_Pa_per_m": -1000.0,
+    "inlet_velocity_m_per_s": 0.09806554355105747
+  }
+]

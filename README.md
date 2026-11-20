@@ -309,8 +309,11 @@ reached) and `WriteInterval` (one column profile and progress line every so
 many seconds). `TimeStep` is the fixed step of `RungeKutta3`. It is not checked
 for stability: keep it below the time in which the fluid crosses the smallest
 grid cell (dz / v), below about 2 / k for the largest `MassTransferCoefficient`
-k, and below dz² / (2 D) for the largest axial dispersion coefficient D; a
-larger step gives wrong curves without an error. `CVODE` and
+k, and below dz² / (2 D) for the largest axial dispersion coefficient D and,
+with the energy balance, for the thermal diffusivity of the gas, λ / (ρ c_p)
+(`gasThermalConductivity` over the gas density times `heatCapacityGas`); a
+larger step gives wrong curves without an error, or a temperature that
+overflows and stops the run with an isotherm error. `CVODE` and
 `ROS34PW2` (an adaptive Rosenbrock-W method with the analytical sorption
 Jacobian, controlled by `ROS34PW2RelativeTolerance` and the
 `ROS34PW2AbsoluteTolerance...` keys) choose their own steps and reject

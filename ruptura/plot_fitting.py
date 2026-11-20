@@ -397,12 +397,20 @@ class FittingPlotly(BasePlotly):
     @staticmethod
     def _evaluate_isotherm(isotherm: object, pressure: np.ndarray) -> np.ndarray:
         if hasattr(isotherm, "value") and callable(isotherm.value):
-            return np.asarray([isotherm.value(float(p)) for p in pressure], dtype=float)
+            evaluate = isotherm.value
+        elif callable(isotherm):
+            evaluate = isotherm
+        else:
+            raise TypeError("isotherm must either be callable or expose a value(pressure) method")
 
-        if callable(isotherm):
-            return np.asarray([isotherm(float(p)) for p in pressure], dtype=float)
-
-        raise TypeError("isotherm must either be callable or expose a value(pressure) method")
+        values = []
+        for p in pressure:
+            try:
+                values.append(evaluate(float(p)))
+            except (ZeroDivisionError, OverflowError):
+                # A fit from scratch starts at all-zero parameters, where e.g. Toth divides by zero.
+                values.append(math.nan)
+        return np.asarray(values, dtype=float)
 
     def _pressure_grid(self, pressure_data: np.ndarray, npoints: int = 400) -> np.ndarray:
         pmin = float(np.nanmin(pressure_data))
@@ -465,16 +473,16 @@ class FittingPlotly(BasePlotly):
             )
         )
 
-#fig.add_trace(
-#go.Scatter(
-#x = pressure_grid,
-#y = fit_loading,
-#mode = "lines",
-#name = "fit f(x)",
-#line = dict(width = 3.0),
-#hovertemplate = ("fit f(x)<br>" + "P=%{x:.4g} Pa<br>" + "q=%{y:.6g} mol/kg<extra></extra>"),
-#)
-#)
+        fig.add_trace(
+            go.Scatter(
+                x=pressure_grid,
+                y=fit_loading,
+                mode="lines",
+                name="fit f(x)",
+                line=dict(width=3.0),
+                hovertemplate=("fit f(x)<br>" + "P=%{x:.4g} Pa<br>" + "q=%{y:.6g} mol/kg<extra></extra>"),
+            )
+        )
 
         scatter_kwargs = {}
         if "error" in df.columns:

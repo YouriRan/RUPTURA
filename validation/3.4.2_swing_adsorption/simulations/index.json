@@ -1,0 +1,57 @@
+[
+  {
+    "directory": "simulations/T15_TSA_298K-373K_half-cycle-1000s",
+    "kind": "cycle",
+    "half_cycle_s": 1000,
+    "number_of_cycles": 30,
+    "adsorption_temperature_K": 298.0,
+    "regeneration_temperature_K": 373.0,
+    "output_interval_s": 20.0
+  },
+  {
+    "directory": "simulations/T15_TSA_298K-373K_half-cycle-2000s",
+    "kind": "cycle",
+    "half_cycle_s": 2000,
+    "number_of_cycles": 15,
+    "adsorption_temperature_K": 298.0,
+    "regeneration_temperature_K": 373.0,
+    "output_interval_s": 20.0
+  },
+  {
+    "directory": "simulations/T15_TSA_298K-373K_half-cycle-4000s",
+    "kind": "cycle",
+    "half_cycle_s": 4000,
+    "number_of_cycles": 8,
+    "adsorption_temperature_K": 298.0,
+    "regeneration_temperature_K": 373.0,
+    "output_interval_s": 20.0
+  },
+  {
+    "directory": "simulations/T15_TSA_298K-373K_half-cycle-8000s",
+    "kind": "cycle",
+    "half_cycle_s": 8000,
+    "number_of_cycles": 5,
+    "adsorption_temperature_K": 298.0,
+    "regeneration_temperature_K": 373.0,
+    "output_interval_s": 20.0
+  },
+  {
+    "directory": "simulations/T15_TSA_298K-373K_half-cycle-16000s",
+    "kind": "cycle",
+    "half_cycle_s": 16000,
+    "number_of_cycles": 5,
+    "adsorption_temperature_K": 298.0,
+    "regeneration_temperature_K": 373.0,
+    "output_interval_s": 20.0
+  },
+  {
+    "directory": "simulations/T15_feed_equilibrium_298K",
+    "kind": "equilibrium",
+    "temperature_K": 298.0
+  },
+  {
+    "directory": "simulations/T15_feed_equilibrium_373K",
+    "kind": "equilibrium",
+    "temperature_K": 373.0
+  }
+]

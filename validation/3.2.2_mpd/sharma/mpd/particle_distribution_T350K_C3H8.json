@@ -1,0 +1,14 @@
+{
+  "FileName": "particle_distribution_T350K_C3H8.data",
+  "ReferenceTemperature": 350.0,
+  "ReferenceFugacity": 11481536.214968842,
+  "ReferenceFrameworkMass": 7.662514749987346e-23,
+  "ComponentBounds": [
+    {
+      "Component": "C3H8",
+      "NMin": 0,
+      "NMax": 100,
+      "DeltaN": 1
+    }
+  ]
+}

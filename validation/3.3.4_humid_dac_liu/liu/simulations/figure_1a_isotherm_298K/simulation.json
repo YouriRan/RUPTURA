@@ -1,0 +1,29 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "Liu Figure 1a - flue-gas Toth isotherm at 298 K",
+  "Temperature": 298.15,
+  "MixturePredictionMethod": "SPI",
+  "PressureScale": "Log",
+  "PressureStart": 8.106,
+  "PressureEnd": 12159.0,
+  "NumberOfPressurePoints": 220,
+  "ColumnVoidFraction": 0.5,
+  "ParticleDensity": 1000.0,
+  "Components": [
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 1.0,
+      "MolecularWeight": 0.0440095,
+      "PhysisorptionSites": [
+        {
+          "Type": "Toth",
+          "Parameters": [
+            0.97,
+            8.191463113742907,
+            0.21
+          ]
+        }
+      ]
+    }
+  ]
+}

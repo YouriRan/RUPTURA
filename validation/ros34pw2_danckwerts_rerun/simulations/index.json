@@ -1,0 +1,1563 @@
+[
+  {
+    "study": "marx2_ternary",
+    "case": "T1",
+    "directory": "simulations/marx2_ternary/T1",
+    "source": "marx2/ternary/T1",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T10",
+    "directory": "simulations/marx2_ternary/T10",
+    "source": "marx2/ternary/T10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T11",
+    "directory": "simulations/marx2_ternary/T11",
+    "source": "marx2/ternary/T11",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T12",
+    "directory": "simulations/marx2_ternary/T12",
+    "source": "marx2/ternary/T12",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T13",
+    "directory": "simulations/marx2_ternary/T13",
+    "source": "marx2/ternary/T13",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T14",
+    "directory": "simulations/marx2_ternary/T14",
+    "source": "marx2/ternary/T14",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T15",
+    "directory": "simulations/marx2_ternary/T15",
+    "source": "marx2/ternary/T15",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T16",
+    "directory": "simulations/marx2_ternary/T16",
+    "source": "marx2/ternary/T16",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T17",
+    "directory": "simulations/marx2_ternary/T17",
+    "source": "marx2/ternary/T17",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T18",
+    "directory": "simulations/marx2_ternary/T18",
+    "source": "marx2/ternary/T18",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T19",
+    "directory": "simulations/marx2_ternary/T19",
+    "source": "marx2/ternary/T19",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T2",
+    "directory": "simulations/marx2_ternary/T2",
+    "source": "marx2/ternary/T2",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T20",
+    "directory": "simulations/marx2_ternary/T20",
+    "source": "marx2/ternary/T20",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T21",
+    "directory": "simulations/marx2_ternary/T21",
+    "source": "marx2/ternary/T21",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T22",
+    "directory": "simulations/marx2_ternary/T22",
+    "source": "marx2/ternary/T22",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T23",
+    "directory": "simulations/marx2_ternary/T23",
+    "source": "marx2/ternary/T23",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T24",
+    "directory": "simulations/marx2_ternary/T24",
+    "source": "marx2/ternary/T24",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T3",
+    "directory": "simulations/marx2_ternary/T3",
+    "source": "marx2/ternary/T3",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T4",
+    "directory": "simulations/marx2_ternary/T4",
+    "source": "marx2/ternary/T4",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T5",
+    "directory": "simulations/marx2_ternary/T5",
+    "source": "marx2/ternary/T5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T6",
+    "directory": "simulations/marx2_ternary/T6",
+    "source": "marx2/ternary/T6",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T7",
+    "directory": "simulations/marx2_ternary/T7",
+    "source": "marx2/ternary/T7",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T8",
+    "directory": "simulations/marx2_ternary/T8",
+    "source": "marx2/ternary/T8",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T9",
+    "directory": "simulations/marx2_ternary/T9",
+    "source": "marx2/ternary/T9",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_0p18mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/monolith_400ppm_0p18mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_0p18mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_1mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/monolith_400ppm_1mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_1mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_2mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/monolith_400ppm_2mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_2mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_3mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/monolith_400ppm_3mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_3mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p02mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p02mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p02mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p06mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p06mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p06mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p18mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p18mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p18mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_0p5mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_0p5mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_0p5mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_1mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_1mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_1mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_2mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_2mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_2mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_0p18mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_0p18mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_0p18mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_1mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_2mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_2mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_2mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_3mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_3mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_3mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p02mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p02mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p02mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p06mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p06mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p06mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p18mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p18mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p18mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_1mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_1mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_1mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_2mmol",
+    "directory": "simulations/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_2mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_2mmol",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N100",
+    "directory": "simulations/stadler/figure4_grid_study_548K_SG4p5/N100",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N100",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N1600",
+    "directory": "simulations/stadler/figure4_grid_study_548K_SG4p5/N1600",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N1600",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N200",
+    "directory": "simulations/stadler/figure4_grid_study_548K_SG4p5/N200",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N200",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N25",
+    "directory": "simulations/stadler/figure4_grid_study_548K_SG4p5/N25",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N400",
+    "directory": "simulations/stadler/figure4_grid_study_548K_SG4p5/N400",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N400",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N50",
+    "directory": "simulations/stadler/figure4_grid_study_548K_SG4p5/N50",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N50",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N800",
+    "directory": "simulations/stadler/figure4_grid_study_548K_SG4p5/N800",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N800",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG0p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG0p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG0p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG0p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG1",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG2",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG3",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG4",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/498K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG0p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG0p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG0p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG0p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG1",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG2",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG3",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG4",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/523K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG0p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG0p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG0p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG0p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG1",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG2",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG3",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p75",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p75",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG4",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4p25",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4p25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4p5",
+    "directory": "simulations/stadler/figure4_wgs_conversion/548K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4p5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure6_8a_sorbent_only_cycles_8bar-1bar_523K",
+    "directory": "simulations/stadler/figure6_8a_sorbent_only_cycles_8bar-1bar_523K",
+    "source": "stadler/figure6_8a_sorbent_only_cycles_8bar-1bar_523K",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure6_sorbent_only_fresh_bed_8bar_523K",
+    "directory": "simulations/stadler/figure6_sorbent_only_fresh_bed_8bar_523K",
+    "source": "stadler/figure6_sorbent_only_fresh_bed_8bar_523K",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "stadler",
+    "case": "figure7_8b_sewgs_cycles_8bar-1bar_523K",
+    "directory": "simulations/stadler/figure7_8b_sewgs_cycles_8bar-1bar_523K",
+    "source": "stadler/figure7_8b_sewgs_cycles_8bar-1bar_523K",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_1b_breakthrough_298K",
+    "directory": "simulations/liu/figure_1b_breakthrough_298K",
+    "source": "liu/simulations/figure_1b_breakthrough_298K",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2a_rate_constant_0.005",
+    "directory": "simulations/liu/figure_2a_rate_constant_0.005",
+    "source": "liu/simulations/figure_2a_rate_constant_0.005",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2a_rate_constant_0.01",
+    "directory": "simulations/liu/figure_2a_rate_constant_0.01",
+    "source": "liu/simulations/figure_2a_rate_constant_0.01",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2a_rate_constant_0.02",
+    "directory": "simulations/liu/figure_2a_rate_constant_0.02",
+    "source": "liu/simulations/figure_2a_rate_constant_0.02",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2a_rate_constant_0.04",
+    "directory": "simulations/liu/figure_2a_rate_constant_0.04",
+    "source": "liu/simulations/figure_2a_rate_constant_0.04",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2a_rate_constant_0.06",
+    "directory": "simulations/liu/figure_2a_rate_constant_0.06",
+    "source": "liu/simulations/figure_2a_rate_constant_0.06",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2b_velocity_0.002",
+    "directory": "simulations/liu/figure_2b_velocity_0.002",
+    "source": "liu/simulations/figure_2b_velocity_0.002",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2b_velocity_0.004",
+    "directory": "simulations/liu/figure_2b_velocity_0.004",
+    "source": "liu/simulations/figure_2b_velocity_0.004",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2b_velocity_0.006",
+    "directory": "simulations/liu/figure_2b_velocity_0.006",
+    "source": "liu/simulations/figure_2b_velocity_0.006",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2b_velocity_0.008",
+    "directory": "simulations/liu/figure_2b_velocity_0.008",
+    "source": "liu/simulations/figure_2b_velocity_0.008",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2b_velocity_0.009",
+    "directory": "simulations/liu/figure_2b_velocity_0.009",
+    "source": "liu/simulations/figure_2b_velocity_0.009",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2b_velocity_0.01",
+    "directory": "simulations/liu/figure_2b_velocity_0.01",
+    "source": "liu/simulations/figure_2b_velocity_0.01",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2c_length_0.005",
+    "directory": "simulations/liu/figure_2c_length_0.005",
+    "source": "liu/simulations/figure_2c_length_0.005",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2c_length_0.01",
+    "directory": "simulations/liu/figure_2c_length_0.01",
+    "source": "liu/simulations/figure_2c_length_0.01",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2c_length_0.02",
+    "directory": "simulations/liu/figure_2c_length_0.02",
+    "source": "liu/simulations/figure_2c_length_0.02",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2c_length_0.04",
+    "directory": "simulations/liu/figure_2c_length_0.04",
+    "source": "liu/simulations/figure_2c_length_0.04",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_2c_length_0.08",
+    "directory": "simulations/liu/figure_2c_length_0.08",
+    "source": "liu/simulations/figure_2c_length_0.08",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3a_saturation_loading_0.1",
+    "directory": "simulations/liu/figure_3a_saturation_loading_0.1",
+    "source": "liu/simulations/figure_3a_saturation_loading_0.1",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3a_saturation_loading_0.5",
+    "directory": "simulations/liu/figure_3a_saturation_loading_0.5",
+    "source": "liu/simulations/figure_3a_saturation_loading_0.5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3a_saturation_loading_1",
+    "directory": "simulations/liu/figure_3a_saturation_loading_1",
+    "source": "liu/simulations/figure_3a_saturation_loading_1",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3a_saturation_loading_2",
+    "directory": "simulations/liu/figure_3a_saturation_loading_2",
+    "source": "liu/simulations/figure_3a_saturation_loading_2",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3a_saturation_loading_3",
+    "directory": "simulations/liu/figure_3a_saturation_loading_3",
+    "source": "liu/simulations/figure_3a_saturation_loading_3",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3a_saturation_loading_4",
+    "directory": "simulations/liu/figure_3a_saturation_loading_4",
+    "source": "liu/simulations/figure_3a_saturation_loading_4",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3b_affinity_10000",
+    "directory": "simulations/liu/figure_3b_affinity_10000",
+    "source": "liu/simulations/figure_3b_affinity_10000",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3b_affinity_100000",
+    "directory": "simulations/liu/figure_3b_affinity_100000",
+    "source": "liu/simulations/figure_3b_affinity_100000",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3b_affinity_200000",
+    "directory": "simulations/liu/figure_3b_affinity_200000",
+    "source": "liu/simulations/figure_3b_affinity_200000",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3b_affinity_300000",
+    "directory": "simulations/liu/figure_3b_affinity_300000",
+    "source": "liu/simulations/figure_3b_affinity_300000",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3b_affinity_50000",
+    "directory": "simulations/liu/figure_3b_affinity_50000",
+    "source": "liu/simulations/figure_3b_affinity_50000",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3c_exponent_0.2",
+    "directory": "simulations/liu/figure_3c_exponent_0.2",
+    "source": "liu/simulations/figure_3c_exponent_0.2",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3c_exponent_0.22",
+    "directory": "simulations/liu/figure_3c_exponent_0.22",
+    "source": "liu/simulations/figure_3c_exponent_0.22",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3c_exponent_0.25",
+    "directory": "simulations/liu/figure_3c_exponent_0.25",
+    "source": "liu/simulations/figure_3c_exponent_0.25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3c_exponent_0.27",
+    "directory": "simulations/liu/figure_3c_exponent_0.27",
+    "source": "liu/simulations/figure_3c_exponent_0.27",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_3c_exponent_0.3",
+    "directory": "simulations/liu/figure_3c_exponent_0.3",
+    "source": "liu/simulations/figure_3c_exponent_0.3",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_4_rh_0p00",
+    "directory": "simulations/liu/figure_4_rh_0p00",
+    "source": "liu/simulations/figure_4_rh_0p00",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_4_rh_0p20",
+    "directory": "simulations/liu/figure_4_rh_0p20",
+    "source": "liu/simulations/figure_4_rh_0p20",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_4_rh_0p30",
+    "directory": "simulations/liu/figure_4_rh_0p30",
+    "source": "liu/simulations/figure_4_rh_0p30",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_4_rh_0p40",
+    "directory": "simulations/liu/figure_4_rh_0p40",
+    "source": "liu/simulations/figure_4_rh_0p40",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_4_rh_0p50",
+    "directory": "simulations/liu/figure_4_rh_0p50",
+    "source": "liu/simulations/figure_4_rh_0p50",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_5a_water_isotherm_308K",
+    "directory": "simulations/liu/figure_5a_water_isotherm_308K",
+    "source": "liu/simulations/figure_5a_water_isotherm_308K",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6a_308K_flow_1em06",
+    "directory": "simulations/liu/figure_6a_308K_flow_1em06",
+    "source": "liu/simulations/figure_6a_308K_flow_1em06",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6a_308K_flow_1p5em06",
+    "directory": "simulations/liu/figure_6a_308K_flow_1p5em06",
+    "source": "liu/simulations/figure_6a_308K_flow_1p5em06",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6a_308K_flow_6p67em07",
+    "directory": "simulations/liu/figure_6a_308K_flow_6p67em07",
+    "source": "liu/simulations/figure_6a_308K_flow_6p67em07",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6b_318K_flow_1em06",
+    "directory": "simulations/liu/figure_6b_318K_flow_1em06",
+    "source": "liu/simulations/figure_6b_318K_flow_1em06",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6b_318K_flow_1p5em06",
+    "directory": "simulations/liu/figure_6b_318K_flow_1p5em06",
+    "source": "liu/simulations/figure_6b_318K_flow_1p5em06",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6b_318K_flow_6p67em07",
+    "directory": "simulations/liu/figure_6b_318K_flow_6p67em07",
+    "source": "liu/simulations/figure_6b_318K_flow_6p67em07",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6c_328K_flow_1em06",
+    "directory": "simulations/liu/figure_6c_328K_flow_1em06",
+    "source": "liu/simulations/figure_6c_328K_flow_1em06",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6c_328K_flow_1p5em06",
+    "directory": "simulations/liu/figure_6c_328K_flow_1p5em06",
+    "source": "liu/simulations/figure_6c_328K_flow_1p5em06",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_6c_328K_flow_6p67em07",
+    "directory": "simulations/liu/figure_6c_328K_flow_6p67em07",
+    "source": "liu/simulations/figure_6c_328K_flow_6p67em07",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_7_dry_308K",
+    "directory": "simulations/liu/figure_7_dry_308K",
+    "source": "liu/simulations/figure_7_dry_308K",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "liu",
+    "case": "figure_7_rh_0p85_308K",
+    "directory": "simulations/liu/figure_7_rh_0p85_308K",
+    "source": "liu/simulations/figure_7_rh_0p85_308K",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_bea_dilute",
+    "case": "BEA-C7_7x1pct-in-He_552K_1.2e5Pa/FixedPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_bea_dilute/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_bea_dilute/simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/FixedPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_bea_dilute",
+    "case": "BEA-C7_7x1pct-in-He_552K_1.2e5Pa/FixedVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_bea_dilute/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_bea_dilute/simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/FixedVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_bea_dilute",
+    "case": "BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletPressureInletVelocity",
+    "directory": "simulations/3.4.1_boundary_conditions_bea_dilute/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_bea_dilute/simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletPressureInletVelocity",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_bea_dilute",
+    "case": "BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletPressureOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_bea_dilute/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_bea_dilute/simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletPressureOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_bea_dilute",
+    "case": "BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletVelocityOutletPressure",
+    "directory": "simulations/3.4.1_boundary_conditions_bea_dilute/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_bea_dilute/simulations/BEA-C7_7x1pct-in-He_552K_1.2e5Pa/InletVelocityOutletPressure",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-1000s",
+    "directory": "simulations/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-1000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-1000s",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-16000s",
+    "directory": "simulations/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-16000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-16000s",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-2000s",
+    "directory": "simulations/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-2000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-2000s",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-4000s",
+    "directory": "simulations/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-4000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-4000s",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-8000s",
+    "directory": "simulations/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-8000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-8000s",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "affinity_CO2/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/affinity_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/affinity_CO2/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "affinity_CO2/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/affinity_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/affinity_CO2/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/0",
+    "directory": "simulations/3.4.3_sensitivity/axial_dispersion_coefficient/0",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/0",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-3",
+    "directory": "simulations/3.4.3_sensitivity/axial_dispersion_coefficient/1e-3",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-3",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-4",
+    "directory": "simulations/3.4.3_sensitivity/axial_dispersion_coefficient/1e-4",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-4",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-5",
+    "directory": "simulations/3.4.3_sensitivity/axial_dispersion_coefficient/1e-5",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/axial_dispersion_coefficient/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/axial_dispersion_coefficient/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N10",
+    "directory": "simulations/3.4.3_sensitivity/grid_points/N10",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N20",
+    "directory": "simulations/3.4.3_sensitivity/grid_points/N20",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N20",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N200",
+    "directory": "simulations/3.4.3_sensitivity/grid_points/N200",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N200",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N50",
+    "directory": "simulations/3.4.3_sensitivity/grid_points/N50",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N50",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_solid/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/heat_capacity_solid/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_solid/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_solid/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/heat_capacity_solid/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_solid/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_wall/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/heat_capacity_wall/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_wall/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_wall/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/heat_capacity_wall/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_wall/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_of_adsorption_CO2/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/heat_of_adsorption_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_of_adsorption_CO2/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_of_adsorption_CO2/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/heat_of_adsorption_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_of_adsorption_CO2/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_solid/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/heat_transfer_gas_solid/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_solid/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_solid/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/heat_transfer_gas_solid/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_solid/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_wall/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/heat_transfer_gas_wall/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_wall/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_wall/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/heat_transfer_gas_wall/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_wall/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_wall_external/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/heat_transfer_wall_external/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_wall_external/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_wall_external/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/heat_transfer_wall_external/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_wall_external/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.25",
+    "directory": "simulations/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.25",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.25",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.50",
+    "directory": "simulations/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.50",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.50",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x2.00",
+    "directory": "simulations/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x2.00",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x2.00",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x4.00",
+    "directory": "simulations/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x4.00",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x4.00",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "numerical_dispersion_check/N200_D8.7e-5",
+    "directory": "simulations/3.4.3_sensitivity/numerical_dispersion_check/N200_D8.7e-5",
+    "source": "validation/3.4.3_sensitivity/simulations/numerical_dispersion_check/N200_D8.7e-5",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "particle_density/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/particle_density/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/particle_density/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "particle_density/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/particle_density/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/particle_density/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "reference",
+    "directory": "simulations/3.4.3_sensitivity/reference",
+    "source": "validation/3.4.3_sensitivity/simulations/reference",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "saturation_loading_CO2/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/saturation_loading_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/saturation_loading_CO2/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "saturation_loading_CO2/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/saturation_loading_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/saturation_loading_CO2/x1.10",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "sips_exponent_CO2/x0.90",
+    "directory": "simulations/3.4.3_sensitivity/sips_exponent_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/sips_exponent_CO2/x0.90",
+    "source_integrator": "CVODE"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "sips_exponent_CO2/x1.10",
+    "directory": "simulations/3.4.3_sensitivity/sips_exponent_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/sips_exponent_CO2/x1.10",
+    "source_integrator": "CVODE"
+  }
+]

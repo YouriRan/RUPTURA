@@ -1,0 +1,175 @@
+{
+  "SimulationType": "SwingAdsorption",
+  "DisplayName": "H2 PSA on activated carbon, with ports",
+  "BreakthroughIntegrator": "ROS34PW2",
+  "MixturePredictionMethod": "IAST",
+  "BoundaryCondition": "MomentumBalance",
+  "energyBalance": true,
+  "NumberOfGridPoints": 50,
+  "WriteInterval": 10.0,
+  "Temperature": 298.0,
+  "InfluxTemperature": 298.0,
+  "OutletPressure": 100000.0,
+  "ColumnEntranceVelocity": 0.03,
+  "NumberOfCycles": 40,
+  "CyclicSteadyState": {
+    "Tolerance": 0.001
+  },
+  "SwingAdsorptionPhases": [
+    {
+      "Name": "Pressurization",
+      "Duration": 40.0,
+      "FeedEnd": {
+        "Mode": "Pressure",
+        "Pressure": 1000000.0,
+        "PressureRamp": {
+          "Shape": "Linear",
+          "TimeConstant": 40.0
+        }
+      },
+      "ProductEnd": {
+        "Mode": "Closed"
+      }
+    },
+    {
+      "Name": "Adsorption",
+      "Duration": 60.0,
+      "FeedEnd": {
+        "Mode": "Velocity",
+        "Velocity": 0.03,
+        "Pressure": 1000000.0
+      },
+      "ProductEnd": {
+        "Mode": "Pressure",
+        "Pressure": 1000000.0
+      }
+    },
+    {
+      "Name": "Blowdown",
+      "Duration": 40.0,
+      "FeedEnd": {
+        "Mode": "Pressure",
+        "Pressure": 100000.0,
+        "PressureRamp": {
+          "Shape": "Linear",
+          "TimeConstant": 40.0
+        }
+      },
+      "ProductEnd": {
+        "Mode": "Closed"
+      }
+    },
+    {
+      "Name": "Purge",
+      "Duration": 60.0,
+      "ProductEndGasPhaseMolFractions": "Adsorption",
+      "FeedEnd": {
+        "Mode": "Pressure",
+        "Pressure": 100000.0
+      },
+      "ProductEnd": {
+        "Mode": "Velocity",
+        "Velocity": 0.1,
+        "Pressure": 100000.0
+      }
+    }
+  ],
+  "ColumnVoidFraction": 0.403,
+  "ParticleDensity": 456.6,
+  "ColumnLength": 1.2,
+  "wallDensity": 4000,
+  "gasThermalConductivity": 0.028,
+  "heatTransferGasSolid": 20.0,
+  "heatTransferGasWall": 54.26,
+  "heatTransferWallExternal": 5.0,
+  "heatCapacitySolid": 1000.0,
+  "heatCapacityWall": 1000,
+  "DynamicViscosity": 1.92e-05,
+  "ParticleDiameter": 0.003,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.403,
+    "ParticleDiameter": 0.003,
+    "InternalDiameter": 0.025,
+    "OuterDiameter": 0.04
+  },
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.0,
+      "AxialDispersionCoefficient": 1e-05,
+      "MolecularWeight": 0.004,
+      "CarrierGas": true,
+      "GasHeatCapacity": 20.8
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.4,
+      "MassTransferCoefficient": 0.11,
+      "AxialDispersionCoefficient": 4.3e-06,
+      "MolecularWeight": 0.044,
+      "HeatOfAdsorption": 24860.0,
+      "ReferenceTemperature": 318,
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            12.45,
+            {
+              "Value": 4.39e-07,
+              "Law": "VantHoff"
+            },
+            1.36
+          ]
+        }
+      ],
+      "GasHeatCapacity": 37.1
+    },
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.3,
+      "MassTransferCoefficient": 0.3,
+      "AxialDispersionCoefficient": 4.3e-06,
+      "MolecularWeight": 0.028,
+      "HeatOfAdsorption": 16360.0,
+      "ReferenceTemperature": 298,
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            5.65,
+            {
+              "Value": 2.77e-07,
+              "Law": "VantHoff"
+            },
+            1.18
+          ]
+        }
+      ],
+      "GasHeatCapacity": 29.1
+    },
+    {
+      "Name": "H2",
+      "GasPhaseMolFraction": 0.3,
+      "MassTransferCoefficient": 1.0,
+      "AxialDispersionCoefficient": 4.3e-06,
+      "MolecularWeight": 0.002016,
+      "HeatOfAdsorption": 9730.0,
+      "ReferenceTemperature": 298,
+      "PhysisorptionSites": [
+        {
+          "Type": "Sips",
+          "Parameters": [
+            7.54,
+            {
+              "Value": 2.94e-08,
+              "Law": "VantHoff"
+            },
+            1.08
+          ]
+        }
+      ],
+      "GasHeatCapacity": 28.8
+    }
+  ]
+}

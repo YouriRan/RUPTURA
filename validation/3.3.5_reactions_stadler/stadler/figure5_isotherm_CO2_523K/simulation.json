@@ -1,0 +1,25 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "Stadler 2022 - Figure 5 - CO2 on K-HDMO at 523 K",
+  "Temperature": 523.15,
+  "MixturePredictionMethod": "IAST",
+  "PressureScale": "Linear",
+  "PressureStart": 133.322387415,
+  "PressureEnd": 106657.90993200001,
+  "NumberOfPressurePoints": 200,
+  "Components": [
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 1.0,
+      "PhysisorptionSites": [
+        {
+          "Type": "Freundlich",
+          "Parameters": [
+            0.014059609754619782,
+            4.545454545454546
+          ]
+        }
+      ]
+    }
+  ]
+}

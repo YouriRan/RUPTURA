@@ -1,0 +1,42 @@
+[
+  {
+    "directory": "simulations/Upwind/ROS34PW2",
+    "scheme": "Upwind",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/Upwind/CVODE",
+    "scheme": "Upwind",
+    "integrator": "CVODE"
+  },
+  {
+    "directory": "simulations/TVD/ROS34PW2",
+    "scheme": "TVD",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/TVD/CVODE",
+    "scheme": "TVD",
+    "integrator": "CVODE"
+  },
+  {
+    "directory": "simulations/WENO3/ROS34PW2",
+    "scheme": "WENO3",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/WENO3/CVODE",
+    "scheme": "WENO3",
+    "integrator": "CVODE"
+  },
+  {
+    "directory": "simulations/WENO5/ROS34PW2",
+    "scheme": "WENO5",
+    "integrator": "ROS34PW2"
+  },
+  {
+    "directory": "simulations/WENO5/CVODE",
+    "scheme": "WENO5",
+    "integrator": "CVODE"
+  }
+]

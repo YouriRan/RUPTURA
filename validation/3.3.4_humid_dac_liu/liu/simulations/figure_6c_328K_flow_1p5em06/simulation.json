@@ -1,0 +1,54 @@
+{
+  "SimulationType": "Breakthrough",
+  "BreakthroughIntegrator": "ROS34PW2",
+  "InletCondition": "Danckwerts",
+  "DisplayName": "Liu Figure 6c - 328 K, 1.5e-06 m3/s",
+  "Temperature": 328.0,
+  "InfluxTemperature": 328.0,
+  "ColumnVoidFraction": 0.43,
+  "ParticleDensity": 167.89473684210526,
+  "ParticleDiameter": 0.0005,
+  "DynamicViscosity": 1.78e-05,
+  "InletPressure": 100000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.33333857792256794,
+  "ColumnLength": 0.2,
+  "MixturePredictionMethod": "SPI",
+  "BoundaryCondition": "FixedVelocity",
+  "SimulationTime": 18000.0,
+  "WriteInterval": 60.0,
+  "NumberOfGridPoints": 30,
+  "energyBalance": false,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.43,
+    "ParticleDiameter": 0.0005,
+    "InternalDiameter": 0.004,
+    "OuterDiameter": 0.0048
+  },
+  "Components": [
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.99962,
+      "CarrierGas": true,
+      "MolecularWeight": 0.0280134
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.00038,
+      "MassTransferCoefficient": 0.0016666666666666668,
+      "AxialDispersionCoefficient": 1e-05,
+      "MolecularWeight": 0.0440095,
+      "PhysisorptionSites": [
+        {
+          "Type": "Toth",
+          "Parameters": [
+            0.5276656366001554,
+            0.041765393122839764,
+            1.0585365853658542
+          ]
+        }
+      ]
+    }
+  ]
+}

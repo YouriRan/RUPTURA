@@ -1,0 +1,94 @@
+{
+    "SimulationType": "Breakthrough",
+    "DisplayName": "Stadler 2022 - Figure 6 feed - sorbent only - clean bed - 8 bar, 523 K",
+    "Temperature": 523.15,
+    "InfluxTemperature": 523.15,
+    "ColumnVoidFraction": 0.4,
+    "DynamicViscosity": 2.65e-05,
+    "ParticleDiameter": 0.0002,
+    "InletPressure": 800000.0,
+    "PressureGradient": 0.0,
+    "ColumnEntranceVelocity": 0.1010742223251876,
+    "ColumnLength": 0.1,
+    "MixturePredictionMethod": "IAST",
+    "BoundaryCondition": "FixedVelocity",
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.4,
+        "ParticleDiameter": 0.0002,
+        "InternalDiameter": 0.015957691216057307
+    },
+    "ParticleDensity": 808.3333333333334,
+    "BreakthroughIntegrator": "CVODE",
+    "CVODELinearSolver": "SPGMR",
+    "NumberOfGridPoints": 100,
+    "SimulationTime": 900.0,
+    "WriteInterval": 0.5,
+    "Components": [
+        {
+            "Name": "N2",
+            "GasPhaseMolFraction": 0.65,
+            "CarrierGas": true,
+            "MolecularWeight": 0.0280134
+        },
+        {
+            "Name": "CO",
+            "GasPhaseMolFraction": 0.05,
+            "AxialDispersionCoefficient": 8.451744913222293e-06,
+            "MolecularWeight": 0.0280101,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        },
+        {
+            "Name": "CO2",
+            "GasPhaseMolFraction": 0.05,
+            "AxialDispersionCoefficient": 7.517625748898463e-06,
+            "MolecularWeight": 0.0440095,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Freundlich",
+                    "Parameters": [
+                        0.014059609754619782,
+                        4.545454545454546
+                    ]
+                }
+            ],
+            "MassTransferCoefficient": 0.1125
+        },
+        {
+            "Name": "H2",
+            "GasPhaseMolFraction": 0.05,
+            "AxialDispersionCoefficient": 2.0709055631517528e-05,
+            "MolecularWeight": 0.00201588,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        },
+        {
+            "Name": "H2O",
+            "GasPhaseMolFraction": 0.2,
+            "AxialDispersionCoefficient": 9.564468485292762e-06,
+            "MolecularWeight": 0.01801528,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        }
+    ],
+    "InletCondition": "Dirichlet"
+}

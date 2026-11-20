@@ -160,6 +160,8 @@ struct ROS34PW2
   double maximumTimeStep;                 ///< Largest step in s; 0 leaves the step uncapped.
 
   double timeStep{0.0};                     ///< Step for the next attempt in s; 0 before the first step.
+  size_t stepsSinceEndTime{0};              ///< Accepted steps since one reached its endTime, for the crawl check.
+  double timeSinceEndTime{0.0};             ///< Time in s by which those steps advanced.
   size_t numberOfSteps{0};                  ///< Accepted steps.
   size_t numberOfRejectedSteps{0};          ///< Steps repeated with a smaller step.
   size_t numberOfEvaluations{0};            ///< Right-hand-side evaluations.

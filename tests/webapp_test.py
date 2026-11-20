@@ -265,8 +265,9 @@ def test_qt_state_migrates_legacy_chemisorption_and_saved_snapshots(manager):
 
 def law(value, name):
     coefficient = TEMPERATURE_LAWS["coefficients"][name][0]
-    return {"Value": value, "Law": name, coefficient: 0.1 if name in ("Exponential", "Linear", "Inverse") else 20000.0,
-            "ReferenceTemperature": 300.0}
+    second = {key: 0.1 for key, _ in [TEMPERATURE_LAWS["secondCoefficients"].get(name, [None, None])] if key}
+    return {"Value": value, "Law": name, coefficient: 0.1 if name in ("Exponential", "Linear", "Inverse", "Arctan") else 20000.0,
+            **second, "ReferenceTemperature": 300.0}
 
 
 def test_temperature_law_table_matches_the_cpp_reader(manager):

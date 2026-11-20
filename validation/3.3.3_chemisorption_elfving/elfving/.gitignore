@@ -1,0 +1,12 @@
+*/analysis.ipynb
+*/breakthrough.ipynb
+*/column.data
+*/column.json
+*/component_*.data
+*/failed_state.json
+*/run.log
+equilibrium/*.csv
+equilibrium/*.svg
+breakthrough_summary.svg
+validation_summary.csv
+
