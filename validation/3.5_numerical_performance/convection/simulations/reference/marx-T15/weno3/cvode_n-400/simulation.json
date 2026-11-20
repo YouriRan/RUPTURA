@@ -1,7 +1,7 @@
 {
   "SimulationType": "Breakthrough",
   "BreakthroughIntegrator": "CVODE",
-  "InletCondition": "Danckwerts",
+  "InletCondition": "Dirichlet",
   "MixturePredictionMethod": "SCI",
   "BoundaryCondition": "InletPressureInletVelocity",
   "PressureGradient": 0,

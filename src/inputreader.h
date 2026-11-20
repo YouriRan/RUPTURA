@@ -240,6 +240,7 @@ struct InputReader
   double simulationTime{0.0};       ///< Simulated time in s; set from the phase durations for SwingAdsorption.
   bool autoSimulationTime{true};    ///< Run until the breakthrough or reaction steady-state criterion is met.
   double writeInterval{5.0};        ///< Interval between outputs (and progress lines) in s.
+  bool writeOutletOnly{false};      ///< The output files get the outlet node only, one row per output.
   size_t numberOfInitTimeSteps{0};  ///< RK3 steps over which the step ramps up from 1e-4 TimeStep.
   double timeStep{0.0005};          ///< RK3 time step in s; not used by the adaptive CVODE and ROS34PW2.
 

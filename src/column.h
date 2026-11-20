@@ -524,6 +524,7 @@ struct ColumnData
     convectionScheme = ConvectionScheme(inputReader.convectionScheme);
     inletCondition = InletCondition(inputReader.inletCondition);
     flowDirection = FlowDirection(inputReader.flowDirection);
+    writeOutletOnly = inputReader.writeOutletOnly;
     dispersionReferenceTemperature = inputReader.axialDispersionReferenceTemperature;
     dispersionReferencePressure = inputReader.axialDispersionReferencePressure;
     // MomentumBalance without swing phases: the feed at the inlet velocity, and gas at the outlet pressure at z = L.
@@ -562,6 +563,7 @@ struct ColumnData
   ConvectionScheme convectionScheme{ConvectionScheme::WENO3};  ///< Reconstruction of the convective face values.
   InletCondition inletCondition{InletCondition::Danckwerts};   ///< Species and fluid-temperature inlet condition.
   FlowDirection flowDirection{FlowDirection::Forward};         ///< End at which the feed enters; set per swing phase.
+  bool writeOutletOnly{false};  ///< writeOutput writes the outlet node only (WriteOutletOnly).
   /// Gas at the product end z = L in mol/m^3, per component: the feed of a reverse step, or the gas that flows back in
   /// at z = L in a forward step; empty: the gas of the last cell.
   std::vector<double> productEndConcentration;
@@ -874,7 +876,8 @@ struct Column : ColumnData, ColumnStateViews
 
   /**
    * \brief Writes one output snapshot at the given simulation time: per node, the values of appendColumnOutput in
-   *        column.data and those of appendComponentOutput in the file of each component.
+   *        column.data and those of appendComponentOutput in the file of each component. With writeOutletOnly the
+   *        snapshot is the single row of the node whose gas leaves the column (z = L, or node 1 in a reverse step).
    */
   void writeOutput(std::vector<std::ofstream>& componentStreams, std::ofstream& columnStream, double time) const;
 

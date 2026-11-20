@@ -81,3 +81,23 @@ def test_breakthrough_reader_rejects_old_component_schema(tmp_path):
 
     with pytest.raises(ValueError, match="expected the current 14-column schema"):
         plotter._read_component_blocks(component_file)
+
+
+def test_outlet_only_files_give_breakthrough_rows_but_no_profiles(tmp_path):
+    # WriteOutletOnly: one row per block, as Column::writeOutput writes it.
+    component_file = tmp_path / "component_0_test.data"
+    component_file.write_text(
+        "# component index: 0\n" + "".join(f"0 {t} 0.3 " + " ".join(["1"] * 11) + "\n\n\n" for t in range(3)),
+        encoding="utf-8",
+    )
+    plotter = BreakthroughPlotly(
+        displayName="test",
+        externalTemperature=298.15,
+        externalPressure=101325.0,
+        components=[],
+    )
+
+    rows = plotter._breakthrough_component_data(component_file)
+    np.testing.assert_allclose(rows[:, 1], [0.0, 1.0, 2.0])
+    with pytest.raises(ValueError, match="outlet only"):
+        plotter._read_component_blocks(component_file)

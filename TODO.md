@@ -2665,6 +2665,30 @@ Details in `validation/`.
       (Eq. S142; Antoine 1888 has none); original sources of the Table S8 isotherms; intro positioning against
       CADET-Process, IDAES, Yancy-Caballero et al.; cause of the SPGMR failure with MomentumBalance (SI S2.1);
       E1 used for two metrics (Eqs. S206, S215); TODO markers, VSA section, MPD draft note, code/data availability.
+- [ ] **W-GEN-17 Fewer, denser figures in the main text** (user's request and choices, 2026-11-20): 20 main figures
+      with 53 result panels became 16. Done 2026-11-20:
+  - Figs. 2+3 (geometry schematics) and 5+6 (Ruptura Lab) merged, each as (a)/(b) with the old labels on the panels.
+  - TSA (`fig:cycles`): loading over temperatures on one time axis (`cycles_history.pdf`) and the performance panel
+    with a top axis "cycles to r_k < 0.01"; the convergence curves are SI Fig. `fig:tsa_convergence`.
+  - Marx (`fig:marx_high_flow`): the four curve panels replaced by a summary of all 24 runs, t50 ratio and peak
+    temperature deviation for RUPTURA and the model of Marx et al. (`create.ipynb`, new cells); new SI Table
+    `tab:marx_front_width` with t75 − t25 (only 11 of 24 measured curves reach 90 %).
+  - Stampi-Bombelli: the shifted-time panels at half height (`figure_5_panel(..., height=3.0)`).
+  - Stadler: cycles 1–5 and the steady-state conversion in one figure; the third-cycle and grid-study panels are SI
+    Fig. `fig:stadler_main_panels`.
+  - Pore transport (`fig:goeppert`): one panel with the four sieve fractions (`experiment_all_sizes.pdf`); the four
+    panels per size are SI Fig. `fig:goeppert_sizes`.
+  - MPD (`fig:mpd_mor`): ln Π(n, m) at the reference fugacities, mixture, and breakthrough in one row
+    (`mpd_mor_row.pdf`); pure components, temperature reweighting, and the visits per macrostate are SI Fig.
+    `fig:mpd_mor_pure`.
+  - Flow reversal: outlet and one combined profile panel; profiles per direction and convergence are SI Fig.
+    `fig:flow_reversal_profiles`.
+  - Sensitivity: coefficients and one panel with the response of t50 and t90 − t10 to the three wide sweeps
+    (`sensitivity_sweeps.pdf`); the outlet curves are SI Fig. `fig:sensitivity_curves`.
+  - Kept as they are: benchmark (`fig:benchmark`), boundary conditions.
+  - Open: SDL as one row of Pareto fronts, hypervolume, and impurity (cell added to `analysis.ipynb`; waits for the
+    two-bed campaign with the Marx inputs, V-PHY-12); convection as error against cost for Upwind, TVD, WENO3, and
+    WENO5 per case (`convection_cost_accuracy.pdf`; grid study extended and rerun 2026-11-20, text to update).
 - [ ] **W-GEN-16** Remaining text items of the mock review of 2026-11-19 that W-GEN-15 does not hold; the per-point
       status table is Section 4 of `ruptura-2.0-paper/REVIEW_AUDIT.md`. Still in the text on 21:08:
       - the BET denominator `(1-k_2+k_1\xi)` of Table S8;

@@ -20,7 +20,7 @@ The notebook prints the numbers quoted in the paper and writes the panels to
 
 | Study | Settings |
 |---|---|
-| cost | input grid (BEA and T15 100 points, monolith 50); RK3 at the benchmark step (BEA 1e-2 s, T15 2.5e-2 s, monolith 1e-3 s) and CVODE with SPGMR at the default tolerances; two repeats |
+| cost | input grid (BEA and T15 100 points, monolith 50); RK3 at the benchmark step (BEA 1e-2 s, T15 0.125 s since 2026-11-20, monolith 1e-3 s) and CVODE with SPGMR at the default tolerances; two repeats |
 | stability | RK3 at BEA 1.25e-2, 1.5e-2, 1.75e-2 s (Courant 1.23, 1.48, 1.72); T15 3e-2, 5e-2 s; monolith 1.5e-3, 2e-3 s |
 | grid | CVODE, rtol 1e-6, 25, 50, 100, 200 grid points |
 | reference | CVODE, WENO3, rtol 1e-6, 400 grid points |
@@ -50,3 +50,14 @@ the whole process and CPU time from `/usr/bin/time`.
 - A van Leer-limited MUSCL scheme was tested in a scratch build (2026-10-26) with the same accuracy as WENO3 but a
   smaller RK3 stability range on BEA (unstable at Courant 1.23): on a smooth profile it behaves like Fromm's scheme,
   whose linear RK3 limit is a Courant number of 1.18, against 1.26 for upwind and 1.63 for the third-order WENO3 weights.
+
+## 2026-11-20: Marx inputs for T15, four schemes in the grid study
+
+- T15 reads `marx2/ternary/T15` (TODO V-PHY-12): RK3 is stable at 0.125 s and unstable at 0.15 s (3e-2 / 5e-2 s
+  before), so the cost and stability steps of T15 moved. All T15 runs were rerun.
+- The grid study also runs `TVD` and `WENO5` (`GRID_SCHEMES`); all 48 grid runs were timed in one batch, four at a
+  time, with the frozen binary of the paper reruns, and the three references were rerun with it.
+- `generate.py` now writes `"InletCondition": "Dirichlet"`: the base inputs carry Danckwerts since 2026-11-03, and a
+  regeneration without it made the monolith runs differ from their stored Dirichlet reference by 78 % in t50.
+- Paper figure: `convection_cost_accuracy.pdf`, error against wall time per case for the four schemes; the outlet
+  fronts are SI panels.

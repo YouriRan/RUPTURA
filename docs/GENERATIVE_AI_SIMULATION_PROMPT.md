@@ -618,6 +618,9 @@ Multistacked or mixed beds. Use these only when the column contains several adso
       reaches the feed.
   WriteInterval [s]: one column profile and one progress line every WriteInterval (default 5);
     keep it well below the breakthrough time, aiming for a few hundred output rows.
+  WriteOutletOnly (true/false, default false): write only the outlet row of every output (z = L,
+    or the first cell in a reverse-flow phase) instead of the whole column; use it for long runs
+    whose column profiles are not needed. Leave it out otherwise.
   NumberOfInitTimeSteps: RungeKutta3 ramp-up steps (default 0). Leave it out.
   NumberOfTimeSteps, WriteEvery, and PrintEvery (RUPTURA 2) no longer exist; the reader rejects
     them and prints the equivalent times.

@@ -818,7 +818,12 @@ void Column::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofst
     row.clear();
   };
 
-  for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+  // Reverse flow leaves at z = 0, whose node 0 holds the gas of the first cell (as in breakthroughConverged).
+  const size_t outletNode = flowDirection == FlowDirection::Reverse ? 1 : numberOfGridPoints;
+  const size_t firstNode = writeOutletOnly ? outletNode : 0;
+  const size_t endNode = writeOutletOnly ? outletNode + 1 : numberOfGridPoints + 1;
+
+  for (size_t grid = firstNode; grid < endNode; ++grid)
   {
     appendColumnOutput(row, grid, time);
     appendRow();
@@ -829,7 +834,7 @@ void Column::writeOutput(std::vector<std::ofstream>& componentStreams, std::ofst
   for (size_t comp = 0; comp < numberOfComponents; ++comp)
   {
     buffer.clear();
-    for (size_t grid = 0; grid < numberOfGridPoints + 1; ++grid)
+    for (size_t grid = firstNode; grid < endNode; ++grid)
     {
       appendComponentOutput(row, comp, grid, time);
       appendRow();

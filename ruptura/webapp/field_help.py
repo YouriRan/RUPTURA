@@ -28,6 +28,7 @@ FIELD_HELP = {
     "ConvectionScheme": "Choose how convective face values are reconstructed: third-order WENO (default), fifth-order WENO (on a uniform grid; third order next to the ends), TVD (second order, minmod limiter), or first-order upwind, which adds numerical dispersion of about v·Δz/2.",
     "SimulationTime": "Set the simulated time in seconds, or enter auto to stop shortly after the solver detects breakthrough.",
     "WriteInterval": "Save a column profile and write a progress update every this many seconds.",
+    "WriteOutletOnly": "Save only the outlet row of every output instead of the whole column profile, which makes the result files about NumberOfGridPoints times smaller; column profiles over position are then unavailable.",
     "TimeStep": "Set the fixed RungeKutta3 time step in seconds; CVODE and ROS34PW2 choose their own steps.",
     "NumberOfInitTimeSteps": "Set the number of RungeKutta3 steps over which the time step ramps up at the start.",
     "NumberOfGridPoints": "Set the number of spatial intervals used to discretize this column or section.",

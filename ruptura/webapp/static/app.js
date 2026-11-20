@@ -319,8 +319,9 @@ function renderResultLayout() {
   const meta=state.metadata,options=state.plotOptions,profile=options.plot==="profile";
   const mixture=meta.kind==="MixturePrediction",paired=meta.energyBalance&&options.plot==="breakthrough";
   options.xAxis??="position";options.fps??=20;
+  if(meta.positions?.length===1) options.xAxis="time";  // WriteOutletOnly: one position, so only histories
   let controls=plotSelect("plot","Figure",meta.plots,options.plot);
-  if(profile) controls+=plotSelect("xAxis","X-axis",[{value:"position",label:"Position"},{value:"time",label:"Time"}],options.xAxis);
+  if(profile&&meta.positions.length>1) controls+=plotSelect("xAxis","X-axis",[{value:"position",label:"Position"},{value:"time",label:"Time"}],options.xAxis);
   if(!mixture&&(!profile||options.xAxis==="time")) controls+=plotSelect("xUnits","Time units",[{value:"min",label:"Minutes"},{value:"s",label:"Seconds"},{value:"hr",label:"Hours"}],options.xUnits||"min");
   if(options.plot==="breakthrough") controls+=plotSelect("yUnits","Vertical axis",[{value:"normalized_concentration",label:"Normalized concentration"},{value:"concentration",label:"Concentration [mol/m³]"},...(!meta.liquid?[{value:"molefraction",label:"Mole fraction"},{value:"partial_pressure",label:"Partial pressure [Pa]"}]:[])],options.yUnits||"normalized_concentration");
   if(options.plot==="temperature"||paired) controls+=plotSelect("temperatureUnits","Temperature units",[{value:"kelvin",label:"Kelvin"},{value:"celsius",label:"Celsius"}],options.temperatureUnits||"kelvin");

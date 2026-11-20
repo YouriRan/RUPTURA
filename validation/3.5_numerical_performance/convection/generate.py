@@ -11,13 +11,14 @@ Base cases (as in ../breakthrough/generate.py):
     dispersion coefficient, 3000 s, N = 50 (../../3.3.2_monoliths_stampi_bombelli/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol);
     dispersion-limited.
 
-Studies (scheme = Upwind or WENO3 in every study):
+Studies (scheme = Upwind or WENO3; the grid study also TVD and WENO5):
 
   * cost       input grid; RK3 at the step of the integrator benchmark (BEA 1e-2 s, T15 0.125 s, monolith 1e-3 s)
                and CVODE (SPGMR) at the default tolerances; two repeats each;
   * stability  RK3 at steps around the stability limits (BEA 1.25e-2, 1.5e-2, 1.75e-2 s, Courant numbers 1.23,
                1.48, 1.72; T15 0.125 and 0.15 s; monolith 1.5e-3 and 2e-3 s);
-  * grid       CVODE (SPGMR) at a relative tolerance of 1e-6 with N = 25, 50, 100, 200;
+  * grid       CVODE (SPGMR) at a relative tolerance of 1e-6 with N = 25, 50, 100, 200, for Upwind, TVD, WENO3, and
+               WENO5;
   * reference  CVODE, WENO3, N = 400, relative tolerance 1e-6.
 
 All runs write the column every 2 s (WriteInterval).  The CVODE absolute tolerances scale with the relative
@@ -43,6 +44,7 @@ REPOSITORY = ROOT.parents[2]
 SIMULATION_DIR = ROOT / "simulations"
 
 SCHEMES = ("Upwind", "WENO3")
+GRID_SCHEMES = ("Upwind", "TVD", "WENO3", "WENO5")  # the grid study also runs TVD and WENO5
 CASES = {
     "bea-alkanes-C7": {
         "input": REPOSITORY / "examples" / "BEA-alkanes-C7" / "breakthrough" / "simulation.json",
@@ -87,6 +89,9 @@ def configure(simulation: dict, scheme: str, integrator: str, horizon: float, ti
     simulation["BreakthroughIntegrator"] = integrator
     simulation["SimulationTime"] = horizon
     simulation["WriteInterval"] = WRITE_INTERVAL
+    # The runs of 2026-10-31 used the Dirichlet inlet, the default until 2026-11-03, as ../breakthrough does; the base
+    # inputs carry Danckwerts since then.
+    simulation["InletCondition"] = "Dirichlet"
     if integrator == "RungeKutta3":
         simulation["TimeStep"] = time_step
     if grid_points is not None:
@@ -136,6 +141,8 @@ def main() -> None:
                 configure(simulation, scheme, "RungeKutta3", horizon, time_step=time_step)
                 write(f"stability/{case}/{label}/rk3_dt-{time_step:g}", simulation, study="stability", case=case,
                       scheme=scheme, integrator="rk3", time_step=time_step, relative_tolerance="", repeat=1)
+        for scheme in GRID_SCHEMES:
+            label = scheme.lower()
             for grid_points in GRID_POINTS:
                 simulation = deepcopy(base)
                 configure(simulation, scheme, "CVODE", horizon, relative_tolerance=GRID_RELATIVE_TOLERANCE,

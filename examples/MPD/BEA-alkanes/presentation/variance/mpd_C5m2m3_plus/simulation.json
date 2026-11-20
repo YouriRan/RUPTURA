@@ -1,0 +1,95 @@
+{
+  "SimulationType": "MixturePrediction",
+  "MixturePredictionMethod": "MPD",
+  "DisplayName": "BEA C7 alkanes \u2014 multinomial MPD, y_C5m2m3 plus 0.001",
+  "Temperature": 552.0,
+  "PressureStart": 1000.0,
+  "PressureEnd": 10000000.0,
+  "NumberOfPressurePoints": 50,
+  "PressureScale": "Log",
+  "MPDSettings": {
+    "FileName": "../../../mpd/particle_distribution.data",
+    "ReferenceTemperature": 552.0,
+    "ReferenceFugacity": 100000.0,
+    "ReferenceFrameworkMass": 4.151347667934616e-24,
+    "ComponentBounds": [
+      {
+        "Component": "nC7",
+        "NMin": 0,
+        "NMax": 4,
+        "DeltaN": 1
+      },
+      {
+        "Component": "C6m2",
+        "NMin": 0,
+        "NMax": 4,
+        "DeltaN": 1
+      },
+      {
+        "Component": "C6m3",
+        "NMin": 0,
+        "NMax": 4,
+        "DeltaN": 1
+      },
+      {
+        "Component": "C5m2m2",
+        "NMin": 0,
+        "NMax": 4,
+        "DeltaN": 1
+      },
+      {
+        "Component": "C5m2m3",
+        "NMin": 0,
+        "NMax": 4,
+        "DeltaN": 1
+      },
+      {
+        "Component": "C5m2m4",
+        "NMin": 0,
+        "NMax": 4,
+        "DeltaN": 1
+      },
+      {
+        "Component": "C5m3m3",
+        "NMin": 0,
+        "NMax": 4,
+        "DeltaN": 1
+      }
+    ]
+  },
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.92999,
+      "CarrierGas": true
+    },
+    {
+      "Name": "nC7",
+      "GasPhaseMolFraction": 0.01
+    },
+    {
+      "Name": "C6m2",
+      "GasPhaseMolFraction": 0.01
+    },
+    {
+      "Name": "C6m3",
+      "GasPhaseMolFraction": 0.01
+    },
+    {
+      "Name": "C5m2m2",
+      "GasPhaseMolFraction": 0.01
+    },
+    {
+      "Name": "C5m2m3",
+      "GasPhaseMolFraction": 0.01001
+    },
+    {
+      "Name": "C5m2m4",
+      "GasPhaseMolFraction": 0.01
+    },
+    {
+      "Name": "C5m3m3",
+      "GasPhaseMolFraction": 0.01
+    }
+  ]
+}
