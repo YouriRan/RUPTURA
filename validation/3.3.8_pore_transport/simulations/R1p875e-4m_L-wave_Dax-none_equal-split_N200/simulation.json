@@ -1,0 +1,75 @@
+{
+    "SimulationType": "Breakthrough",
+    "DisplayName": "CO2 on PEI/fumed silica, R = 0.0001875 m, L = 0.30853 m, D_ax = 0.0 m2/s, equal-split, 200 cells",
+    "BreakthroughIntegrator": "CVODE",
+    "CVODEMaximumTimeStep": 0.0,
+    "CVODELinearSolver": "Dense",
+    "CVODERelativeTolerance": 1e-07,
+    "CVODEAbsoluteToleranceConcentration": 1e-09,
+    "CVODEAbsoluteToleranceLoading": 1e-08,
+    "ConvectionScheme": "WENO3",
+    "InletCondition": "Danckwerts",
+    "BoundaryCondition": "FixedVelocity",
+    "MixturePredictionMethod": "SPI",
+    "Temperature": 298.15,
+    "InletPressure": 101325.0,
+    "ColumnEntranceVelocity": 0.23141018201295552,
+    "ColumnLength": 0.30852622368640353,
+    "ColumnVoidFraction": 0.48,
+    "ParticleDensity": 1040.6284740623926,
+    "ParticleDiameter": 0.000375,
+    "DynamicViscosity": 1.8e-05,
+    "NumberOfGridPoints": 200,
+    "SimulationTime": 152600.0,
+    "WriteInterval": 10900.0,
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.48,
+        "ParticleDiameter": 0.000375
+    },
+    "Components": [
+        {
+            "Name": "Air",
+            "GasPhaseMolFraction": 0.999595,
+            "MolecularWeight": 0.02897,
+            "CarrierGas": true
+        },
+        {
+            "Name": "CO2",
+            "GasPhaseMolFraction": 0.000405,
+            "MolecularWeight": 0.04401,
+            "MassTransferCoefficient": 1.0,
+            "AxialDispersionCoefficient": 0.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ],
+            "ChemisorptionSites": [
+                {
+                    "Type": "Langmuir",
+                    "Parameters": [
+                        1.725,
+                        1000.0
+                    ],
+                    "RateEquation": "General",
+                    "RateEquationParameters": {
+                        "AdsorptionRateCoefficient": 0.0166,
+                        "DesorptionRateCoefficient": 2.45e-07,
+                        "PoreConcentrationOrder": 1,
+                        "CapacityOrder": 2,
+                        "DesorptionOrder": 2,
+                        "FilmMassTransferCoefficient": 0.0588,
+                        "PoreDiffusivity": 2.205e-06,
+                        "UsePoreSurfaceTransport": true
+                    },
+                    "HeatOfAdsorption": 0.0,
+                    "MaximumLoading": 1.725
+                }
+            ]
+        }
+    ]
+}

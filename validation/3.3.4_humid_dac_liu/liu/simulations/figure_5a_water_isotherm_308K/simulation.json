@@ -1,0 +1,54 @@
+{
+  "SimulationType": "Breakthrough",
+  "BreakthroughIntegrator": "ROS34PW2",
+  "InletCondition": "Danckwerts",
+  "DisplayName": "Liu Figure 5a - GAB water isotherm at 308 K",
+  "Temperature": 308.0,
+  "InfluxTemperature": 308.0,
+  "ColumnVoidFraction": 0.43,
+  "ParticleDensity": 167.89473684210526,
+  "ParticleDiameter": 0.0005,
+  "DynamicViscosity": 1.78e-05,
+  "InletPressure": 100000.0,
+  "PressureGradient": 0.0,
+  "ColumnEntranceVelocity": 0.05,
+  "ColumnLength": 0.2,
+  "MixturePredictionMethod": "SPI",
+  "BoundaryCondition": "FixedVelocity",
+  "SimulationTime": 600.0,
+  "WriteInterval": 2.0,
+  "NumberOfGridPoints": 30,
+  "energyBalance": false,
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.43,
+    "ParticleDiameter": 0.0005,
+    "InternalDiameter": 0.004,
+    "OuterDiameter": 0.0048
+  },
+  "Components": [
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.9527174581941485,
+      "CarrierGas": true,
+      "MolecularWeight": 0.0280134
+    },
+    {
+      "Name": "H2O",
+      "GasPhaseMolFraction": 0.04728254180585149,
+      "MassTransferCoefficient": 0.006,
+      "AxialDispersionCoefficient": 1e-05,
+      "MolecularWeight": 0.01801528,
+      "PhysisorptionSites": [
+        {
+          "Type": "GAB",
+          "Parameters": [
+            26.0,
+            0.22,
+            0.84
+          ]
+        }
+      ]
+    }
+  ]
+}

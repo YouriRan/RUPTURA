@@ -1,0 +1,290 @@
+{
+    "SimulationType": "SwingAdsorption",
+    "DisplayName": "H2 PSA on activated carbon, two beds",
+    "BreakthroughIntegrator": "ROS34PW2",
+    "MixturePredictionMethod": "SCI",
+    "BoundaryCondition": "MomentumBalance",
+    "energyBalance": true,
+    "NumberOfGridPoints": 50,
+    "WriteInterval": 10.0,
+    "Temperature": 298.0,
+    "InfluxTemperature": 298.0,
+    "OutletPressure": 100000.0,
+    "ColumnEntranceVelocity": 0.03,
+    "NumberOfCycles": 40,
+    "CyclicSteadyState": {
+        "Tolerance": 0.001
+    },
+    "SwingAdsorptionPhases": [
+        {
+            "Name": "Pressurization A, blowdown B",
+            "Duration": 40.0,
+            "Columns": {
+                "A": {
+                    "FeedEnd": {
+                        "Mode": "Pressure",
+                        "Pressure": 1000000.0,
+                        "PressureRamp": {
+                            "Shape": "Linear",
+                            "TimeConstant": 40.0
+                        }
+                    }
+                },
+                "B": {
+                    "FeedEnd": {
+                        "Mode": "Pressure",
+                        "Pressure": 100000.0,
+                        "PressureRamp": {
+                            "Shape": "Linear",
+                            "TimeConstant": 40.0
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "Name": "Adsorption A, purge B",
+            "Duration": 40.0,
+            "Columns": {
+                "A": {
+                    "FeedEnd": {
+                        "Mode": "Velocity",
+                        "Velocity": 0.03,
+                        "Pressure": 1000000.0
+                    }
+                },
+                "B": {
+                    "FeedEnd": {
+                        "Mode": "Pressure",
+                        "Pressure": 100000.0
+                    }
+                }
+            },
+            "Connections": [
+                {
+                    "Name": "Product",
+                    "From": "A.ProductEnd",
+                    "To": "Tank",
+                    "Conductance": 2e-08,
+                    "CheckValve": true
+                },
+                {
+                    "Name": "Purge",
+                    "From": "A.ProductEnd",
+                    "To": "B.ProductEnd",
+                    "Conductance": 8e-10
+                }
+            ]
+        },
+        {
+            "Name": "Equalization A to B",
+            "Duration": 20.0,
+            "Connections": [
+                {
+                    "Name": "Equalization",
+                    "From": "A.ProductEnd",
+                    "To": "B.ProductEnd",
+                    "Conductance": 5e-08
+                }
+            ]
+        },
+        {
+            "Name": "Pressurization B, blowdown A",
+            "Duration": 40.0,
+            "Columns": {
+                "B": {
+                    "FeedEnd": {
+                        "Mode": "Pressure",
+                        "Pressure": 1000000.0,
+                        "PressureRamp": {
+                            "Shape": "Linear",
+                            "TimeConstant": 40.0
+                        }
+                    }
+                },
+                "A": {
+                    "FeedEnd": {
+                        "Mode": "Pressure",
+                        "Pressure": 100000.0,
+                        "PressureRamp": {
+                            "Shape": "Linear",
+                            "TimeConstant": 40.0
+                        }
+                    }
+                }
+            }
+        },
+        {
+            "Name": "Adsorption B, purge A",
+            "Duration": 40.0,
+            "Columns": {
+                "B": {
+                    "FeedEnd": {
+                        "Mode": "Velocity",
+                        "Velocity": 0.03,
+                        "Pressure": 1000000.0
+                    }
+                },
+                "A": {
+                    "FeedEnd": {
+                        "Mode": "Pressure",
+                        "Pressure": 100000.0
+                    }
+                }
+            },
+            "Connections": [
+                {
+                    "Name": "Product",
+                    "From": "B.ProductEnd",
+                    "To": "Tank",
+                    "Conductance": 2e-08,
+                    "CheckValve": true
+                },
+                {
+                    "Name": "Purge",
+                    "From": "B.ProductEnd",
+                    "To": "A.ProductEnd",
+                    "Conductance": 8e-10
+                }
+            ]
+        },
+        {
+            "Name": "Equalization B to A",
+            "Duration": 20.0,
+            "Connections": [
+                {
+                    "Name": "Equalization",
+                    "From": "B.ProductEnd",
+                    "To": "A.ProductEnd",
+                    "Conductance": 5e-08
+                }
+            ]
+        }
+    ],
+    "ColumnVoidFraction": 0.742096,
+    "ParticleDensity": 1946.46,
+    "ColumnLength": 1.2,
+    "wallDensity": 4000,
+    "gasThermalConductivity": 0.028,
+    "heatTransferGasSolid": 223.75,
+    "heatTransferGasWall": 54.26,
+    "heatTransferWallExternal": 5.0,
+    "heatCapacitySolid": 1000.0,
+    "heatCapacityWall": 1000,
+    "DynamicViscosity": 1.92e-05,
+    "ParticleDiameter": 0.003,
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.742096,
+        "ParticleDiameter": 0.003,
+        "InternalDiameter": 0.025,
+        "OuterDiameter": 0.04
+    },
+    "Components": [
+        {
+            "Name": "Helium",
+            "GasPhaseMolFraction": 0.0,
+            "MolecularWeight": 0.004,
+            "AxialDispersionCoefficient": 1e-05,
+            "GasHeatCapacity": 29.51,
+            "CarrierGas": true
+        },
+        {
+            "Name": "CO2",
+            "GasPhaseMolFraction": 0.4,
+            "MolecularWeight": 0.044,
+            "AxialDispersionCoefficient": 4.3e-06,
+            "MassTransferCoefficient": 0.11,
+            "HeatOfAdsorption": 26000.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Sips",
+                    "Parameters": [
+                        {
+                            "Value": 1.38,
+                            "Law": "VantHoff",
+                            "Energy": 5628.0
+                        },
+                        {
+                            "Value": 1.6799999999999998e-08,
+                            "Law": "VantHoff",
+                            "Energy": 9159.0
+                        },
+                        {
+                            "Value": 1.2048192771084338,
+                            "Law": "Arctan",
+                            "Alpha": 0.072,
+                            "Beta": 0.106,
+                            "ReferenceTemperature": 329.0
+                        }
+                    ]
+                }
+            ],
+            "GasHeatCapacity": 29.51
+        },
+        {
+            "Name": "N2",
+            "GasPhaseMolFraction": 0.3,
+            "MolecularWeight": 0.028,
+            "AxialDispersionCoefficient": 4.3e-06,
+            "MassTransferCoefficient": 0.3,
+            "HeatOfAdsorption": 15600.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Sips",
+                    "Parameters": [
+                        {
+                            "Value": 2.82,
+                            "Law": "VantHoff",
+                            "Energy": 1706.0
+                        },
+                        {
+                            "Value": 1.74e-09,
+                            "Law": "VantHoff",
+                            "Energy": 12661.0
+                        },
+                        1.1627906976744187
+                    ]
+                }
+            ],
+            "GasHeatCapacity": 29.51
+        },
+        {
+            "Name": "H2",
+            "GasPhaseMolFraction": 0.3,
+            "MolecularWeight": 0.002016,
+            "AxialDispersionCoefficient": 4.3e-06,
+            "MassTransferCoefficient": 1.0,
+            "HeatOfAdsorption": 9800.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Sips",
+                    "Parameters": [
+                        6.66,
+                        {
+                            "Value": 6.97e-10,
+                            "Law": "VantHoff",
+                            "Energy": 9826.0
+                        },
+                        1.0416666666666667
+                    ]
+                }
+            ],
+            "GasHeatCapacity": 29.51
+        }
+    ],
+    "Columns": [
+        "A",
+        "B"
+    ],
+    "Buffers": {
+        "Tank": {
+            "Volume": 0.001,
+            "Pressure": 1000000.0,
+            "GasPhaseMolFractions": {
+                "H2": 1.0
+            },
+            "MaximumPressure": 1000000.0
+        }
+    }
+}

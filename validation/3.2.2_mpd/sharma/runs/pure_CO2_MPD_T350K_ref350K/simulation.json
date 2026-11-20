@@ -1,0 +1,35 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "pure_CO2_MPD_T350K_ref350K",
+  "Temperature": 350.0,
+  "PressureStart": 100.0,
+  "PressureEnd": 100000000.0,
+  "NumberOfPressurePoints": 61,
+  "PressureScale": "log",
+  "MixturePredictionMethod": "MPD",
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.0,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 1.0
+    }
+  ],
+  "MPDSettings": {
+    "FileName": "../../mpd/particle_distribution_T350K_CO2.data",
+    "ReferenceTemperature": 350.0,
+    "ReferenceFugacity": 1288249.551693135,
+    "ReferenceFrameworkMass": 7.662514749987346e-23,
+    "ComponentBounds": [
+      {
+        "Component": "CO2",
+        "NMin": 0,
+        "NMax": 200,
+        "DeltaN": 1
+      }
+    ]
+  }
+}

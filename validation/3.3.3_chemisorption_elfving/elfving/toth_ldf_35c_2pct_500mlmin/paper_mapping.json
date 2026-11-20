@@ -1,0 +1,20 @@
+{
+  "model": "toth_ldf",
+  "flow_ml_min": 500.0,
+  "water_vol_percent": 1.9,
+  "nominal_water_percent": "2",
+  "co2_ppm": 370.0,
+  "co2_toth_projection_relative_rms": 0.0,
+  "gab_feed_loading_mol_kg": 1.7855222957313441,
+  "empty_column_feed_loading_mol_kg": 0.6420948100243168,
+  "paper_water_ldf_per_s": 0.2,
+  "ruptura_water_ldf_per_s": 0.2,
+  "co2_capacity_order": 2,
+  "water_capacity_order": 1,
+  "co2_adsorption_rate_coefficient": 0.02426382872345333,
+  "co2_desorption_rate_coefficient": 0.0007978854496065078,
+  "co2_feed_loading_mol_kg": 0.5464750370196695,
+  "co2_two_site_capacity_mol_kg": 1.6351003737213365,
+  "water_rate_coefficient_per_s": 0.2,
+  "kinetic_mapping": "CO2 reversible General chemisorption with qm/2 capacity and squared free-site term; H2O FirstOrder chemisorption"
+}

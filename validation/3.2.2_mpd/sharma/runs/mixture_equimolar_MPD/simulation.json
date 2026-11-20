@@ -1,0 +1,45 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "mixture_equimolar_MPD",
+  "Temperature": 300.0,
+  "PressureStart": 100.0,
+  "PressureEnd": 100000000.0,
+  "NumberOfPressurePoints": 61,
+  "PressureScale": "log",
+  "MixturePredictionMethod": "MPD",
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.0,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.5
+    },
+    {
+      "Name": "C3H8",
+      "GasPhaseMolFraction": 0.5
+    }
+  ],
+  "MPDSettings": {
+    "FileName": "../../mpd/particle_distribution_T300K.data",
+    "ReferenceTemperature": 300.0,
+    "ReferenceFugacity": 100000.0,
+    "ReferenceFrameworkMass": 7.662514749987346e-23,
+    "ComponentBounds": [
+      {
+        "Component": "CO2",
+        "NMin": 0,
+        "NMax": 200,
+        "DeltaN": 1
+      },
+      {
+        "Component": "C3H8",
+        "NMin": 0,
+        "NMax": 100,
+        "DeltaN": 1
+      }
+    ]
+  }
+}

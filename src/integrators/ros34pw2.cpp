@@ -462,6 +462,32 @@ double ROS34PW2::advance(Column& column, double startTime, double endTime, Timin
         precompute(column, timings);
         ++numberOfMixturePredictions;
         ++numberOfSteps;
+        // As CVODE does (B-ITG-19, B-ITG-25): stops when 100 000 steps in a row before endTime advanced the time by
+        // less than 1e-3 of the time in which the fluid crosses the shortest grid cell, or of the step cap if that is
+        // smaller. Without flow there is no crossing time.
+        constexpr size_t stepsPerCrawlCheck = 100000;
+        timeSinceEndTime = reachesEnd ? 0.0 : timeSinceEndTime + h;
+        stepsSinceEndTime = reachesEnd ? 0 : stepsSinceEndTime + 1;
+        if (stepsSinceEndTime == stepsPerCrawlCheck)
+        {
+          double cellTime = std::numeric_limits<double>::infinity();
+          for (size_t node = 1; node <= column.numberOfGridPoints; ++node)
+          {
+            const double velocity = std::abs(column.interstitialGasVelocity[node]);
+            if (velocity > 0.0) cellTime = std::min(cellTime, gridSpacing(column.columnDistances, node) / velocity);
+          }
+          if (std::isfinite(cellTime) && maximumTimeStep > 0.0) cellTime = std::min(cellTime, maximumTimeStep);
+          const double meanStep = timeSinceEndTime / static_cast<double>(stepsPerCrawlCheck);
+          if (std::isfinite(cellTime) && meanStep < 1.0e-3 * cellTime)
+          {
+            throw std::runtime_error(std::format(
+                "ROS34PW2 crawls at t = {} s: {} steps advanced the time by {:.3e} s (mean step {:.3e} s, {:.1e} of "
+                "the {:.3e} s in which the fluid crosses the smallest cell or of the step cap).",
+                time, stepsPerCrawlCheck, timeSinceEndTime, meanStep, meanStep / cellTime, cellTime));
+          }
+          timeSinceEndTime = 0.0;
+          stepsSinceEndTime = 0;
+        }
         // The embedded solution is of second order, so the error estimate scales with h^3; no growth right after a
         // rejected step, and a step shortened to land on endTime keeps the longer proposal when its error allows.
         const double factor =

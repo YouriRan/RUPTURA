@@ -1,0 +1,2354 @@
+[
+  {
+    "study": "marx2_ternary",
+    "case": "T1",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T1",
+    "source": "marx2/ternary/T1"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T1",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T1",
+    "source": "marx2/ternary/T1"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T10",
+    "source": "marx2/ternary/T10"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T10",
+    "source": "marx2/ternary/T10"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T11",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T11",
+    "source": "marx2/ternary/T11"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T11",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T11",
+    "source": "marx2/ternary/T11"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T12",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T12",
+    "source": "marx2/ternary/T12"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T12",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T12",
+    "source": "marx2/ternary/T12"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T13",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T13",
+    "source": "marx2/ternary/T13"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T13",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T13",
+    "source": "marx2/ternary/T13"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T14",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T14",
+    "source": "marx2/ternary/T14"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T14",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T14",
+    "source": "marx2/ternary/T14"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T15",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T15",
+    "source": "marx2/ternary/T15"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T15",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T15",
+    "source": "marx2/ternary/T15"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T16",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T16",
+    "source": "marx2/ternary/T16"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T16",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T16",
+    "source": "marx2/ternary/T16"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T17",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T17",
+    "source": "marx2/ternary/T17"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T17",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T17",
+    "source": "marx2/ternary/T17"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T18",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T18",
+    "source": "marx2/ternary/T18"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T18",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T18",
+    "source": "marx2/ternary/T18"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T19",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T19",
+    "source": "marx2/ternary/T19"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T19",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T19",
+    "source": "marx2/ternary/T19"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T2",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T2",
+    "source": "marx2/ternary/T2"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T2",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T2",
+    "source": "marx2/ternary/T2"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T20",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T20",
+    "source": "marx2/ternary/T20"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T20",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T20",
+    "source": "marx2/ternary/T20"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T21",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T21",
+    "source": "marx2/ternary/T21"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T21",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T21",
+    "source": "marx2/ternary/T21"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T22",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T22",
+    "source": "marx2/ternary/T22"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T22",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T22",
+    "source": "marx2/ternary/T22"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T23",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T23",
+    "source": "marx2/ternary/T23"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T23",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T23",
+    "source": "marx2/ternary/T23"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T24",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T24",
+    "source": "marx2/ternary/T24"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T24",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T24",
+    "source": "marx2/ternary/T24"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T3",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T3",
+    "source": "marx2/ternary/T3"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T3",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T3",
+    "source": "marx2/ternary/T3"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T4",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T4",
+    "source": "marx2/ternary/T4"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T4",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T4",
+    "source": "marx2/ternary/T4"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T5",
+    "source": "marx2/ternary/T5"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T5",
+    "source": "marx2/ternary/T5"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T6",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T6",
+    "source": "marx2/ternary/T6"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T6",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T6",
+    "source": "marx2/ternary/T6"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T7",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T7",
+    "source": "marx2/ternary/T7"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T7",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T7",
+    "source": "marx2/ternary/T7"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T8",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T8",
+    "source": "marx2/ternary/T8"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T8",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T8",
+    "source": "marx2/ternary/T8"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T9",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/marx2_ternary/T9",
+    "source": "marx2/ternary/T9"
+  },
+  {
+    "study": "marx2_ternary",
+    "case": "T9",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/marx2_ternary/T9",
+    "source": "marx2/ternary/T9"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_0p18mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/monolith_400ppm_0p18mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_0p18mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_0p18mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/monolith_400ppm_0p18mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_0p18mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_1mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/monolith_400ppm_1mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_1mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_1mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/monolith_400ppm_1mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_1mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_2mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/monolith_400ppm_2mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_2mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_2mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/monolith_400ppm_2mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_2mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_3mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/monolith_400ppm_3mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_3mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_400ppm_3mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/monolith_400ppm_3mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_400ppm_3mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p02mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p02mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p02mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p02mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p02mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p02mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p06mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p06mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p06mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p06mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p06mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p06mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p18mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p18mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p18mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/monolith_5.6pct_0p18mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/monolith_5.6pct_0p18mmol",
+    "source": "stampi-bombelli/dl_from_literature/monolith_5.6pct_0p18mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_0p5mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_0p5mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_0p5mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_0p5mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_0p5mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_0p5mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_1mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_1mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_1mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_1mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_1mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_1mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_2mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_2mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_2mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_literature/packed_bed_5.6pct_2mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_literature/packed_bed_5.6pct_2mmol",
+    "source": "stampi-bombelli/dl_from_literature/packed_bed_5.6pct_2mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_0p18mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_0p18mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_0p18mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_0p18mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_0p18mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_0p18mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_1mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_1mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_1mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_2mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_2mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_2mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_2mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_2mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_2mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_3mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_3mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_3mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_400ppm_3mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_3mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_400ppm_3mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p02mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p02mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p02mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p02mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p02mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p02mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p06mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p06mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p06mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p06mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p06mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p06mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p18mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p18mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p18mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/monolith_5.6pct_0p18mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p18mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/monolith_5.6pct_0p18mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_0p5mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_1mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_1mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_1mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_1mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_1mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_1mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_2mmol",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_2mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_2mmol"
+  },
+  {
+    "study": "stampi-bombelli",
+    "case": "dl_from_stampibombelli/packed_bed_5.6pct_2mmol",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_2mmol",
+    "source": "stampi-bombelli/dl_from_stampibombelli/packed_bed_5.6pct_2mmol"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N100",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_grid_study_548K_SG4p5/N100",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N100"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N100",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_grid_study_548K_SG4p5/N100",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N100"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N1600",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_grid_study_548K_SG4p5/N1600",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N1600"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N1600",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_grid_study_548K_SG4p5/N1600",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N1600"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N200",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_grid_study_548K_SG4p5/N200",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N200"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N200",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_grid_study_548K_SG4p5/N200",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N200"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_grid_study_548K_SG4p5/N25",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_grid_study_548K_SG4p5/N25",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N400",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_grid_study_548K_SG4p5/N400",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N400"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N400",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_grid_study_548K_SG4p5/N400",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N400"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N50",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_grid_study_548K_SG4p5/N50",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N50"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N50",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_grid_study_548K_SG4p5/N50",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N50"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N800",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_grid_study_548K_SG4p5/N800",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N800"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_grid_study_548K_SG4p5/N800",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_grid_study_548K_SG4p5/N800",
+    "source": "stadler/figure4_grid_study_548K_SG4p5/N800"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG0p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG0p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG0p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG0p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG0p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG0p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG0p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG0p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG1",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG1",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG1p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG1p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG2",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG2",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG2p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG2p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG3",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG3",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG3p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/498K_SG3p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG4",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG4",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/498K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/498K_SG4p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/498K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/498K_SG4p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG0p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG0p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG0p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG0p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG0p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG0p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG0p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG0p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG1",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG1",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG1p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG1p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG2",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG2",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG2p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG2p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG3",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG3",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG3p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/523K_SG3p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG4",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG4",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/523K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/523K_SG4p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/523K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/523K_SG4p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG0p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG0p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG0p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG0p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG0p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG0p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG0p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG0p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG0p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG0p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG1",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG1",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG1p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG1p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG1p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG1p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG1p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG2",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG2",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG2p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG2p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG2p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG2p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG2p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG3",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG3",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG3p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG3p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p75",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG3p75",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG3p75",
+    "source": "stadler/figure4_wgs_conversion/548K_SG3p75"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG4",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG4",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4p25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4p25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG4p25",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4p25"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4p5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure4_wgs_conversion/548K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure4_wgs_conversion/548K_SG4p5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure4_wgs_conversion/548K_SG4p5",
+    "source": "stadler/figure4_wgs_conversion/548K_SG4p5"
+  },
+  {
+    "study": "stadler",
+    "case": "figure6_8a_sorbent_only_cycles_8bar-1bar_523K",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure6_8a_sorbent_only_cycles_8bar-1bar_523K",
+    "source": "stadler/figure6_8a_sorbent_only_cycles_8bar-1bar_523K"
+  },
+  {
+    "study": "stadler",
+    "case": "figure6_8a_sorbent_only_cycles_8bar-1bar_523K",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure6_8a_sorbent_only_cycles_8bar-1bar_523K",
+    "source": "stadler/figure6_8a_sorbent_only_cycles_8bar-1bar_523K"
+  },
+  {
+    "study": "stadler",
+    "case": "figure6_sorbent_only_fresh_bed_8bar_523K",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure6_sorbent_only_fresh_bed_8bar_523K",
+    "source": "stadler/figure6_sorbent_only_fresh_bed_8bar_523K"
+  },
+  {
+    "study": "stadler",
+    "case": "figure6_sorbent_only_fresh_bed_8bar_523K",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure6_sorbent_only_fresh_bed_8bar_523K",
+    "source": "stadler/figure6_sorbent_only_fresh_bed_8bar_523K"
+  },
+  {
+    "study": "stadler",
+    "case": "figure7_8b_sewgs_cycles_8bar-1bar_523K",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/stadler/figure7_8b_sewgs_cycles_8bar-1bar_523K",
+    "source": "stadler/figure7_8b_sewgs_cycles_8bar-1bar_523K"
+  },
+  {
+    "study": "stadler",
+    "case": "figure7_8b_sewgs_cycles_8bar-1bar_523K",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/stadler/figure7_8b_sewgs_cycles_8bar-1bar_523K",
+    "source": "stadler/figure7_8b_sewgs_cycles_8bar-1bar_523K"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure"
+  },
+  {
+    "study": "3.4.1_boundary_conditions_marx_10bar",
+    "case": "T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.1_boundary_conditions_marx_10bar/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "source": "validation/3.4.1_boundary_conditions_marx_10bar/simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-1000s",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-1000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-1000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-1000s",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-1000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-1000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-16000s",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-16000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-16000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-16000s",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-16000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-16000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-2000s",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-2000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-2000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-2000s",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-2000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-2000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-4000s",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-4000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-4000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-4000s",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-4000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-4000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-8000s",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-8000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-8000s"
+  },
+  {
+    "study": "3.4.2_swing_adsorption",
+    "case": "T15_TSA_298K-373K_half-cycle-8000s",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.2_swing_adsorption/T15_TSA_298K-373K_half-cycle-8000s",
+    "source": "validation/3.4.2_swing_adsorption/simulations/T15_TSA_298K-373K_half-cycle-8000s"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "affinity_CO2/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/affinity_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/affinity_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "affinity_CO2/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/affinity_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/affinity_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "affinity_CO2/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/affinity_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/affinity_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "affinity_CO2/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/affinity_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/affinity_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/0",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/axial_dispersion_coefficient/0",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/0"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/0",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/axial_dispersion_coefficient/0",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/0"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-3",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/axial_dispersion_coefficient/1e-3",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-3"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-3",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/axial_dispersion_coefficient/1e-3",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-3"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-4",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/axial_dispersion_coefficient/1e-4",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-4"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-4",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/axial_dispersion_coefficient/1e-4",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-4"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/axial_dispersion_coefficient/1e-5",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-5"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/1e-5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/axial_dispersion_coefficient/1e-5",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/1e-5"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/axial_dispersion_coefficient/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/axial_dispersion_coefficient/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/axial_dispersion_coefficient/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "axial_dispersion_coefficient/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/axial_dispersion_coefficient/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/axial_dispersion_coefficient/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/grid_points/N10",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/grid_points/N10",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N20",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/grid_points/N20",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N20"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N20",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/grid_points/N20",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N20"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N200",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/grid_points/N200",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N200"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N200",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/grid_points/N200",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N200"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N50",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/grid_points/N50",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N50"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "grid_points/N50",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/grid_points/N50",
+    "source": "validation/3.4.3_sensitivity/simulations/grid_points/N50"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_solid/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_capacity_solid/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_solid/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_solid/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_capacity_solid/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_solid/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_solid/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_capacity_solid/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_solid/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_solid/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_capacity_solid/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_solid/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_wall/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_capacity_wall/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_wall/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_wall/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_capacity_wall/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_wall/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_wall/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_capacity_wall/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_wall/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_capacity_wall/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_capacity_wall/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_capacity_wall/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_of_adsorption_CO2/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_of_adsorption_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_of_adsorption_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_of_adsorption_CO2/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_of_adsorption_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_of_adsorption_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_of_adsorption_CO2/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_of_adsorption_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_of_adsorption_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_of_adsorption_CO2/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_of_adsorption_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_of_adsorption_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_solid/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_transfer_gas_solid/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_solid/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_solid/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_transfer_gas_solid/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_solid/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_solid/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_transfer_gas_solid/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_solid/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_solid/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_transfer_gas_solid/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_solid/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_wall/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_transfer_gas_wall/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_wall/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_wall/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_transfer_gas_wall/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_wall/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_wall/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_transfer_gas_wall/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_wall/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_gas_wall/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_transfer_gas_wall/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_gas_wall/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_wall_external/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_transfer_wall_external/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_wall_external/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_wall_external/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_transfer_wall_external/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_wall_external/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_wall_external/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/heat_transfer_wall_external/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_wall_external/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "heat_transfer_wall_external/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/heat_transfer_wall_external/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/heat_transfer_wall_external/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.25",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.25",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.25"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.25",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.25",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.25"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.50",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.50",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.50"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.50",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.50",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.50"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x2.00",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x2.00",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x2.00"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x2.00",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x2.00",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x2.00"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x4.00",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x4.00",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x4.00"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "mass_transfer_coefficient_CO2/x4.00",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/mass_transfer_coefficient_CO2/x4.00",
+    "source": "validation/3.4.3_sensitivity/simulations/mass_transfer_coefficient_CO2/x4.00"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "numerical_dispersion_check/N200_D8.7e-5",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/numerical_dispersion_check/N200_D8.7e-5",
+    "source": "validation/3.4.3_sensitivity/simulations/numerical_dispersion_check/N200_D8.7e-5"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "numerical_dispersion_check/N200_D8.7e-5",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/numerical_dispersion_check/N200_D8.7e-5",
+    "source": "validation/3.4.3_sensitivity/simulations/numerical_dispersion_check/N200_D8.7e-5"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "particle_density/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/particle_density/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/particle_density/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "particle_density/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/particle_density/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/particle_density/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "particle_density/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/particle_density/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/particle_density/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "particle_density/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/particle_density/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/particle_density/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "reference",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/reference",
+    "source": "validation/3.4.3_sensitivity/simulations/reference"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "reference",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/reference",
+    "source": "validation/3.4.3_sensitivity/simulations/reference"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "saturation_loading_CO2/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/saturation_loading_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/saturation_loading_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "saturation_loading_CO2/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/saturation_loading_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/saturation_loading_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "saturation_loading_CO2/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/saturation_loading_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/saturation_loading_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "saturation_loading_CO2/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/saturation_loading_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/saturation_loading_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "sips_exponent_CO2/x0.90",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/sips_exponent_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/sips_exponent_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "sips_exponent_CO2/x0.90",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/sips_exponent_CO2/x0.90",
+    "source": "validation/3.4.3_sensitivity/simulations/sips_exponent_CO2/x0.90"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "sips_exponent_CO2/x1.10",
+    "inlet": "Dirichlet",
+    "directory": "simulations/dirichlet/3.4.3_sensitivity/sips_exponent_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/sips_exponent_CO2/x1.10"
+  },
+  {
+    "study": "3.4.3_sensitivity",
+    "case": "sips_exponent_CO2/x1.10",
+    "inlet": "Danckwerts",
+    "directory": "simulations/danckwerts/3.4.3_sensitivity/sips_exponent_CO2/x1.10",
+    "source": "validation/3.4.3_sensitivity/simulations/sips_exponent_CO2/x1.10"
+  }
+]

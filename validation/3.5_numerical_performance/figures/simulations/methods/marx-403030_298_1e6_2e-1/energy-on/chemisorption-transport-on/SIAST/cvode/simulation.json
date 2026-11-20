@@ -1,0 +1,133 @@
+{
+  "SimulationType": "Breakthrough",
+  "BreakthroughIntegrator": "CVODE",
+  "MixturePredictionMethod": "SIAST",
+  "BoundaryCondition": "InletPressureInletVelocity",
+  "PressureGradient": 0,
+  "energyBalance": true,
+  "SimulationTime": 0.1,
+  "WriteInterval": 0.1005,
+  "NumberOfGridPoints": 100,
+  "DisplayName": "BEA",
+  "Temperature": 298.0,
+  "ColumnVoidFraction": 0.403,
+  "ParticleDensity": 502,
+  "InletPressure": 1000000.0,
+  "ColumnEntranceVelocity": 0.027455300156014287,
+  "ColumnLength": 1.2,
+  "InfluxTemperature": 298,
+  "wallDensity": 4000,
+  "gasThermalConductivity": 0.028,
+  "heatTransferGasSolid": 20.0,
+  "heatTransferGasWall": 25.6,
+  "heatTransferWallExternal": 5.0,
+  "heatCapacityGas": 1109.2,
+  "heatCapacitySolid": 1000.0,
+  "heatCapacityWall": 1000,
+  "DynamicViscosity": 1.92e-05,
+  "ParticleDiameter": 0.003,
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.0,
+      "AxialDispersionCoefficient": 1e-05,
+      "MolecularWeight": 0.004,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.4,
+      "MassTransferCoefficient": 0.11,
+      "AxialDispersionCoefficient": 4.3e-06,
+      "MolecularWeight": 0.044,
+      "HeatOfAdsorption": 24860.0,
+      "ReferenceTemperature": 318,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            12.45,
+            {
+              "Value": 4.39e-07,
+              "Law": "VantHoff"
+            }
+          ]
+        }
+      ],
+      "ChemisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            0.55,
+            {
+              "Value": 1.8e-05,
+              "Law": "VantHoff"
+            }
+          ],
+          "RateEquation": "General",
+          "RateEquationParameters": {
+            "AdsorptionRateCoefficient": 2.5e-05,
+            "DesorptionRateCoefficient": 1e-06,
+            "PoreConcentrationOrder": 1,
+            "CapacityOrder": 1,
+            "DesorptionOrder": 1,
+            "FilmMassTransferCoefficient": 0.0015,
+            "PoreDiffusivity": 8e-11,
+            "UsePoreSurfaceTransport": true
+          },
+          "HeatOfAdsorption": 52000.0,
+          "MaximumLoading": 0.55
+        }
+      ]
+    },
+    {
+      "Name": "N2",
+      "GasPhaseMolFraction": 0.3,
+      "MassTransferCoefficient": 0.3,
+      "AxialDispersionCoefficient": 4.3e-06,
+      "MolecularWeight": 0.028,
+      "HeatOfAdsorption": 16360.0,
+      "ReferenceTemperature": 298,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            5.65,
+            {
+              "Value": 2.77e-07,
+              "Law": "VantHoff"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "H2",
+      "GasPhaseMolFraction": 0.3,
+      "MassTransferCoefficient": 1.0,
+      "AxialDispersionCoefficient": 4.3e-06,
+      "MolecularWeight": 0.002016,
+      "HeatOfAdsorption": 9730.0,
+      "ReferenceTemperature": 298,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            7.54,
+            {
+              "Value": 2.94e-08,
+              "Law": "VantHoff"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "Geometry": {
+    "Type": "PackedBed",
+    "ColumnVoidFraction": 0.403,
+    "ParticleDiameter": 0.003,
+    "InternalDiameter": 0.025,
+    "OuterDiameter": 0.04
+  }
+}

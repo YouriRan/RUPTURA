@@ -1,0 +1,54 @@
+{
+    "SimulationType": "Breakthrough",
+    "DisplayName": "Liu Figure 1b - dry 10132.5 Pa CO2 breakthrough at 298 K",
+    "Temperature": 298.15,
+    "InfluxTemperature": 298.15,
+    "ColumnVoidFraction": 0.5,
+    "ParticleDensity": 1000.0,
+    "ParticleDiameter": 0.0005,
+    "DynamicViscosity": 1.78e-05,
+    "InletPressure": 101325.0,
+    "PressureGradient": 0.0,
+    "ColumnEntranceVelocity": 0.03,
+    "ColumnLength": 0.06,
+    "MixturePredictionMethod": "SPI",
+    "BoundaryCondition": "FixedVelocity",
+    "SimulationTime": 1800.0,
+    "WriteInterval": 6.0,
+    "NumberOfGridPoints": 30,
+    "energyBalance": false,
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.5,
+        "ParticleDiameter": 0.0005,
+        "InternalDiameter": 0.01,
+        "OuterDiameter": 0.012
+    },
+    "Components": [
+        {
+            "Name": "N2",
+            "GasPhaseMolFraction": 0.9,
+            "CarrierGas": true,
+            "MolecularWeight": 0.0280134
+        },
+        {
+            "Name": "CO2",
+            "GasPhaseMolFraction": 0.1,
+            "MassTransferCoefficient": 0.02,
+            "AxialDispersionCoefficient": 1e-05,
+            "MolecularWeight": 0.0440095,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Toth",
+                    "Parameters": [
+                        0.97,
+                        8.191463113742907,
+                        0.21
+                    ]
+                }
+            ]
+        }
+    ],
+    "BreakthroughIntegrator": "ROS34PW2",
+    "InletCondition": "Danckwerts"
+}

@@ -1,0 +1,678 @@
+{
+  "parameters": {
+    "temperature_K": 298.15,
+    "pressure_Pa": 101325.0,
+    "feed_mole_fraction": 0.000405,
+    "feed_concentration_mol_per_m3": 0.016553988032048328,
+    "velocity_m_per_s": 0.23141018201295552,
+    "void_fraction": 0.48,
+    "bulk_density_kg_per_m3": 541.1268065124442,
+    "particle_density_kg_per_m3": 1040.6284740623926,
+    "published_length_m": 0.1,
+    "wave_reduced_length": 70.0,
+    "shown_grid_points": 100,
+    "direct_size": "R1p25e-4m",
+    "default_site_affinity_per_Pa": 1000.0
+  },
+  "sizes": {
+    "R1p25e-4m": {
+      "sieve": "<0.25 mm",
+      "radius": 0.000125,
+      "dispersion": 6e-05,
+      "half_time_h": 10.73,
+      "maximum_loading": 1.662,
+      "k_plus": 0.0348,
+      "k_minus": 5.13e-07,
+      "k_p": 2330.0,
+      "mu": 1.0298413002347522,
+      "equilibrium_loading_mol_per_kg": 1.6138408894857366,
+      "time_scale_s": 1075.6163726772918,
+      "length_scale_m": 0.0022647693499385385,
+      "beta": 592885.438427232,
+      "half_time_s": 38628.0,
+      "delta_s": 1973.3683133898246,
+      "fit_length_m": 0.0854884109776552,
+      "published_stoichiometric_time_s": 47493.41793708406,
+      "peclet_inverse": 0.11448400330816695
+    },
+    "R1p875e-4m": {
+      "sieve": "0.25-0.5 mm",
+      "radius": 0.0001875,
+      "dispersion": 9e-05,
+      "half_time_h": 12.188,
+      "maximum_loading": 1.725,
+      "k_plus": 0.0166,
+      "k_minus": 2.45e-07,
+      "k_p": 0.0294,
+      "mu": 1.0298591664464987,
+      "equilibrium_loading_mol_per_kg": 1.6749863051198215,
+      "time_scale_s": 2172.591192097107,
+      "length_scale_m": 0.004407517481234336,
+      "beta": 9.706015910359861,
+      "half_time_s": 43876.8,
+      "delta_s": 3916.408380081892,
+      "fit_length_m": 0.09695767992880229,
+      "published_stoichiometric_time_s": 49292.854795182066,
+      "peclet_inverse": 0.0882401021168452
+    },
+    "R5p5e-4m": {
+      "sieve": "0.5-1.7 mm",
+      "radius": 0.00055,
+      "dispersion": 0.00026,
+      "half_time_h": 12.08,
+      "maximum_loading": 1.751,
+      "k_plus": 0.0145,
+      "k_minus": 2.14e-07,
+      "k_p": 0.0045,
+      "mu": 1.029858746187856,
+      "equilibrium_loading_mol_per_kg": 1.7002331693366044,
+      "time_scale_s": 2450.3091198545344,
+      "length_scale_m": 0.004897107994517423,
+      "beta": 0.5627174757733288,
+      "half_time_s": 43488.0,
+      "delta_s": 3165.480416396262,
+      "fit_length_m": 0.09324012634485865,
+      "published_stoichiometric_time_s": 50035.83998142961,
+      "peclet_inverse": 0.22943052692401275
+    },
+    "R8p5e-4m": {
+      "sieve": ">1.7 mm",
+      "radius": 0.00085,
+      "dispersion": 0.00041,
+      "half_time_h": 14.028,
+      "maximum_loading": 1.915,
+      "k_plus": 0.0044,
+      "k_minus": 6.49e-08,
+      "k_p": 0.0237,
+      "mu": 1.0298500244858477,
+      "equilibrium_loading_mol_per_kg": 1.8594940568711091,
+      "time_scale_s": 7383.289405939539,
+      "length_scale_m": 0.013492188087660532,
+      "beta": 5.283390417585154,
+      "half_time_s": 50500.8,
+      "delta_s": 13117.268922865573,
+      "fit_length_m": 0.1162553578071246,
+      "published_stoichiometric_time_s": 54722.698482776344,
+      "peclet_inverse": 0.13131641142646086
+    }
+  },
+  "runs": [
+    {
+      "directory": "simulations/R1p25e-4m_L-fit_Dax-none_direct_N50",
+      "studies": [
+        "grid"
+      ],
+      "size": "R1p25e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 50,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.0854884109776552
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-fit_Dax-none_direct_N100",
+      "studies": [
+        "grid",
+        "beta"
+      ],
+      "size": "R1p25e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.0854884109776552
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-fit_Dax-none_direct_N200",
+      "studies": [
+        "grid"
+      ],
+      "size": "R1p25e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 200,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.0854884109776552
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-fit_Dax-none_direct_N400",
+      "studies": [
+        "grid"
+      ],
+      "size": "R1p25e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 400,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.0854884109776552
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-fit_Dax-none_direct_N800",
+      "studies": [
+        "grid"
+      ],
+      "size": "R1p25e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 800,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.0854884109776552
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-fit_Dax-table5_direct_N100",
+      "studies": [
+        "experiment"
+      ],
+      "size": "R1p25e-4m",
+      "column": "fit",
+      "dispersion": "table5",
+      "grid_points": 100,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.0854884109776552
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-published_Dax-table5_direct_N100",
+      "studies": [
+        "experiment"
+      ],
+      "size": "R1p25e-4m",
+      "column": "published",
+      "dispersion": "table5",
+      "grid_points": 100,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-wave_Dax-none_direct_N200",
+      "studies": [
+        "wave"
+      ],
+      "size": "R1p25e-4m",
+      "column": "wave",
+      "dispersion": "none",
+      "grid_points": 200,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.15853385449569768
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-fit_Dax-none_beta1000_N100",
+      "studies": [
+        "beta"
+      ],
+      "size": "R1p25e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "beta1000",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.0854884109776552
+    },
+    {
+      "directory": "simulations/R1p25e-4m_L-fit_Dax-none_beta100_N100",
+      "studies": [
+        "beta"
+      ],
+      "size": "R1p25e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "beta100",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.0854884109776552
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-none_equal-split_N50",
+      "studies": [
+        "grid"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 50,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-none_equal-split_N100",
+      "studies": [
+        "grid",
+        "split"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-none_equal-split_N200",
+      "studies": [
+        "grid"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 200,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-none_equal-split_N400",
+      "studies": [
+        "grid"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 400,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-none_equal-split_N800",
+      "studies": [
+        "grid"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 800,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-table5_equal-split_N100",
+      "studies": [
+        "experiment"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "table5",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-published_Dax-table5_equal-split_N100",
+      "studies": [
+        "experiment"
+      ],
+      "size": "R1p875e-4m",
+      "column": "published",
+      "dispersion": "table5",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-wave_Dax-none_equal-split_N200",
+      "studies": [
+        "wave"
+      ],
+      "size": "R1p875e-4m",
+      "column": "wave",
+      "dispersion": "none",
+      "grid_points": 200,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.30852622368640353
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-none_film-limited_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "film-limited",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-none_pore-limited_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "pore-limited",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R1p875e-4m_L-fit_Dax-none_direct_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R1p875e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09695767992880229
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_equal-split_N50",
+      "studies": [
+        "grid"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 50,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_equal-split_N100",
+      "studies": [
+        "grid",
+        "split",
+        "affinity"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_equal-split_N200",
+      "studies": [
+        "grid"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 200,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_equal-split_N400",
+      "studies": [
+        "grid"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 400,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_equal-split_N800",
+      "studies": [
+        "grid"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 800,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-table5_equal-split_N100",
+      "studies": [
+        "experiment"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "table5",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-published_Dax-table5_equal-split_N100",
+      "studies": [
+        "experiment"
+      ],
+      "size": "R5p5e-4m",
+      "column": "published",
+      "dispersion": "table5",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-wave_Dax-none_equal-split_N200",
+      "studies": [
+        "wave"
+      ],
+      "size": "R5p5e-4m",
+      "column": "wave",
+      "dispersion": "none",
+      "grid_points": 200,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.3427975596162196
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_film-limited_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "film-limited",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_pore-limited_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "pore-limited",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_direct_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.09324012634485865
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-none_equal-split_N50",
+      "studies": [
+        "grid"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 50,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-none_equal-split_N100",
+      "studies": [
+        "grid",
+        "split"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-none_equal-split_N200",
+      "studies": [
+        "grid"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 200,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-none_equal-split_N400",
+      "studies": [
+        "grid"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 400,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-none_equal-split_N800",
+      "studies": [
+        "grid"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 800,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-table5_equal-split_N100",
+      "studies": [
+        "experiment"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "table5",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-published_Dax-table5_equal-split_N100",
+      "studies": [
+        "experiment"
+      ],
+      "size": "R8p5e-4m",
+      "column": "published",
+      "dispersion": "table5",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-wave_Dax-none_equal-split_N200",
+      "studies": [
+        "wave"
+      ],
+      "size": "R8p5e-4m",
+      "column": "wave",
+      "dispersion": "none",
+      "grid_points": 200,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.9444531661362372
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-none_film-limited_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "film-limited",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-none_pore-limited_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "pore-limited",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R8p5e-4m_L-fit_Dax-none_direct_N100",
+      "studies": [
+        "split"
+      ],
+      "size": "R8p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "direct",
+      "site_affinity_per_Pa": 1000.0,
+      "length_m": 0.1162553578071246
+    },
+    {
+      "directory": "simulations/R5p5e-4m_L-fit_Dax-none_equal-split_N100_affinity1e+06",
+      "studies": [
+        "affinity"
+      ],
+      "size": "R5p5e-4m",
+      "column": "fit",
+      "dispersion": "none",
+      "grid_points": 100,
+      "transport": "equal-split",
+      "site_affinity_per_Pa": 1000000.0,
+      "length_m": 0.09324012634485865
+    }
+  ]
+}

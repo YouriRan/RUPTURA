@@ -107,8 +107,10 @@ function lawField(definition, prefix, spec) {
   if (law === "Constant") return field(definition, prefix) + select;
   const [key, label] = state.schema.temperatureLaws.coefficients[law] || [];
   const inherits = law === "VantHoff" && spec.heat;
-  const coefficient = {...describe(key, inherits ? `${label} (blank: heat)` : label), description: state.schema.help[key === "Alpha" ? "InverseAlpha" : key]};
-  return field({...definition, key: "Value"}, path) + select + field(coefficient, path) +
+  const coefficient = {...describe(key, inherits ? `${label} (blank: heat)` : label), description: state.schema.help[key === "Alpha" ? `${law}Alpha` : key]};
+  const [secondKey, secondLabel] = state.schema.temperatureLaws.secondCoefficients[law] || [];
+  const second = secondKey ? field({...describe(secondKey, secondLabel), description: state.schema.help[`${law}${secondKey}`]}, path) : "";
+  return field({...definition, key: "Value"}, path) + select + field(coefficient, path) + second +
     field(describe("ReferenceTemperature", "Reference temperature [K] (blank: inherited)"), path);
 }
 function changeLaw(target) {

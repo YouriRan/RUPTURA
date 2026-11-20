@@ -86,7 +86,7 @@ FIELD_HELP = {
     "MolecularWeight": "Set this component's molar mass in kg/mol.",
     "HeatOfAdsorption": "Set the heat released by adsorption in the energy balance in J/mol; an affinity VantHoff law without Energy takes it, and without it the heat is the Energy of the affinity law.",
     "ReferenceTemperature": "Set the temperature at which the Value of a temperature law applies in kelvin; laws without their own take the component's (or the reaction's).",
-    "Law": "Choose how the parameter depends on temperature: Constant, VantHoff, Arrhenius, Exponential, Linear, or Inverse.",
+    "Law": "Choose how the parameter depends on temperature: Constant, VantHoff, Arrhenius, Exponential, Linear, Inverse, or Arctan.",
     "Value": "Set the parameter at the reference temperature (without one, the pre-exponential factor of a VantHoff or Arrhenius law).",
     "Energy": "Set Q in J/mol of V exp[Q/R (1/T - 1/T_ref)]; a positive Q makes the value grow as the temperature drops. Leave empty to take the heat of adsorption (or reaction).",
     "ActivationEnergy": "Set E in J/mol of V exp[-E/R (1/T - 1/T_ref)]; a positive E makes the rate grow with temperature.",
@@ -169,5 +169,7 @@ FIELD_HELP = {
     "UsePoreSurfaceTransport": "Enable the coupled pore and surface transport treatment for this chemisorption site.",
     "Alpha": "Set the initial adsorption-rate coefficient in the Elovich equation.",
     "InverseAlpha": "Set α of V + α (1 - T_ref/T), in the parameter's unit.",
+    "ArctanAlpha": "Set α of 1/(1/V + α atan[β (T - T_ref)]), in the reciprocal of the parameter's unit.",
+    "ArctanBeta": "Set β in 1/K of 1/(1/V + α atan[β (T - T_ref)]).",
     "Beta": "Set how strongly the Elovich adsorption rate decreases as loading increases.",
 }

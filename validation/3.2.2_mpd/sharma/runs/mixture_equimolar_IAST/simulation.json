@@ -1,0 +1,57 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "mixture_equimolar_IAST",
+  "Temperature": 300.0,
+  "PressureStart": 100.0,
+  "PressureEnd": 100000000.0,
+  "NumberOfPressurePoints": 61,
+  "PressureScale": "log",
+  "MixturePredictionMethod": "IAST",
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.0,
+      "CarrierGas": true
+    },
+    {
+      "Name": "CO2",
+      "GasPhaseMolFraction": 0.5,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.6,
+            0.0002617
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            3.62,
+            4.859e-07
+          ]
+        }
+      ]
+    },
+    {
+      "Name": "C3H8",
+      "GasPhaseMolFraction": 0.5,
+      "PhysisorptionSites": [
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.73,
+            6.506e-09
+          ]
+        },
+        {
+          "Type": "Langmuir",
+          "Parameters": [
+            1.09,
+            0.0002376
+          ]
+        }
+      ]
+    }
+  ]
+}

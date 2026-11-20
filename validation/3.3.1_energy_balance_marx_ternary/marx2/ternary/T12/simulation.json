@@ -1,0 +1,129 @@
+{
+    "SimulationType": "Breakthrough",
+    "BreakthroughIntegrator": "ROS34PW2",
+    "InletCondition": "Danckwerts",
+    "MixturePredictionMethod": "SCI",
+    "BoundaryCondition": "InletPressureInletVelocity",
+    "PressureGradient": 0,
+    "energyBalance": true,
+    "SimulationTime": 4000.0,
+    "WriteInterval": 1.0,
+    "NumberOfGridPoints": 100,
+    "DisplayName": "Marx et al. (2014) T12",
+    "Temperature": 318.0,
+    "ColumnVoidFraction": 0.742096,
+    "ParticleDensity": 1946.46,
+    "InletPressure": 2000000.0,
+    "ColumnEntranceVelocity": 0.027451748447320297,
+    "ColumnLength": 1.2,
+    "InfluxTemperature": 318.0,
+    "wallDensity": 4000,
+    "gasThermalConductivity": 0.028,
+    "heatTransferGasSolid": 312.77,
+    "heatTransferGasWall": 66.35,
+    "heatTransferWallExternal": 5.0,
+    "heatCapacitySolid": 1000.0,
+    "heatCapacityWall": 1000,
+    "DynamicViscosity": 1.92e-05,
+    "ParticleDiameter": 0.003,
+    "Components": [
+        {
+            "Name": "Helium",
+            "GasPhaseMolFraction": 0.0,
+            "AxialDispersionCoefficient": 1e-05,
+            "MolecularWeight": 0.004,
+            "CarrierGas": true,
+            "GasHeatCapacity": 29.51
+        },
+        {
+            "Name": "CO2",
+            "GasPhaseMolFraction": 15.0,
+            "MassTransferCoefficient": 0.07,
+            "AxialDispersionCoefficient": 4.3e-06,
+            "MolecularWeight": 0.044,
+            "HeatOfAdsorption": 26000.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Sips",
+                    "Parameters": [
+                        {
+                            "Value": 1.38,
+                            "Law": "VantHoff",
+                            "Energy": 5628.0
+                        },
+                        {
+                            "Value": 1.6799999999999998e-08,
+                            "Law": "VantHoff",
+                            "Energy": 9159.0
+                        },
+                        {
+                            "Value": 1.2048192771084338,
+                            "Law": "Arctan",
+                            "Alpha": 0.072,
+                            "Beta": 0.106,
+                            "ReferenceTemperature": 329.0
+                        }
+                    ]
+                }
+            ],
+            "GasHeatCapacity": 29.51
+        },
+        {
+            "Name": "N2",
+            "GasPhaseMolFraction": 80.0,
+            "MassTransferCoefficient": 0.3,
+            "AxialDispersionCoefficient": 4.3e-06,
+            "MolecularWeight": 0.028,
+            "HeatOfAdsorption": 15600.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Sips",
+                    "Parameters": [
+                        {
+                            "Value": 2.82,
+                            "Law": "VantHoff",
+                            "Energy": 1706.0
+                        },
+                        {
+                            "Value": 1.74e-09,
+                            "Law": "VantHoff",
+                            "Energy": 12661.0
+                        },
+                        1.1627906976744187
+                    ]
+                }
+            ],
+            "GasHeatCapacity": 29.51
+        },
+        {
+            "Name": "H2",
+            "GasPhaseMolFraction": 5.0,
+            "MassTransferCoefficient": 1.0,
+            "AxialDispersionCoefficient": 4.3e-06,
+            "MolecularWeight": 0.002016,
+            "HeatOfAdsorption": 9800.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Sips",
+                    "Parameters": [
+                        6.66,
+                        {
+                            "Value": 6.97e-10,
+                            "Law": "VantHoff",
+                            "Energy": 9826.0
+                        },
+                        1.0416666666666667
+                    ]
+                }
+            ],
+            "GasHeatCapacity": 29.51
+        }
+    ],
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.742096,
+        "ParticleDiameter": 0.003,
+        "InternalDiameter": 0.025,
+        "OuterDiameter": 0.04
+    }
+}

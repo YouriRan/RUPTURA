@@ -1,0 +1,69 @@
+{
+    "SimulationType": "Breakthrough",
+    "DisplayName": "Stampi-Bombelli 2024 - packed bed - 5.6% - 1 mmol/s",
+    "Temperature": 297.15,
+    "InfluxTemperature": 297.15,
+    "ColumnVoidFraction": 0.3821144145023754,
+    "DynamicViscosity": 1.8e-05,
+    "ParticleDiameter": 0.003,
+    "ParticleDensity": 1044.0,
+    "InletPressure": 101325.0,
+    "PressureGradient": 0.0,
+    "ColumnEntranceVelocity": 0.0715402087807475,
+    "ColumnLength": 0.325,
+    "MixturePredictionMethod": "SPI",
+    "BreakthroughIntegrator": "CVODE",
+    "BoundaryCondition": "FixedVelocity",
+    "NumberOfGridPoints": 50,
+    "SimulationTime": 24000.0,
+    "WriteInterval": 12.0,
+    "Components": [
+        {
+            "Name": "N2",
+            "GasPhaseMolFraction": 0.944,
+            "CarrierGas": true,
+            "MolecularWeight": 0.0280134
+        },
+        {
+            "Name": "CO2",
+            "GasPhaseMolFraction": 0.056,
+            "MassTransferCoefficient": 0.0063,
+            "AxialDispersionCoefficient": 0.5172044510261952,
+            "MolecularWeight": 0.0440095,
+            "HeatOfAdsorption": 70000.0,
+            "ReferenceTemperature": 298.0,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Toth",
+                    "Parameters": [
+                        1.23,
+                        {
+                            "Value": 4.839,
+                            "Law": "VantHoff"
+                        },
+                        0.24968534410230522
+                    ]
+                }
+            ]
+        }
+    ],
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.3821144145023754,
+        "ParticleDiameter": 0.003,
+        "InternalDiameter": 0.0337,
+        "OuterDiameter": 0.055
+    },
+    "energyBalance": true,
+    "gasThermalConductivity": 0.026,
+    "wallThermalConductivity": 16.0,
+    "heatTransferGasSolid": 20.0,
+    "heatTransferGasWall": 200.0,
+    "heatTransferWallExternal": 26.0,
+    "heatCapacityGas": 1040.0,
+    "heatCapacitySolid": 784.0,
+    "heatCapacityWall": 500.0,
+    "wallDensity": 8000.0,
+    "CVODELinearSolver": "Dense",
+    "InletCondition": "Danckwerts"
+}

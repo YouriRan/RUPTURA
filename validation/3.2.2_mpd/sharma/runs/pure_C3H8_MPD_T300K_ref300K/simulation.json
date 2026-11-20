@@ -1,0 +1,35 @@
+{
+  "SimulationType": "MixturePrediction",
+  "DisplayName": "pure_C3H8_MPD_T300K_ref300K",
+  "Temperature": 300.0,
+  "PressureStart": 100.0,
+  "PressureEnd": 100000000.0,
+  "NumberOfPressurePoints": 61,
+  "PressureScale": "log",
+  "MixturePredictionMethod": "MPD",
+  "Components": [
+    {
+      "Name": "Helium",
+      "GasPhaseMolFraction": 0.0,
+      "CarrierGas": true
+    },
+    {
+      "Name": "C3H8",
+      "GasPhaseMolFraction": 1.0
+    }
+  ],
+  "MPDSettings": {
+    "FileName": "../../mpd/particle_distribution_T300K_C3H8.data",
+    "ReferenceTemperature": 300.0,
+    "ReferenceFugacity": 851138.0382023759,
+    "ReferenceFrameworkMass": 7.662514749987346e-23,
+    "ComponentBounds": [
+      {
+        "Component": "C3H8",
+        "NMin": 0,
+        "NMax": 100,
+        "DeltaN": 1
+      }
+    ]
+  }
+}

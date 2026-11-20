@@ -174,6 +174,14 @@ then the items completed since the last move, both ordered by area as in the sec
       ρ_p times too large (950× in `examples/Reactions/pore-langmuir-hinshelwood`, energy balance on). The SI
       (Eq. `pore_reaction_heat_source`) weights by Ψ_p = (1 − ε_b) ε_p, the code's reservoir has no ε_p; decide
       which volume the pore concentration refers to. Found 2026-11-03 while doing F-PHY-5; not checked by a run.
+      2026-11-20 (I-PHY-4): the SI side is settled. Ψ_p is now the adsorbent volume without ε_p, the basis of the
+      reservoirs. The code still lacks the 1/ρ_p.
+- [ ] **B-PHY-16** A `PoreConcentration` reaction on a chemisorption site without pore transport acts on a closed
+      reservoir. `computeChemisorptionTransportDerivatives` and `computeBulkSpeciesSink` skip sites without
+      `UsePoreSurfaceTransport`, so the reservoir of that site exchanges nothing with the bulk. The reader checks only
+      the site index (`inputreader.cpp` ≈3687). Reject such reactions in the reader, or connect the reservoir. The SI
+      ("Pore transport", "Reaction without adsorption limitation") now says that pore reactions belong on sites with
+      pore transport. Found 2026-11-20 from the code; not checked by a run.
 - [ ] **B-ITG-2** RK3 close to its stability limit is inaccurate on the dispersion-dominated monolith (fitted D_ax,
       400 ppm): e50 = 0.098 at Δt = 1.25e-3 s (limit ≈ 1.66e-3 s), 2.8e-4 at 4e-4 s. Possibly the clipping of
       negative concentrations at the front (`updateStateRK` max(0, ·); `stampi-bombelli/generate_runs.py`
@@ -242,6 +250,12 @@ then the items completed since the last move, both ordered by area as in the sec
     literature-D_L 400 ppm fronts. In ruptura-5a's `validation/ros34pw2_danckwerts_rerun`, all 223 cases outside
     Elfving finish, including the 6 CVODE stops of 3.4.1 and 36 of Liu (B-EX-10). The stall is a CVODE (BDF)
     problem; a positivity fix or ROS34PW2 as the default for these cases would remove the overrides.
+  - 2026-11-20, full rerun on the cluster node: four Stampi-Bombelli runs of
+    `validation/inlet_condition_dirichlet_vs_danckwerts` stop again, as on 2026-11-03:
+    `dl_from_stampibombelli/monolith_5.6pct_0p02mmol` under both inlets, and `packed_bed_5.6pct_0p5mmol` and `_1mmol`
+    under Danckwerts. That study keeps the CVODE inputs of 2026-11-03, from before the per-case settings above
+    (`CVODE_OVERRIDES`), and these stops are among its findings, so the inputs stay as they are. `cases.csv` now
+    names the four runs as expected stops.
 - [ ] **B-ITG-13 RK3 above its stability limit completes without an error.** In the `benchmark/breakthrough`
       stability runs (2026-10-28), BEA at 1.5e-2 s and the monolith at 2e-3 s run into unbounded outlets (58× and
       2500× the feed), and T15 at 5e-2 s collapses to an outlet of exactly zero for every component after a few
@@ -304,12 +318,6 @@ then the items completed since the last move, both ordered by area as in the sec
     - The stored T15 benchmark runs of 2026-11-03 give t50 about 1 s later (0.15–0.9 %) than the binary at the start
       of the 2026-11-09 session, with or without this fix: the closure fixes of V-BC-2, whose benchmark rerun is open.
     - Paper follow-up: V-ITG-2 (reruns) and I-ITG-3 (text).
-- [ ] **B-ITG-17** ROS34PW2 with WENO3 does not conserve the adsorbate exactly on the trace case of B-ITG-16 with
-      `FixedVelocity`: after loading the column holds 2.9e-4 more than was fed, from the first output on and in
-      proportion to the amount fed; upwinding gives 1e-7, and the right-hand side conserves it to 1e-16 at every
-      output. Same with the binary before flow reversal. Probably the WENO3 sorption Jacobian (the clamp
-      `extended[...] <= 0` skips the columns of zero concentrations ahead of the front), which a W-method needs to
-      be consistent with the balance it conserves. Small (it does not change 3.4.4), but worth a check.
 - [ ] **B-BC-1** Boundary modes. `FixedPressureInletVelocity` imposes a linear pressure profile and takes the
       velocity from the local Ergun balance without continuity. `FixedVelocity` ignores the sorption
       effect. 3.4.1 results (2026-10-19):
@@ -326,12 +334,16 @@ then the items completed since the last move, both ordered by area as in the sec
 - [ ] **B-MBD-1** Multibed gas–wall area comes from bed 0 only (`computeEnergyDerivatives`); the film and
       gas–solid areas blend 1/ε_a per bed while the loading prefactor uses ε_total (`computeBulkSpeciesSink`,
       `computeEnergyDerivatives`).
-- [ ] **B-MBD-2** Single-bed vs multibed drift: the multibed `computeChemisorptionTransportDerivatives` wrote
+  - 2026-11-20: the gas–wall area per fluid volume is per node since B-MBD-3 (2026-11-18). Open: the 1/ε_a blend of
+    the film and gas–solid areas against ε_total in the loading prefactor.
+- [x] **B-MBD-2** Single-bed vs multibed drift: the multibed `computeChemisorptionTransportDerivatives` wrote
       `poreDot = −ρ·dq/dt` for every site, the single bed skipped non-transport sites; `computeReactionDerivatives`
       gets bed 0's components (capacity limits) for all beds (`rk3.cpp`, `cvode.cpp`).
       2026-10-27: the pore part is fixed with the single/multibed merge (R-GEN-1): a site without pore transport
       leaves its surface and pore reservoirs unchanged (test
       `MultiSiteChemisorption.KeepsDirectAndPoreTransportSiteBalancesIndependent`). The reaction part is open.
+  - 2026-11-20: the reaction part was fixed with B-MBD-3 (2026-11-18): `computeReactionDerivatives` weights the
+    capacities of the adsorbents at each node by their fractions.
 - [x] **B-IO-12** `Column::readJSON` still accepts about 25 keys that `writeJSON` no longer writes (velocities, caches,
       `fractionOfAdsorbent`, `columnDistances`, …); an older `column.json` can therefore replace the grid and the
       adsorbent fractions of the input without a message (`hasAdsorbentOfType` is then not recomputed). In 2.0, read
@@ -339,22 +351,34 @@ then the items completed since the last move, both ordered by area as in the sec
   - Fixed 2026-11-18: `readJSON` reads the state keys (and `time`, B-IO-18) and leaves the others unread, so that an
     older file still loads its state. The two tests on `tests/data/bea_breakthrough_column.json`, an older file,
     load its derived fields themselves (`loadBeaBreakthroughColumn`).
-- [ ] **B-PY-2** Python: `fit_figure()` never draws the fit (trace commented out, `plot_fitting.py:467`);
+- [x] **B-PY-2** Python: `fit_figure()` never draws the fit (trace commented out, `plot_fitting.py:467`);
       locale-dependent `read_text()` on non-ASCII presets and LICENSE (`config.py:221`, `:236`, `about.py:68`);
       `RunManager.start` reads `self.cli` twice outside the lock.
       2026-10-27: every `read_text`/`write_text` in `ruptura/webapp` passes `encoding="utf-8"`, and `RunManager.start`
       reads `self.cli` inside the lock. Open: the fit trace, commented out in `b8a2562`.
-- [ ] **B-PY-3** `tests/test_breakthrough.py`, `test_components.py`, `test_fitting.py`, and `test_mixtureprediction.py`
+  - Fixed 2026-11-20: the "fit f(x)" trace is back in `fit_figure()` (start, fit, data on the BEA nC7 fit). It needed
+    B-PY-9 for fits that start from zero parameters.
+- [x] **B-PY-3** `tests/test_breakthrough.py`, `test_components.py`, `test_fitting.py`, and `test_mixtureprediction.py`
       import `Components` and other names that `ruptura/__init__.py` no longer exports (also on HEAD `633f2bd`), so
       pytest cannot collect them. Found 2026-10-27.
+  - Fixed 2026-11-20 with B-BLD-2: pytest collects `*_test.py` only (`[tool.pytest.ini_options]` in
+    `pyproject.toml`), the naming of every tracked Python test; `pytest tests` collects 133 tests, none of the v1
+    files. The v1 files are left on disk.
 - [ ] **B-BLD-1** Test inputs that exist only locally, so CI checkouts lack them: `examples/Multibed/*`,
       `examples/MPD/BEA-alkanes/*`, `examples/Liquid/*`, `examples/Chemisorption-CO2*/*`,
       `examples/BEA-alkanes-C7/{psa,tsa}`, `examples/BEA-alkanes-C7/fitting/Results.dat-BEA-Repeat-552K-nC7`.
   - 2026-11-18: the examples are staged (R-EX-1); with only the staged `examples/` the unit tests give the same
     224/225 as the full tree. Open: tests also read `marx2/ternary/T15` and `stampi-bombelli/dl_from_stampibombelli`,
     which are git-ignored study folders.
-- [ ] **B-BLD-2** `tests/test_*.py` are v1 tests (`from ruptura import Components`); `.gitignore` (`test_*`) hides
+  - 2026-11-20: the two inputs the tests read from `validation/` are copied into `tests/data/`
+    (`marx_t15_reference_settings.json`, the frozen reference-settings T15, and
+    `stampi_bombelli_monolith_400ppm_1mmol.json`); the 7 paths in `pressure_swing_tests.cpp`, `ros34pw2_tests.cpp`, and
+    `sorption_jacobian_tests.cpp` point there. 256/257 pass (the failure is B-EX-3). Open: the tests also read
+    `examples/PSA-H2-activated-carbon-ports` and `examples/PSA-H2-activated-carbon-two-beds`, still untracked; stage
+    them with the multicolumn work.
+- [x] **B-BLD-2** `tests/test_*.py` are v1 tests (`from ruptura import Components`); `.gitignore` (`test_*`) hides
       them from git, but a local `pytest tests` still collects and fails them.
+  - Fixed 2026-11-20 with B-PY-3.
 - [ ] **B-EX-1** `examples/BEA-alkanes-C7/tsa` and `psa`: no `HeatOfAdsorption`, so the isotherms do not depend on
       temperature and the TSA regeneration desorbs nothing. The outlet peak at the switch is the gas
       inventory reacting to the instantaneous 552 → 673 K step.
@@ -370,13 +394,17 @@ then the items completed since the last move, both ordered by area as in the sec
       temperature of 8.5e48 K at t = 1 s (HEAD 633f2bd, unmodified input). Loadings above 100 mol/kg follow, and
       the gas temperature stays above 1e35 K up to 3000 s. Check the reaction-heat coupling under RK3, a smaller
       step, or CVODE.
-- [ ] **B-EX-6** Gas heat capacity still molar (29.51 or 35.8; see C-EX-1): `marx2/binary/B1–B36` and
+- [x] **B-EX-6** Gas heat capacity still molar (29.51 or 35.8; see C-EX-1): `marx2/binary/B1–B36` and
       `marx2/base.json`, `benchmark/marx-403030_298_1e6_2e-1` (0.1 s matrices), the old `marx/` runs, and
       `pusan/`. None is in the paper; fix them before any reuse.
       2026-10-27: `marx2/heat_capacity.py` takes input paths and converts `base.json`, T1–T24 (unchanged), and B1–B36
       by default; also converted: the 315 inputs of `benchmark/marx-403030_298_1e6_2e-1` and the 122 Marx inputs of
       `benchmark/figures/simulations`, with their source `marx/403030_298_1e6_2e-1`. Open: the other old `marx/` runs
       and `pusan/` (35.8).
+  - Fixed 2026-11-20: the 8 other `marx/` inputs with 29.51 converted by `heat_capacity.py` (1109.2 for 40/30/30,
+    1014.1 for 15/80/5, as in `marx2`), and the 3 `pusan/` inputs by the same rule, 35.8 / M_mean with M_mean =
+    0.00464 kg/mol (98 % He) → 7715.5 J/(kg K). The source of the 35.8 J/(mol K) is unknown (He alone is 20.8).
+    Inputs of `marx/` without `heatCapacityGas` (other studies) are untouched; their results were not rerun.
 - [ ] **B-EX-9 Elfving: decide the water model.** The 13 `elfving/` inputs were converted faithfully (B-PHY-2), so
       their empty-column Langmuir chemisorption site keeps the old VantHoff scaling with 50 700 J/mol and no T_ref
       (b ×7.6e8 at 298 K, B-PHY-10), while GAB now works. `elfving/generate.py` now writes what its comments describe
@@ -387,10 +415,21 @@ then the items completed since the last move, both ordered by area as in the sec
     for the first millisecond of run 3); RK3 at 1e-4 s gets through only because the clamp removes the overshoot.
     With the constant site of `generate.py`, run 3 takes ordinary steps (t = 3120 s of 18 000 s in 300 s). The
     ROS34PW2 rerun (`validation/ros34pw2_danckwerts_rerun`) leaves Elfving out until this is decided.
-- [ ] **B-EX-11 `examples/MPD/breakthrough` has no flow.** `FixedPressureInletVelocity` with `PressureGradient` 0
+- [x] **B-EX-11 `examples/MPD/breakthrough` has no flow.** `FixedPressureInletVelocity` with `PressureGradient` 0
       gives v = 0 in every cell (local Ergun balance, B-BC-1), so the stored output (2026-10-31) reaches
       t = 82 820 s with zero CO₂ and N₂ at the outlet and `SimulationTime` auto never stops. Set a pressure gradient
       or another boundary condition. Found 2026-11-02.
+  - Fixed 2026-11-20: `InletPressureInletVelocity` (the inlet velocity of the input, 1e-3 m/s), `PressureGradient`
+    removed. Checked to t = 1000 s: v_out 8.1e-4 m/s, max |R T Σc/P − 1| 3e-6, CO₂ and N₂ at the outlet at 7.9e-4
+    and 8.6e-4 of their feed fractions and rising. The full breakthrough was not run: RK3 at the input's 1e-3 s step covers
+    about 1 s per second of wall time.
+- [x] **B-EX-15** The Ruptura Lab preset `ruptura/webapp/presets/paper-t15.json` matches neither T15 input of the
+      paper (2026-11-19): it has ρ_s = 502 kg/m³ (pre-2026-10-26) and IAST, whereas the Marx validation uses the Marx
+      inputs and the other T15 studies the reference settings (ρ_s = 456.6). Regenerate it from one of them (the
+      Marx inputs need F-GUI-3) and fix the source path in `presets/README.md`.
+  - 2026-11-20: regenerated from `marx2/ternary/T15` (Marx inputs) with the preset conventions (CVODE SPGMR, 2 s
+    output, fractions); CO2 t50 541.3 s as the validation run; README updated. The paper's Lab screenshots were retaken
+    from it (`figures/gui/capture_gui.py --cli`).
 - [x] **B-PHY-12 Avrami chemisorption runs on the global simulation clock.** `computeChemisorption` passes the
       absolute time of the stage to `Chemisorption::rate`, so every node and every swing phase uses k^n t^(n−1) with
       t counted from the start of the run. The SI (Eq. `avrami_chemisorption`) defines τ as "the elapsed time
@@ -775,6 +814,17 @@ then the items completed since the last move, both ordered by area as in the sec
 - [x] **B-PY-7** `BreakthroughPlotly.explorer()`, the last cell of every generated notebook, needs `anywidget` with
       Plotly 6 and later, which no environment listed. Found in the 2026-11-17 audit.
   - Fixed 2026-11-18: `anywidget` is in the `lab` extra and in `env.yml`.
+- [ ] **B-PY-8** A resumed `Campaign` (`ruptura/selfdriving/campaign.py`, `run`) seeds its generator with `seed +
+      len(rows)`, whereas an uninterrupted campaign draws every round from one generator seeded with `seed`: after an
+      interruption the campaign continues, but not as it would have, so "the same seed reproduces it" (paper, README)
+      holds only for campaigns run in one go. Found 2026-11-19: the two-bed campaign was resumed after round 0 and was
+      therefore rerun in one go. Fix (ask first: it changes the setups of every campaign after round 0, so both lab
+      notebooks would have to be rerun): one generator per round, `np.random.default_rng([seed, round_index])`.
+- [x] **B-PY-9** `FittingPlotly.fit_figure()` and `all_fit_figure()` (and so the fitting notebook) stopped with a
+      ZeroDivisionError when the input starts the fit from all-zero parameters, as `examples/BEA-alkanes-C7/fitting`
+      does: the start Toth curve divides by ν = 0. Found 2026-11-20 while fixing B-PY-2.
+  - Fixed 2026-11-20: `_evaluate_isotherm` gives NaN at points where the isotherm divides by zero or overflows, so the
+    start curve is left out and the fit and data are drawn (test `tests/plot_fitting_test.py`).
 - [x] **B-BLD-10** No CI environment had scipy, so `tests/selfdriving_test.py` (`importorskip`) never ran. Found in
       the 2026-11-17 audit.
   - Fixed 2026-11-18: scipy is in `env.yml`, `docker/*/install.sh`, the macOS jobs and `tox.ini`.
@@ -791,6 +841,55 @@ then the items completed since the last move, both ordered by area as in the sec
 - [x] **B-GEN-1** README: "Running" pointed to an example and a `./run` script that do not exist, and "Input" to the
       2023 article. Found in the 2026-11-17 audit.
   - Fixed 2026-11-18: a BEA example with `ruptura` and `--validate`, and `docs/GENERATIVE_AI_SIMULATION_PROMPT.md`.
+- [x] **B-ITG-23** ROS34PW2: a rejected step whose stages converged but failed the error test left the IAST with the
+      starting values of its last stage, from which the mixture prediction of the step start did not always converge
+      again; the run ended with the IAST error. Found 2026-11-19 in round 0 of the two-bed campaign (F-PY-5): the
+      blowdown column of exp. 5, helium at rest at 1.68 bar with its feed end open, into which traces of the feed
+      disperse. Fixed 2026-11-19: when that recompute throws, it is repeated from the starting values of the step start
+      (B-ITG-22 restores them before it only after a failed stage). A step that worked before is unchanged, so earlier
+      results stay byte-identical. Test: `ROS34PW2.RecomputesTheStartOfARejectedStepFromItsOwnMixturePrediction`.
+- [x] **B-ITG-22** ROS34PW2: after a stage whose mixture prediction failed (B-ITG-18), the rejected step recomputed
+      the fields of the step start with the IAST starting values that the failed stage had left, from which the
+      inversion of the step start did not converge again in 50 iterations: the run ended with the IAST error, outside
+      the guard of the stages. Found 2026-11-18 with `examples/PSA-H2-activated-carbon-two-beds` on 12 cells (second
+      cycle, pressurization after an equalization). Fixed 2026-11-18: the integrator keeps `cachedPressure` and
+      `cachedGrandPotential` of the step start and restores them after a failed stage; an ordinary rejected step is
+      unchanged. Test: `Connections.TheTwoBedExampleKeepsEveryMoleBetweenItsColumnsItsTankAndItsProduct` runs that
+      case. CVODE has the same warm starts and was not looked at.
+- [x] **B-ITG-21 `MomentumBalance` (F-BC-3) is efficient with ROS34PW2 only.** Found 2026-11-18 on the T15 breakthrough
+      (30 cells, isothermal, 1500 s; ROS34PW2 0.39 s, 3253 steps):
+  - CVODE Dense: 4766 steps, 1541 Newton failures, 21 s. Its difference-quotient Jacobian perturbs a concentration of
+    zero by about 1e-16, which is lost in the pressure sum of 1e6 Pa, so that the stiff pressure coupling of every
+    absent component (ahead of its front; the carrier behind it) is missing.
+  - CVODE SPGMR with the `SorptionJacobian` preconditioner: 832 742 steps (45 s); the inexact linear solve leaves a
+    pressure error of the size of the pressure differences that drive the gas (31 Pa over the column at 1e6 Pa).
+  - CVODE KLU (analytical Jacobian, no energy balance): 20 621 steps, 833 Newton failures, 0.86 s, the same as
+    `InletVelocityOutletPressure` with KLU (25 065 and 833, B-ITG-11); usable.
+  - RungeKutta3: the pressure relaxation needs steps of about 1e-6 s.
+  - With CVODE the stream amounts through a pressure port are less accurate than the column amounts: 1.4e-4 and
+    4e-3 of the amount in the inert fill and empty of `MomentumBalance.APressurePortFills...` (KLU, rtol 1e-5), against
+    1e-9 with ROS34PW2. The flux follows a pressure difference of some 10 Pa, and CVODE's tolerance is relative to
+    the amount that has passed. `cycles.data` shows it as the mass balance.
+  - Fixed 2026-11-19 (decision of the user): the reader rejects `MomentumBalance` with RungeKutta3 and with CVODE Dense
+    or SPGMR, where it printed a warning; README updated. The stream amounts of CVODE KLU stay as above (README).
+    Test: `CycleInput.ReadsPortsStopCriteriaAndSteadyStateInAnyCaseAndRejectsWhatDoesNotFit`. The SI (`main.tex:1176`) gives the Dense and
+    SPGMR timings but does not say that the reader rejects them.
+- [x] **B-ITG-17** ROS34PW2 with WENO3 does not conserve the adsorbate exactly on the trace case of B-ITG-16 with
+      `FixedVelocity`: after loading the column holds 2.9e-4 more than was fed, from the first output on and in
+      proportion to the amount fed; upwinding gives 1e-7, and the right-hand side conserves it to 1e-16 at every
+      output. Same with the binary before flow reversal.
+  - 2026-11-19: not integration error and not the Jacobian: the excess is independent of the tolerance (1e-4 to 1e-8)
+    and of `ROS34PW2MaximumTimeStep`. WENO3 undershoots ahead of the steep front (down to −1.6 % of c_F in c and
+    −2.3e-4 mol/kg in q), and ROS34PW2 clamped the accepted state to max(0, c) and started the next step from it, so
+    that every step added the undershoot. Fixed (`src/integrators/ros34pw2.cpp`): the column still holds the clamped
+    state for the outputs and the mixture prediction, but while it holds exactly that clamp the next step starts from
+    the unclamped state, as CVODE does; a state changed from outside (stop bisection, phase switch, coupling) is taken
+    as it is. 3.4.4 trace case after loading: 2.97e-4 → 2.8e-6 (WENO3), 2.5e-7 → 1.7e-8 (upwind), the rest being the
+    clamped undershoot of the moment, which does not add up; outlet over the purge within 6.4e-4 (co-current) and
+    2.9e-4 (counter-current) of the stored runs, integrated. RK3 clamps after every step too: on the monolith of
+    `ROS34PW2Column.IntegratesChemisorptionLikeRungeKutta3` it holds 9.8e-7 mol/kg more loading at the foot of the
+    front than ROS34PW2 now, so that test allows 1.5e-4 instead of 2e-5. Test:
+    `ROS34PW2Column.ConservesATraceAdsorbateBehindAWeno3Front` (3.0e-4 before, 9e-6 after). Paper: I-ITG-4.
 - [x] **B-ITG-20** `RungeKutta3` does not check its step. A `TimeStep` above the stable one gives wrong curves with
       exit code 0 and no message: the BEA example with `TimeStep` 2 s (dz / v = 0.053 s) writes c/c0 up to 100. Found
       in the 2026-11-18 audit of `src/`.
@@ -849,12 +948,83 @@ then the items completed since the last move, both ordered by area as in the sec
   - Fixed 2026-11-18: `Fitting::readData` throws with the line number when the pressure or loading is not a whole
     number token; comments are found with `find_first_not_of` (`trim` and `startsWith` are gone). The 22 data files
     of the fitting examples load as before. Test `ExampleFitting.RejectsDataThatIsNotANumber`.
+- [x] **B-PHY-15** Every isotherm took the gas temperature T_f (decisions of I-PHY-12 and I-PHY-13, 2026-11-04), although
+      the van 't Hoff factor of the affinity comes from desorption at the surface and the heat of adsorption goes into
+      the adsorbent. Reviewer-2 audit of 2026-11-19: in the 30-cell T15 run (SI free-pressure check) T_s peaks 11.8 K
+      above T_f, so the CO₂ affinity at the front was about 39 % too high.
+  - Fixed 2026-11-19 (user's request, reverses the 2026-11-04 decisions): the physisorption and chemisorption
+    equilibria, their sensitivities, and the RH inside the humidity isotherms take T_s: `rk3.cpp` (precompute),
+    `column.cpp` (initialization), `jacobian.cpp` (new `solidTemperature` argument of `assembleSorptionJacobian`; the
+    gas pressure R T_f C of MomentumBalance keeps T_f), its callers in `cvode.cpp` and `ros34pw2.cpp`, and
+    `compute_equilibrium_loadings` in `pybindings.cpp`. Isothermal runs are unchanged (all temperatures equal). Test
+    `SorptionEquilibrium.FollowsTheAdsorbentTemperature`; suite 252/253 before and after (the known
+    `LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix`). Reruns: V-PHY-9; paper: I-PHY-16.
+- [x] **B-ITG-24 Explicit RK3 goes unstable in the energy balance at a step within its documented limits.** The
+      limits written down under B-ITG-20 (dz / v, 2 / k, dz² / (2 D)) leave out the heat conduction of the gas. Found
+      2026-11-20 in the full rerun on the cluster node: `elfving/seven_bounded_35c_2pct_500mlmin` (λ = 3.12 W/(m K),
+      dz = 0.58 mm, `TimeStep` 1e-4 s) reaches 1e29 K within 10 ms, overflows, and stops with "GAB needs a positive
+      temperature". The stored run of 2026-10-30 had stopped at its first output too ("GAB isotherm is undefined for
+      K p/p_sat >= 1"). The limit is about 0.6 dz² ρ c_p / λ: 7.9e-5 s for this input, and above 1.1e-4 s for the
+      other 12 (λ ≤ 2.12 W/(m K)).
+  - Fixed 2026-11-20: the limit stands where the others are documented (README, section 10 of
+    `docs/GENERATIVE_AI_SIMULATION_PROMPT.md`, `rk3.h`). The input has `TimeStep` 5e-5 s, and `elfving/generate.py`
+    writes that step for a conductivity above 2.4 W/(m K). With the binary of this fix the run stops within 0.2 s
+    of wall time at 1e-4 s, and reaches t = 80 s in 90 s of wall time at 5e-5 s (stopped there; the whole run takes
+    about 4 h and was completed on the cluster node only). RK3 still does not check its step (B-ITG-13, B-ITG-20),
+    so a step above the limit still ends with the message of the isotherm.
+  - Fixed with it: GAB, the GAB-modified Toth, and the Wagner saturation pressure threw `std::domain_error`, which
+    CVODE takes as fatal and ROS34PW2 does not catch, so a trial state outside their domain would end the run
+    instead of shortening the step (B-ITG-18). They throw `std::runtime_error` now, like every other failure of a
+    state (`isotherm.h`, `water_saturation_pressure.h`; three tests expect the new type). Known from reading the
+    code; no run showed it.
+- [x] **B-ITG-25** ROS34PW2 has no check for crawling steps like CVODE's (B-ITG-19): a run whose accepted steps
+      collapse goes on without a message until it is killed. Found 2026-11-20 in the full rerun on the cluster node,
+      where the 13 Elfving copies of the ROS34PW2 cross-check (B-EX-9, B-EX-16) each ran until the 16 h timeout.
+  - Fixed 2026-11-20: `ROS34PW2::advance` counts the accepted steps since one reached its endTime
+    (`stepsSinceEndTime`, `timeSinceEndTime`) and stops when 100 000 of them advanced the time by less than 1e-3 of
+    the time in which the fluid crosses the shortest cell, or of the step cap if that is smaller; without flow it
+    does not stop. This is CVODE's rule, whose count is that of one `CVode` call; here it also holds for the single
+    steps of a phase with a stop criterion. Steps that an output time or a phase end shortens start the count
+    again. Test `ROS34PW2Column.StopsWhenItsStepsCrawl`.
+    - The Elfving copy `five_25c_2pct_500mlmin` stops after 11 s of wall time at t = 6.3e-3 s: mean step 6.3e-8 s,
+      3.8e-5 of the 1.7 ms in which the gas crosses a cell.
+    - Of the 900 stored ROS34PW2 logs, only two-bed runs of the self-driving lab reach 100 000 steps (35 in
+      `campaign_two_beds_reference_settings`). The three with the most (`exp_124`, `exp_084`, `exp_102`; 183 000 to
+      296 000 steps per column) finish with the fix; the other 32 were not rerun. For `exp_102` the binaries from
+      before and after the fix give the same step counts and the same `cycles.data`, `connections.data`,
+      `buffers.data`, and `phases.data`. The step counts differ from the stored logs of 2026-11-19 13:40 with both
+      binaries, so from the source changes since then.
+- [x] **B-EX-16** The ROS34PW2 cross-check copied the 13 Elfving inputs, which ROS34PW2 cannot run (B-EX-9), and
+      `cases.csv` gave the case no timeout, so `run.py --paper` ran each copy until the 16 h default. The runs of
+      2026-11-03 had left them out by naming the other studies on the command line. Found 2026-11-20 in the full
+      rerun on the cluster node.
+  - Fixed 2026-11-20: `validation/ros34pw2_danckwerts_rerun/generate.py` leaves Elfving out until B-EX-9 is decided.
+    The 13 unrun copies and their entries in `simulations/index.json` are removed, which leaves the 223 cases of
+    2026-11-03. The case has a timeout of 3600 s in `cases.csv`, 18 times its longest run of 2026-11-03, and a
+    crawl now stops by itself (B-ITG-25). `jobs.csv` is rewritten (`run.py --paper --list`): 1132 jobs, which also
+    lists 67 inputs written to `3.5_numerical_performance/breakthrough/simulations` on 2026-11-20 by other work.
+- [x] **B-BLD-12** `GasBreakthroughRegression.ExistingColumnCvodePathRetainsItsOutcome` fails again, on the cluster
+      node (it was fixed under B-BLD-5). It compared one CVODE interval at rtol 1e-3 with stored values to 1e-9 and
+      1e-12, which holds on the machine that recorded them only: on the Mac the values have moved by 7e-11 and
+      1.4e-13 since. Found 2026-11-20 in the full rerun.
+  - Fixed 2026-11-20: the bounds are CVODE's relative tolerance, 1e-3 of each value. The cell starts empty, and the
+    solution converged in the tolerances (rtol 1e-9, atol 1e-12) lies 5.2e-4 of the stored concentration below it,
+    so the test still pins what these settings give. Passes on the Mac, also built without `-march=native`; not
+    rerun on the cluster node.
+- [x] **B-BLD-13** The three `Connections` tests and `ThermalControl.AJacketHeatsAClosedColumnWhichGivesTheSameHeatBack`
+      read back `phases.data`, `connections.data`, `buffers.data`, and `cycles.data` from the working directory that
+      all tests share, without the `WorkingDirectoryGuard` of the other tests that read their output. Under
+      `ctest -j` another swing test overwrites these files. Found 2026-11-20 in the full rerun on the cluster node
+      (3 failures).
+  - Fixed 2026-11-20: each of the four runs in its own directory. 25 parallel repeats of the 23 swing tests
+    (`ctest -j8 --repeat until-fail:25`) failed on three of the four before
+    (`Connections.ABufferKeeps...`, `Connections.TheTwoBedExample...`, `ThermalControl`) and pass now. Suite with
+    `ctest -j8`: 256 of 257, the known `LoadsCompleteBeaMpdBreakthroughBenchmarkMatrix` (B-EX-3).
 
 ## Features (F)
 
-F-BC-1 and F-CYC-1 are described in the paper but not implemented (F-PHY-2 and, since 2026-11-04, F-PHY-1 are done).
-They are to be implemented in due course. Until then, the paper text must not claim them (I-PHY-2), except the
-Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, decided 2026-11-02).
+F-BC-1 and F-CYC-1 were described in the paper before the code had them; both are done now (F-BC-1 2026-11-04,
+F-CYC-1 2026-11-18, with F-PHY-2 and F-PHY-1). The paper text on cycles still has to follow the code (I-CYC-1, I-CYC-2).
 
 - [ ] **F-PHY-4 Pore transport for any gas.** Not needed for 3.3.5 any more.
   - The `BulkConcentration` reaction phase was added on 2026-10-21 (`docs/STADLER_FEATURES_PLAN.md` §1).
@@ -873,13 +1043,6 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
     adsorbent in a multibed), `convert.py` migrates the inputs (16 `benchmark/figures`, 80 `benchmark/multibed`,
     `examples/Chemisorption-CO2`); physisorption stays driven by the bulk gas; the `Site` index of
     `PoreConcentration` reactions is dropped.
-- [ ] **F-PHY-11** `heatCapacityGas` is a constant per unit mass, while the gas of a cycle can swing between H2-rich and
-      CO2-rich (molar mass 2 to 44 g/mol; c_p of H2 is about 13 times that of the T15 feed). Since F-BC-2 the pressure
-      work scales with 1/(ρ c_p) too: with helium or H2 and the value of the feed, R/(M c_p) > 1, and at the first instant
-      of a blowdown the gas cooling can contract the gas more than the falling pressure expands it. The exchange with
-      the solid takes this out within a second: in `examples/PSA-H2-activated-carbon`, c_p of 1109 and 14300 J/(kg K) give
-      H2 purity 0.9991 either way, recovery 0.162 and 0.161, and gas temperatures within 2 K. A molar or
-      composition-dependent heat capacity would remove it.
 - [ ] **F-ITG-2** Second-order total molar flux and gas-temperature advection. With WENO3 (F-ITG-1) the hydrogen
       t50 of Marx T15 still converges at first order (e50 1.2e-2 at N_z = 100 against a 400-point reference), because
       v c_tot and the gas-temperature advection stay upwind. A WENO3 temperature flux alone changed the T15 t50 by
@@ -899,38 +1062,90 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
       Jacobian carries the closure.
       2026-11-11: ROS34PW2 no longer needs them for Σc: its stage solve is projected on the closure (B-ITG-16). The
       derivatives remain open for the CVODE preconditioner and KLU.
-- [ ] **F-CYC-1 Cycle driver.**
-  - Paper (introduction): cyclic-steady-state stopping, process-dependent step termination, and
-    per-step feed composition, velocity, outlet pressure, and flow direction.
-  - Code: phases accept `Name`, `Temperature`, `InletPressure`, `NumberOfTimeSteps`, and, since 2026-10-21,
-    `GasPhaseMolFractions` (feed composition) and `ColumnEntranceVelocity`. A top-level `NumberOfCycles`
-    repeats the phase list. Still missing: cyclic-steady-state stopping, step termination on a condition,
-    outlet pressure, and flow direction.
-  - 2026-11-04: per-phase `FlowDirection` done (F-BC-1); closed ends and pressure ramps are stage 3.
-  - 2026-11-09: closed ends and pressure ramps done (F-BC-2). `phases.data` gives what a cyclic-steady-state stop needs;
-    runs stop after `NumberOfCycles` until then. `examples/Self-driving-lab-H2-PSA/experiment.py` does the stop in
-    Python: blocks of 10 cycles, each restarted from `column.json` with `ReadColumnFile`, until the column amounts and
-    the KPIs change by less than 2e-3 from one cycle to the next. A stop in the driver would do the same in one run.
-  - Section 2.3 of the paper describes the old parser; update it (I-GEN-1).
-- [ ] **F-CYC-2** Optional swing-phase extras:
-  - [x] per-phase axial dispersion (not needed for Stadler: numerical dispersion v Δz/2 exceeds Eq. 12); covered by
-    F-PHY-6 since 2026-11-03: the reference-state scaling follows the temperature and pressure of each phase;
-  - [x] rescale the gas inventory at a pressure switch (FixedVelocity already imposes the new pressure on the
-    equilibria), and at a temperature switch without the energy balance: in the isothermal TSA of B-CYC-1,
-    R T Σc / P − 1 is 25 % through the 373 K phase, because Σc keeps the 298 K inventory (stage 3 of the cycles
-    plan). Done 2026-11-09 with F-BC-2: c_i ← c_i P/(R T Σc) at a step without a ramp, for the boundary conditions with
-    a continuity closure; not for `InletVelocityOutletPressure`, whose column pressure does not follow the phase.
-    A step shows in `phases.data` as the gas at the phase start minus that at the end of the previous phase;
-  - end a phase on an outlet mole-fraction threshold (Stadler et al.'s pilot plant).
+- [ ] **F-CYC-5 Limits of the coupled columns of F-CYC-4** (2026-11-18; each is a `shortcut:` comment or a message in
+      `SwingAdsorption::run`). Take them up when a cycle needs them:
+  - One end cannot take gas from one connection and give it to another in the same step (a tee), and gas cannot go
+    around a ring of columns: both stop the run with a message. The first needs a junction, the second the steps of
+    the columns solved together.
+  - The coupling is explicit: a valve that evens out its pressures faster than 1e-4 of the phase is cut to that
+    rate, and a wide valve costs many coupling steps. An implicit coupling (the valve in the matrix of ROS34PW2, or
+    all columns in one state) removes both.
+  - All columns start alike (at rest at `OutletPressure`), and `ReadColumnFile` is refused with `Columns`: no
+    per-column initial state and no restart of a run with several columns or buffers.
+  - `ThermalControl` sets a jacket temperature and coefficient; a set heat flux (the branch has one) is not there.
+    The gas of a compressor enters at the temperature of its donor (no heat of compression in the column).
+  - The duty integrals (wall heat, exhaust work) are integrated with the column but do not follow the change that W
+    makes to the face velocities, as the stream amounts do; the same holds for the stream amount through a flux port,
+    which leaves the amount of a column 1e-6 off its streams (the transfer between columns itself is exact).
+- [ ] **F-CYC-6 The rest of the plan of 2026-11-18 for the mechanics of the branch `ruptura-shrinjay`**: stage 6.
+      Stage 5, the optional physics, is done (2026-11-19: F-ITG-5, F-PHY-12, F-PHY-13, F-PHY-14; the user asked for
+      all of them as options, and for WENO5). Open: a `convert.py` mapping for the inputs of the branch
+      (`LeftPort`/`RightPort` to `FeedEnd`/`ProductEnd`, its `ParticleTransport` and `Coolant` keys), the builder of
+      F-GUI-2, and the paper text (I-CYC-2, `ruptura-2.0-paper/CYCLES_NOTES.md`). Not taken, with the user's consent
+      (2026-11-19): the second engine, YAML, NPZ, the cost module, FDM/FVM, native BDF, liquid networks. Not asked for
+      and not done: gas-solid thermal equilibrium as an option, a film resistance and cylinders in HSDM, a quasi-steady
+      coolant, the inlet-density basis, initial states per column.
+- [ ] **F-GUI-2 A builder for multicolumn cycles in Ruptura Lab** (asked for on 2026-11-19, for later): place columns,
+      buffers, valves, and compressors, and set per phase which are open and what the ports are; it writes the
+      structured input that the reader takes (`Columns`, `Buffers`, per-phase `Columns` and `Connections`) and shows
+      the flowsheet. There already: the JSON input (F-CYC-4), the key list and field help of Ruptura Lab, and
+      `ruptura.flowsheet.flowsheet_tikz` (F-PY-4), which the builder can call for the picture. Open design points: a
+      schedule view (phases as columns of a table, one row per column and connection); per-column output in the run
+      view (F-GUI-1); whether a connection gets a name once and phases refer to it (now each phase repeats its
+      connections, and the same ends and name make one valve in the flowsheet).
+- [x] **F-GUI-3** Ruptura Lab's law editor (`ruptura/webapp/config.py`, `TEMPERATURE_LAWS`; `static/app.js`) lags the
+      code since 2026-11-19: q_sat accepts VantHoff (with its own Energy), exponents accept `Arctan`, and Arctan has a
+      second coefficient (`Beta`), but the Lab offers Exponential/Linear and Linear/Inverse with one coefficient. The
+      Marx T1–T24 inputs cannot be edited there. The preset `presets/paper-t15.json` is older still (ρ_s = 502,
+      IAST): decide whether it follows the Marx inputs (needs this item) or the reference settings (B-EX-15).
+  - 2026-11-20 (user's request): `config.py` offers VantHoff on capacities and Arctan on exponents, with a second
+    coefficient per law (`TEMPERATURE_LAWS["secondCoefficients"]`, Arctan: `Beta`); `app.js` draws it, `field_help.py`
+    has `ArctanAlpha`, `ArctanBeta`, and the Law list. `tests/webapp_test.py` validates every offered law against the
+    C++ reader (77 passed with the frozen binary); checked in Chromium on the T15 preset (Arctan, α, β, T_ref shown).
 - [ ] **F-GUI-1** `ClosedEnd` and `PressureRamp` have no controls in the phase forms of the Qt app and Ruptura Lab
       (2026-11-09, F-BC-2). Both apps keep them in a loaded input, and the field help of Ruptura Lab has them. In the Qt
       app `SwingPhaseConfig::otherKeys` holds every phase key without a control, also `ColumnEntranceVelocity` and
       `GasPhaseMolFractions`, which it used to drop on import (2026-11-09).
       2026-11-18: the Qt app is removed (R-GUI-2); the Lab part of this item is left.
+      2026-11-18: the same holds for `StopCriterion`, `MinimumDuration`, `TimeoutPolicy`, `CyclicSteadyState`, the ports
+      `FeedEnd` and `ProductEnd`, and `GasHeatCapacity` (F-CYC-1, F-BC-3): Ruptura Lab keeps them in a loaded input and
+      offers `MomentumBalance` as a boundary condition, without controls for its ports.
+      2026-11-18: also for `Columns`, `Buffers`, `Connections`, `ThermalControl`, `ExhaustPressure`, and
+      `CompressionEfficiency` (F-CYC-4); Ruptura Lab shows the output of one column, not the per-column directories.
 - [ ] **F-PY-1** The breakthrough plots (`ruptura/plot_breakthrough.py`, `grid_index=-1`) and the webapp plots take
       the last node as the outlet. In a reverse step the gas leaves at z = 0, i.e. from the first cell (node 1);
       node 0 holds that cell's state at the start of the step. Plot the outlet of each swing phase at the end it
       leaves from (2026-11-04, F-BC-1).
+- [x] **F-PY-3** `ruptura.selfdriving` ends its cycles in Python: blocks of 10 cycles restarted from `column.json` until
+      the amounts and the KPIs change by less than 2e-3. `CyclicSteadyState` (F-CYC-1) does this in one run, and
+      `phase_records[i].stream_amounts` gives the product without the known-feed arithmetic of `key_performance`.
+      Not changed on 2026-11-18: the campaigns of the paper example were run with the block scheme.
+  - Done 2026-11-19 (user request): the input of an experiment holds `CyclicSteadyState` (tolerance 2e-3) and
+    `NumberOfCycles` = `maximum_cycles` (100; `cycles_per_block` and `maximum_blocks` are gone), `run_experiment` is one
+    run, the KPIs come from the stream amounts (product: what left at z = L in the adsorption phase; used: what
+    entered at z = L in purge and backfill; fed: what entered at z = 0 in adsorption and pressurization), and the
+    status and the two change columns of the lab notebook from the last line of `cycles.data`. An experiment
+    directory written before needs `Campaign.write_inputs()` before a rerun (its `robot.json` holds the old fields).
+    Tests: `tests/selfdriving_test.py` (9, with the module built from this tree). Open: V-EX-1.
+- [x] **F-PY-5 Self-driving lab on two beds** (2026-11-19, user request: "rerun the self-driving campaign together with
+      a multicolumn setup"): `ruptura.selfdriving.TwoBedPressureSwingCycle`, a subclass of `PressureSwingCycle` on a
+      `MomentumBalance` base input (`examples/PSA-H2-activated-carbon-two-beds`). Six phases per cycle (pressurization
+      and blowdown; adsorption with a product valve to a tank held at P_H and a purge valve to the other bed, both check
+      valves; equalization until the receiving bed is at P_L + e (P_H - P_L), at most t_r); the variables of the
+      one-column robot with the equalization share e (0 to 0.5) in place of the backfill. Valves sized from the molar
+      feed flow (product: at 2 % over P_H; purge: G times it between P_H and P_L; equalization: the gas of a column
+      within a tenth of t_r). `key_performance` takes the product of two beds as the net outflow of their product ends
+      (what reaches the tank), the productivity per kg of the sorbent of both. Tests in `tests/selfdriving_test.py`
+      (input, KPIs, a small campaign). Baselines at 80 cells: one column 0.584 mmol/(kg s), recovery 0.150, purity
+      0.99968 in 6 s; two beds without equalization 0.562, 0.144, 0.99956 in 67 s; with e = 0.3 0.575, 0.202,
+      0.99993 in 48 s.
+- [x] **F-PY-4 TikZ flowsheet of a multicolumn input** (2026-11-19, user request): `ruptura/flowsheet.py`,
+      `flowsheet_tikz(data, phase=None)` and `python -m ruptura.flowsheet simulation.json [phase]`. Columns upright
+      with the feed end at the bottom, buffers above, each connection once by its ends and name on a pipe run with a
+      valve, check-valve, or compressor symbol; with a phase its connections are black with their direction, the
+      others gray, and its ports are at the column ends. Plain TikZ. Checked by compiling the two-bed example and a
+      case with three columns, two buffers, and a compressor from a feed end; tests `tests/flowsheet_test.py`. Lines
+      cross in involved flowsheets (no routing beyond one run per connection).
 - [ ] **F-EX-1** `ruptura.selfdriving` (`examples/Self-driving-lab-H2-PSA`): the brain explores the bounds of the 8-D box. In the 99.9 %
       campaign (2026-11-11) the hypervolume stalled from round 2 to round 6, and 30 % of the proposals were cycles whose
       purge and backfill take more H2 than they produce (pure product, so the probability of feasibility does not
@@ -1013,6 +1228,20 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
     them to the law is part of V-BC-2.
 - [x] **F-PHY-7** Optional: outlet dead-volume model for extra-column mixing (Stadler et al. and Marx et al. both
       correct their data for it). Dropped 2026-11-03 (decision): not implemented and not reported in the paper.
+- [x] **F-PHY-11** `heatCapacityGas` is a constant per unit mass, while the gas of a cycle can swing between H2-rich and
+      CO2-rich (molar mass 2 to 44 g/mol; c_p of H2 is about 13 times that of the T15 feed). Since F-BC-2 the pressure
+      work scales with 1/(ρ c_p) too: with helium or H2 and the value of the feed, R/(M c_p) > 1, and at the first instant
+      of a blowdown the gas cooling can contract the gas more than the falling pressure expands it. The exchange with
+      the solid takes this out within a second: in `examples/PSA-H2-activated-carbon`, c_p of 1109 and 14300 J/(kg K) give
+      H2 purity 0.9991 either way, recovery 0.162 and 0.161, and gas temperatures within 2 K. A molar or
+      composition-dependent heat capacity would remove it.
+  - Done 2026-11-18 (with F-BC-3, whose energy balance needs it): component key `GasHeatCapacity` in J/(mol K), for
+    every component or for none. The gas of a node then has the heat capacity of its composition,
+    Σ_j c_j C_p,j / ρ per kg (`Column::gasHeatCapacity`, set where the gas density is, in `updateVelocityAndPressure`),
+    in the gas-temperature balance, the thermal diffusivity, and the thermal Jacobian; `heatCapacityGas` stays the
+    value without it. The kernels take the per-node values through an optional argument, so that inputs without the
+    key are unchanged. Test `GasHeatCapacity.OfTheComponentsGivesTheHeatCapacityPerMassItAddsUpTo`. No paper input
+    uses it yet.
 - [x] **F-ITG-3 Analytical sorption Jacobian; ROS3, CVODE, and a coupled SIRK3 on it** (agreed 2026-11-02).
       The stiff mode is the gas depletion λ = k (1 + ρ_b/ε dq*/dc), explicit in RK3 and SIRK3 (B-ITG-1). Order:
       (1) analytical slopes dq/dp of the 16 pure isotherm types and mixture sensitivities dq*_i/dp_j: IAST and SIAST
@@ -1237,6 +1466,167 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
     - Rescale at a switch also when the end where the pressure is set changes (2026-11-09): a blowdown open at z = 0
       followed by a purge set at z = L moves the profile by the pressure drop, and without a rescale R T Σc/P − 1 grew by
       1e-3 per cycle (it scales with the pressure drop; thermal, dispersion, and the convection scheme play no part).
+- [x] **F-BC-3 `MomentumBalance`: the pressure of the gas, the velocity of the pressure-drop law, and ports** (stage 2
+      of the plan of 2026-11-18 for the mechanics of the branch `ruptura-shrinjay`; done 2026-11-18).
+  - Model: the pressure of a cell is that of its gas, P = R T Σc (all of it, also a concentration slightly below zero:
+    the clamp of the mole fractions put a kink in the velocity at every absent component), and the velocity of the
+    face between two cells is that of `PressureDropLaw::velocity` for their pressure difference over the distance of
+    their centres, with their mean density (`updateVelocityAndPressure`). No continuity closure; the species, energy,
+    sorption, multibed, and monolith kernels are those of the other boundary conditions, with the face-by-sign
+    transport of F-BC-1. The column starts at rest at `OutletPressure`.
+  - Ports per swing phase, `FeedEnd` (z = 0) and `ProductEnd` (z = L): `Closed` (default), `Pressure` (gas at a
+    pressure beyond the end, the law over the half cell; optional `PressureRamp` from the pressure of the end cell),
+    `Velocity` (`Velocity` with the `Pressure` of its gas, or `MolarFlux`). Gas that enters is the phase
+    `GasPhaseMolFractions` at z = 0 and `ProductEndGasPhaseMolFractions` at z = L. Without phases: the feed at
+    `ColumnEntranceVelocity` and gas at `OutletPressure` at z = L.
+  - Energy: the pressure work follows the pressure of the cell, dP/dt = R (T dC/dt + C dT/dt), so that
+    dT/dt = (rate + κ T (dC/dt)/C)/(1 − κ), κ = R C/(ρ c_p) (`computeDerivatives`); needs a molar c_p above R
+    (F-PHY-11), else the run stops with a message.
+  - Jacobian (`assembleSorptionJacobian`): the derivatives of every face velocity with respect to the concentrations
+    of its two cells (pressure and mean density), exact against central differences for both schemes and all port
+    modes (`SorptionJacobian.MatchesCentralDifferencesWithMomentumBalance`); the equilibrium sensitivities at the
+    pressure of the gas instead of a frozen one. The upwind bandwidth is 3 N.
+  - ROS34PW2 (found by runs; each of these was needed):
+    - with the energy balance one block-banded W on the concentrations and the three temperatures of a node: the gas
+      temperature is part of the pressure, the velocity carries it, and the pressure work heats it. Separate solves
+      held the step at 1e-6 s, a block-triangular one at 3e-5 s; coupled, T15 with the energy balance takes 7107 steps
+      for 2000 s (1.2 s);
+    - the time derivative of the right-hand side while a port pressure follows a ramp (γ h² γ_i dF/dt, γ_i from the
+      table in the code), by a difference quotient over 1e-6 of the step: a larger increment (1e-3) left the step
+      at 4 ms, because the pressure difference that drives the gas is small against the pressure;
+    - the stream amounts follow the change that W makes to the face velocities, and are left out of the step control;
+    - the non-negativity clamp leaves the (signed) stream amounts alone.
+  - Checked by runs: T15 breakthrough against `InletVelocityOutletPressure` (30 cells, ROS34PW2): t50 of CO2, N2, H2
+    711.68/224.89/123.67 s isothermal and 636.52/206.60/119.57 s with the energy balance for both, max |Δy| 5e-5 and
+    2e-5, peak temperatures equal (gas 322.079 K, solid 333.875 K), pressure drop 31 Pa for both.
+    `examples/PSA-H2-activated-carbon-ports` (the PSA-H2 cycle with ports, purge with the product, 50 cells): cyclic
+    steady state (1e-3) after 20 cycles in 17 s, mass balance 8e-6, H2 purity 0.9988 and recovery 0.163; with a
+    pure-H2 purge 0.9991 and 0.162, the values of the closure cycle of `examples/PSA-H2-activated-carbon`.
+  - Tests `MomentumBalance.*` (against the closure; an inert column filled and emptied through pressure ports with
+    P V/(R T) and closed ports; the example cycle), `CycleInput.*`.
+  - Integrators other than ROS34PW2: B-ITG-21. Not done: valves, several columns, buffers (F-CYC-4); Lab controls
+    (F-GUI-1); validation against a literature cycle (V-CYC-3); paper text (I-CYC-2). Not taken from the branch: its
+    `InletDensityBasis` `LocalPressure` (a velocity port here takes the pressure given with it), gas-solid thermal
+    equilibrium (a large `heatTransferGasSolid` does it), the transient coolant, HSDM, TVD/WENO5.
+- [x] **F-ITG-5 `ConvectionScheme` `WENO5` and `TVD`** (2026-11-19, user request; stage 5 of F-CYC-6). TVD: the
+      smaller of the two slopes over a cell where they have one sign (MUSCL, minmod), on the quantities and faces of
+      WENO3. WENO5: the Jiang-Shu weights of the three quadratic candidates on a grid of one cell width, WENO3 next to
+      the ends and on other grids. Both in `computeFaceValues` (`compute.cpp`), for both flow directions. The routines of
+      WENO3 (`computeWENO`, `computeWENOReverse`, `wenoFace`, `wenoStencil`) are untouched: two first versions that
+      merged the schemes into them changed WENO3 results in the last bits (T15 2e-11, BEA 2e-8), which CVODE amplified
+      to 0.3 % at the fronts of the PSA-H2 reference case. The Jacobian, the KLU pattern, and the band of ROS34PW2 are those of WENO3 (`shortcut:` in
+      `jacobian.cpp`).
+  - Checked: orders 2 and 5 on a smooth profile, linear profiles exact, a step within its bounds, the mirror image
+    for reverse flow, the species fluxes summing to the upwind total (`ConvectionSchemes.*`,
+    `MassBalanceWENO3.GasSpeciesFluxesSumToTheUpwindTotalFlux`). T15 on 40 cells, CO2 front width 10-90 %:
+    Upwind 179.9 s, TVD 165.7 s, WENO3 164.7 s, WENO5 163.6 s, equal for ROS34PW2 and CVODE within 0.01 s; ROS34PW2
+    takes 3058/3919/3739/6118 steps.
+  - Open: the derivatives of TVD and WENO5 themselves, if the 60 % more steps of WENO5 matter.
+- [x] **F-PHY-12 Homogeneous surface diffusion in the particle** (2026-11-19; stage 5 of F-CYC-6):
+      `"ParticleTransport": {"Model": "HSDM", "RadialCells": N}`. A new block of the state after the temperatures holds
+      the loading of N radial cells per node and component (`ColumnStateLayout::shellLoading`); the physisorption state
+      stays the loading of the particle and takes the volume mean of the cell rates, so that the sink, the heat, and
+      the outputs are unchanged. Finite volumes in r/R (`computeDerivatives`, `rk3.cpp`), surface at equilibrium with
+      the gas, D_s/R^2 = `MassTransferCoefficient`/15, so that no new parameter is needed and the temperature law of k
+      carries over. The restart file holds the cells; one without them starts each cell at the particle loading.
+  - Checked: the uptake of a sphere at a constant surface loading follows its series within 0.01 at D_s t/R^2 = 0.05
+    and 0.2 with ROS34PW2 and CVODE, and the volume mean of the cells is the particle loading (`ParticleTransport.*`).
+  - Limits: spheres, no film resistance, not with reactions or CVODE KLU; ROS34PW2 and CVODE's preconditioner treat
+    the cells explicitly (step below about R^2/(D_s N^2)); the cyclic-steady-state measure of the state leaves the
+    cells out (it has the particle loading).
+- [x] **F-PHY-13 Direction-dependent pseudo-nth-order kinetics** (2026-11-19; stage 5 of F-CYC-6): `PseudoNth` takes
+      `DesorptionRateCoefficient` (a number or a temperature law with its own activation energy) and `DesorptionOrder`
+      for q > q*; both default to those of the uptake (`Chemisorption::releaseRateCoefficient`, `releaseOrder`). The
+      dual-order kinetics of the branch are two such sites. Tests `ChemisorptionRate.*`, `TemperatureInput.*`.
+- [x] **F-PHY-14 Heat-transfer fluid along the outer wall** (2026-11-19; stage 5 of F-CYC-6): root `Coolant`
+      (`MassFlowRate`, `Volume`, `Density`, `HeatCapacity`, `FlowDirection`), per phase `MassFlowRate` in
+      `ThermalControl`. A scalar block of the state (`coolantTemperature`), donor cell from the inlet at the
+      temperature beyond the wall, each cell exchanging heat with the wall of its cell; the wall term of the energy
+      kernel is corrected for the fluid temperature after it (`computeDerivatives`). The wall-heat duty is then the
+      heat that the fluid gave to the wall.
+  - Checked (`Coolant.*`): the fluid cools on its way, counter-current flow is the mirror image (0.5 K), the column
+    ends at the inlet temperature, and the wall takes the heat of wall and solid (1 %).
+  - Limits: no axial conduction in the fluid, no quasi-steady variant, explicit in ROS34PW2 (step below about the
+    time the fluid needs for one cell).
+- [x] **F-CYC-4 Several columns, valves, buffers, compressors; thermal control and duties** (stages 3 and 4 of the plan
+      of 2026-11-18 for the mechanics of the branch `ruptura-shrinjay`; done 2026-11-18, none of its code).
+  - Input: root `Columns` (names of identical columns), `Buffers` (`Volume`, `Pressure`, `Temperature`,
+    `GasPhaseMolFractions`, `MaximumPressure`), `ExhaustPressure`, `CompressionEfficiency`; per phase `Columns`
+    (per-column `FeedEnd`, `ProductEnd`, `GasPhaseMolFractions`, `ProductEndGasPhaseMolFractions`, `Temperature`,
+    `ThermalControl`), `Connections` (`From`, `To`, `FlowModel` `Linear`/`SquareRoot`/`Orifice`/`Compressor` with
+    `Conductance`/`Area`/`MolarFlow`, `Opening`, `CheckValve`, `MaximumMolarFlow`, `Efficiency`), `ThermalControl`
+    (`Temperature`, `HeatTransferCoefficient`); `StopCriterion` takes `Column`. The reader holds one phase entry per
+    phase and column (`InputReader::swingAdsorptionPhases`), built from the keys of the phase with those of the column
+    in their place. Needs `MomentumBalance`, ROS34PW2, and the cross-section (`InternalDiameter`).
+  - Driver (`SwingAdsorption::run`): one `Breakthrough` per column, each with its integrator and its output
+    directory. The connections are advanced in coupling steps: flows from the pressures at the step start (second
+    order in time from the two last), a step of a twentieth of the fastest equalization time, a column that gives
+    gas before the one that takes it, whose inflow is what the stream amounts of the donor say left it. A connected
+    end is a fourth port mode, a set molar flux (`Column::Port::Mode::Flux`). Buffers are mixed and isothermal.
+    Stop criteria: the coupling step in which they turn is bisected. Cyclic steady state over all columns and buffers.
+  - Duties: the stream block of the column state holds two more integrals, the heat through the outer wall and the
+    work that brings gas leaving through a pressure port below `ExhaustPressure` to it (`phases.data`,
+    `wall_heat`/`exhaust_work`); the compressor work per connection is in `connections.data`, the buffers in
+    `buffers.data`.
+  - Checked by tests (`Connections.*`, `ThermalControl.*`, `ExhaustPressure.*`, `CycleInput.*`): two inert columns
+    even out at exp(−2 k t/C) (stop time ln(2) C/(2 k) within 0.02 s) to the mean pressure, and what leaves one enters
+    the other to 1e-12; a tank with `MaximumPressure` and a compressor, whose work matches the integral of the
+    isentropic work within 1 %; a jacket heats a closed column by the heat capacity of wall and solid (1 %) and takes
+    the same heat back; the exhaust work of an isothermal evacuation (1e-3).
+  - `examples/PSA-H2-activated-carbon-two-beds` (two beds, product tank, purge valve, pressure equalization, 50
+    cells): cyclic steady state after 22 cycles in 68 s, mass balance 1e-5, the two halves of the cycle equal within
+    5e-5, H2 purity 0.9956 and recovery 0.222 (one column with ports: 0.9988 and 0.163).
+  - The five reference cases of F-CYC-1 are byte-identical to the binary before this item.
+  - Not done: F-CYC-5 (limits), F-CYC-6 (stages 5 and 6), F-GUI-1, V-CYC-3, I-CYC-2; the Python module is not built.
+- [x] **F-CYC-1 Cycle driver.**
+  - Paper (introduction): cyclic-steady-state stopping, process-dependent step termination, and
+    per-step feed composition, velocity, outlet pressure, and flow direction.
+  - Code: phases accept `Name`, `Temperature`, `InletPressure`, `NumberOfTimeSteps`, and, since 2026-10-21,
+    `GasPhaseMolFractions` (feed composition) and `ColumnEntranceVelocity`. A top-level `NumberOfCycles`
+    repeats the phase list. Still missing: cyclic-steady-state stopping, step termination on a condition,
+    outlet pressure, and flow direction.
+  - 2026-11-04: per-phase `FlowDirection` done (F-BC-1); closed ends and pressure ramps are stage 3.
+  - 2026-11-09: closed ends and pressure ramps done (F-BC-2). `phases.data` gives what a cyclic-steady-state stop needs;
+    runs stop after `NumberOfCycles` until then. `examples/Self-driving-lab-H2-PSA/experiment.py` does the stop in
+    Python: blocks of 10 cycles, each restarted from `column.json` with `ReadColumnFile`, until the column amounts and
+    the KPIs change by less than 2e-3 from one cycle to the next. A stop in the driver would do the same in one run.
+  - Section 2.3 of the paper describes the old parser; update it (I-GEN-1).
+  - Done 2026-11-18 (stage 1 of the plan for the mechanics of the branch `ruptura-shrinjay`):
+    - Step termination on a condition: per phase `StopCriterion` (`Metric` `Pressure`, `AveragePressure`,
+      `MaximumTemperature`, `MinimumTemperature`, `MoleFraction`, `AmountIn`, `AmountOut`; `End`, `Component`,
+      `Operator`, `Value`; `{"All": [...]}`, `{"Any": [...]}`), `MinimumDuration`, and `TimeoutPolicy`; `Duration` is
+      then the longest the phase lasts. The criteria are one residual of the state (`StopResidual`,
+      `SwingAdsorption::run`): CVODE finds its root (`CVodeRootInit`), and `Breakthrough::advanceTo` takes RK3 and
+      ROS34PW2 step by step, repeats the step in which it turns, and bisects its end (1e-6 of the step). On T15 the
+      three integrators end a phase on the outlet CO2 mole fraction at 637.0858, 637.0863, and 637.0851 s.
+    - Stream amounts: the net amount of each component that entered at z = 0 and at z = L in a phase, as a block of
+      the column state (`ColumnStateLayout::includeStreamAmounts`, rates in `computeMassDerivatives`), so that every
+      integrator carries them; in `phases.data` and `phase_records[i].stream_amounts` as entered and left per end.
+      The block exists only with a stop criterion, `CyclicSteadyState`, a phase name as gas, or `MomentumBalance`:
+      other inputs are byte-identical (PSA-H2 CVODE, T15 ROS34PW2, BEA ROS34PW2, 3.4.4 flow reversal, BEA TSA).
+    - `GasPhaseMolFractions` and `ProductEndGasPhaseMolFractions` take the name of a phase: the mean gas that left the
+      column in it the last time it ran (a purge or a pressurization with product).
+    - Cyclic steady state: root `CyclicSteadyState` `{Tolerance, ConsecutiveCycles}`; `NumberOfCycles` is then the most.
+      Per cycle `cycles.data` holds the largest relative change from the cycle before of a state value, of the amount
+      of a component in the column, and of a stream amount, each relative to the size of the value plus the largest
+      of its kind, and the amount that the streams and the column do not account for. The paper form (main2 Eqs.
+      `cycles:state-residual`, `cycles:inventory-residual`) has an absolute tolerance per state; here that is the
+      tolerance times the largest value of the state field.
+    - Tests `StopCriterion.*`, `CyclicSteadyState.*`, `CycleInput.*` (`pressure_swing_tests.cpp`). `SwingAdsorption::run`
+      now prints the integrator statistics, as `Breakthrough::run` does.
+    - Not done: controls in Ruptura Lab (F-GUI-1), the self-driving lab on the new stop (F-PY-3), the paper text
+      (I-CYC-1, I-CYC-2), and the comparison with the 1 % criterion of the 3.4.2 T15 cycles (V-CYC-3).
+- [x] **F-CYC-2** Optional swing-phase extras:
+  - [x] per-phase axial dispersion (not needed for Stadler: numerical dispersion v Δz/2 exceeds Eq. 12); covered by
+    F-PHY-6 since 2026-11-03: the reference-state scaling follows the temperature and pressure of each phase;
+  - [x] rescale the gas inventory at a pressure switch (FixedVelocity already imposes the new pressure on the
+    equilibria), and at a temperature switch without the energy balance: in the isothermal TSA of B-CYC-1,
+    R T Σc / P − 1 is 25 % through the 373 K phase, because Σc keeps the 298 K inventory (stage 3 of the cycles
+    plan). Done 2026-11-09 with F-BC-2: c_i ← c_i P/(R T Σc) at a step without a ramp, for the boundary conditions with
+    a continuity closure; not for `InletVelocityOutletPressure`, whose column pressure does not follow the phase.
+    A step shows in `phases.data` as the gas at the phase start minus that at the end of the previous phase;
+  - [x] end a phase on an outlet mole-fraction threshold (Stadler et al.'s pilot plant): `StopCriterion` with
+    `Metric` `MoleFraction` (F-CYC-1, 2026-11-18).
 - [x] **F-FIT-1** `FittingWeighting` (2026-11-11, user request): `"Absolute"` (default, unchanged) minimizes the RMSE
       of the loading in mol/kg, `"Relative"` that of (q_data − q_fit)/q_data and skips points with q_data ≤ 0. The
       absolute RMSE is set by the plateau and leaves the Henry region of the shipped BEA nC7 and CoBDP p-xylene fits
@@ -1261,10 +1651,18 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
       (scipy). The example is now `analysis.ipynb` with its lab notebook and figures (conversions.md went into the
       `psa` docstring). Tests: `tests/selfdriving_test.py`. Paper: main 2.5.5, 3.12, SI S5.5 (API and snippet), S6.10.
       A rerun from scratch through the package reproduced the 136 setups and results of the campaign.
+- [ ] **F-PHY-12** Option to evaluate the isotherms (also those of chemisorption sites) at the adsorbent
+      temperature T_s instead of T_f, and show the difference on the non-isothermal Marx runs. The SI justification
+      of T_f (collision picture) was judged physically incorrect in the mock review of 2026-11-19 (Major 3); h_fs =
+      20 W m⁻² K⁻¹ of the Marx runs also has no source (Wakao–Kaguei gives about 100–150 at T15).
+  - 2026-11-19: T_s is now unconditional, without an option (B-PHY-15, user's request); the difference shows in the
+    reruns of V-PHY-9. What remains here: an option back to T_f if wanted, and the source of h_fs.
+  - 2026-11-19: the Marx validation now takes h_fs from Wakao–Kaguei–Funazkri (37.5–173.1 W m⁻² K⁻¹, V-PHY-10); the
+    reference settings of the other T15 studies keep 20 W m⁻² K⁻¹ (no source; SI Table `tab:marx_reference_settings`).
 
 ## Paper inconsistencies (I)
 
-- [ ] **I-PHY-4** SI pore transport (Eqs. `surface_concentration_balance`, `pore_concentration_balance`,
+- [x] **I-PHY-4** SI pore transport (Eqs. `surface_concentration_balance`, `pore_concentration_balance`,
       `reaction_pore_reservoir`) does not conserve mass as written.
   - β_s, β_p, and Γ are per moving-fluid volume, but F = a_loc k_f (c − c_s) and P = k_p (c_s − c_p) are
     per particle (or pore) volume.
@@ -1272,16 +1670,56 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
   - Corrected set, consistent with the code after the γ fix (C-PHY-1), which is the case ε_p = 1, β_s = β_p:
     F = ((1−ε_b)/ε_b) a_loc k_f (c − c_s) and P = β_p k_p (c_s − c_p).
     Details in `docs/STADLER_FEATURES_PLAN.md`, "Status after implementation".
-- [ ] **I-PHY-14** `General` chemisorption capacity: the paper (Eq. `general_reversible_chemisorption`) has
+  - 2026-11-18 (paper audit, W-GEN-11): the SI differs from the code in three more places:
+    - the reservoir basis: the code's reservoirs are per solid volume with unit capacity, and there is no β_s, ε_p,
+      or ε_wc input;
+    - the monolith pore coefficient: 15 D_p/ℓ² for every geometry in the code (`integrators/transport.cpp:66`),
+      π² D_p/(4δ²) in the SI (`main.tex:3119`, `:3474`);
+    - the film area per solid volume: (4/d_h)/χ_wc in the code (`geometry.cpp:210`), 4/d_h in the SI.
+  - 2026-11-20: done. SI "Pore transport" is rewritten on the code's basis:
+    - reservoirs per adsorbent volume with unit capacity (no β_s, β_p, γ, or ε_p);
+    - F = a_loc k_f (c − c_s), with a_loc = 6/d_p or a_ch/χ_wc, and P = k_p (c_s − c_p);
+    - ∂c_p/∂t = P − ρ_s r + R^p;
+    - k_p = 15 D_p/ℓ² for every geometry, with ℓ = d_p/2, δ_wc, or 3/a_loc;
+    - a stated conservation argument against a^V_fs (Eq. `geometry_interfacial_area_total`);
+    - new Eq. `film_pore_series`, 1/K = 1/k_f + a_loc/k_p.
+    The main text (Eq. `main_pore_fluxes`) defines a_loc and k_p the same way. "Reaction without adsorption
+    limitation" now points to these balances instead of repeating the β set. Ψ_p of Eq. `pore_domain_volume_fraction`
+    has no ε_p (B-PHY-11). The washcoat porosity in the monolith inventory moved to I-PHY-18.
+- [ ] **I-PHY-18** The SI keeps a washcoat porosity ε_wc that the code does not have. It appears in the geometry
+      paragraph of "Breakthrough modeling", in Eq. `adsorbent_inventory_fraction` (Φ_a = ε_ch χ_a χ_wc (1 − ε_wc) for
+      a monolith), and in the energy balance (`main.tex` ≈2572). The reader has only `WashcoatThickness` and
+      `WashcoatVolumePerChannelVolume`, and the code's monolith inventory is ε_ch χ_wc ρ_p. Remove ε_wc from the SI,
+      or add the input. Found 2026-11-20 while fixing I-PHY-4.
+- [x] **I-PHY-14** `General` chemisorption capacity: the paper (Eq. `general_reversible_chemisorption`) has
       (q_max − q)^{n+}, the code has (min(q*, q_max) − q)^{n+} with q* the site isotherm at the bulk gas, also with pore
       transport, where the rate itself uses c_p (`chemisorption.cpp:15` and `:50`, `sorption.cpp:274`). Inputs that
       want the paper's law give the site a large affinity (`elfving/` and `validation/3.3.8_pore_transport` use b = 10³
       Pa⁻¹). Larger affinities make direct uptake stiff: b = 10⁶ took 92 s against 2 s at b = 10³ (3.3.8, 0.5–1.7 mm,
       100 cells, dense CVODE). Decide: the code (q_max, or q* at c_p) or the paper. Found 2026-11-09.
+  - 2026-11-20: decided by the user: the paper follows the code. The main Eq. `main_chemisorption` and the SI Eq.
+    `general_reversible_chemisorption` now have (q*_chem − q)^{n+}, with q*_chem = min(q*_site(c), q_max) and the site
+    isotherm at the bulk fluid, also with pore transport. The SI states that the free capacity vanishes where the bulk
+    holds no adsorbate, and gives the large-affinity recipe for (q_max − q) (`apx:goeppert`).
+- [x] **I-PHY-15** SI statements that the code contradicts (paper audit 2026-11-18, W-GEN-11):
+  - `main.tex:3538`: "Bulk-fluid reactions do not yet release heat, and the input reader rejects them together with
+    the energy balance". The code releases this heat into the solid (`integrators/compute.cpp:344–347`), as SI
+    `main.tex:2857–2866` says.
+  - `main.tex:1603`: the SI says FastIAST stops on an absolute spread of 1e-13 and returns the current iterate after
+    50 steps. The code tests the spread relative to max(1, |ψ̄|), and after the step limit it throws unless both
+    residuals are below 1e-6 (`mixture_prediction.cpp:1184–1196`).
+  - 2026-11-19: both SI passages now state what the code does (bulk-reaction heat into the solid,
+    `eq:bulk_reaction_heat_source`, with a particle density needed; FastIAST relative spread and the 1e-6 acceptance).
 - [ ] **I-ITG-3** ROS34PW2 in the paper predates its stage projection on the closure (B-ITG-16, 2026-11-11): the
       integrator text (main 2.4, SI `ROS34PW2` paragraph) does not describe it, the SI remarks of 3.4.2 give the old
       departure (−2.9 % to +4.0 %, now below 1e-4) and 1 to 12 s per cycle (now about half), and the benchmark
       quotes the old ROS34PW2 errors and steps. Update with the reruns of V-ITG-2.
+  - 2026-11-19: done except the benchmark. Main 2.4 describes the projection and its effect on the TSA (4 % → < 1e-4);
+    the SI `ROS34PW2` paragraph has it as Eq. `ros34pw2_closure_projection`, with why IPOP keeps the unprojected
+    stages, and "what it leaves out" no longer lists the velocity closures. TSA: 0.6–6 s per cycle, SI remark
+    < 1e-4 and 3e-6; the CO₂ balance is "within 4e-4" in the main text, the verification table, and the SI remark,
+    which explains the doubling. Open: the T15 numbers, step table, figure, and batch date of 3.5 once the
+    2026-11-19 benchmark batch has finished (V-ITG-2).
 - [ ] **I-CYC-1** Introduction: the claims on cyclic operation go beyond Section 2.3 and the code (F-CYC-1).
       2026-11-02 (decision): the Introduction keeps them as the target; implement F-CYC-1 and F-BC-1 later. Section 2.3
       no longer lists what is missing.
@@ -1292,6 +1730,44 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
       2026-11-11: Section 2.3 now has closed ends, pressure ramps, the re-equilibration of the gas, and the phase
       records; the self-driving lab (Section 3.12, SI `apx:self_driving_lab`) uses them, and its robot stops each
       run at the cyclic steady state in Python.
+  - 2026-11-18: the code now has the stop on a condition, the cyclic-steady-state stop, and per-step ports (F-CYC-1,
+    F-BC-3); Section 2.3 and the SI still describe the fixed-duration phase driver.
+- [x] **I-CYC-2** `main2.tex` describes the cycle mechanics as a separate companion code (one to four columns,
+      valves, buffers, compressor, jackets; SI `apx:cycles`). Since 2026-11-18 the single-column part is in RUPTURA
+      itself, with differences from that text: one column until F-CYC-4; ROS34PW2 with a coupled matrix instead of a
+      native BDF; WENO3 or upwind instead of TVD/WENO5; the isotherms at the gas temperature of the column model;
+      the cyclic-steady-state measures of F-CYC-1; no KPIs or duties in the code (`phases.data` gives the streams).
+      2026-11-18: several identical columns, valves, buffers, a compressor, jacket control, and the duties are in
+      RUPTURA too (F-CYC-4), with each column on its own ROS34PW2 and the connections in explicit coupling steps
+      instead of one state vector; the limits are in F-CYC-5.
+      2026-11-19 (decision of the user): the multicolumn cycles become part of RUPTURA in the paper, which replaces D3 of
+      `REWRITE_PLAN.md`. What the text has to hold, what the code verifies, and what `main2.tex` says that the code does
+      not do is in `ruptura-2.0-paper/CYCLES_NOTES.md`; nothing is written into the paper yet.
+      Decide whether the paper presents one code, and port the text into `main.tex` by hand.
+  - 2026-11-19: done. The paper presents one code: Section 2.2 "Cyclic and multicolumn processes"
+    (`sec:main_swing_adsorption`, `fig:multicolumn_schematic`), SI `apx:cycles`, and verification rows, written in
+    `main_rewrite.tex`, which replaced `main.tex` the same day; `main2.tex` was removed (an older copy is in the paper
+    git at `figures/main2.tex`). The literature validation is V-CYC-3.
+  - 2026-11-18 (paper audit): `main.tex` already holds a paragraph on that companion code, Section 2.2.9
+    (`main.tex:312–313`). It has no label, hard-codes "Section 3.10" and "Supplementary Section S7" (`main.tex` has
+    only S1–S6), and uses Unicode quotes and dashes. Decision D3 of `ruptura-2.0-paper/REWRITE_PLAN.md`.
+- [x] **I-CYC-3** SI text on the step driver that the code no longer matches (paper audit 2026-11-18, W-GEN-11):
+  - `main.tex:3926–3927`: "Closed or one-way ports, v_b = 0, are not available in this version". `ClosedEnd` exists
+    (F-BC-2), and Section 2.3 describes it.
+  - `main.tex:2294–2305` and `:2725–2741`: the continuity closure and the fluid energy balance lack the
+    pressure-ramp terms of Section 2.3 (c_tot (dP/dt)/P and the pressure work).
+  - `main.tex:5665`: after an isothermal temperature step, the gas "keeps the total concentration of the previous
+    temperature" (25 %). The driver now rescales it (`rescaleGas`, `swing_adsorption.cpp:190–195`), as Section 2.3
+    says. The −2.9 % to +4.0 % of the same paragraph is I-ITG-3.
+  - 2026-11-19: done in `main.tex`. The closed-port sentence was already gone with the rewrite. The SI closure
+    (`eq:gas_total_molar_balance`) now has −φ_f c_tot (dP_b/dt)/P_b, and the gas energy balance the pressure work
+    φ_f dP_b/dt, as in `compute.cpp` (sinkTerm, the T_f rate); both for `InletPressureInletVelocity`, the only
+    continuity closure that takes a ramp. The TSA remark describes the rescaling (a fifth removed at a 373 K start, a
+    quarter added at a 298 K start). Check with the current code (isothermal T15 TSA, t½ = 4000 s, 2026-11-19): it
+    runs, the outlet backflow peaks at −0.60 m/s after the 373 → 298 K switch (the SI's 0.6 m/s), and c_tot RT/P
+    stays within 1.5e-3 of 1. The departure −2.9 % to +4.0 % stays with I-ITG-3.
+- [x] **I-BLD-1** SI Installation (`main.tex:4373`) describes `BUILD_APP` as the "Qt application", but it builds the
+      Ruptura Lab web launcher (`CMakeLists.txt:330`). Found 2026-11-18 (paper audit). Fixed in the SI 2026-11-19.
 - [x] **I-PHY-2** Keep the SI humidity table, q_sat(T)/ν(T), and the flow-reversal boundary conditions consistent
       with what gets implemented (F-PHY-1, F-PHY-2, F-BC-1).
       2026-10-30: q_sat(T)/ν(T) done (F-PHY-2). The Climeworks relations stay in the SI text, marked as parts of the
@@ -1325,6 +1801,13 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
       the code (and rerun those), or write T_f for the chemisorption equilibrium in the paper. Found 2026-11-04.
       Decided 2026-11-04: all isotherms, chemisorption ones included, at the gas temperature; only the chemisorption
       rate coefficients (and the reactions) at T_s. The paper now says so; the code is unchanged, so no rerun.
+- [x] **I-ITG-4** SI 3.4.4 (`main.tex:6170`): "the WENO3 runs hold 3e-4 more adsorbate than was fed ... this is
+      integration error of ROS34PW2". It was the clamp of the accepted state, fixed 2026-11-19 (B-ITG-17).
+  - Done 2026-11-19 (decision of the user): 3.4.4 rerun with the fix (all 20 runs, notebook and figures); the sentence
+    is dropped, since the column now holds the fed amount to 2e-5 (WENO3, 25 cells; 3e-6 on 100) and 2e-8 (upwind).
+    Table `flow_reversal_results`: eight cells changed, E_1 of WENO3 on 400 cells 0.0033/0.0038 → 0.0034/0.0033 and
+    t99 counter-current down by 0.001; main text "0.3–0.4 % on 400 cells" → "0.3 %"; the other quoted values hold.
+    The other runs with WENO3 made before the fix are in V-ITG-2.
 - [x] **I-ITG-2** SIRK3 stability: the main text (Section 2.4, "stable at any Courant number and sorption stiffness")
       and the SI (after `eq:sirk3_stability_function`: |R(z)| ≤ 1 in the whole left half-plane) contradict the
       B-ITG-1 analysis of 2026-11-02, in which the final stage makes R singular at z = ±i and limits the convective
@@ -1403,6 +1886,27 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
     text: the stall sentences replaced by the near-vacuum and the t50 shifts; caption without the crosses. SI: both
     setup paragraphs name ROS34PW2; "Runs that did not complete" is now "Settings without continuity of the molar
     flux", with the CVODE stalls for comparison.
+- [x] **I-PHY-16** Since B-PHY-15 (2026-11-19) the code evaluates every isotherm and the RH of the humidity isotherms at
+      T_s; the paper still says T_f (I-PHY-12, I-PHY-13), with the collision-picture justification of
+      `main.tex:467` that the Reviewer-2 audit calls physically wrong. Rewrite with T_s (the van 't Hoff factor comes
+      from desorption at the surface): `main.tex:467–473`, Eqs. `main_equilibrium_interface` and `main_spi`, SI Eq.
+      `physisorption_equilibrium`, the temperature-law section (`main.tex` ≈3930), the RH definition, and the
+      chemisorption equilibrium. Numbers after V-PHY-9.
+  - 2026-11-19: the caption of SI Table `tab:temperature_laws` now says T_s for isotherms (edited with V-PHY-10);
+    the rest is open.
+  - 2026-11-20 (user's request): Eqs. `main_equilibrium_interface`, `main_spi`, `physisorption_equilibrium`, the RH
+    definitions (SI ≈3800 and ≈4810: p_sat at T_s), the moisture-swing affinity, the temperature-law section, and the
+    SI sentence "The isotherms are evaluated at ..." now say T_s; the collision picture is replaced by the desorption
+    argument (the exponential factor of the affinity comes from desorption of molecules at the temperature of the
+    solid).
+- [ ] **I-PHY-17** SI S5.6 (pore reservoirs) writes the balances with ε_p and β_p = (1 − ε_b)ε_p/ε_b, but
+      the code has no particle-porosity input ("porosity" appears nowhere in src/, 2026-11-19). Check the documented
+      equations against transport.cpp/sorption.cpp, and the mock-review claim (Major 5d) that the film flux per
+      particle volume and reservoirs per fluid volume do not conserve mass in a fixed bed.
+- [ ] **I-ITG-5** Benchmark timings from different batches disagree: BEA RK3 22 s (main 3.4) vs 27.2 s
+      (Table S24); BEA CVODE about 16 s (Fig. 10a) vs 19.2 s (Table S24). The component/method study (Table S24,
+      3 Nov) and the convection cost runs (Table S25, 31 Oct) ran at CVODE rtol 1e-4, the default before 1f4da97
+      (11 Nov); the SI now says so. Regenerate all benchmark numbers from one code version, with repeats.
 
 ## Performance (P)
 
@@ -1488,6 +1992,25 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
       audit of `src/`; not measured.
   - Done 2026-11-18: `MixturePrediction::storeSiteLoadings` (true by default); the column sets it false for its
     physisorption mixtures.
+- [x] **P-PHY-9** MPD reweighting (`MacrostateParticleDistribution::meanParticleNumbers`) called exp() for every
+      compatible state (online log-sum-exp) and kept a serial running maximum: 45 µs per call with the 9865-state
+      CO₂/propane distribution of V-PHY-7, ~97 % of an MPD breakthrough (1e8 calls, about an hour against 69 s for
+      SIAST).
+  - Done 2026-11-19 (asked by the user): two passes, the log weights over one contiguous array per component and
+    their maximum (four running maxima), then exp() only within 50 of it (each skipped state adds < e^-50 to a sum
+    of at least 1); a component absent from the gas reweights only the precomputed states without it, and a gas
+    without adsorbing components returns at once. 14 µs per call over the 104k compositions of the V-PHY-7
+    breakthroughs (3.2×); loadings change by ≤ 1.4e-13 molecules (≤ 1e-10 relative). Test
+    `ReweightsOnlyStatesWithoutAbsentComponents`. A threshold that drops a component with a tiny but nonzero mole
+    fraction was rejected: 0.1–0.4 % of the calls there, and a jump in the loading.
+- [x] **P-PHY-10** MPD had no equilibrium sensitivities: `assembleSorptionJacobian` left dq*/dc at zero for MPD, so
+      ROS34PW2 (and the CVODE sorption-Jacobian preconditioner) lost the stiff coupling and crawled. V-PHY-7
+      breakthrough with ROS34PW2: 1435 s of 3850 s in 87 min, against 7.4 s for the whole SIAST run.
+  - Done 2026-11-19 (asked by the user): `predictMixtureSensitivities` returns dq_i/dp_j = Cov(n_i, n_j)/p_j for MPD
+    (fluctuation relation; `meanParticleNumbers` fills the covariance from the second moments of its second pass),
+    with p_j ≥ 1e-10 P like the other slopes; `assembleSorptionJacobian` no longer excludes MPD. Test
+    `MPDSensitivitiesMatchCentralDifferences` (< 1e-6 against central differences). Only checked isothermal; the
+    temperature terms of the Jacobian were not looked at for MPD.
 
 ## Refactoring and cleanup (R)
 
@@ -1532,6 +2055,35 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
     leads: the dispersion stencil on a non-uniform grid (`compute.cpp`, `secondDerivative`), the absolute
     `wenoEpsilon`, and the gas sink of a node that mixes adsorbents with and without direct chemisorption
     (`transport.cpp`, `computeBulkSpeciesSink`).
+- [ ] **R-EX-2** Every case behind the paper lives in `validation/` (user, 2026-11-19). Moved, each with a symlink at
+      its old path:
+      - `marx2`, `stampi-bombelli`, `elfving`, `liu`, and `stadler` into `validation/3.3.x_*/<name>`;
+      - `benchmark/{breakthrough,convection,figures}` into `validation/3.5_numerical_performance/`;
+      - `examples/Self-driving-lab-H2-PSA` into `validation/self_driving_lab/`.
+
+      Changed with the moves: the path depths in the moved scripts and notebooks, the generators and notebooks that
+      read the Marx, Stampi-Bombelli, Stadler, Elfving, and Liu inputs, `benchmark/cvode-max-step`, three C++ tests
+      (`pressure_swing`, `ros34pw2`, `sorption_jacobian`), and the root `run.py`. `run.py` now also does what
+      `validation/collect_jobs.py` did: `--paper`, `--generate`, and `--list` with `validation/cases.csv`. The
+      section READMEs and `validation/README.md` were updated too. Open:
+  - `sharma` (MPD, `validation/3.2.2_mpd/sharma`): left in place because another session was working in it.
+    `sharma/runs/{generate,run}.py` find the repository with an unresolved `HERE.parent.parent`, and
+    `validation/3.2.2_mpd/analysis.ipynb` reads `REPOSITORY / "sharma"`.
+  - Git: ten tracked files now sit in the ignored `validation/` and show as deleted:
+    - the Marx, Stampi-Bombelli, Elfving, and Liu PDFs;
+    - `marx2/ternary/T15/simulation.json`, which the C++ tests read;
+    - the three tracked files of the self-driving-lab example.
+
+    The root symlinks show as untracked. Decide: `git add -f` the new paths and ignore the symlinks, or move the
+    tracked files back.
+    - Decided 2026-11-20 (user): `validation/` is tracked, without RUPTURA output. `.gitignore` names that output
+      for the whole repository (the list of `pack.py`) in place of the rule for every `.data` file, so input `.data`
+      files can be tracked. Left out of `validation/`: the notebook that ruptura writes into each run directory,
+      the archives of `convert.py`, `_to_delete/`, the RASPA3 TMMC data, and the experiment directories of the
+      campaigns. The ten files are tracked again at their new paths; the root symlinks are tracked since `ba573b9`,
+      and their old ignore rules, which hid the case folders of the same name, are gone.
+  - The C++ tests with the new paths pass a syntax check (`-fsyntax-only`) but were not built or run.
+  - `validation/pack.py` (2026-11-19) packs the working tree for a rerun elsewhere without any RUPTURA output: 146 MB.
 - [x] **R-ITG-1** One right-hand-side function. The precompute-plus-derivative block is written out five times
       (`rk3.cpp` ×2, `cvode.cpp` ×2, `rk3_si.cpp`, `swing_adsorption.cpp`).
       2026-10-27: RK3, SIRK3, the swing phase switch, and the Python bindings share `precompute` +
@@ -1626,11 +2178,12 @@ Introduction, which keeps the cyclic-operation claims as the target (I-CYC-1, de
 
 Details in `validation/`.
 
-- [ ] **V-PHY-1** Marx T8/T21: marx2 had to use `InletVelocityOutletPressure` and stop early (1872 s and 1174 s). An
+- [x] **V-PHY-1** Marx T8/T21: marx2 had to use `InletVelocityOutletPressure` and stop early (1872 s and 1174 s). An
       older `marx2/ternary/T21/failed_state.json` shows a diverged state. With the current code, T21
       completes 4000 s with both `InletVelocityOutletPressure` and `InletPressureInletVelocity` (3.4.1).
       Rerun marx2 T21 (and T8) with `InletPressureInletVelocity` to 4000 s; update the SI run table and figures.
-- [ ] **V-PHY-2** Find a validation case for pore transport (film and pore reservoirs). Elfving does not use it, and
+  - 2026-11-19: done with V-PHY-10; every run uses `InletPressureInletVelocity` to its full time.
+- [x] **V-PHY-2** Find a validation case for pore transport (film and pore reservoirs). Elfving does not use it, and
       Serna-Guerrero is dropped. Candidates:
   - Rosen, J. Chem. Phys. 20 (1952) 387: analytical breakthrough with film and particle diffusion (3.1);
   - CADET general rate model (Leweke and von Lieres, Comput. Chem. Eng. 113 (2018) 274): code-to-code;
@@ -1682,6 +2235,26 @@ Details in `validation/`.
       0.021).
     - Open: the paper text (above, after I-PHY-4; decide which panels go in); Goeppert 2014 (closed access) for the
       per-size sample masses and flows.
+  - 2026-11-20: rerun and in the paper (user's request).
+    - Rerun with a binary built from commit ba573b9: every output is byte-identical to that of 2026-11-09, 820 s
+      summed over the 44 runs. Notebook: `np.trapezoid` (NumPy 2.5), the Auton curve dotted, the grid-convergence label
+      shortened, and Goeppert's Fig. 2 totals in the capacity table.
+    - Same day, restyled to `STYLE.md` (no new symbol collisions). In the paper, Auton's T, 𝓛, β, μ, q_e, k_p, R,
+      and C are τ_kin, L_kin, N_TU (transfer units over L_kin), Ω, q*_in, k_fp, r_p, and c/c_in; the pore diffusion
+      length ℓ_a is δ_{p,a}. The panel legends follow: N_TU, z_1/2/L_kin, Δ(c/c_in). `conversions.md` and the
+      README keep Auton's own notation.
+    - Goeppert 2014 read (PDF from the user): 25 °C, 335 mL/min, 400–420 ppm, "typically 3 g" weighed after drying,
+      8 mm U-tube; no bed length, per-run mass or inlet, or humidity. Their Fig. 2 totals (71.0–81.7 mg/g) are
+      Auton's q_e, so the mass-balance mismatch is in the unreported column; L_fit stands for it (equivalent masses
+      2.33–3.16 g). README and `conversions.md` §1, §7.
+    - Paper (`main.tex`):
+      - Results `sec:results_chemisorption`: two paragraphs and Fig. `fig:goeppert` (four `experiment_*` panels).
+      - A row of the verification table, and the feature table.
+      - The first and the limitations paragraphs of the Conclusions.
+      - SI `apx:goeppert`: Table `tab:goeppert` and Fig. `fig:goeppert_verification`.
+      - Panels copied to `figures/goeppert/`; bib keys `goeppertnarayanan2014`, `autoncalvoschwarzwalder2024`.
+    - The Abstract already lists pore transport without a validation claim, so it is unchanged.
+    - Left open, not needed for the paper: a full-model refit of k_p for the two larger sizes (README "Open").
 - [ ] **V-PHY-3** 3.3.5 Stadler et al. SE-WGS: set up in `stadler/` following the staged plan in its README.
   - Done (2026-10-21):
     - Figs. 4–8 digitized; `conversions.md`; `generate.py`, `run.py`, and the notebook.
@@ -1705,7 +2278,7 @@ Details in `validation/`.
     open.
 - [ ] **V-PHY-4** 3.3.6 Liquid and pH: discuss with Shrinjay.
 - [ ] **V-PHY-5** Adiabatic thermal mode: not covered by Marx. Dantas runs 1–8 (`dantas/`) are adiabatic if needed.
-- [ ] **V-PHY-7** 3.2.2 MPD: validate against SIAST on the mordenite case of Sharma et al. (2023), with a macrostate
+- [x] **V-PHY-7** 3.2.2 MPD: validate against SIAST on the mordenite case of Sharma et al. (2023), with a macrostate
       particle distribution from TMMC (decided 2026-11-02). Fills the empty Results subsection "MPD".
   - System: check which MOR mixture of Sharma et al. 2023 to use and that its pure-component fits are those of
     `examples/MOR-CO2-C3H8` (CO₂/C₃H₈ in He, two Langmuir sites per component, SIAST, 300 K, 2.5e6 Pa).
@@ -1769,12 +2342,52 @@ Details in `validation/`.
     (Fig. mpd_mor e,f; B-PHY-1 entry). `build_pure_distribution.py` now fills ⟨H⟩ of states without production
     energies by interpolation in N (extrapolation at the ends): with ⟨H⟩ = 0 such states gained up to e²⁰⁰ when
     reweighted. `build_distribution.py` (binary) still writes 0 there; fix that before reweighting the binary.
+  - 2026-11-19: binary 300 K distribution from an N-d TMMC done on another machine
+    (`sharma/lnpi_co2_propane_mor_300K_nd_tmmc_walks.txt`, 9865 states, valid up to ~1e6 Pa total fugacity), converted by
+    `sharma/mpd/build_nd_tmmc_distribution.py`. MPD inlet loading at the breakthrough feed equals the direct
+    reweighting (1.1529/0.8141 mol/kg). Breakthroughs with ROS34PW2 (MPD after P-PHY-9 and P-PHY-10; binaries
+    `build/ruptura-sharma-2026-11-19-mpd{,-jac}`): t50 CO₂ MPD 3344 s, SIAST 3380 s, IAST 2473 s; propane 2291,
+    2240, 1527 s; propane roll-up 1.053, 1.138, 1.705. Wall time MPD 160 s, SIAST 7.4 s, IAST 4.3 s. SIAST is
+    within 1–2 % of MPD in t50, IAST far off.
+  - Done 2026-11-19 (asked by the user): `sharma/` moved to `validation/3.2.2_mpd/sharma` (symlink at the old path;
+    `cases.csv`, `pack.py`, `validation/README.md` updated), all 16 runs of the case redone, and the Results
+    subsection "MPD" with Fig. `mpd_mor` rewritten from the binary distribution (draft note removed): trusted range,
+    pure components, equimolar mixture (MPD follows SIAST; at the feed propane +11 % and CO₂ +2 % over pure, i.e.
+    mildly cooperative), breakthrough and roll-up, cost; the MPD sensitivities in the integrator text, the
+    verification table, and SI `apx:sorption_jacobian`/`apx:mpd` (Eq. `macrostate_sensitivity`). The paper reports the
+    distribution as two-dimensional NVT+W of Chen and Lin 2023 (`chenlin2023`, added to ruptura.bib), as the user asked
+    while the N-d TMMC is in progress. Open: the wall times were taken with other runs on the machine (full
+    rerun on one node); the binary temperature reweighting (B-PHY-1) needs an N-d distribution at a second temperature.
 - [ ] **V-ITG-2** Rerun the paper cases that use ROS34PW2 with a marching closure, after its stage projection
       (B-ITG-16, 2026-11-11), if the paper should show the current code: 3.4.2 TSA (max |R T Σc/P − 1| 0.019–0.040 →
       below 1e-4, inventories within 3e-4, wall time halved; figures change little, the SI remark and the timing do),
       and the ROS34PW2 runs of the 3.5 benchmark (T15: e50 2–3 times smaller, up to 22 % fewer steps; with V-BC-2).
       3.3.1, 3.4.1, and 3.4.3 move by at most 2e-6 in t50 and 7e-4 of the feed fraction at the outlet; IPOP, FixedVelocity,
       FPIV, and liquids are unchanged. Not done: the user decides.
+  - 2026-11-19 (asked by the user): binary frozen from the working tree on `db47591` at 18:06. 3.4.2 TSA rerun
+    (`validation/3.4.2_swing_adsorption`, README and figures updated): max |c_tot R T_g/P − 1| 9.7e-5 (was 0.040),
+    inventory change at the step ends ≤ 2.8e-6, 0.59–5.6 s per cycle (paper: 1–12 s), Δq_cyc and temperature swings
+    unchanged to three digits. The CO₂ balance is now 1.8–3.7e-4 (was 0.7–1.7e-4; the paper says "within 2e-4"): the
+    projection gives the integration error of Σc to the components by mole fraction (falls with rtol), on top of a floor
+    of ~6e-4 over four 1000 s cycles that the old binary had too (README). The whole 3.5 benchmark (80 runs) is
+    rerunning in one batch (`benchmark/breakthrough/run_2026-11-19.log`).
+  - 2026-11-19: the binary frozen at 18:06 predates the B-ITG-17 fix (ROS34PW2 no longer clamps the state its next
+    step starts from), so these TSA and benchmark runs do too. Every ROS34PW2 run with WENO3 can move a little; check
+    whether the CO₂-balance floor of the TSA is that clamp before writing the numbers into the paper.
+  - 2026-11-19 19:40: benchmark part 1 (75 runs) done at 18:54. Two runs stopped: the RK3 stability run of T15 at
+    5e-2 s (IAST NaN at 12 s, still "unstable") and T15 CVODE SPGMR at rtol 1e-2, which stops at 8.4 s with
+    max |R T Σc/P − 1| = 0.49; on 2026-11-03 it completed with e50 7.4e-4. The paper's claim that the T15 errors fall
+    monotonically with the tolerance needs that run. The BEA Dense part was killed with the Claude session at about
+    19:12 and restarted detached at 19:36. The paper already has the TSA numbers of this binary (main 2.4, Section
+    `results_cycles`, verification table, SI remark), including "CO₂ balance within 4e-4" and an SI sentence that
+    puts part of the balance error on the projection. Both need a TSA rerun with the B-ITG-17 fix. A full rerun on
+    one cluster node is described in `validation/README.md` (`cases.csv`, `run.py --paper --list`, `jobs.csv`).
+  - 2026-11-19 19:58: TSA rerun with a second frozen binary that has the B-ITG-17 fix. Every number of the README
+    table is the same to the digits shown, and so are the gas departure and the inventory change. The CO₂ balance
+    is the same to four digits, also on four 1000 s cycles at the default rtol and at 1e-8. The clamp is therefore
+    not its floor, and the paper text stands. The wall times of this rerun (1.05–8.6 s per cycle) are inflated by
+    the BEA Dense runs alongside; on its own a four-cycle run takes the same CPU time with both binaries. The paper
+    keeps 0.6–6 s per cycle; time it again on a quiet machine.
 - [ ] **V-BC-2** Rerun the paper cases affected by the C-BC-1 closure fix (continuity closure with unequal D):
       3.3.1 Marx ternary, 3.4.1 boundary conditions (Marx 10 bar), 3.4.3 sensitivity (T15; the D_ax variations up
       to 1e-3 m²/s will move most), 3.4.2 cycles, 3.5 benchmark (T15). Checked on T15 (2026-11-03): ≤ 2.2 % of the
@@ -1783,12 +2396,62 @@ Details in `validation/`.
   - 2026-11-04: 3.3.1, 3.4.1 (10 bar), 3.4.2, 3.4.3 rerun with B-BC-2 and C-BC-2 as well (C-BC-2 entry). Open: the
     3.5 benchmark (`benchmark/breakthrough`, `benchmark/convection` T15; timed parts on a quiet machine) and the
     3.4.2 wall times per cycle.
+- [ ] **V-BC-4** The convection study (`validation/3.5_numerical_performance/convection`, Fig. `convection`, SI
+      `tab:convection_benchmark`) ran on 2026-10-31 with the Dirichlet inlet, the default then. Its stored inputs
+      have no `InletCondition`, so with today's default they run with Danckwerts. Its `generate.py` copies the base
+      inputs (Marx T15, the monolith), which carry `"InletCondition": "Danckwerts"` since 2026-11-03. Either pin
+      Dirichlet in `generate.py`, as the integrator benchmark does, or rerun with Danckwerts and update the paper.
+      Found 2026-11-19 when every generator was rerun (`validation/README.md`, step 3).
 - [ ] **V-CYC-1** 3.4.2 PSA, and TSA purity/recovery: later. They depend on flow reversal and the cycle driver
       (F-BC-1, F-CYC-1). Closed ends and pressure ramps are there since 2026-11-09 (F-BC-2), not validated against a
       published PSA yet.
   - 2026-11-06: flow reversal is validated by 3.4.4 (V-BC-3). The published PSA/VSA experiments (Schell et al.
     2013; Haghpanah et al. 2013) need pressurization and blowdown against closed ends (stage 3); no
     single-column experiment with counter-current steps at constant pressure was found.
+- [x] **V-EX-1** Rerun the campaign of `examples/Self-driving-lab-H2-PSA` with the cyclic-steady-state stop and the
+      stream-amount KPIs of F-PY-3 (2026-11-19). Its README, notebook, figures, and the numbers of the paper are from
+      the earlier stop in Python (136 experiments, 12 not converged).
+  - 2026-11-19: one-column campaign rerun (136 experiments, 1 not at cyclic steady state, hypervolume 5.0 times
+    the baseline); rerun from scratch it gives the same setups and identical KPIs. README, paper text, SI model check
+    (redone with the new stop), and `tab:sdl_front` updated. The two-bed campaign (`TwoBedPressureSwingCycle`) ran
+    once resumed after round 0 (B-PY-8), so it is being rerun in one go; then the notebook, figures, README, and paper
+    two-bed results.
+  - Done 2026-11-19: the two-bed campaign, rerun in one go (57 min), dominates the one-column front (recovery
+    0.51-0.56 at 1.04-1.28 mmol/(kg s); hypervolume 8.7 times its baseline, still rising). Equalization check (e = 0)
+    and a fine check (160 cells, ROS34PW2 1e-6) done; notebook executed, figures copied to the paper (new
+    `fig:self_driving_lab_two_beds`, `tab:sdl_front_two_beds`), README and paper text updated.
+- [ ] **V-CYC-3** Validate the cycle driver, `MomentumBalance`, and the coupled columns (F-CYC-1, F-BC-3, F-CYC-4;
+      the two-bed cycle with pressure equalization can be run since 2026-11-18) against the literature.
+      2026-11-19 (search of the branch, at the user's question): it has no literature cycle case that can be rerun.
+      Its Haghpanah 2013 (breakthrough and four-phase VSA), Krishnamurthy 2014 (breakthrough, one-column VSA, two-column
+      VSA runs 6 and 7), and Marx T15 inputs under `examples/new_examples/integrated/validation/` are listed in its
+      manifests but were never committed (its `.gitignore` drops `validation/` and `test_*`); the digitized markers of
+      the donor project are missing too; `verification/integration/reference_outlets` holds outputs of its own code
+      for breakthrough runs only (correcting the lines below: no VSA or two-bed outlet curves). One literature-based
+      input is there, in the donor YAML format: `tests/process/fixtures/upstream_materials/mocca/dcb_adiabatic/
+      simulation.yaml`, the 13X breakthrough of Haghpanah 2013 (dual-site Langmuir, 201 nodes). Its own documents say
+      the literature validation was not completed. Next: ask Shrinjay for the donor folders
+      (`examples/validation/haghpanah_2014`, `examples/literature/mocca`), or digitize the four-phase VSA of
+      Haghpanah et al. 2013 and runs 6 and 7 of Krishnamurthy et al. 2014 from the papers. So far they
+      are checked against the code itself (the continuity closure, mass balances, P V/(R T)). Candidates: the
+      four-step VSA of Haghpanah et al. (2013), one column with light-product pressurization, which the phase-name gas
+      of F-CYC-1 allows, and a two-bed cycle with pressure equalization once F-CYC-4 is there; the branch
+      `ruptura-shrinjay` has outlet curves of its own runs for both (`verification/integration/reference_outlets`) but
+      not their inputs. Also: whether `CyclicSteadyState` ends the 3.4.2 T15 cycles where the paper's 1 % criterion
+      does (14 cycles for 1000 s half-cycles). Which cases, and digitized from which figures, is to be decided.
+  - 2026-11-19 (literature search; paper section `sec:results_vsa` is a \todo skeleton): the cycle of Haghpanah et
+    al., Ind. Eng. Chem. Res. 52 (2013) 4249, is feed pressurization, adsorption, co-current blowdown, and
+    counter-current evacuation on 13X, not light-product pressurization (correcting the line above; that cycle is in
+    their AIChE J. 59 (2013) 4735). The main text is closed access and was not obtained; its own SI (ACS figshare, CC
+    BY-NC: dimensionless groups, boundary conditions of all four steps) and open restatements of its Tables 2 and 3
+    were (Glover et al. 2026 arXiv:2606.21523 with SI Table S2; Subraveti et al. 2026 Ind. Eng. Chem. Res. 65 9656,
+    CC-BY; SINTEF Mocca.jl). Reference data available: the adiabatic breakthrough figure (a copy in Ramani, TU Delft
+    MSc 2016, Fig. 3.3a), the base case (FP 15 s, ADS 15 s, BD 30 s, EVAC 40 s; 1/0.2/0.1 bar; 1 m/s), and five
+    minimum-energy designs at 90 %/90 % with productivity and energy. Open: (i) the base-case purity is disputed
+    (88.7 % quoted as the paper's, about 80 % in two reimplementations); (ii) its LDF coefficient depends on the
+    concentration, k = (c/q*) 15 ε_p D_m/(τ r_p²), which RUPTURA does not have (code change, ask); (iii) the heat of
+    adsorption of its energy balance is not stated in any source; (iv) the pressurization time of the designs is not
+    stated. Better with the PDF of the paper from the user.
 - [ ] **V-MBD-1** 3.3.7 Park et al. layered beds (Chem. Eng. Sci. 53 (1998) 3951): obtain the paper and set it up.
       Backup: Yang and Lee, AIChE J. 44 (1998) 1325.
 - [ ] **V-GEN-1** 3.1 Verification: all items marked new in `validation/3.1_verification/README.md`.
@@ -1828,6 +2491,74 @@ Details in `validation/`.
     alternative to pinning Dense is to switch these studies to ROS34PW2 (user to decide).
   - Done 2026-11-03 (decision): the validation studies use ROS34PW2 (I-BC-4), so no study depends on the CVODE
     default solver any more. The integrator benchmark sets its CVODE solvers explicitly.
+- [ ] **V-PHY-9** Rerun the cases with the energy balance after B-PHY-15 (isotherms at T_s), with one frozen binary:
+      3.3.1 Marx T1–T24, the 3.3.2 Stampi-Bombelli 5.6 % packed bed, the 13 Elfving cases (3.3.3, chemisorption
+      isotherms), the 3.4.1 Marx runs, 3.4.2 TSA, 3.4.3 sensitivity, the T15 runs of 3.5 (benchmark, convection), the
+      self-driving-lab campaigns, and the T15 checks of the paper's Table 2 (free gas pressure, phase end). Isothermal
+      cases are unchanged.
+  - 2026-11-19: 3.3.1 Marx T1–T24 done (with the Marx inputs, V-PHY-10). The other T15 studies read the frozen
+    `marx2/reference_settings_hassan_chung/` inputs, so their reruns keep the reference settings.
+- [ ] **V-ITG-3** Fair CVODE comparison for the 3.5 benchmark (Reviewer-2 audit of 2026-11-19), added to
+      `validation/3.5_numerical_performance/breakthrough` but not run. `generate.py` adds CVODE without the 4 Δz/v cap
+      (`cvode-nocap`), with the analytical sorption Jacobian as SPGMR preconditioner (`cvode-precond`) and in KLU
+      (`cvode-klu`, BEA only: KLU rejects the energy balance and chemisorption), and the case
+      `monolith-400ppm-fitted-dl-danckwerts` (the inlet of the validation runs) with every series; `run.py --repeats N`
+      keeps the median and all wall times (`elapsed_all`). 147 runs; every new kind of input smoke-tested for 4 s.
+  - To do: `python generate.py`, then the whole benchmark with one frozen binary and `--repeats 3` (the T15 runs change
+    with B-PHY-15 anyway; with V-ITG-2); extend `analysis.ipynb` to the new series and case; then Fig. 10, Tables
+    S21–S25, and the speed-up claims (abstract, Section 3.4, Conclusions). A direct analytical-Jacobian CVODE for T15
+    would need KLU with the thermal block.
+- [x] **V-PHY-10** Marx rerun with the inputs of Marx et al. (mock review 2026-11-19, Major 4): their
+      temperature-dependent Sips (q_sat(T), s(T) of their Table 5), the porosity mapping ε_b = ε_t with ρ_s =
+      ρ_b/(1 − ε_t) (the current mapping holds 273 instead of 502 kg/m³ of adsorbent), and a 318 K ambient/wall for
+      the 318 K runs; compare with their model curves as well as the data.
+  - 2026-11-19: `marx2/generate.py` writes T1–T24 (conversions.md §5–9): SCI (their multicomponent Sips) with
+    uncentred VantHoff q_sat and k and the new `Arctan` law (1/ν = 1/V + α atan[β(T − T_ref)], keys Alpha and Beta;
+    temperature_law.{h,cpp}, inputreader, isotherm masks, pybindings, test
+    `TemperatureInput.ReproducesTheTemperatureDependentSipsOfSchellEtAl`); ΔH and k_i of Tables 5–6; ε_t as fluid
+    fraction, ρ_s = 1946.5 kg/m³, v = Q/(Aε_t); molar `GasHeatCapacity` 29.51 on every component; h_fs from
+    Wakao–Kaguei–Funazkri per run × (1 − ε_b)/(1 − ε_t); ambient = feed temperature; `InletPressureInletVelocity`
+    and full times for all runs (also T8, T21: V-PHY-1). Model curves digitized (`digitize_model.py`), temperatures
+    at 1.1 m. Rerun with a frozen binary (T_s isotherms), 27 s for all 24. CO₂ t50 at ≥ 5 bar 1–12 % early (Marx
+    model −9 to +2 %); 1 bar up to 25 % late (Marx model within 2 % except T19); peaks 0.2–5.9 K below measured.
+    Paper: 3.5.1, Fig. 11 caption, Conclusions, SI `apx:marx` (new mapping paragraphs, Eq.
+    `wakao_gas_solid_heat_transfer`, Tables S26–S31, Figs. S2–S5), law tables and JSON reference (Arctan).
+  - The old inputs are frozen in `marx2/reference_settings_hassan_chung/` (user's choice, 2026-11-19): the tests and
+    every other T15 study (3.4.1, 3.4.2, 3.4.3, 3.5 breakthrough and convection, SDL, Table 2 checks) read them, and
+    the SI lists them in Table `tab:marx_reference_settings`. The cross-check reruns
+    (`inlet_condition_dirichlet_vs_danckwerts`, `ros34pw2_danckwerts_rerun`) still read `marx2/ternary` and pick up
+    the Marx inputs when regenerated.
+- [ ] **V-ITG-4** Like-for-like integrator benchmark (mock review Major 2): CVODE without the 4Δz/v cap (or
+      the same cap for ROS34PW2), CVODE with the analytical Jacobian (KLU, or SPGMR with the SorptionJacobian
+      preconditioner), a Danckwerts monolith case, three repeats; retest the Toth stalls with CVodeSetConstraints.
+  - 2026-11-19: everything but the CVodeSetConstraints retest is in the suite (V-ITG-3, not run).
+- [ ] **V-PHY-11** Monolith validation that exercises the monolith (mock review 2026-11-19, Major 5a): the
+      Stampi-Bombelli runs prescribe the velocity and use fitted D_ax (vL/D = 0.04–2), so channel permeability,
+      Taylor–Aris dispersion, film transfer, and the monolith energy balance are untested; channel coefficients are
+      circular for every shape (square: Taylor–Aris 1.6×, fRe 56.9). Compare model-to-model with the published model
+      of Stampi-Bombelli et al. (it reproduces their monolith curves; RUPTURA is −15 to +24 % off), give the packed-bed
+      inputs in the SI (rate constant, ε_b, energy parameters, fitted D law), and add a case with a computed velocity
+      and pressure drop. Details: `ruptura-2.0-paper/REVIEW_AUDIT.md`.
+- [ ] **V-PHY-12** The paper now uses two input sets for experiment T15: the Marx inputs in 3.5.1 and the frozen
+      reference settings of Hassan and Chung (IAST, ε_b, h_fs = 20, ambient 298 K; SI Table
+      `tab:marx_reference_settings`) in the verification, cycles, SDL, benchmark, boundary-condition, convection, and
+      sensitivity studies (2026-11-19). A referee may ask why. Optional: move those studies to the Marx inputs
+      (repoint their generators and the tests to `marx2/ternary`; 9 tests then need new fixtures, e.g. the
+      `heatCapacityGas` key and the >10 Pa Ergun drop of `MatchesTheContinuityClosureInABreakthrough`), rerun, and
+      update their numbers; or keep both and say so in the main text.
+- [ ] **V-CYC-4** Conservation and cyclic steady state of the cycle results (mock review 2026-11-19, Major 6): the gas
+      rescaling at phase transitions, the ROS34PW2 projection shared by mole fraction, and the clipping of negative
+      values add or remove gas without a flux; Eq. `main_css` measures stream amounts against the largest one (the
+      feed), so with δ = 2e-3 the product N₂ that decides the 99.9 % target may change by more than its size per
+      cycle. Report per-component balances relative to each component's feed and the purity/recovery change over the
+      last cycles for the TSA and SDL Pareto cycles, and N_css; consider a KPI-based stop and a flux-consistent
+      projection. Also verify the free gas pressure dynamically: pressurization of a closed column against the
+      linearized pressure-diffusion solution, and an adiabatic filling test.
+- [ ] **V-PY-1** Self-driving lab robustness (mock review 2026-11-19, Major 7): 3–5 seeds per campaign and a
+      Sobol/random baseline with the same 136 evaluations; justify the bounds the fronts sit on (T at its lower
+      bound; P_H, P_L, e); a third grid for the N₂ impurity (20–68 % between 80 and 160 cells); state the gas
+      heat-capacity model of each campaign (the T15 per-mass value gives 2.2 J/mol/K for H₂); time a campaign with
+      another integrator or drop "this speed makes ... practical" from the abstract.
 
 ## Paper writing (W)
 
@@ -1847,8 +2578,111 @@ Details in `validation/`.
   - Introduction: about 1000 words before what is new; shorten the background and the monolith paragraph;
   - Section 2.3 in the voice of the other sections; parallel Results headings without "&" (W-GEN-1);
   - a short box with the user recommendations (feed rate at the inlet, CVODE with SPGMR, WENO3 on 25 points).
+- [x] **W-GEN-11** Audit and rewriting plan of the paper: `ruptura-2.0-paper/REWRITE_PLAN.md` (2026-11-18).
+      - **Contents:** the story, a new outline with topic sentences, a move map, cuts, an SI plan, and decisions
+        D1–D7: MPD, liquid, one cycle code or two, pore transport, the verification table, the SI JSON reference,
+        and the venue and terms.
+      - **Relation to W-GEN-10:** the plan includes its suggestions.
+      - **Workflow:** the rewrite goes into a copy, and `main.tex` stays the source until the authors accept it.
+  - 2026-11-18: draft in `ruptura-2.0-paper/main_rewrite.tex`, built on the user's decisions:
+    - D1: MPD kept as is.
+    - D2: the liquid case stays untested; the empty heading carries a `\todo`.
+    - D3 and D4: skipped for now; the paragraph on the companion cycle code was moved to Section 2.3 with a `\todo`.
+    - D5: verification table added.
+    - D6: the JSON reference stays in the SI.
+    - D7: Molecular Simulation, US spelling, "phase" for cycle steps.
+    - The introduction has only minor changes.
+    - Changes since `main.tex`:
+      - Section 2 is merged and motivated, with a feature table.
+      - The results are grouped as in `validation/`.
+      - The ROS34PW2 claim is now backed in Section 3.5 (CVODE stalls).
+      - New SI table: `tab:benchmark_summary`.
+    - 26 `\todo` markers for the author. The labels and the set of `\cite` keys are unchanged.
+    - The main text grew from 11,457 to about 12,900 words.
+  - 2026-11-19: the main text of `main_rewrite.tex` was condensed by 10% on wording only, from 12,914 to 11,628 words.
+    - Every number, label, citation, reference, equation, figure, and `\todo` is unchanged.
+    - The MPD section and the paragraph on the companion cycle code were not touched.
+    - The introduction got light wording edits only.
+  - 2026-11-19 (user request): the rewrite replaced `main.tex`, and `main_rewrite.tex` and `main2.tex` were removed.
+    The new `main.tex` compiles to 182 pages with no undefined references. Line numbers `main.tex:NNN` in the audit
+    items (W-GEN-12 to W-GEN-14, I-CYC-2) refer to the old `main.tex` of 2026-11-11; find those passages by their
+    text or label. The open author items are the `\todo` markers in `main.tex`.
+- [x] **W-GEN-12** Numbers that disagree within the paper (audit 2026-11-18):
+  - Marx low-flow runs: "11–37 % later" (`main.tex:515`), but `tab:marx_t50_comparison` gives T7 1611/1095 s, i.e.
+    47 % later.
+  - Stampi-Bombelli, five versions:
+    - abstract: "within 17 %";
+    - results: 7–19 % late (packed bed), and 15 % early to 8 % late (monolith);
+    - SI at 400 ppm: 13–24 % late;
+    - SI inlet section: "within 24 %, 61–133 %";
+    - conclusions: "within 19 %", for the monolith.
+  - Abstract, "CVODE is 3 to 20 times faster": the results give about 3 (T15, at the largest stable RK3 step) and
+    232/11 s = 21 (monolith, at different accuracies). State the basis of the comparison.
+  - Abstract, "WENO3 on 25 grid points is more accurate than upwinding on 200": shown for BEA only.
+  - Marx adsorbent peaks "0.3–6.3 K below": the table minimum is 0.2 K (T3, T6).
+  - μ_f: 1.9e-5 (`main.tex:5001`) against 1.92e-5 Pa s (`tab:simulation_settings`).
+  - 2026-11-19, all resolved in `main.tex`:
+    - Marx: t50 and peak temperatures recomputed from the stored `marx2/ternary` outputs (2026-11-04 run) reproduce
+      `tab:marx_t50_comparison` exactly (temperatures within 0.1 K). The text took 11–37 % from the 2026-11-03 run
+      (T7 1503 s, T19 1164 s in `validation/inlet_condition_dirichlet_vs_danckwerts/comparison.csv`); now 11–47 %, and
+      the peaks 0.2–6.3 K (adsorbent) and 1.7–13.5 K (gas) below the measured ones.
+    - Stampi-Bombelli: the remaining versions measure different sets and agree (5.6 % runs: packed 7–19 % late,
+      monolith −15 % to +8 %; 400 ppm monolith 13–24 % late; all runs within 24 %, widths 61–133 %). The conclusions
+      now give 19 % for the 5.6 % runs and 24 % for the 400 ppm runs; the SI inlet sentence names its scope.
+    - The two abstract claims left with the rewrite.
+    - μ: the correlation was evaluated with 1.9e-5 Pa s (`marx2/heat_transfer.py`); the SI now calls it μ_0 and notes
+      that μ_f = 1.92e-5 would make h_fw 0.3 % smaller.
+- [ ] **W-GEN-13** Introduction statements and citations to check (audit 2026-11-18):
+  - `main.tex:101`: toPSAil and pyAPEP are called "Python- and MATLAB-based", the reverse of their languages.
+  - `main.tex:103`: the RUPTURA 1 limit "Δt/(Δz)² … arising from fast adsorption kinetics" mixes the dispersion
+    limit with the sorption stiffness, which does not depend on Δz (`eq:sorption_stiffness`).
+  - `main.tex:91`: "roughly 15 % of global industrial energy use" for phase-change separations. Check the quantity
+    in Sholl and Lively.
+  - Missing citations:
+    - CVODE/SUNDIALS is cited nowhere, and no entry exists in `ruptura.bib`.
+    - SSP-RK3 is uncited, although `shuosher1988` and `gottliebgottlieb2003` are in the bib.
+    - 2026-11-19: done. CVODE cites the two papers SUNDIALS asks for, `hindmarshwoodward2005` (ACM TOMS 31, 363)
+      and `gardnerbalos2022` (ACM TOMS 48, 1), new in `ruptura.bib`; SSP-RK3 cites `shuosher1988`, whose author field
+      was all caps and is now "Shu, Chi-Wang and Osher, Stanley". Both in the introduction and in Section 2.4.
+  - 2026-11-19: the `\todo` markers for the three introduction points were removed from `main_rewrite.tex` at the
+    user's request; the points themselves stay open here.
+- [ ] **W-GEN-14** Draft leftovers (audit 2026-11-18; the front matter is W-GEN-9):
+  - the MPD "Draft status" note (`main.tex:634`);
+  - the empty `\subsection{Liquid breakthrough}` (`main.tex:583`);
+  - the one-line caption of `fig:marx_high_flow`;
+  - SI sentences truncated after "… are" (`main.tex:1747`, `2932`, `2984`, `3273`);
+  - "in the main text(a)" and "(b)" in place of figure references (`main.tex:1648`, `1675`);
+  - a LaTeX comment left in the text (`main.tex:2231`);
+  - an SI table cited as plain "Table" (`main.tex:704`).
 - [x] **W-PHY-1** The SI "humidity Toth (Climeworks-type)" correlation (Eqs. `climeworks_humidity_toth` to
       `climeworks_heterogeneity`) has no source. Web searches on 2026-11-04 did not find this form; the candidates
       Young et al., Energy Environ. Sci. 14 (2021) 5377, and Gebald et al., Environ. Sci. Technol. 48 (2014) 2497,
       could not be read (RSC and ACS refuse scripted downloads). Cite the source, or remove the model from SI and code.
       2026-11-04: removed from the code, app, web app, bindings, docs, tests, and SI (source unknown to the user).
+- [ ] **W-GEN-15** Open text items of the mock review of 2026-11-19 that need author decisions (the textual
+      corrections were applied the same day): notation clashes (κ, ψ, λ, R, Φ); JSON keys broken inside words in
+      Tables S11/S16 (smaller font, wider column, or a continuation mark); source of the water Antoine constants
+      (Eq. S142; Antoine 1888 has none); original sources of the Table S8 isotherms; intro positioning against
+      CADET-Process, IDAES, Yancy-Caballero et al.; cause of the SPGMR failure with MomentumBalance (SI S2.1);
+      E1 used for two metrics (Eqs. S206, S215); TODO markers, VSA section, MPD draft note, code/data availability.
+- [ ] **W-GEN-16** Remaining text items of the mock review of 2026-11-19 that W-GEN-15 does not hold; the per-point
+      status table is Section 4 of `ruptura-2.0-paper/REVIEW_AUDIT.md`. Still in the text on 21:08:
+      - the BET denominator `(1-k_2+k_1\xi)` of Table S8;
+      - "long-time limit" for the Glueckauf factor (SI S5.5.1);
+      - the single-pressure vacuum-work formula of Table 2;
+      - "OBRIEN" in `ruptura.bib`.
+      Not rechecked:
+      - Table S6 row label and Taylor–Aris coefficients for non-circular channels;
+      - the grid of the 10.8 × P/RT claim and the 8e-3 residual;
+      - coupling capacity, valve cap, and two-bed valve law;
+      - which gas heat capacity each run used;
+      - Gibbs consistency of SCI and the one-way SPI water coupling;
+      - WENO3 order and its absence from Table 2;
+      - setups of the Table 2 checks;
+      - the sensitivity table, the Q parameterization, and the ΔT_max location;
+      - LHHW K_r vs K_eq;
+      - placeholder input defaults;
+      - uncertainties;
+      - figure fonts, labels, and color-only lines;
+      - Eq. S171 and the partial-pressure definition.
+

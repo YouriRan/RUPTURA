@@ -5,7 +5,7 @@ does not depend on a paper checkout or local study directories.
 
 | Preset | Source input | Conditions |
 | --- | --- | --- |
-| T15 | `marx2/ternary/T15/simulation.json` | Marx ternary experiment T15, CO₂/N₂/H₂ 40/30/30, 298 K, 10 bar, energy balance, 4,000 s |
+| T15 | `validation/3.3.1_energy_balance_marx_ternary/marx2/ternary/T15/simulation.json` | Marx ternary experiment T15, CO₂/N₂/H₂ 40/30/30, 298 K, 10 bar, energy balance, the inputs of the model of Marx et al. (SCI, temperature-dependent Sips with an Arctan exponent, total porosity), 4,000 s |
 | BEA alkanes | `examples/BEA-alkanes-C7/breakthrough/simulation.json` | Seven C₇ isomers at 1% each in helium, 552 K, 1.2 bar, IAST, 1,200 s |
 | Monolith, 400 ppm | `stampi-bombelli/dl_from_literature/monolith_400ppm_2mmol/simulation.json` | 2 mmol/s, 295.15 K, 144 square channels, 24,000 s |
 
@@ -14,7 +14,8 @@ and Stampi-Bombelli monolith figure in `ruptura-2.0-paper/main.tex`. The monolit
 validation notebook selects `dl_from_literature` as its base model; its fitted
 dispersion alternative is not used here.
 
-Physical properties, geometry, adsorption, and transport parameters are retained.
+Physical properties, geometry, adsorption, and transport parameters are retained (T15 regenerated from the
+Marx-model inputs on 2026-11-20).
 T15's feed percentages are expressed as equivalent mole fractions, and display
 names identify the experiments. CVODE uses SPGMR and returns its adaptive solution
 every 2 s, saving every return for T15/BEA and every sixth return (12 s) for the

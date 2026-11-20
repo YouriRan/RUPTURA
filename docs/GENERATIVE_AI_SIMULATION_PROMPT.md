@@ -595,7 +595,9 @@ Multistacked or mixed beds. Use these only when the column contains several adso
   TimeStep [s] (RungeKutta3 only):
     - The integration step. It must satisfy roughly TimeStep <= 0.5 dz / v,
       TimeStep <= dz^2 / (2 D_ax), and TimeStep <= 2 / k for the largest MassTransferCoefficient k,
-      where dz = ColumnLength / NumberOfGridPoints.
+      where dz = ColumnLength / NumberOfGridPoints. With the energy balance also
+      TimeStep <= dz^2 rho c_p / (2 lambda), with the gas density rho, heatCapacityGas c_p, and
+      gasThermalConductivity lambda.
     - The step is not checked: a larger TimeStep gives wrong curves without an error.
     - CVODE and ROS34PW2 choose their own internal steps; an input with either and TimeStep
       is rejected.

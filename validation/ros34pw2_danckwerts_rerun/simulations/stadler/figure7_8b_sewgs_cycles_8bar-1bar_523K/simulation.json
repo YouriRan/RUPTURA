@@ -1,0 +1,191 @@
+{
+    "SimulationType": "SwingAdsorption",
+    "DisplayName": "Stadler 2022 - Figures 7 and 8B - SE-WGS cycles",
+    "Temperature": 523.15,
+    "InfluxTemperature": 523.15,
+    "ColumnVoidFraction": 0.4,
+    "DynamicViscosity": 2.65e-05,
+    "ParticleDiameter": 0.0002,
+    "InletPressure": 800000.0,
+    "PressureGradient": 0.0,
+    "ColumnEntranceVelocity": 0.1010742223251876,
+    "ColumnLength": 0.1,
+    "MixturePredictionMethod": "IAST",
+    "BoundaryCondition": "FixedVelocity",
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.4,
+        "ParticleDiameter": 0.0002,
+        "InternalDiameter": 0.015957691216057307
+    },
+    "ParticleDensity": 779.1666666666667,
+    "NumberOfGridPoints": 40,
+    "WriteInterval": 2.0,
+    "NumberOfCycles": 5,
+    "SwingAdsorptionPhases": [
+        {
+            "Name": "Adsorption",
+            "InletPressure": 800000.0,
+            "Duration": 900.0
+        },
+        {
+            "Name": "Regeneration",
+            "InletPressure": 100000.0,
+            "ColumnEntranceVelocity": 0.4042968893007504,
+            "GasPhaseMolFractions": {
+                "N2": 0.6,
+                "H2O": 0.4
+            },
+            "Duration": 2400.0
+        }
+    ],
+    "Components": [
+        {
+            "Name": "N2",
+            "GasPhaseMolFraction": 0.75,
+            "CarrierGas": true,
+            "MolecularWeight": 0.0280134
+        },
+        {
+            "Name": "CO",
+            "GasPhaseMolFraction": 0.05,
+            "AxialDispersionCoefficient": 8.451744913222293e-06,
+            "MolecularWeight": 0.0280101,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        },
+        {
+            "Name": "CO2",
+            "GasPhaseMolFraction": 0.0,
+            "AxialDispersionCoefficient": 7.517625748898463e-06,
+            "MolecularWeight": 0.0440095,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ],
+            "ChemisorptionSites": [
+                {
+                    "Type": "Freundlich",
+                    "Parameters": [
+                        0.014059609754619782,
+                        4.545454545454546
+                    ],
+                    "MaximumLoading": 0.34213686010378425,
+                    "RateEquation": "FirstOrder",
+                    "RateEquationParameters": {
+                        "MassTransferCoefficient": 0.1125,
+                        "DesorptionMassTransferCoefficient": 0.000538,
+                        "DesorptionCoverageEnergy": 74000.0,
+                        "CoverageReferenceLoading": 0.34213686010378425
+                    }
+                }
+            ]
+        },
+        {
+            "Name": "H2",
+            "GasPhaseMolFraction": 0.0,
+            "AxialDispersionCoefficient": 2.0709055631517528e-05,
+            "MolecularWeight": 0.00201588,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        },
+        {
+            "Name": "H2O",
+            "GasPhaseMolFraction": 0.2,
+            "AxialDispersionCoefficient": 9.564468485292762e-06,
+            "MolecularWeight": 0.01801528,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        }
+    ],
+    "Adsorbents": [
+        {
+            "Name": "catalyst-zone",
+            "ColumnVoidFraction": 0.4,
+            "ParticleDensity": 779.1666666666667,
+            "ParticleDiameter": 0.0002
+        },
+        {
+            "Name": "sorbent-zone",
+            "ColumnVoidFraction": 0.4,
+            "ParticleDensity": 779.1666666666667,
+            "ParticleDiameter": 0.0002
+        }
+    ],
+    "ColumnSections": [
+        {
+            "Adsorbent": "catalyst-zone",
+            "Length": 0.025,
+            "NumberOfGridPoints": 40
+        },
+        {
+            "InterfaceLength": 0.0
+        },
+        {
+            "Adsorbent": "sorbent-zone",
+            "Length": 0.07500000000000001,
+            "NumberOfGridPoints": 30
+        }
+    ],
+    "Reactions": [
+        {
+            "Phase": "BulkConcentration",
+            "Style": "GeneralPowerLaw",
+            "Reactants": [
+                "CO",
+                "H2O"
+            ],
+            "Products": [
+                "CO2",
+                "H2"
+            ],
+            "ForwardOrders": [
+                1,
+                1
+            ],
+            "BackwardOrders": [
+                1,
+                1
+            ],
+            "Kinetics": {
+                "ForwardRateCoefficient": {
+                    "Value": 26937.331229320083,
+                    "Law": "Arrhenius",
+                    "ActivationEnergy": 51845.0
+                },
+                "EquilibriumConstant": {
+                    "Value": 0.013167547490079751,
+                    "Law": "VantHoff"
+                },
+                "HeatOfReaction": 38061.9469733819
+            },
+            "Adsorbents": [
+                "catalyst-zone"
+            ]
+        }
+    ],
+    "BreakthroughIntegrator": "ROS34PW2",
+    "InletCondition": "Danckwerts"
+}

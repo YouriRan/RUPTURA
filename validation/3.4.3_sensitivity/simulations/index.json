@@ -1,0 +1,268 @@
+[
+  {
+    "directory": "simulations/reference",
+    "parameter": "reference",
+    "kind": "reference",
+    "multiplier": 1.0,
+    "value": null
+  },
+  {
+    "directory": "simulations/saturation_loading_CO2/x0.90",
+    "parameter": "saturation_loading_CO2",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 1.242
+  },
+  {
+    "directory": "simulations/saturation_loading_CO2/x1.10",
+    "parameter": "saturation_loading_CO2",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 1.518
+  },
+  {
+    "directory": "simulations/affinity_CO2/x0.90",
+    "parameter": "affinity_CO2",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 1.512e-08
+  },
+  {
+    "directory": "simulations/affinity_CO2/x1.10",
+    "parameter": "affinity_CO2",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 1.848e-08
+  },
+  {
+    "directory": "simulations/sips_exponent_CO2/x0.90",
+    "parameter": "sips_exponent_CO2",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 1.0843373493975905
+  },
+  {
+    "directory": "simulations/sips_exponent_CO2/x1.10",
+    "parameter": "sips_exponent_CO2",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 1.3253012048192774
+  },
+  {
+    "directory": "simulations/heat_of_adsorption_CO2/x0.90",
+    "parameter": "heat_of_adsorption_CO2",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 23400.0
+  },
+  {
+    "directory": "simulations/heat_of_adsorption_CO2/x1.10",
+    "parameter": "heat_of_adsorption_CO2",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 28600.000000000004
+  },
+  {
+    "directory": "simulations/mass_transfer_coefficient_CO2/x0.25",
+    "parameter": "mass_transfer_coefficient_CO2",
+    "kind": "sweep",
+    "multiplier": 0.25,
+    "value": 0.0275
+  },
+  {
+    "directory": "simulations/mass_transfer_coefficient_CO2/x0.50",
+    "parameter": "mass_transfer_coefficient_CO2",
+    "kind": "sweep",
+    "multiplier": 0.5,
+    "value": 0.055
+  },
+  {
+    "directory": "simulations/mass_transfer_coefficient_CO2/x0.90",
+    "parameter": "mass_transfer_coefficient_CO2",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 0.099
+  },
+  {
+    "directory": "simulations/mass_transfer_coefficient_CO2/x1.10",
+    "parameter": "mass_transfer_coefficient_CO2",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 0.12100000000000001
+  },
+  {
+    "directory": "simulations/mass_transfer_coefficient_CO2/x2.00",
+    "parameter": "mass_transfer_coefficient_CO2",
+    "kind": "sweep",
+    "multiplier": 2.0,
+    "value": 0.22
+  },
+  {
+    "directory": "simulations/mass_transfer_coefficient_CO2/x4.00",
+    "parameter": "mass_transfer_coefficient_CO2",
+    "kind": "sweep",
+    "multiplier": 4.0,
+    "value": 0.44
+  },
+  {
+    "directory": "simulations/particle_density/x0.90",
+    "parameter": "particle_density",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 1751.814
+  },
+  {
+    "directory": "simulations/particle_density/x1.10",
+    "parameter": "particle_density",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 2141.106
+  },
+  {
+    "directory": "simulations/heat_transfer_gas_solid/x0.90",
+    "parameter": "heat_transfer_gas_solid",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 201.375
+  },
+  {
+    "directory": "simulations/heat_transfer_gas_solid/x1.10",
+    "parameter": "heat_transfer_gas_solid",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 246.12500000000003
+  },
+  {
+    "directory": "simulations/heat_transfer_gas_wall/x0.90",
+    "parameter": "heat_transfer_gas_wall",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 48.833999999999996
+  },
+  {
+    "directory": "simulations/heat_transfer_gas_wall/x1.10",
+    "parameter": "heat_transfer_gas_wall",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 59.686
+  },
+  {
+    "directory": "simulations/heat_transfer_wall_external/x0.90",
+    "parameter": "heat_transfer_wall_external",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 4.5
+  },
+  {
+    "directory": "simulations/heat_transfer_wall_external/x1.10",
+    "parameter": "heat_transfer_wall_external",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 5.5
+  },
+  {
+    "directory": "simulations/heat_capacity_solid/x0.90",
+    "parameter": "heat_capacity_solid",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 900.0
+  },
+  {
+    "directory": "simulations/heat_capacity_solid/x1.10",
+    "parameter": "heat_capacity_solid",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 1100.0
+  },
+  {
+    "directory": "simulations/heat_capacity_wall/x0.90",
+    "parameter": "heat_capacity_wall",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": 900.0
+  },
+  {
+    "directory": "simulations/heat_capacity_wall/x1.10",
+    "parameter": "heat_capacity_wall",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": 1100.0
+  },
+  {
+    "directory": "simulations/axial_dispersion_coefficient/x0.90",
+    "parameter": "axial_dispersion_coefficient",
+    "kind": "local",
+    "multiplier": 0.9,
+    "value": null
+  },
+  {
+    "directory": "simulations/axial_dispersion_coefficient/x1.10",
+    "parameter": "axial_dispersion_coefficient",
+    "kind": "local",
+    "multiplier": 1.1,
+    "value": null
+  },
+  {
+    "directory": "simulations/axial_dispersion_coefficient/0",
+    "parameter": "axial_dispersion_coefficient",
+    "kind": "sweep",
+    "multiplier": null,
+    "value": 0.0
+  },
+  {
+    "directory": "simulations/axial_dispersion_coefficient/1e-5",
+    "parameter": "axial_dispersion_coefficient",
+    "kind": "sweep",
+    "multiplier": null,
+    "value": 1e-05
+  },
+  {
+    "directory": "simulations/axial_dispersion_coefficient/1e-4",
+    "parameter": "axial_dispersion_coefficient",
+    "kind": "sweep",
+    "multiplier": null,
+    "value": 0.0001
+  },
+  {
+    "directory": "simulations/axial_dispersion_coefficient/1e-3",
+    "parameter": "axial_dispersion_coefficient",
+    "kind": "sweep",
+    "multiplier": null,
+    "value": 0.001
+  },
+  {
+    "directory": "simulations/grid_points/N10",
+    "parameter": "grid_points",
+    "kind": "sweep",
+    "multiplier": null,
+    "value": 10
+  },
+  {
+    "directory": "simulations/grid_points/N20",
+    "parameter": "grid_points",
+    "kind": "sweep",
+    "multiplier": null,
+    "value": 20
+  },
+  {
+    "directory": "simulations/grid_points/N50",
+    "parameter": "grid_points",
+    "kind": "sweep",
+    "multiplier": null,
+    "value": 50
+  },
+  {
+    "directory": "simulations/grid_points/N200",
+    "parameter": "grid_points",
+    "kind": "sweep",
+    "multiplier": null,
+    "value": 200
+  },
+  {
+    "directory": "simulations/numerical_dispersion_check/N200_D8.7e-5",
+    "parameter": "numerical_dispersion_check",
+    "kind": "check",
+    "multiplier": null,
+    "value": 8.7e-05
+  }
+]

@@ -211,8 +211,7 @@ TEST(SorptionJacobian, MatchesCentralDifferencesWithMomentumBalance)
   // Marx T15 with the pressure of the gas and the velocity of the pressure-drop law: the right-hand side with its
   // velocity update, for a velocity port and a pressure port, two pressure ports, and a closed z = L.
   std::ifstream input(
-      examplePath("validation/3.3.1_energy_balance_marx_ternary/marx2/"
-                  "reference_settings_hassan_chung/T15/simulation.json"));
+      examplePath("tests/data/marx_t15_reference_settings.json"));
   nlohmann::json data = nlohmann::json::parse(input);
   data["OutletPressure"] = 1.0e6;
   data["energyBalance"] = false;
@@ -513,8 +512,7 @@ TEST(ThermalJacobian, MatchesCentralDifferencesOfTheEnergyBalanceAtFrozenFlowAnd
       if (flow > 2 && inlet == "Dirichlet") continue;
       SCOPED_TRACE(inlet + " " + std::to_string(flow));
       std::ifstream input(
-          examplePath("validation/3.3.1_energy_balance_marx_ternary/marx2/"
-                      "reference_settings_hassan_chung/T15/simulation.json"));
+          examplePath("tests/data/marx_t15_reference_settings.json"));
       nlohmann::json data = nlohmann::json::parse(input);
       data["InletCondition"] = inlet;
       data["FlowDirection"] = flow == 1 || flow == 4 ? "Reverse" : "Forward";
@@ -653,8 +651,7 @@ TEST(SorptionEquilibrium, FollowsTheAdsorbentTemperature)
   // The isotherms take the adsorbent temperature; the gas temperature reaches them only through the Ergun pressure
   // drop of the continuity closure, 3e-5 of the pressure in T15.
   InputReader reader = smallInput(
-      "validation/3.3.1_energy_balance_marx_ternary/marx2/"
-      "reference_settings_hassan_chung/T15/simulation.json",
+      "tests/data/marx_t15_reference_settings.json",
       "adsorbent_temperature", 1.0e-5);
   Column column(reader);
   column.initialize();

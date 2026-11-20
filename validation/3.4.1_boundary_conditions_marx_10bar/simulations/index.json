@@ -1,0 +1,362 @@
+[
+  {
+    "directory": "simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "run": "T3",
+    "boundary_condition": "InletVelocityOutletPressure",
+    "paper_label": "BC1",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.5735677779,
+    "pressure_gradient_Pa_per_m": -2.855360185069805,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T3"
+  },
+  {
+    "directory": "simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "run": "T3",
+    "boundary_condition": "InletPressureOutletPressure",
+    "paper_label": "BC2",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.5735677779,
+    "pressure_gradient_Pa_per_m": -2.855360185069805,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T3"
+  },
+  {
+    "directory": "simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "run": "T3",
+    "boundary_condition": "InletPressureInletVelocity",
+    "paper_label": "BC3",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.5735677779,
+    "pressure_gradient_Pa_per_m": -2.855360185069805,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T3"
+  },
+  {
+    "directory": "simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "run": "T3",
+    "boundary_condition": "FixedPressureInletVelocity",
+    "paper_label": "BC4",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.5735677779,
+    "pressure_gradient_Pa_per_m": -2.855360185069805,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T3"
+  },
+  {
+    "directory": "simulations/T3_15-80-5_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "run": "T3",
+    "boundary_condition": "FixedVelocity",
+    "paper_label": "BC5",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.5735677779,
+    "pressure_gradient_Pa_per_m": -2.855360185069805,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T3"
+  },
+  {
+    "directory": "simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "run": "T9",
+    "boundary_condition": "InletVelocityOutletPressure",
+    "paper_label": "BC1",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7089910812,
+    "pressure_gradient_Pa_per_m": -2.742507432287108,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T9"
+  },
+  {
+    "directory": "simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "run": "T9",
+    "boundary_condition": "InletPressureOutletPressure",
+    "paper_label": "BC2",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7089910812,
+    "pressure_gradient_Pa_per_m": -2.742507432287108,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T9"
+  },
+  {
+    "directory": "simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "run": "T9",
+    "boundary_condition": "InletPressureInletVelocity",
+    "paper_label": "BC3",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7089910812,
+    "pressure_gradient_Pa_per_m": -2.742507432287108,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T9"
+  },
+  {
+    "directory": "simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "run": "T9",
+    "boundary_condition": "FixedPressureInletVelocity",
+    "paper_label": "BC4",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7089910812,
+    "pressure_gradient_Pa_per_m": -2.742507432287108,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T9"
+  },
+  {
+    "directory": "simulations/T9_15-80-5_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "run": "T9",
+    "boundary_condition": "FixedVelocity",
+    "paper_label": "BC5",
+    "feed_mole_fractions": {
+      "CO2": 0.15,
+      "N2": 0.8,
+      "H2": 0.05
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7089910812,
+    "pressure_gradient_Pa_per_m": -2.742507432287108,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T9"
+  },
+  {
+    "directory": "simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "run": "T15",
+    "boundary_condition": "InletVelocityOutletPressure",
+    "paper_label": "BC1",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7582521641,
+    "pressure_gradient_Pa_per_m": -2.701456529911349,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T15"
+  },
+  {
+    "directory": "simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "run": "T15",
+    "boundary_condition": "InletPressureOutletPressure",
+    "paper_label": "BC2",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7582521641,
+    "pressure_gradient_Pa_per_m": -2.701456529911349,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T15"
+  },
+  {
+    "directory": "simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "run": "T15",
+    "boundary_condition": "InletPressureInletVelocity",
+    "paper_label": "BC3",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7582521641,
+    "pressure_gradient_Pa_per_m": -2.701456529911349,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T15"
+  },
+  {
+    "directory": "simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "run": "T15",
+    "boundary_condition": "FixedPressureInletVelocity",
+    "paper_label": "BC4",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7582521641,
+    "pressure_gradient_Pa_per_m": -2.701456529911349,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T15"
+  },
+  {
+    "directory": "simulations/T15_40-30-30_298K_1e6Pa_1e-5m3s/FixedVelocity",
+    "run": "T15",
+    "boundary_condition": "FixedVelocity",
+    "paper_label": "BC5",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 298.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.7582521641,
+    "pressure_gradient_Pa_per_m": -2.701456529911349,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T15"
+  },
+  {
+    "directory": "simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletVelocityOutletPressure",
+    "run": "T21",
+    "boundary_condition": "InletVelocityOutletPressure",
+    "paper_label": "BC1",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.8820600973,
+    "pressure_gradient_Pa_per_m": -2.5982832522958503,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T21"
+  },
+  {
+    "directory": "simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureOutletPressure",
+    "run": "T21",
+    "boundary_condition": "InletPressureOutletPressure",
+    "paper_label": "BC2",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.8820600973,
+    "pressure_gradient_Pa_per_m": -2.5982832522958503,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T21"
+  },
+  {
+    "directory": "simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/InletPressureInletVelocity",
+    "run": "T21",
+    "boundary_condition": "InletPressureInletVelocity",
+    "paper_label": "BC3",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.8820600973,
+    "pressure_gradient_Pa_per_m": -2.5982832522958503,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T21"
+  },
+  {
+    "directory": "simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedPressureInletVelocity",
+    "run": "T21",
+    "boundary_condition": "FixedPressureInletVelocity",
+    "paper_label": "BC4",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.8820600973,
+    "pressure_gradient_Pa_per_m": -2.5982832522958503,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T21"
+  },
+  {
+    "directory": "simulations/T21_40-30-30_318K_1e6Pa_1e-5m3s/FixedVelocity",
+    "run": "T21",
+    "boundary_condition": "FixedVelocity",
+    "paper_label": "BC5",
+    "feed_mole_fractions": {
+      "CO2": 0.4,
+      "N2": 0.3,
+      "H2": 0.3
+    },
+    "feed_temperature_K": 318.0,
+    "inlet_pressure_Pa": 1000000.0,
+    "outlet_pressure_Pa": 999996.8820600973,
+    "pressure_gradient_Pa_per_m": -2.5982832522958503,
+    "inlet_velocity_m_per_s": 0.027451748447320297,
+    "flow_rate_m3_per_s": 1e-05,
+    "reference_data": "validation/3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/T21"
+  }
+]

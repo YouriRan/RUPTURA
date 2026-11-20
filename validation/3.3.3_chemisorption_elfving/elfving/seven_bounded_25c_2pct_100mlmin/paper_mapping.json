@@ -1,0 +1,20 @@
+{
+  "model": "seven_bounded",
+  "flow_ml_min": 100.0,
+  "water_vol_percent": 2.0,
+  "nominal_water_percent": "2",
+  "co2_ppm": 401.0,
+  "co2_toth_projection_relative_rms": 0.010564058057236498,
+  "gab_feed_loading_mol_kg": 4.620211434604199,
+  "empty_column_feed_loading_mol_kg": 0.6561199947027577,
+  "paper_water_ldf_per_s": 0.1,
+  "ruptura_water_ldf_per_s": 0.1,
+  "co2_capacity_order": 2,
+  "water_capacity_order": 1,
+  "co2_adsorption_rate_coefficient": 0.20591152150469003,
+  "co2_desorption_rate_coefficient": 0.0006280140953853447,
+  "co2_feed_loading_mol_kg": 0.9024471359729761,
+  "co2_two_site_capacity_mol_kg": 1.305,
+  "water_rate_coefficient_per_s": 0.1,
+  "kinetic_mapping": "CO2 reversible General chemisorption with qm/2 capacity and squared free-site term; H2O FirstOrder chemisorption"
+}

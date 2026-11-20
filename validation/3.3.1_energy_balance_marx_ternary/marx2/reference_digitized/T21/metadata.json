@@ -1,0 +1,14 @@
+{
+  "source_pdf": "s10450-013-9593-5-1.pdf",
+  "pdf_page": 16,
+  "source_figure": 11,
+  "source_panel": 6,
+  "points_per_trace": 50,
+  "raw_marker_counts": {
+    "H2": 125,
+    "N2": 125,
+    "CO2": 125,
+    "Temp": 194
+  },
+  "temperature_sensor": "T5 (outlet-side)"
+}

@@ -28,8 +28,22 @@ examples/**/fitting.ipynb
 .vscode
 .idea
 
-# data files
-**/*.data
+# RUPTURA output, wherever it lies (the names of validation/pack.py): never committed. Other .data files are inputs.
+column.data
+component_*.data
+phases.data
+cycles.data
+buffers.data
+connections.data
+column.json
+failed_state.json
+fitted.json
+*_fitted.json
+run.log
+ruptura.log
+run.sh.log
+nohup.out
+rerun_results.csv
 
 #cmake 
 CMakeLists.txt.user
@@ -230,22 +244,17 @@ dist/
 *.exe
 
 
+# Local case folders at the root. elfving, liu, marx2, sharma, stadler, and stampi-bombelli are tracked symlinks into
+# validation/ since 2026-11-19; a rule for them here would hide the case folders of the same name there.
 bermejo-lopez/
 dantas/
-elfving/
-liu/
 marx/
-marx2/
 new/
 pusan/
 ruptura-2.0-paper/
 serna-guerrero/
-sharma/
 shrinjay/
-stadler/
-stampi-bombelli/
 suzanne/
-validation/
 tmp/
 benchmark/
 CLAUDE.md
@@ -253,6 +262,18 @@ CLAUDE.md
 
 
 
-# Local Ruptura Lab state and simulation outputs
+# Local Ruptura Lab state and simulation outputs (the simulations/ of the validation cases hold their inputs)
 .ruptura-lab/
-simulations/
+/simulations/
+
+# validation/ holds the cases behind the paper: inputs, generators, runners, notebooks, digitized data, and figures.
+# The notebook that ruptura writes into each run directory is output; the hand-written ones lie above the run
+# directories.
+validation/**/analysis.ipynb
+!validation/*/analysis.ipynb
+!validation/*/*/analysis.ipynb
+# What convert.py archives next to an input, and old runs marked for deletion
+validation/**/_legacy*.json
+validation/**/_to_delete/
+# The RASPA3 TMMC data behind the MPD distributions (11 GB, not RUPTURA)
+validation/3.2.2_mpd/sharma/tmmc/

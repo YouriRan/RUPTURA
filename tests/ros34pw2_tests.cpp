@@ -333,8 +333,7 @@ TEST(ROS34PW2Column, IntegratesTheEnergyBalanceAndContinuityLikeRungeKutta3)
 {
   // Experiment T15: Sips isotherms, an energy balance, and the velocity from continuity.
   InputReader reader = smallInput(
-      "validation/3.3.1_energy_balance_marx_ternary/marx2/"
-      "reference_settings_hassan_chung/T15/simulation.json",
+      "tests/data/marx_t15_reference_settings.json",
       "t15", {});
   ROS34PW2 rosenbrock(1.0e-7, 1.0e-9, 1.0e-10, 1.0e-7);
   EXPECT_LT(differenceFromRungeKutta3(reader, 1.0e-2, 120.0, rosenbrock), 2.0e-5);
@@ -344,8 +343,7 @@ TEST(ROS34PW2Column, IntegratesChemisorptionLikeRungeKutta3)
 {
   // The monolith of Stampi-Bombelli et al.: Toth physisorption and chemisorption, dominated by axial dispersion. RK3
   // needs steps far below its stability limit (3e-2 s on this grid) to converge here (TODO.md B-ITG-2).
-  InputReader reader = smallInput("validation/3.3.2_monoliths_stampi_bombelli/stampi-bombelli/dl_from_stampibombelli/"
-                                  "monolith_400ppm_1mmol/simulation.json",
+  InputReader reader = smallInput("tests/data/stampi_bombelli_monolith_400ppm_1mmol.json",
                                   "monolith", {});
   ROS34PW2 rosenbrock(1.0e-7, 1.0e-9, 1.0e-10, 1.0e-7);
   // RK3 clamps every step to max(0, c), which adds the undershoot at the foot of the front, 1e-6 mol/kg of loading
@@ -395,4 +393,32 @@ TEST(ROS34PW2Column, IntegratesALiquidWithADanckwertsInletLikeRungeKutta3)
                                   {{"InletCondition", "Danckwerts"}});
   ROS34PW2 rosenbrock(1.0e-7, 1.0e-9, 1.0e-10, 1.0e-7);
   EXPECT_LT(differenceFromRungeKutta3(reader, 1.0e-2, 2000.0, rosenbrock), 2.0e-5);
+}
+
+TEST(ROS34PW2Column, StopsWhenItsStepsCrawl)
+{
+  // BEA C7 at a step cap of 1e-5 s, against the 0.44 s in which the gas crosses a cell. The steps since an endTime
+  // was reached are counted: 100 000 of them at the cap are what the cap asks for; without the cap they are a crawl,
+  // which stops the run (B-ITG-25).
+  InputReader reader = smallInput("examples/BEA-alkanes-C7/breakthrough/simulation.json", "crawl", {});
+  Column column(reader);
+  column.initialize();
+  Timing timings;
+  ROS34PW2 rosenbrock(1.0e-5, 1.0e-6, 1.0e-7, 1.0e-4, 1.0e-5);
+  double time = 0.0;
+  for (size_t step = 0; step < 10; ++step) time = rosenbrock.advance(column, time, 60.0, timings, true);
+  EXPECT_EQ(rosenbrock.stepsSinceEndTime, 10U);
+  EXPECT_NEAR(rosenbrock.timeSinceEndTime, 1.0e-4, 1.0e-9);
+  time = rosenbrock.advance(column, time, time + 2.0e-5, timings);
+  EXPECT_EQ(rosenbrock.stepsSinceEndTime, 0U);
+
+  // As if 99 999 steps at the cap came before.
+  rosenbrock.stepsSinceEndTime = 99999;
+  rosenbrock.timeSinceEndTime = 99999.0e-5;
+  EXPECT_NO_THROW(time = rosenbrock.advance(column, time, 60.0, timings, true));
+  EXPECT_EQ(rosenbrock.stepsSinceEndTime, 0U);
+  rosenbrock.stepsSinceEndTime = 99999;
+  rosenbrock.timeSinceEndTime = 99999.0e-5;
+  rosenbrock.maximumTimeStep = 0.0;
+  EXPECT_THROW(rosenbrock.advance(column, time, 60.0, timings, true), std::runtime_error);
 }

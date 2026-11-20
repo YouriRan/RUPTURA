@@ -1,0 +1,125 @@
+{
+    "SimulationType": "Breakthrough",
+    "DisplayName": "Stadler 2022 - Figure 4 - 548.15 K, S/G 4.25",
+    "Temperature": 548.15,
+    "InfluxTemperature": 548.15,
+    "ColumnVoidFraction": 0.4,
+    "DynamicViscosity": 2.65e-05,
+    "ParticleDiameter": 0.0002,
+    "ParticleDensity": 0.0,
+    "InletPressure": 800000.0,
+    "PressureGradient": 0.0,
+    "ColumnEntranceVelocity": 0.10590430080770634,
+    "ColumnLength": 0.025,
+    "MixturePredictionMethod": "IAST",
+    "BoundaryCondition": "FixedVelocity",
+    "NumberOfGridPoints": 400,
+    "SimulationTime": 3.0,
+    "WriteInterval": 0.5,
+    "Components": [
+        {
+            "Name": "N2",
+            "GasPhaseMolFraction": 0.475,
+            "CarrierGas": true,
+            "MolecularWeight": 0.0280134
+        },
+        {
+            "Name": "CO",
+            "GasPhaseMolFraction": 0.1,
+            "AxialDispersionCoefficient": 9.020226507377406e-06,
+            "MolecularWeight": 0.0280101,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        },
+        {
+            "Name": "CO2",
+            "GasPhaseMolFraction": 0.0,
+            "AxialDispersionCoefficient": 8.00659439092583e-06,
+            "MolecularWeight": 0.0440095,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        },
+        {
+            "Name": "H2",
+            "GasPhaseMolFraction": 0.0,
+            "AxialDispersionCoefficient": 2.232088907796464e-05,
+            "MolecularWeight": 0.00201588,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        },
+        {
+            "Name": "H2O",
+            "GasPhaseMolFraction": 0.42500000000000004,
+            "AxialDispersionCoefficient": 1.0227665978121787e-05,
+            "MolecularWeight": 0.01801528,
+            "PhysisorptionSites": [
+                {
+                    "Type": "Henry",
+                    "Parameters": [
+                        0.0
+                    ]
+                }
+            ]
+        }
+    ],
+    "Reactions": [
+        {
+            "Phase": "BulkConcentration",
+            "Style": "GeneralPowerLaw",
+            "Reactants": [
+                "CO",
+                "H2O"
+            ],
+            "Products": [
+                "CO2",
+                "H2"
+            ],
+            "ForwardOrders": [
+                1,
+                1
+            ],
+            "BackwardOrders": [
+                1,
+                1
+            ],
+            "Kinetics": {
+                "ForwardRateCoefficient": {
+                    "Value": 28993.508493168847,
+                    "Law": "Arrhenius",
+                    "ActivationEnergy": 51845.0
+                },
+                "EquilibriumConstant": {
+                    "Value": 0.013167547490079751,
+                    "Law": "VantHoff"
+                },
+                "HeatOfReaction": 38061.9469733819
+            }
+        }
+    ],
+    "Geometry": {
+        "Type": "PackedBed",
+        "ColumnVoidFraction": 0.4,
+        "ParticleDiameter": 0.0002,
+        "InternalDiameter": 0.015957691216057307
+    },
+    "BreakthroughIntegrator": "ROS34PW2",
+    "InletCondition": "Danckwerts"
+}

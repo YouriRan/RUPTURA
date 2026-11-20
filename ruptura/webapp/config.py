@@ -81,10 +81,10 @@ KINETICS = {
 # The laws each temperature-scalable parameter accepts besides a number, as in Isotherm::temperatureParameters
 # (src/isotherm.cpp) and the input reader; "heat" marks a VantHoff law that may omit Energy to take the heat of
 # adsorption (or reaction). Isotherm entries follow the Parameters positions; None is a number only.
-_CAPACITY = {"laws": ["Exponential", "Linear"], "heat": False}
+_CAPACITY = {"laws": ["VantHoff", "Exponential", "Linear"], "heat": False}
 _AFFINITY = {"laws": ["VantHoff"], "heat": True}
 _ENERGY = {"laws": ["VantHoff"], "heat": False}
-_EXPONENT = {"laws": ["Linear", "Inverse"], "heat": False}
+_EXPONENT = {"laws": ["Linear", "Inverse", "Arctan"], "heat": False}
 _RATE = {"laws": ["Arrhenius"], "heat": False}
 TEMPERATURE_LAWS = {
     "isotherms": {"Henry": [_AFFINITY], "Freundlich": [_AFFINITY, _EXPONENT], "Langmuir": [_CAPACITY, _AFFINITY],
@@ -102,7 +102,10 @@ TEMPERATURE_LAWS = {
     "reactions": {"ForwardRateCoefficient": _RATE, "EquilibriumConstant": _AFFINITY, "AdsorptionConstants": _ENERGY},
     # The coefficient key of each law and its label.
     "coefficients": {"VantHoff": ["Energy", "Energy Q [J/mol]"], "Arrhenius": ["ActivationEnergy", "Activation energy E [J/mol]"],
-                     "Exponential": ["Chi", "χ [-]"], "Linear": ["Slope", "Slope [unit/K]"], "Inverse": ["Alpha", "α [unit]"]},
+                     "Exponential": ["Chi", "χ [-]"], "Linear": ["Slope", "Slope [unit/K]"], "Inverse": ["Alpha", "α [unit]"],
+                     "Arctan": ["Alpha", "α [1/unit]"]},
+    # The second coefficient of a law that has one.
+    "secondCoefficients": {"Arctan": ["Beta", "β [1/K]"]},
 }
 
 
@@ -167,12 +170,12 @@ SCHEMA = {
                  field("AxialDispersivity", "Axial dispersivity [m]", 0), field("TaylorArisDispersion", "Taylor–Aris dispersion (monolith)", False, kind="boolean")],
 }
 
-_KEYS = "Coolant MassFlowRate Density HeatCapacity FlowDirection ParticleTransport Model RadialCells DesorptionRateCoefficient DesorptionOrder Columns Buffers Connections From To FlowModel Conductance Area MolarFlow Opening CheckValve MaximumMolarFlow Efficiency Volume MaximumPressure ThermalControl HeatTransferCoefficient ExhaustPressure CompressionEfficiency Column ClosedEnd PressureRamp Shape TimeConstant StopCriterion Metric End Component Operator Value All Any MinimumDuration TimeoutPolicy FeedEnd ProductEnd Mode Pressure Velocity MolarFlux CyclicSteadyState Tolerance ConsecutiveCycles NumberOfCycles GasHeatCapacity SimulationType DisplayName Components Adsorbents ColumnSections Geometry PhysisorptionSites ChemisorptionSites Name Type Parameters RateEquation RateEquationParameters MaximumLoading HeatOfAdsorption Reactions Phase Style Site Reactants Products Stoichiometry Kinetics ForwardOrders BackwardOrders RateLimitTime CarrierGas Water FileName ReadColumnFile ResetClock ColumnDistances MPDSettings SwingAdsorptionPhases ProductEndGasPhaseMolFractions Adsorbent AdsorbentLength Length InterfaceLength ComponentParameters MixFraction ColumnPressure ColumnLoading ColumnError FittingWeighting ForwardRateCoefficient EquilibriumConstant HeatOfReaction AdsorptionConstants Value Law Energy ActivationEnergy Chi Slope Alpha".split()
+_KEYS = "Coolant MassFlowRate Density HeatCapacity FlowDirection ParticleTransport Model RadialCells DesorptionRateCoefficient DesorptionOrder Columns Buffers Connections From To FlowModel Conductance Area MolarFlow Opening CheckValve MaximumMolarFlow Efficiency Volume MaximumPressure ThermalControl HeatTransferCoefficient ExhaustPressure CompressionEfficiency Column ClosedEnd PressureRamp Shape TimeConstant StopCriterion Metric End Component Operator Value All Any MinimumDuration TimeoutPolicy FeedEnd ProductEnd Mode Pressure Velocity MolarFlux CyclicSteadyState Tolerance ConsecutiveCycles NumberOfCycles GasHeatCapacity SimulationType DisplayName Components Adsorbents ColumnSections Geometry PhysisorptionSites ChemisorptionSites Name Type Parameters RateEquation RateEquationParameters MaximumLoading HeatOfAdsorption Reactions Phase Style Site Reactants Products Stoichiometry Kinetics ForwardOrders BackwardOrders RateLimitTime CarrierGas Water FileName ReadColumnFile ResetClock ColumnDistances MPDSettings SwingAdsorptionPhases ProductEndGasPhaseMolFractions Adsorbent AdsorbentLength Length InterfaceLength ComponentParameters MixFraction ColumnPressure ColumnLoading ColumnError FittingWeighting ForwardRateCoefficient EquilibriumConstant HeatOfReaction AdsorptionConstants Value Law Energy ActivationEnergy Chi Slope Alpha Beta".split()
 _KEYS += [item["key"] for group in SCHEMA.values() if isinstance(group, list) for item in group if isinstance(item, dict)]
 KEYS = {key.lower(): key for key in _KEYS}
 ENUMS = {item["key"]: item["options"] for group in SCHEMA.values() if isinstance(group, list) for item in group if isinstance(item, dict) and item["options"]}
 ENUMS.update(SimulationType=TYPES + ["Fitting"], Type=list(ISOTHERMS) + ["PackedBed", "Monolith"],
-             RateEquation=list(KINETICS), Law=["Constant", "VantHoff", "Arrhenius", "Exponential", "Linear", "Inverse"],
+             RateEquation=list(KINETICS), Law=["Constant", "VantHoff", "Arrhenius", "Exponential", "Linear", "Inverse", "Arctan"],
              Phase=["Physisorbed", "Chemisorbed", "PoreConcentration", "BulkConcentration"],
              Style=["GeneralPowerLaw", "LangmuirHinshelwood", "LangmuirHinshelwoodHougenWatson"])
 

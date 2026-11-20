@@ -124,7 +124,7 @@ TEST(WaterSaturationPressure, WagnerReproducesTheIAPWSValues)
   EXPECT_NEAR(wagner(500.0) / 2.63889776e6 - 1.0, 0.0, 2.0e-4);
   EXPECT_NEAR(wagner(600.0) / 12.3443146e6 - 1.0, 0.0, 1.0e-4);
   EXPECT_NEAR(wagner(373.124) / 101325.0 - 1.0, 0.0, 2.0e-5);
-  EXPECT_THROW(wagner(647.096), std::domain_error);
+  EXPECT_THROW(wagner(647.096), std::runtime_error);
 
   EXPECT_EQ(WaterSaturationPressure{}(298.15), antoine(298.15));
   EXPECT_EQ((WaterSaturationPressure{WaterSaturationPressure::Model::Constant, 3169.0}(350.0)), 3169.0);
@@ -203,7 +203,7 @@ TEST(Isotherm, GABModifiedTothReproducesTheFrozenLiuFigureFourParameters)
   const double frozen = toth(1.0039330155910466, 17.096831891428014, 0.25, 40.0);
   EXPECT_NEAR(site.value(40.0, 7.0, 0.2, waterLoading) / frozen - 1.0, 0.0, 1.0e-14);
   expectSlopeMatchesValue(site, 40.0, 0.2, waterLoading);
-  EXPECT_THROW(site.value(40.0, 7.0, 0.2, 200.0), std::domain_error);
+  EXPECT_THROW(site.value(40.0, 7.0, 0.2, 200.0), std::runtime_error);
 }
 
 TEST(Isotherm, ExponentialHumidityTothScalesTheCapacity)

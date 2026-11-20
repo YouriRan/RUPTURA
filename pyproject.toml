@@ -86,3 +86,7 @@ exclude = [
   "**/__pycache__/",
   "*.bak",
 ]
+
+[tool.pytest.ini_options]
+# The package tests are *_test.py; local test_*.py files are git-ignored v1 tests (TODO.md B-PY-3).
+python_files = ["*_test.py"]

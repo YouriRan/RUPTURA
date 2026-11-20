@@ -36,7 +36,7 @@ TEST(Isotherm, GABImplementsElfvingEquationsFiveThroughSeven)
   // C = C_0 exp(H_C/(R T)) as an uncentred VantHoff law; p_sat follows the Antoine equation at the temperature.
   Isotherm gab(Isotherm::Type::GAB, {2.58, 0.155, 0.871},
                {{1, TemperatureLaw(TemperatureLaw::Type::VantHoff, 0.155, 6600.0)}});
-  EXPECT_THROW(gab.value(1000.0), std::domain_error);
+  EXPECT_THROW(gab.value(1000.0), std::runtime_error);
 
   constexpr double temperature = 298.15;
   constexpr double pressure = 0.019 * 105000.0;

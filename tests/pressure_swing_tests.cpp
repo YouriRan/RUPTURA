@@ -25,8 +25,7 @@ namespace
 nlohmann::json t15Input(size_t gridPoints)
 {
   std::ifstream input(std::filesystem::path{RUPTURA_SOURCE_DIR} /
-                      "validation/3.3.1_energy_balance_marx_ternary/marx2/"
-                      "reference_settings_hassan_chung/T15/simulation.json");
+                      "tests/data/marx_t15_reference_settings.json");
   nlohmann::json data = nlohmann::json::parse(input);
   data["NumberOfGridPoints"] = gridPoints;
   data["BreakthroughIntegrator"] = "CVODE";
@@ -1179,6 +1178,7 @@ TEST(Connections, AValveEvensOutTwoInertColumnsAtItsRateAndWhatLeavesOneEntersTh
        {"Connections", valve},
        {"StopCriterion", {{"Column", "B"}, {"Metric", "Pressure"}, {"Operator", ">="}, {"Value", 2.0e5}}}});
   data["SwingAdsorptionPhases"].push_back({{"Name", "Rest"}, {"Duration", 60.0}, {"Connections", valve}});
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_connections_valve");
   SwingAdsorption swing(readInput(data));
   swing.run();
   ASSERT_EQ(swing.phaseRecords.size(), 6U);
@@ -1246,6 +1246,7 @@ TEST(Connections, ABufferKeepsWhatAColumnGivesUpToItsPressureAndACompressorCosts
                                                                                    {"FlowModel", "Compressor"},
                                                                                    {"MolarFlow", flow},
                                                                                    {"Efficiency", 0.75}}})}});
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_connections_buffer");
   SwingAdsorption swing(readInput(data));
   swing.run();
   ASSERT_EQ(swing.phaseRecords.size(), 3U);
@@ -1293,6 +1294,7 @@ TEST(Connections, TheTwoBedExampleKeepsEveryMoleBetweenItsColumnsItsTankAndItsPr
   data["NumberOfGridPoints"] = 12;
   data["NumberOfCycles"] = 2;
   data["WriteInterval"] = 1000.0;
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_connections_two_beds");
   SwingAdsorption swing(readInput(data));
   const std::vector<double> tankAtStart = swing.bufferAmounts[0];
   swing.run();
@@ -1343,6 +1345,7 @@ TEST(ThermalControl, AJacketHeatsAClosedColumnWhichGivesTheSameHeatBack)
        {"Duration", 3000.0},
        {"ThermalControl", {{"Temperature", 350.0}, {"HeatTransferCoefficient", 200.0}}}},
       {{"Name", "Cool"}, {"Duration", 3000.0}, {"ThermalControl", {{"HeatTransferCoefficient", 200.0}}}}};
+  WorkingDirectoryGuard workingDirectory(testTemporaryDirectory() / "ruptura_thermal_control");
   SwingAdsorption swing(readInput(data));
   swing.run();
   ASSERT_EQ(swing.phaseRecords.size(), 2U);
@@ -1478,8 +1481,7 @@ TEST(ParticleTransport, HsdmFillsASphereAtAConstantSurfaceLoadingAsItsSeriesDoes
   // loading q*, for which its loading follows q / q* = 1 - (6 / pi^2) sum_n exp(-n^2 pi^2 D_s t / R^2) / n^2. With the
   // linear driving force of the same coefficient, k = 15 D_s / R^2, it follows 1 - exp(-k t), which is slower at first.
   std::ifstream file(std::filesystem::path{RUPTURA_SOURCE_DIR} /
-                     "validation/3.3.1_energy_balance_marx_ternary/marx2/"
-                     "reference_settings_hassan_chung/T15/simulation.json");
+                     "tests/data/marx_t15_reference_settings.json");
   nlohmann::json data = nlohmann::json::parse(file);
   data["NumberOfGridPoints"] = 6;
   data["energyBalance"] = false;

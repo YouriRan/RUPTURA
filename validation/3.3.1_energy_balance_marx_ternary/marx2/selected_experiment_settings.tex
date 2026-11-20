@@ -1,0 +1,90 @@
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=18mm]{geometry}
+\usepackage{booktabs}
+\usepackage{siunitx}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{caption}
+
+\begin{document}
+
+\begin{table}[htbp]
+\centering
+\caption{Selected ternary breakthrough experiments. All dimensional quantities are reported in SI units. The mixture entries are inlet mole fractions in the order $\mathrm{CO_2/N_2/H_2}$.}
+\label{tab:marx-selected-experiments}
+\small
+\begin{tabular}{@{}l c S[table-format=3.0] S[table-format=1.1e1] S[table-format=1.1e1] S[table-format=1.5] S[table-format=1.2] c@{}}
+\toprule
+Run & {$\boldsymbol{y}_{\mathrm{CO_2/N_2/H_2}}$ / $-$} & {$T_0$ / \si{\kelvin}} & {$\dot V$ / \si{\meter\cubed\per\second}} & {$p_0$ / \si{\pascal}} & {$u_0$ / \si{\meter\per\second}} & {$k_{\mathrm{CO_2}}$ / \si{\per\second}} & Source panel \\
+\midrule
+T3  & 0.15/0.80/0.05 & 298 & 1.0e-5 & 1.0e6 & 0.02745 & 0.04 & 16b \\
+T5  & 0.15/0.80/0.05 & 298 & 3.0e-5 & 1.0e6 & 0.08236 & 0.04 & 17b \\
+T11 & 0.15/0.80/0.05 & 318 & 3.0e-5 & 1.0e6 & 0.08236 & 0.07 & 17d \\
+T13 & 0.40/0.30/0.30 & 298 & 1.0e-5 & 1.0e5 & 0.02745 & 0.11 & 16c \\
+T15 & 0.40/0.30/0.30 & 298 & 1.0e-5 & 1.0e6 & 0.02745 & 0.11 & 16a \\
+T17 & 0.40/0.30/0.30 & 298 & 3.0e-5 & 1.0e6 & 0.08236 & 0.11 & 17a \\
+T21 & 0.40/0.30/0.30 & 318 & 1.0e-5 & 1.0e6 & 0.02745 & 0.15 & 16d \\
+T23 & 0.40/0.30/0.30 & 318 & 3.0e-5 & 1.0e6 & 0.08236 & 0.15 & 17c \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Common numerical, bed, transport, and thermal settings used by the selected Ruptura simulations. A dash denotes a categorical or dimensionless setting.}
+\label{tab:marx-common-settings}
+\small
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{0.35\textwidth} >{\raggedright\arraybackslash}p{0.25\textwidth} >{\raggedright\arraybackslash}p{0.24\textwidth}@{}}
+\toprule
+Setting & Value & Unit \\
+\midrule
+Simulation type & Breakthrough & -- \\
+Time integrator & CVODE & -- \\
+Mixture prediction method & IAST & -- \\
+Boundary condition & Inlet pressure/inlet velocity; inlet velocity/outlet pressure for T8 and T21 to maintain a positive pressure profile & -- \\
+Pressure gradient & 0 & \si{\pascal\per\meter} \\
+Energy balance & Enabled & -- \\
+Geometry type & Packed bed & -- \\
+Number of time steps & $8.0\times10^{6}$, $4.0\times10^{6}$, or $2.8\times10^{6}$ for $\dot V=1.0\times10^{-5}$, $2.0\times10^{-5}$, or $3.0\times10^{-5}$, respectively; T8 and T21 are capped at $3.744\times10^{6}$ and $2.348\times10^{6}$ & -- \\
+Simulated duration & 4000, 2000, or 1400 for $\dot V=1.0\times10^{-5}$, $2.0\times10^{-5}$, or $3.0\times10^{-5}$, respectively; T8 and T21 are capped at 1872 and 1174 & \si{\second} \\
+Time step, $\Delta t$ & $5.0\times10^{-4}$ & \si{\second} \\
+Number of axial grid points & 100 & -- \\
+Write interval & 2000 & time steps \\
+Print interval & 20000 & time steps \\
+Initial bed temperature, $T_{\mathrm{bed},0}$ & 298 & \si{\kelvin} \\
+Column length, $L$ & 1.2 & \si{\meter} \\
+Column void fraction, $\varepsilon$ & 0.403 & -- \\
+Particle density, $\rho_{\mathrm{p}}$ & 502 & \si{\kilogram\per\meter\cubed} \\
+Particle diameter, $d_{\mathrm{p}}$ & $3.0\times10^{-3}$ & \si{\meter} \\
+Internal column diameter, $D_{\mathrm{i}}$ & $2.5\times10^{-2}$ & \si{\meter} \\
+Outer column diameter, $D_{\mathrm{o}}$ & $4.0\times10^{-2}$ & \si{\meter} \\
+Wall density, $\rho_{\mathrm{w}}$ & 4000 & \si{\kilogram\per\meter\cubed} \\
+Gas thermal conductivity, $\lambda_{\mathrm{g}}$ & 0.028 & \si{\watt\per\meter\per\kelvin} \\
+Gas--solid heat-transfer coefficient, $h_{\mathrm{gs}}$ & 20.0 & \si{\watt\per\meter\squared\per\kelvin} \\
+Gas--wall heat-transfer coefficient, $h_{\mathrm{gw}}$ & 25.6 & \si{\watt\per\meter\squared\per\kelvin} \\
+External wall heat-transfer coefficient, $h_{\mathrm{we}}$ & 5.0 & \si{\watt\per\meter\squared\per\kelvin} \\
+Gas molar heat capacity, $C_{p,\mathrm{g}}$ & 29.51 & \si{\joule\per\mole\per\kelvin} \\
+Solid specific heat capacity, $c_{p,\mathrm{s}}$ & 1000 & \si{\joule\per\kilogram\per\kelvin} \\
+Wall specific heat capacity, $c_{p,\mathrm{w}}$ & 1000 & \si{\joule\per\kilogram\per\kelvin} \\
+Dynamic viscosity, $\mu$ & $1.92\times10^{-5}$ & \si{\pascal\second} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption{Component transport and Sips adsorption settings. The CO$_2$ mass-transfer coefficient is run-dependent and is listed in Table~\ref{tab:marx-selected-experiments}.}
+\label{tab:marx-component-settings}
+\small
+\begin{tabular}{@{}l S[table-format=1.6] S[table-format=1.1e1] c S[table-format=5.0] S[table-format=2.2] S[table-format=1.2e1] S[table-format=1.2]@{}}
+\toprule
+Component & {$M$ / \si{\kilogram\per\mole}} & {$D_{\mathrm{ax}}$ / \si{\meter\squared\per\second}} & {$k$ / \si{\per\second}} & {$|\Delta H_{\mathrm{ads}}|$ / \si{\joule\per\mole}} & {$q_{\mathrm{s}}$ / \si{\mole\per\kilogram}} & {$b$ / \si{\per\pascal}} & {$n$ / $-$} \\
+\midrule
+CO$_2$ & 0.044000 & 4.3e-6 & See Table~\ref{tab:marx-selected-experiments} & 24860 & 12.45 & 4.39e-7 & 1.36 \\
+N$_2$  & 0.028000 & 4.3e-6 & 0.30 & 16360 & 5.65 & 2.77e-7 & 1.18 \\
+H$_2$  & 0.002016 & 4.3e-6 & 1.00 & 9730  & 7.54 & 2.94e-8 & 1.08 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\end{document}
