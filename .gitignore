@@ -244,8 +244,8 @@ dist/
 *.exe
 
 
-# Local case folders at the root. elfving, liu, marx2, sharma, stadler, and stampi-bombelli are tracked symlinks into
-# validation/ since 2026-11-19; a rule for them here would hide the case folders of the same name there.
+# Local case folders at the root. No rule here for elfving, liu, marx2, sharma, stadler, or stampi-bombelli: it would
+# hide the case folders of the same name in validation/.
 bermejo-lopez/
 dantas/
 marx/

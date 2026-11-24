@@ -89,6 +89,6 @@ jupyter nbconvert --to notebook --execute --inplace analysis.ipynb
 
 ## Open points
 
-- [ ] The Liu et al. (2024) Figs. 2–3 sweeps (`../../liu/simulations/`, all finished) are a second,
+- [ ] The Liu et al. (2024) Figs. 2–3 sweeps (`../3.3.4_humid_dac_liu/liu/simulations/`, all finished) are a second,
       published sensitivity case. They belong to 3.3.4 and are not in this subsection.
 - [ ] Drive the sweeps through the Python API, so that this subsection also demonstrates the API.

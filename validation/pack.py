@@ -20,7 +20,7 @@ write to. Left out:
     Ruptura Lab records), __pycache__, .ipynb_checkpoints, *.egg-info, compiled modules (*.so, *.dylib), .DS_Store.
   * validation/3.2.2_mpd/sharma/tmmc: the RASPA3 TMMC data behind the MPD distributions (11 GB, not a RUPTURA job).
 
-Symlinks, such as the old case paths at the repository root, are packed as links. Pack once no run is writing.
+Symlinks are packed as links. Pack once no run is writing.
 """
 
 from __future__ import annotations

@@ -18,7 +18,7 @@ remains the record of the comparison against the CVODE runs.
 | `3.4.2_swing_adsorption` | `validation/3.4.2_swing_adsorption` | 5 | CVODE |
 | `3.4.3_sensitivity` | `validation/3.4.3_sensitivity` | 38 | CVODE |
 
-The integrator benchmark (`benchmark/breakthrough`, Dirichlet by design) and the convection study compare
+The integrator benchmark (`../3.5_numerical_performance/breakthrough`, Dirichlet by design) and the convection study compare
 integrators and schemes themselves and are not part of this rerun.
 
 ## Settings

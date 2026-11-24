@@ -24,8 +24,8 @@ applied consistently to all four methods and only to the method matrix.
 Run the complete workflow from the repository root:
 
 ```sh
-python3 benchmark/figures/generate.py
-python3 benchmark/figures/run.py --suite cvode-rk3 --repeats 3
-python3 benchmark/figures/run.py --suite methods --repeats 3
-python3 benchmark/figures/summarize.py
+python3 validation/3.5_numerical_performance/figures/generate.py
+python3 validation/3.5_numerical_performance/figures/run.py --suite cvode-rk3 --repeats 3
+python3 validation/3.5_numerical_performance/figures/run.py --suite methods --repeats 3
+python3 validation/3.5_numerical_performance/figures/summarize.py
 ```

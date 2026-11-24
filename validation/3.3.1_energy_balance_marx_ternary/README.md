@@ -1,7 +1,7 @@
 # 3.3.1 Energy balance: Marx et al. (2014), ternary experiments T1–T24
 
 Reference: D. Marx, L. Joss, N. Casas, J. Schell, M. Mazzotti, Adsorption 20 (2014) 493–510.
-Source: `marx2/` (moved here from the repository root on 2026-11-19), with `generate.py` (writes the inputs of the model
+Source: `marx2/`, with `generate.py` (writes the inputs of the model
 of Marx et al., `conversions.md` §5–9), `run.py`, `ternary/T1`–`T24` (inputs and output), `reference_digitized/` (experiments
 extracted from the vector markers in the PDFs, `digitize_paper.py`, and the model curves of Marx et al.,
 `digitize_model.py`), `create.ipynb` (figures and `t50_comparison.csv`), and `output/pdf/`.

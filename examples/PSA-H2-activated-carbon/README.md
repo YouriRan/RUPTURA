@@ -42,7 +42,7 @@ print("H2 recovery", (product[3] - purge_gas) / fed_h2)  # 0.170
 
 N2 limits the purity: it adsorbs weakly on activated carbon and breaks through soon after H2, while CO2 stays in the
 column. A longer adsorption step or less purge gas raises the recovery at the cost of the purity.
-`examples/Self-driving-lab-H2-PSA` searches this trade-off.
+`validation/self_driving_lab/Self-driving-lab-H2-PSA` searches this trade-off.
 
 ## Model limits
 

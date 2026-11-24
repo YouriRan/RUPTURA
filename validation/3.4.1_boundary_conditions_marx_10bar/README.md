@@ -12,7 +12,7 @@ differences during breakthrough come only from how each mode couples pressure an
 ## Base experiments
 
 All at $1\times10^{6}$ Pa and $1\times10^{-5}$ m³/s. Inputs from `../../3.3.1_energy_balance_marx_ternary/marx2/ternary/<run>/simulation.json`,
-digitized experiments in `../../marx2/reference_digitized/<run>/`.
+digitized experiments in `../3.3.1_energy_balance_marx_ternary/marx2/reference_digitized/<run>/`.
 
 | Run | Feed CO₂/N₂/H₂ | $T_\mathrm{feed}$ / K | Note |
 |---|---|---|---|
@@ -116,7 +116,7 @@ BC2 inlet velocity on T15: 2.7 v_in at 4 s and 2.1 v_in at 20 s. Dilute BEA cont
 ## Results (2026-10-20, `analysis.ipynb`)
 
 Rerun with the marx2 inputs of 2026-10-20: h_fw from the Marx correlation (T3, T15: 54.26; T9, T21: 53.15
-W m⁻² K⁻¹) instead of 25.6, and the gas heat capacity per unit mass (`../../marx2/conversions.md` §5).
+W m⁻² K⁻¹) instead of 25.6, and the gas heat capacity per unit mass (`../3.3.1_energy_balance_marx_ternary/marx2/conversions.md` §5).
 
 | Run | BC1 | BC2 | BC3 | BC4 | BC5 |
 |---|---|---|---|---|---|

@@ -4,28 +4,15 @@ One directory per results subsection (Section 3 of `ruptura-2.0-paper/main.tex`;
 its current order). Each README lists the points still open for that subsection. Features, open decisions, and paper
 fixes are collected in `../TODO.md`.
 
-Since 2026-11-19 the case directories live here, so that `validation/` holds every case behind the paper. Their old
-paths are symlinks to them:
-
-| Old path | Now |
-|---|---|
-| `marx2` | `3.3.1_energy_balance_marx_ternary/marx2` |
-| `stampi-bombelli` | `3.3.2_monoliths_stampi_bombelli/stampi-bombelli` |
-| `elfving` | `3.3.3_chemisorption_elfving/elfving` |
-| `liu` | `3.3.4_humid_dac_liu/liu` |
-| `stadler` | `3.3.5_reactions_stadler/stadler` |
-| `sharma` | `3.2.2_mpd/sharma` |
-| `benchmark/breakthrough`, `benchmark/convection`, `benchmark/figures` | `3.5_numerical_performance/` |
-| `examples/Self-driving-lab-H2-PSA` | `self_driving_lab/Self-driving-lab-H2-PSA` |
-
-The scripts and notebooks find the repository from their real location.
+The case directories live here, so that `validation/` holds every case behind the paper. The scripts and notebooks
+find the repository from their own location.
 
 | Section | Directory | Case | Source | Status |
 |---|---|---|---|---|
 | 3.1 | `3.1_verification` | Exact solutions and limits | unit tests, `benchmark/multibed`, new cases | partly done |
-| 3.2.1 | `3.2.1_mixture_methods_temperature` | SPI/SCI/SEI/IAST/SIAST; temperature dependence | `benchmark/figures`, `liu`, `marx2` | new figure |
+| 3.2.1 | `3.2.1_mixture_methods_temperature` | SPI/SCI/SEI/IAST/SIAST; temperature dependence | 3.5 (`figures/`), 3.3.4, 3.3.1 | new figure |
 | 3.2.2 | `3.2.2_mpd` | MPD vs SIAST and IAST: CO₂/propane in MOR (Sharma et al. 2023); earlier BEA nC7/2mC6 | `sharma/` in it | in paper |
-| 3.2.3 | `3.2.3_gab_water` | GAB water isotherm | `elfving`, `liu` | runs exist |
+| 3.2.3 | `3.2.3_gab_water` | GAB water isotherm | 3.3.3, 3.3.4 | runs exist |
 | 3.3.1 | `3.3.1_energy_balance_marx_ternary` | Marx et al. 2014, T1–T24 | `marx2/` in it | in paper |
 | 3.3.2 | `3.3.2_monoliths_stampi_bombelli` | Stampi-Bombelli et al. 2024 | `stampi-bombelli/` in it | in paper |
 | 3.3.3 | `3.3.3_chemisorption_elfving` | Elfving and Sainio 2021 | `elfving/` in it | runs exist, no figures |
@@ -35,13 +22,13 @@ The scripts and notebooks find the repository from their real location.
 | 3.3.7 | `3.3.7_multistack_park` | Park et al. 1998, layered beds | — | to set up |
 | 3.3.8 | `3.3.8_pore_transport` | Pore transport with `General` chemisorption: CO₂ from air on PEI/fumed silica, four particle sizes (Goeppert et al. 2014, model of Auton et al. 2024) | this directory | rerun 2026-11-20 (byte-identical to 2026-11-09); in the paper since 2026-11-20 (`sec:results_chemisorption`, SI `apx:goeppert`) |
 | 3.4.1 | `3.4.1_boundary_conditions_marx_10bar`, `3.4.1_boundary_conditions_bea_dilute` | Five boundary modes on the Marx 1e6 Pa runs and a dilute BEA control | these directories | in paper; ROS34PW2 and Danckwerts since 2026-11-03 (all runs complete) |
-| 3.4.2 | `3.4.2_swing_adsorption` | TSA cycles on the Marx T15 column; PSA deferred | `marx2` | TSA in paper |
-| 3.4.3 | `3.4.3_sensitivity` | One-at-a-time sensitivity of Marx T15 | `marx2`, `benchmark` levels | in paper |
+| 3.4.2 | `3.4.2_swing_adsorption` | TSA cycles on the Marx T15 column; PSA deferred | 3.3.1 | TSA in paper |
+| 3.4.3 | `3.4.3_sensitivity` | One-at-a-time sensitivity of Marx T15 | 3.3.1, `benchmark` levels | in paper |
 | 3.4.4 | `3.4.4_flow_reversal` | Co-current and counter-current regeneration of a trace Langmuir adsorbate against equilibrium theory (`FlowDirection`) | this directory | in paper (2026-11-06) |
 | 3.5 | `3.5_numerical_performance` | Integrator accuracy and cost over complete breakthroughs (BEA C7, Marx T15, Stampi-Bombelli monolith with fitted D_ax), and the convection schemes | `breakthrough/`, `convection/`, and `figures/` (helpers of `breakthrough/generate.py`) in it | in paper; SIRK3 later |
 | 3.x | `self_driving_lab` | Bayesian optimization of an H₂ PSA cycle on one column and on two beds | `Self-driving-lab-H2-PSA/` in it | in paper |
-| 3.x | `inlet_condition_dirichlet_vs_danckwerts` | Every case above with physical dispersion, rerun with the Dirichlet and the Danckwerts inlet (`InletCondition`) | `marx2`, `stampi-bombelli`, `stadler`, 3.4.1–3.4.3 | done 2026-11-03; Danckwerts is the default since then, paper studies to rerun (TODO I-BC-4) |
-| 3.x | `ros34pw2_danckwerts_rerun` | Every breakthrough and swing case of 3.3–3.4 rerun with ROS34PW2 and the Danckwerts inlet, `-O3` binary | `marx2`, `stampi-bombelli`, `stadler`, `liu`, 3.4.1–3.4.3 | 223 of 223 done 2026-11-03; Elfving is left out until TODO B-EX-9 is decided (B-EX-16) |
+| 3.x | `inlet_condition_dirichlet_vs_danckwerts` | Every case above with physical dispersion, rerun with the Dirichlet and the Danckwerts inlet (`InletCondition`) | 3.3.1, 3.3.2, 3.3.5, 3.4.1–3.4.3 | done 2026-11-03; Danckwerts is the default since then, paper studies to rerun (TODO I-BC-4) |
+| 3.x | `ros34pw2_danckwerts_rerun` | Every breakthrough and swing case of 3.3–3.4 rerun with ROS34PW2 and the Danckwerts inlet, `-O3` binary | 3.3.1, 3.3.2, 3.3.4, 3.3.5, 3.4.1–3.4.3 | 223 of 223 done 2026-11-03; Elfving is left out until TODO B-EX-9 is decided (B-EX-16) |
 
 Dropped: Serna-Guerrero (the reference is inconsistent).
 `IAST-Landau2012/` and `IAST-Moon-Tien-casestudy/` are RUPTURA 1 leftovers (run scripts only).
@@ -108,8 +95,8 @@ cd "$REPO/$directory" && timeout "${timeout_s:-0}" "$RUPTURA_BIN" > run.log 2>&1
 1. **Pack** (on the Mac, once no run is writing): `python validation/pack.py` writes
    `ruptura-rerun-<date>.tar.gz` next to the repository; `-o PATH` names another file, and `--list` only prints the
    files it would pack. The script docstring gives the full rules:
-   - **Packed:** the working tree, with the paper, the root symlinks as links, every input, and the input `.data`
-     files such as the MPD distributions.
+   - **Packed:** the working tree, with the paper, every input, and the input `.data` files such as the MPD
+     distributions.
    - **Left out:** every RUPTURA output (by file name, including the run logs), `.git`, the builds, the Ruptura Lab
      records in `simulations/`, and the RASPA3 TMMC data of `3.2.2_mpd/sharma/tmmc` (11 GB, not a RUPTURA job).
 

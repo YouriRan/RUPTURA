@@ -13,9 +13,7 @@
 
 Every directory with a simulation.json is run in place, outside .worktrees, build*, and EXCLUDED. The binary is
 built first and frozen as build/ruptura-rerun, so a rebuild of build/ruptura during the run does not mix binaries.
-Each input is validated first; invalid inputs are reported and skipped. Paths are the real ones: the case
-directories that moved into validation/ on 2026-11-19 (marx2, stampi-bombelli, stadler, ...) keep a symlink at
-their old place, which the search does not follow.
+Each input is validated first; invalid inputs are reported and skipped.
 
 validation/cases.csv lists the cases behind the paper, with their generators, simulation directories, timeouts,
 and which ones the paper times (validation/README.md, "Full rerun on a cluster node"). A case timeout there

@@ -11,7 +11,7 @@ NumberOfInitTimeSteps (RK3; ROS34PW2 rejects them) and every CVODE key. ROS34PW2
 tolerances (relative 1e-6; absolute 1e-7 mol/m^3, 1e-8 mol/kg, 1e-5 K) without a step cap. Nothing else changes, and
 the source inputs are only read. The studies and case paths are those of ../inlet_condition_dirichlet_vs_danckwerts
 where they overlap, so that compare.py finds the CVODE runs with the Danckwerts inlet there. The integrator benchmark
-(benchmark/breakthrough) and the convection study compare integrators and schemes themselves; they are left out.
+(../3.5_numerical_performance/breakthrough) and the convection study compare integrators and schemes themselves; they are left out.
 
     python generate.py            # write simulations/ and simulations/index.json
     python generate.py --clean    # delete simulations/ first, including any output

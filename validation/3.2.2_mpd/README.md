@@ -1,6 +1,6 @@
 # 3.2.2 Macrostate particle distribution (MPD)
 
-Source: `sharma/` (moved here on 2026-11-19; `../../sharma` is a symlink to it) — CO₂/propane in all-silica MOR at
+Source: `sharma/` — CO₂/propane in all-silica MOR at
 300 K (Sharma et al., Mol. Phys. 121 (2023) e2183721). The binary reference distribution is the N-d TMMC ln Π
 `sharma/lnpi_co2_propane_mor_300K_nd_tmmc_walks.txt` (computed on another machine, see its header), written for RUPTURA
 by `sharma/mpd/build_nd_tmmc_distribution.py`. The one-component distributions of the earlier RASPA3 TMMC windows
@@ -11,6 +11,10 @@ by `sharma/mpd/build_nd_tmmc_distribution.py`. The one-component distributions o
 Case `mpd-mor` in `../cases.csv`: `sharma/runs/generate.py` writes the 16 runs, `sharma/runs/run.py` runs them
 (`RUPTURA_BIN`), and `analysis.ipynb` (run from this directory) writes `figures/mpd_mor/` of the paper and prints the
 numbers of its text (Results subsection "MPD", `sec:results_mpd`).
+
+`reweighting_schematic.ipynb` (run from this directory, no simulations) writes `figures/mpd_reweighting/` of the paper,
+the schematic of the methods (`fig:macrostate_reweighting_schematic`): a two-component distribution known exactly
+(one-dimensional lattice gas, component 1 on two sites) reweighted to four fugacities, and its mixture isotherm.
 
 Status (2026-11-19): in the paper. All runs with `build/ruptura-sharma-2026-11-19-mpd-jac` (two-pass MPD reweighting
 and MPD sensitivities, TODO P-PHY-9 and P-PHY-10); the wall times were taken with other runs on the machine.

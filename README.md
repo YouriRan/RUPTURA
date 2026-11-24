@@ -913,7 +913,7 @@ Campaign(cycle, "campaign", rounds=15, batch_size=8, workers=8).run()
 between their product ends, a product tank, and a pressure equalization in place
 of the backfill, from a `MomentumBalance` input such as
 `examples/PSA-H2-activated-carbon-two-beds`.
-`examples/Self-driving-lab-H2-PSA/analysis.ipynb` runs and analyzes both
+`validation/self_driving_lab/Self-driving-lab-H2-PSA/analysis.ipynb` runs and analyzes both
 campaigns for H2 from the T15 feed on activated carbon.
 
 A released version can also be installed from an index, without a source
