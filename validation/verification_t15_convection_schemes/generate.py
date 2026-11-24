@@ -37,7 +37,8 @@ def main() -> None:
         shutil.rmtree(SIMULATION_DIR)
 
     base = json.loads(BASE_INPUT.read_text())
-    base.update(NumberOfGridPoints=GRID_POINTS, SimulationTime=SIMULATION_TIME, WriteInterval=1.0)
+    base.update(NumberOfGridPoints=GRID_POINTS, SimulationTime=SIMULATION_TIME, WriteInterval=1.0,
+                WriteOutletOnly=True)  # analysis.py reads the outlet only
     index = []
     for scheme in SCHEMES:
         for integrator in INTEGRATORS:

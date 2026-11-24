@@ -31,17 +31,28 @@ LEVELS = (0.1, 0.5, 0.9)
 
 def read_outlets(directory: Path) -> dict[str, tuple[np.ndarray, np.ndarray, np.ndarray]]:
     """Component name -> (time in s, inlet mole fraction, outlet mole fraction) at every output."""
+    simulation = {key.lower(): value for key, value in json.loads((directory / "simulation.json").read_text()).items()}
+    feed = {}
+    for component in simulation["components"]:
+        component = {key.lower(): value for key, value in component.items()}
+        feed[component["name"]] = component.get("gasphasemolfraction", 0.0)
+    total = sum(feed.values())  # Ruptura normalizes the feed (the Marx inputs give percentages)
+    feed = {name: value / total for name, value in feed.items()}
     outlets = {}
     for path in sorted(directory.glob("component_*_*.data")):
         name = path.stem.split("_", 2)[2]
         frame = pd.read_csv(path, comment="#", sep=r"\s+", header=None, usecols=[1, 2, 5], names=["t", "z", "y"])
         z = frame["z"].to_numpy()
         restarts = np.flatnonzero(z[1:] < z[:-1])
-        nodes = int(restarts[0]) + 1 if restarts.size else z.size
+        # A WriteOutletOnly file has one row per output, all at z = L.
+        # shortcut: a reverse-flow phase would write node 1 instead; detect by the key if such a source is added.
+        nodes = int(restarts[0]) + 1 if restarts.size else (1 if np.ptp(z) == 0.0 else z.size)
         outputs = z.size // nodes
         t = frame["t"].to_numpy()[: outputs * nodes].reshape(outputs, nodes)[:, 0] * 60.0
         y = frame["y"].to_numpy()[: outputs * nodes].reshape(outputs, nodes)
-        outlets[name] = (t, y[:, 0], y[:, -1])
+        # Without the z = 0 row the inlet is the feed, which node 0 holds in a full file.
+        y_in = np.full(outputs, feed[name]) if nodes == 1 else y[:, 0]
+        outlets[name] = (t, y_in, y[:, -1])
     return outlets
 
 

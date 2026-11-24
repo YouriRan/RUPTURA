@@ -160,6 +160,7 @@
         "ParticleDiameter": 0.001
     },
     "InletCondition": "Danckwerts",
+    "WriteOutletOnly": true,
     "InletPressure": 120000.0,
     "OutletPressure": 119900.0
 }

@@ -71,7 +71,8 @@ def main() -> None:
               closure="MomentumBalance", thermal=thermal, integrator="ROS34PW2")
         if not energy_balance:
             klu = copy.deepcopy(momentum)
-            klu.update(BreakthroughIntegrator="CVODE", CVODELinearSolver="KLU")
+            # analysis.py reads only its run.log; the other free-pressure runs need the interior pressures.
+            klu.update(BreakthroughIntegrator="CVODE", CVODELinearSolver="KLU", WriteOutletOnly=True)
             write(f"free_pressure/momentum_balance/{thermal}_cvode_klu", klu, check="free_pressure",
                   closure="MomentumBalance", thermal=thermal, integrator="CVODE KLU")
 
@@ -85,6 +86,7 @@ def main() -> None:
     for integrator in ("CVODE", "ROS34PW2", "RungeKutta3"):
         simulation = copy.deepcopy(base)
         simulation["BreakthroughIntegrator"] = integrator
+        simulation["WriteOutletOnly"] = True  # analysis.py reads phases.data and run.log only
         if integrator == "RungeKutta3":
             simulation["TimeStep"] = RK3_TIME_STEP
         simulation["SwingAdsorptionPhases"] = [{

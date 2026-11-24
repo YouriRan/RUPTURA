@@ -67,5 +67,6 @@
   "Geometry": {
     "Type": "PackedBed",
     "ColumnVoidFraction": 0.128
-  }
+  },
+  "WriteOutletOnly": true
 }

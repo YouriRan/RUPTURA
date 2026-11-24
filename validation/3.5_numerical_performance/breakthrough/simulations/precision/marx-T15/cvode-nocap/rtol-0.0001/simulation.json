@@ -126,6 +126,7 @@
     "InternalDiameter": 0.025,
     "OuterDiameter": 0.04
   },
+  "WriteOutletOnly": true,
   "CVODELinearSolver": "SPGMR",
   "CVODERelativeTolerance": 0.0001,
   "CVODEAbsoluteToleranceConcentration": 9.999999999999999e-06,

@@ -126,6 +126,7 @@
     "InternalDiameter": 0.025,
     "OuterDiameter": 0.04
   },
+  "WriteOutletOnly": true,
   "ROS34PW2RelativeTolerance": 1e-05,
   "ROS34PW2AbsoluteToleranceConcentration": 1e-06,
   "ROS34PW2AbsoluteToleranceLoading": 1e-07,

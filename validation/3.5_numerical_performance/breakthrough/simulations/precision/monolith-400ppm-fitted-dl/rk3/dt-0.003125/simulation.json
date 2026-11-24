@@ -74,5 +74,6 @@
     "OuterDiameter": 0.03272299584576987,
     "WashcoatThickness": 0.0
   },
+  "WriteOutletOnly": true,
   "TimeStep": 0.003125
 }

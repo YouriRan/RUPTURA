@@ -126,5 +126,6 @@
     "InternalDiameter": 0.025,
     "OuterDiameter": 0.04
   },
+  "WriteOutletOnly": true,
   "TimeStep": 0.01
 }

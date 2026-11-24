@@ -74,6 +74,7 @@
     "OuterDiameter": 0.03272299584576987,
     "WashcoatThickness": 0.0
   },
+  "WriteOutletOnly": true,
   "ROS34PW2RelativeTolerance": 1e-06,
   "ROS34PW2AbsoluteToleranceConcentration": 9.999999999999998e-08,
   "ROS34PW2AbsoluteToleranceLoading": 9.999999999999999e-09,

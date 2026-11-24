@@ -127,6 +127,7 @@
   "ConvectionScheme": "Upwind",
   "SimulationTime": 1500.0,
   "WriteInterval": 2.0,
+  "WriteOutletOnly": true,
   "CVODELinearSolver": "SPGMR",
   "CVODERelativeTolerance": 0.0001,
   "CVODEAbsoluteToleranceConcentration": 1e-05,

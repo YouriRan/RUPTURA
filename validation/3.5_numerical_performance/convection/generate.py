@@ -89,6 +89,7 @@ def configure(simulation: dict, scheme: str, integrator: str, horizon: float, ti
     simulation["BreakthroughIntegrator"] = integrator
     simulation["SimulationTime"] = horizon
     simulation["WriteInterval"] = WRITE_INTERVAL
+    simulation["WriteOutletOnly"] = True  # the analysis reads the outlet only (since 2026-11-20)
     # The runs of 2026-10-31 used the Dirichlet inlet, the default until 2026-11-03, as ../breakthrough does; the base
     # inputs carry Danckwerts since then.
     simulation["InletCondition"] = "Dirichlet"

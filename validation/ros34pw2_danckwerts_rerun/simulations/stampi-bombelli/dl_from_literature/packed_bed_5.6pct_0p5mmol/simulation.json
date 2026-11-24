@@ -64,5 +64,6 @@
     "heatCapacityWall": 500.0,
     "wallDensity": 8000.0,
     "BreakthroughIntegrator": "ROS34PW2",
-    "InletCondition": "Danckwerts"
+    "InletCondition": "Danckwerts",
+    "WriteOutletOnly": true
 }

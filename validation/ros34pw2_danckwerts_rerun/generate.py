@@ -59,7 +59,7 @@ STUDIES = {
 }
 
 SIMULATION_TYPES = {"Breakthrough", "SwingAdsorption"}
-REMOVED_KEYS = {"breakthroughintegrator", "inletcondition", "timestep", "numberofinittimesteps"}
+REMOVED_KEYS = {"breakthroughintegrator", "inletcondition", "timestep", "numberofinittimesteps", "writeoutletonly"}
 
 
 def source_inputs():
@@ -95,8 +95,10 @@ def main() -> None:
         }
         directory = SIMULATION_DIR / study / case
         directory.mkdir(parents=True, exist_ok=True)
+        # Every run writes the outlet only: this cross-check compares outlet curves (README).
         (directory / "simulation.json").write_text(
-            json.dumps({**data, "BreakthroughIntegrator": "ROS34PW2", "InletCondition": "Danckwerts"}, indent=4) + "\n"
+            json.dumps({**data, "BreakthroughIntegrator": "ROS34PW2", "InletCondition": "Danckwerts",
+                        "WriteOutletOnly": True}, indent=4) + "\n"
         )
         index.append(
             {

@@ -98,6 +98,7 @@ def main() -> None:
         simulation["InletCondition"] = "Danckwerts"
         simulation["SimulationTime"] = SIMULATION_TIME
         simulation["WriteInterval"] = WRITE_INTERVAL
+        simulation["WriteOutletOnly"] = True  # the analysis reads the outlet only
         if mode != "InletVelocityOutletPressure":
             simulation["InletPressure"] = inlet_pressure
         if mode in ("InletPressureOutletPressure", "InletVelocityOutletPressure"):

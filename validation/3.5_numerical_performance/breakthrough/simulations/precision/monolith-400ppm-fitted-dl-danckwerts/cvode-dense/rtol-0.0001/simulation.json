@@ -74,6 +74,7 @@
     "OuterDiameter": 0.03272299584576987,
     "WashcoatThickness": 0.0
   },
+  "WriteOutletOnly": true,
   "CVODELinearSolver": "Dense",
   "CVODERelativeTolerance": 0.0001,
   "CVODEAbsoluteToleranceConcentration": 9.999999999999999e-06,

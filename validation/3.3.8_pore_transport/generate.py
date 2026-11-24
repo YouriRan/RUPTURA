@@ -234,6 +234,7 @@ def main() -> None:
         else:
             data = simulation(size, length, dispersion, grid_points, transport, site_affinity, SIMULATION_TIME,
                               WRITE_INTERVAL)
+            data["WriteOutletOnly"] = True  # only the wave runs give column profiles
         (directory / "simulation.json").write_text(json.dumps(data, indent=4) + "\n")
         index.append({"directory": str(directory.relative_to(ROOT)), "studies": run_studies, "size": name,
                       "column": column, "dispersion": dispersion_case, "grid_points": grid_points,

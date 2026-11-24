@@ -104,6 +104,7 @@ def main() -> None:
     base = json.loads(BASE_INPUT.read_text())
     base["SimulationTime"] = SIMULATION_TIME
     base["WriteInterval"] = WRITE_INTERVAL
+    base["WriteOutletOnly"] = True  # the analysis reads the outlet only
 
     index = []
 

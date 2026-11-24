@@ -121,5 +121,6 @@
         "InternalDiameter": 0.015957691216057307
     },
     "BreakthroughIntegrator": "ROS34PW2",
-    "InletCondition": "Danckwerts"
+    "InletCondition": "Danckwerts",
+    "WriteOutletOnly": true
 }

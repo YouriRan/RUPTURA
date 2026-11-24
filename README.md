@@ -298,10 +298,56 @@ Running the `ruptura` command-line binary also creates the matching
 `analysis.ipynb` beside `simulation.json`. If the notebook already exists, the
 binary leaves it unchanged.
 
+Agent skill for simulation.json
+===============================
+`skills/ruptura-simulation-input/` is an [Agent Skill](https://agentskills.io): a
+folder with a `SKILL.md` that AI coding agents and assistants load when a task
+needs it. With it installed, an agent writes `simulation.json` from a description,
+a paper, or a table. It asks for the physical data it is missing, converts units
+to Ruptura's (velocities, densities, isotherm parameters in bar), reports the
+numerical settings it chose, and checks the file with `ruptura --validate` when
+it can run commands.
+
+Claude Code, for all projects (or into `.claude/skills/` of one project):
+
+```
+mkdir -p ~/.claude/skills
+cp -R skills/ruptura-simulation-input ~/.claude/skills/
+```
+
+A link instead of the copy keeps the skill in step with `git pull`:
+`ln -s "$PWD/skills/ruptura-simulation-input" ~/.claude/skills/`.
+
+Codex: copy the folder into `~/.agents/skills/` (or `.agents/skills/` of a
+repository).
+
+Other agents: the `skills` installer asks which of the agents on the machine to
+add it to:
+
+```
+npx skills add ./skills/ruptura-simulation-input
+```
+
+Claude apps (claude.ai, desktop): zip the folder and upload the zip in the
+Skills settings:
+
+```
+cd skills && zip -r ruptura-simulation-input.zip ruptura-simulation-input
+```
+
+Then ask for a run in your own words, for example "Set up a Ruptura breakthrough
+for 15 % CO2 in N2 on zeolite 13X with the isotherm of Table 2 of this paper".
+In a chat without skill support, send `SKILL.md` as the first message and attach
+the files of its `references/` folder.
+
+The skill follows `src/inputreader.cpp`. When the parser changes, update the skill
+and the Supplementary "Json input" tables of the paper together.
+
 Input
 =====
-`docs/GENERATIVE_AI_SIMULATION_PROMPT.md` describes the keys of `simulation.json` with their units, and the
-directories under `examples/` hold complete inputs. Keys are case-insensitive.
+`skills/ruptura-simulation-input/` (`SKILL.md` and its `references/`) describes the keys of
+`simulation.json` with their units, and the directories under `examples/` hold complete inputs.
+Keys are case-insensitive.
 
 Simulated time and output are set in seconds: `SimulationTime` (a time, or
 `"auto"` to stop 10% after the breakthrough or reaction steady state is

@@ -162,6 +162,7 @@
   "ConvectionScheme": "Upwind",
   "SimulationTime": 1200.0,
   "WriteInterval": 2.0,
+  "WriteOutletOnly": true,
   "InletCondition": "Dirichlet",
   "TimeStep": 0.0175
 }

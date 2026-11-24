@@ -69,5 +69,6 @@
         }
       ]
     }
-  ]
+  ],
+  "WriteOutletOnly": true
 }

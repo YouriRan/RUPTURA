@@ -127,6 +127,7 @@ def configure(simulation: dict, integrator: str, horizon: float, time_step: floa
     simulation["BreakthroughIntegrator"] = integrator
     simulation["SimulationTime"] = horizon
     simulation["WriteInterval"] = WRITE_INTERVAL
+    simulation["WriteOutletOnly"] = True  # the analysis reads the outlet only (since 2026-11-20)
     # The batches of 2026-10-28 and 2026-11-03 ran with the Dirichlet inlet, the default until 2026-11-03.
     simulation["InletCondition"] = inlet_condition
     if integrator == "RungeKutta3":

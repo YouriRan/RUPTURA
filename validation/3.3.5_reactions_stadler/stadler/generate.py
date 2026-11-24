@@ -137,6 +137,7 @@ FRESH_BED_INTEGRATION = {
     "NumberOfGridPoints": 100,
     "SimulationTime": ADSORPTION_TIME,
     "WriteInterval": 0.5,
+    "WriteOutletOnly": True,
 }
 # Cycles: 40 cells put the catalyst/sorbent boundary on a node (2.5 mm cells); the
 # outlet is written every 2 s, which keeps five cycles at a few hundred MB.
@@ -146,13 +147,15 @@ CYCLE_INTEGRATION = {
     "NumberOfGridPoints": 40,
     "WriteInterval": 2.0,
 }
-# Activity tests: 25 mm column, gas residence time about 0.25 s; 3 s reach steady state.
+# Activity tests: 25 mm column, gas residence time about 0.25 s; 3 s reach steady state. The fresh bed and the
+# activity tests are analysed at the outlet only; the cycles keep the column for the bed-averaged loading.
 ACTIVITY_INTEGRATION = {
     "BreakthroughIntegrator": "ROS34PW2",
     "InletCondition": "Danckwerts",
     "NumberOfGridPoints": 400,
     "SimulationTime": 3.0,
     "WriteInterval": 0.5,
+    "WriteOutletOnly": True,
 }
 
 

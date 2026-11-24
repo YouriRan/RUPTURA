@@ -108,5 +108,6 @@
     "InletPressure": 1000000.0,
     "PressureGradient": -25.830616343856608,
     "BreakthroughIntegrator": "ROS34PW2",
-    "InletCondition": "Danckwerts"
+    "InletCondition": "Danckwerts",
+    "WriteOutletOnly": true
 }

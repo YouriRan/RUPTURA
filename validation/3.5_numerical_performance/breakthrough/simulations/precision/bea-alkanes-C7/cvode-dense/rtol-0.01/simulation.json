@@ -161,6 +161,7 @@
     "ColumnVoidFraction": 0.4,
     "ParticleDiameter": 0.001
   },
+  "WriteOutletOnly": true,
   "InletCondition": "Dirichlet",
   "CVODELinearSolver": "Dense",
   "CVODERelativeTolerance": 0.01,

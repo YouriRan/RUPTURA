@@ -44,7 +44,7 @@ if __name__ == "__main__":
     breakthrough = json.loads((EXAMPLE / "breakthrough" / "simulation.json").read_text())
     breakthrough.update({"Temperature": 300.0, "ColumnVoidFraction": 0.128, "ParticleDensity": 1711.06,
                          "InletPressure": 1.0e5, "ColumnEntranceVelocity": 0.1, "ColumnLength": 0.1,
-                         "BreakthroughIntegrator": "ROS34PW2"})
+                         "BreakthroughIntegrator": "ROS34PW2", "WriteOutletOnly": True})  # analysis reads the outlet
     breakthrough["Geometry"]["ColumnVoidFraction"] = 0.128
     for component in breakthrough["Components"]:
         component["GasPhaseMolFraction"] = 0.8 if component.get("CarrierGas") else 0.1

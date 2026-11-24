@@ -127,5 +127,6 @@
   "ConvectionScheme": "WENO3",
   "SimulationTime": 1500.0,
   "WriteInterval": 2.0,
+  "WriteOutletOnly": true,
   "TimeStep": 0.125
 }

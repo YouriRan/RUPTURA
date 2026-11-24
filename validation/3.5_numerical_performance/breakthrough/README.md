@@ -55,7 +55,9 @@ rejects the energy balance of T15 and the chemisorption site of the monolith), a
 `monolith-400ppm-fitted-dl-danckwerts`, the monolith with the Danckwerts inlet of its validation runs, with every series.
 
 Every RK3 step divides the 2 s output interval, CVODE returns its solution every 2 s, and ROS34PW2 ends a step on every
-output time, so all runs sample the outlet at the same times. All runs use the default WENO3 convection and the
+output time, so all runs sample the outlet at the same times. Since 2026-11-20 every input writes the outlet only
+(`WriteOutletOnly`, all the analysis reads); the wall times in `results.csv` are from runs that wrote the whole column,
+so the batch needs a rerun before they are quoted again. All runs use the default WENO3 convection and the
 Dirichlet inlet (`InletCondition` `Dirichlet`, pinned in `generate.py` since the default became Danckwerts). ROS34PW2
 uses the tolerances of CVODE (absolute tolerances scaled likewise) and no step cap; its default, rtol 1e-6 with
 1e-7 mol/m³, 1e-8 mol/kg, 1e-5 K, is the rtol 1e-6 run. SPGMR is matrix-free and unpreconditioned

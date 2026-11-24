@@ -182,6 +182,7 @@ def write_breakthrough_case(
     end_time: float,
     adsorbates: list[dict],
     grid_points: int = GRID_POINTS,
+    outlet_only: bool = True,
     metadata: dict | None = None,
 ) -> dict:
     """Write a ``Breakthrough`` directory and return its index entry.
@@ -258,6 +259,8 @@ def write_breakthrough_case(
         },
         "Components": components,
     }
+    if outlet_only:
+        simulation["WriteOutletOnly"] = True
     (directory / "simulation.json").write_text(json.dumps(simulation, indent=2) + "\n")
     return {
         "directory": name,
@@ -654,6 +657,7 @@ def figure_4_cases() -> list[dict]:
                 end_time=90_000.0,
                 adsorbates=adsorbates,
                 grid_points=FIGURE_4_GRID_POINTS,
+                outlet_only=False,  # Figures 4c and 4d average the loading over the bed
                 metadata={
                     "relative_humidity": relative_humidity,
                     "water_saturation_pressure_pa": saturation_pressure,
@@ -707,6 +711,7 @@ def figure_5_cases() -> list[dict]:
                     "sites": [{"Type": "GAB", "Parameters": [*FIBER_GAB]}],
                 }
             ],
+            outlet_only=False,  # the isotherm is sampled at every grid point
             metadata={
                 "kind_override": "isotherm_from_breakthrough",
                 "component": "H2O",

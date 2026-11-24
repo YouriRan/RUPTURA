@@ -34,7 +34,9 @@ Accuracy: e50 (relative error of the breakthrough times), E1 (time-averaged abso
 outlet curves), and the 10–90% front width of the most strongly adsorbed component, each against the reference.
 
 Timing: Apple M1 Max, 4 concurrent single-threaded runs (cost study), Apple clang `-O2` (RelWithDebInfo); wall time of
-the whole process and CPU time from `/usr/bin/time`.
+the whole process and CPU time from `/usr/bin/time`. Since 2026-11-20 every input writes the outlet only
+(`WriteOutletOnly`, all the analysis reads); the times in `results.csv` are from runs that wrote the whole column, so
+the study needs a rerun before they are quoted again.
 
 ## Background
 

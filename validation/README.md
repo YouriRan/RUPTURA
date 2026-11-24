@@ -53,6 +53,12 @@ Dropped: Serna-Guerrero (the reference is inconsistent).
 - Digitized experimental data go in `reference_digitized/`.
 - Paper figures are 8×6 PDFs. Reference data are drawn as dashed lines with open markers, RUPTURA as
   solid lines.
+- Runs whose analysis reads only the outlet set `"WriteOutletOnly": true` in their generator (since 2026-11-20): the
+  3.2.2 MPD breakthroughs, Liu (all but Figs. 4 and 5a), the Stadler activity tests and fresh bed, 3.3.8 (all but the
+  wave runs), 3.4.1 BEA dilute, 3.4.3, both 3.5 studies but `figures/`, the T15 convection-scheme check, the
+  phase-end and KLU runs of the free-pressure check, and the ROS34PW2 cross-check. Their readers detect the one-row
+  blocks from the data, so old full outputs still read. Cases that use profiles, inventories, interior temperatures,
+  or the z = 0 row keep the full output.
 
 ## Full rerun on a cluster node
 

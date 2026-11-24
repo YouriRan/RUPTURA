@@ -73,5 +73,6 @@
         "WashcoatThickness": 0.0
     },
     "BreakthroughIntegrator": "ROS34PW2",
-    "InletCondition": "Danckwerts"
+    "InletCondition": "Danckwerts",
+    "WriteOutletOnly": true
 }

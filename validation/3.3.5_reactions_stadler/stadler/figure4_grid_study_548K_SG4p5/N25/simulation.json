@@ -18,6 +18,7 @@
   "NumberOfGridPoints": 25,
   "SimulationTime": 3.0,
   "WriteInterval": 0.5,
+  "WriteOutletOnly": true,
   "Components": [
     {
       "Name": "N2",

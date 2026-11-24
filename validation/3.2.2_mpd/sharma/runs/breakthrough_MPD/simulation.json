@@ -36,6 +36,7 @@
     "Type": "PackedBed",
     "ColumnVoidFraction": 0.128
   },
+  "WriteOutletOnly": true,
   "MPDSettings": {
     "FileName": "../../mpd/particle_distribution_T300K.data",
     "ReferenceTemperature": 300.0,

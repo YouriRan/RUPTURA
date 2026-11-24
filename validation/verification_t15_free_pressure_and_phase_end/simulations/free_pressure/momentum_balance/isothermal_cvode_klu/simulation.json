@@ -141,5 +141,6 @@
             }
         }
     ],
-    "CVODELinearSolver": "KLU"
+    "CVODELinearSolver": "KLU",
+    "WriteOutletOnly": true
 }

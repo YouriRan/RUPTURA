@@ -161,6 +161,7 @@
     "ColumnVoidFraction": 0.4,
     "ParticleDiameter": 0.001
   },
+  "WriteOutletOnly": true,
   "InletCondition": "Dirichlet",
   "ROS34PW2RelativeTolerance": 0.01,
   "ROS34PW2AbsoluteToleranceConcentration": 0.0009999999999999998,
